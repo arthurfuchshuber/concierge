@@ -49,7 +49,7 @@ import { deriveHumanOwnership } from "@/lib/guest-ai/orchestrator/case-ownership
 import type { LlmProvider } from "@/lib/guest-ai/llm/providers/types";
 import type { LlmLogger } from "@/lib/guest-ai/llm/telemetry";
 import type { StayPhase, ValidatedTurn } from "@/lib/guest-ai/types";
-import { runOpsShadow, type OpsRunInput } from "@/lib/guest-ai/ops/executor.server";
+import { runOps, type OpsRunInput } from "@/lib/guest-ai/ops/executor.server";
 import {
   COPILOT_DEADLINE_MS,
   COPILOT_MAX_OUTPUT_TOKENS,
@@ -115,8 +115,8 @@ export interface CopilotGenerateDeps {
   env?: Record<string, string | undefined>;
   deadlineMs?: number;
   /**
-   * G2a · ações operacionais em modo de observação (padrão: `runOpsShadow`). Roda depois da gravação da
-   * sugestão, só com decisão validada; nunca altera card nem a sugestão, e falha nunca derruba a geração.
+   * G2 · ações operacionais (padrão: `runOps`, modo por `GUEST_AI_OPS_MODE`). Roda depois da gravação da
+   * sugestão, só com decisão validada; nunca altera a sugestão, e falha nunca derruba a geração.
    */
   ops?: (input: OpsRunInput) => Promise<unknown>;
 }
@@ -555,13 +555,13 @@ export async function generateCopilotSuggestion(
         error: g.error,
       },
     });
-    // G2a: sinais operacionais da MESMA decisão validada (observação; nada é escrito em card)
+    // G2: sinais operacionais da MESMA decisão validada (ação real em `live`, registro em `shadow`)
     if (
       (outcome.kind === "reply" || outcome.kind === "silence" || outcome.kind === "human_action") &&
       opsPhase
     ) {
       try {
-        await (deps.ops ?? ((i: OpsRunInput) => runOpsShadow(i, { env })))({
+        await (deps.ops ?? ((i: OpsRunInput) => runOps(i, { env })))({
           turn,
           decision: outcome.decision,
           history,

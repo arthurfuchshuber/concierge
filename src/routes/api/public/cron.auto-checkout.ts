@@ -1,11 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 /**
- * Cron: confirma automaticamente o checkout de um card assim que o horário
- * PREVISTO (definido pelo anfitrião, ou informado pelo hóspede) chega, no
- * fuso horário local do imóvel. Pedido explícito (06/09/2026). Ver
- * `runAutoCheckoutScan` em `src/lib/auto-checkout.server.ts` pra lógica
- * completa. Deve rodar a cada 5 minutos — protegido por `x-cron-secret`.
+ * Cron: confirma automaticamente o checkout de um card pendente no dia da
+ * saída, ao atingir o horário limite OFICIAL do imóvel (ou o late checkout
+ * formalmente autorizado pela equipe), no fuso local do imóvel. Horário
+ * previsto nunca dá baixa (diretriz de 06/11/2026). Ver `runAutoCheckoutScan`
+ * em `src/lib/auto-checkout.server.ts`. Deve rodar a cada 5 minutos —
+ * protegido por `x-cron-secret`.
  */
 export const Route = createFileRoute("/api/public/cron/auto-checkout")({
   server: {

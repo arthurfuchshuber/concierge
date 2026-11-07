@@ -3098,7 +3098,10 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
         label: side === "checkout" ? "Saída" : "Chegada",
         dateValue: date,
         timeValue: time,
-        byGuest: own?.arrivalTimeSource === "guest" && !!(date || time),
+        // `guest_ai` (G2c): previsão que o próprio hóspede deu no chat, gravada pela IA — também é do hóspede.
+        byGuest:
+          (own?.arrivalTimeSource === "guest" || own?.arrivalTimeSource === "guest_ai") &&
+          !!(date || time),
         confirmedDate: (side === "checkout" ? src.guestCheckout : src.guestCheckin) ?? null,
         // Chegada: nunca antes da reserva, até um dia antes da saída
         // confirmada. Saída: até a data de saída confirmada — sair antes é
@@ -10265,6 +10268,11 @@ function ArrivalCard({
     todayISO,
     predictionPrimary?.timeValue,
     predictionPrimary?.kind,
+    // depois da virada do dia, enquanto ainda é madrugada, a chegada continua "nesta madrugada" (G2c)
+    (() => {
+      const [h, m] = nowHHMMSaoPaulo().split(":").map(Number);
+      return Number.isFinite(h) && Number.isFinite(m) ? h * 60 + m : null;
+    })(),
   );
   /**
    * JANELA DA LIMPEZA (pedido explícito, 09/09/2026) — só na Fila de Limpeza.
@@ -11503,8 +11511,9 @@ function timeToMinutes(s: string): number {
  * avisa a equipe é este rótulo vermelho sob o horário previsto:
  *  · check-in ANTES do início permitido → "-3h" (previsto 12:00, permitido 15:00);
  *  · check-out DEPOIS do limite → "+1h" (previsto 12:00, limite 11:00).
- * Madrugada (00:00–05:59) no check-in é chegada TARDIA da noite, não antecipação
- * (mesma regra de `forecastAllowed`). Só vale no dia da reserva confirmada.
+ * Madrugada (00:00 até antes das 05:00, `isDawnTime` — mesma regra da IA desde
+ * 06/11/2026) no check-in é chegada TARDIA da noite, não antecipação. Só vale no
+ * dia da reserva confirmada.
  * Pura: devolve null quando não há diferença a destacar.
  */
 function forecastDiffLabel(
@@ -11517,7 +11526,7 @@ function forecastDiffLabel(
   const std = timeToMinutes(side.standardTime);
   let diff: number;
   if (side.kind === "checkin") {
-    if (v < 360) return null;
+    if (isDawnTime(side.timeValue)) return null;
     diff = std - v;
   } else {
     diff = v - std;

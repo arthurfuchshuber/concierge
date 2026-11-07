@@ -97,7 +97,7 @@ export interface ModelDecision {
   promisedTimes?: PromisedTime[];
   // ── G2 (decisão v5 = v4 + `guestEtas` + `milestoneQuote`). Aditivo: v1–v4 seguem válidas.
   //    Sinais OPERACIONAIS: o modelo só os DECLARA; quem decide se algo acontece é a política
-  //    determinística `guest-ai/ops/policy.ts` (e, na Etapa G2a, nada é escrito: só auditoria).
+  //    determinística `guest-ai/ops/policy.ts`; a escrita, quando o modo é `live`, é do executor.
   /** Previsões de chegada/saída que o HÓSPEDE informou nesta conversa (no máximo uma por card). */
   guestEtas?: GuestEta[];
   /** Trecho LITERAL da mensagem do hóspede que confirma o marco (`hospitalityMilestone`); `null` sem marco. */

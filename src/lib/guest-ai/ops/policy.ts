@@ -11,7 +11,10 @@
  *  - previsão de horário: só para a data do próprio card, dentro dos limites oficiais do imóvel (D-G2-5),
  *    nunca sobre previsão da equipe; MADRUGADA (item 1): chegada entre 00:00 e 05:00 pertence à noite da
  *    data de entrada (nunca "amanhã"); janela que atravessa a meia-noite (ex.: 15:00–02:00) é respeitada;
- *  - item 6: chamado aberto, atendente atribuído, equipe no comando, problema ou negociação ⇒ nada.
+ *  - item 6: chamado aberto, atendente atribuído, equipe no comando, problema ou negociação ⇒ nada;
+ *  - LATE CHECKOUT (G2c, item 3 da diretriz definitiva): concessão expressa de um atendente HUMANO no chat
+ *    (`ops/late-checkout.ts`) ⇒ registro no card de saída com autoria do atendente; pedido do hóspede nunca
+ *    é autorização. As travas do item 6 não se aplicam: a decisão é da própria equipe.
  *
  * Cada sinal do modelo vira UMA avaliação (`would_apply` ou `refused` com motivo fechado). Sem sinal,
  * nenhuma avaliação. Qualquer verificação que falhe ⇒ recusa. A política não escreve nada.
@@ -37,6 +40,7 @@ import {
   type LexicalKind,
 } from "./lexical";
 import { addDaysIso } from "../policy/wall-clock";
+import { detectStaffLateCheckout } from "./late-checkout";
 
 /** Entrada do histórico do turno (mesma origem do prompt; `ref` = id citável, `messageId` = id real). */
 export interface OpsHistoryEntry {
@@ -44,6 +48,8 @@ export interface OpsHistoryEntry {
   messageId: string;
   speaker: string;
   text: string;
+  /** Instante ISO da mensagem (usado pela janela do late checkout concedido pela equipe). */
+  at?: string;
 }
 
 export interface OpsPolicyInput {
@@ -231,7 +237,7 @@ function evaluateDone(input: OpsPolicyInput, kind: "checkin" | "checkout"): OpsE
   );
   let action = (kind === "checkin" ? "checkin_done" : "checkout_done") as OpsAction;
   let proposedDate: string | null = null;
-  // Saída antecipada: decidida pela data local antes das demais travas (o desfecho registrado diz qual ação seria).
+  // Saída antecipada: decidida pela data local antes das demais travas (o registro mostra a ação avaliada).
   const today = input.timezone ? localDate(input.now, input.timezone) : null;
   const r = input.reservation;
   if (kind === "checkout" && today && r?.checkoutDate && today < r.checkoutDate) {
@@ -305,11 +311,48 @@ function evaluateEta(input: OpsPolicyInput, eta: GuestEta): OpsEvaluation {
   return evaluation(action, null, ev.messageId, card, proposed);
 }
 
-/** Avalia todos os sinais operacionais da decisão (v5). Sem sinal ⇒ lista vazia. */
+/**
+ * Late checkout concedido pela equipe no chat. `null` = nada a avaliar (sem concessão candidata, ou o card já
+ * reflete essa concessão, ou a equipe ajustou o card depois da mensagem).
+ */
+function evaluateLateCheckout(input: OpsPolicyInput): OpsEvaluation | null {
+  const official = input.property?.checkoutTime ?? null;
+  const entries = input.history.map((e) => ({
+    messageId: e.messageId,
+    speaker: e.speaker,
+    text: e.text,
+    at: e.at ?? "",
+  }));
+  const cand = detectStaffLateCheckout(entries, { officialCheckout: official, now: input.now });
+  if (!cand) return null;
+  const card = input.cards ? input.cards.checkout : null;
+  if (cand.status === "granted" && card?.lateCheckoutTime === cand.time) return null;
+  const decidedAt = card?.lateCheckoutApprovedAt ? Date.parse(card.lateCheckoutApprovedAt) : NaN;
+  if (Number.isFinite(decidedAt) && decidedAt >= Date.parse(cand.at)) return null;
+  const r = input.reservation;
+  const proposed = { date: r?.checkoutDate ?? null, time: cand.time };
+  const fail = (code: OpsRefusalCode) =>
+    evaluation("late_checkout", code, cand.messageId, card, proposed);
+  if (cand.status === "refused") return fail(cand.code);
+  const res = reservationBlock(input);
+  if (res) return fail(res);
+  if (!input.cards) return fail("state_unavailable");
+  const today = localDate(input.now, input.timezone!);
+  if (!today || !r!.checkoutDate || today > r!.checkoutDate) return fail("not_checkout_window");
+  if (input.phase !== "pre_stay" && input.phase !== "in_stay" && input.phase !== "post_checkout")
+    return fail("not_checkout_window");
+  if (card && (card.status === "done" || card.status === "no_show" || card.doneAt))
+    return fail("card_done");
+  return evaluation("late_checkout", null, cand.messageId, card, proposed);
+}
+
+/** Avalia os sinais operacionais da decisão (v5) e a concessão de late checkout da equipe. */
 export function evaluateOpsSignals(input: OpsPolicyInput): OpsEvaluation[] {
   const out: OpsEvaluation[] = [];
   const m = input.decision.hospitalityMilestone;
   if (m) out.push(evaluateDone(input, m.kind === "checkin_confirmed" ? "checkin" : "checkout"));
   for (const eta of input.decision.guestEtas ?? []) out.push(evaluateEta(input, eta));
+  const late = evaluateLateCheckout(input);
+  if (late) out.push(late);
   return out;
 }

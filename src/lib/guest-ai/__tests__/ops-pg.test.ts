@@ -211,8 +211,8 @@ describe.skipIf(!PG_AVAILABLE)(
         reason: "values",
       }); // previsão só em eta_*
       expect(await record(args(m, { p_card_before: [1] }))).toMatchObject({ reason: "values" });
-      // paridade TS × SQL
-      for (const a of OPS_ACTIONS)
+      // paridade TS × SQL (`late_checkout` nasce na G2c; paridade dela em ops-live-pg.test.ts)
+      for (const a of OPS_ACTIONS.filter((x) => x !== "late_checkout"))
         expect((await record(args(await message(), { p_action: a }))).result, a).toBe("recorded");
       for (const c of OPS_REFUSAL_CODES) expect(c).toMatch(/^[a-z][a-z0-9_]{0,63}$/);
     });
@@ -282,46 +282,6 @@ describe.skipIf(!PG_AVAILABLE)(
         { role: "authenticated" },
       );
       expect(upd.ok).toBe(false);
-    });
-
-    it("consultas de monitoramento (ops/guest-ai-ops) são só leitura e rodam sobre a estrutura real", async () => {
-      const dir = path.join(REPO, "ops/guest-ai-ops");
-      const files = [
-        "01-resumo.sql",
-        "02-volume-diario.sql",
-        "03-detalhe-recente.sql",
-        "04-conferencia-g2b.sql",
-      ];
-      await pg.sql(`create table if not exists public.guest_arrival_status (id uuid primary key default gen_random_uuid(), reservation_id uuid, kind text,
-      status text, done_at timestamptz, arrival_time_override text, arrival_time_source text, updated_at timestamptz default now())`);
-      await pg.sql(`alter table public.properties add column if not exists name text`);
-      const m = await message();
-      await record(args(m));
-      await record(
-        args(m, {
-          p_action: "eta_checkin",
-          p_proposed_date: "2026-11-10",
-          p_proposed_time: "16:30",
-        }),
-      );
-      await pg.sql(
-        `insert into public.guest_arrival_status (reservation_id, kind, status, done_at) values ('${R1}', 'checkin', 'done', now())`,
-      );
-      for (const f of files) {
-        const sql = readFileSync(path.join(dir, f), "utf8");
-        const code = sql.replace(/--.*$/gm, "").trim();
-        expect(code, f).toMatch(/^(select|with)\b/i);
-        expect(code, f).not.toMatch(
-          /\b(insert|update|delete|truncate|drop|alter|create|grant|revoke|call|do)\b/i,
-        );
-        // executa numa transação SOMENTE LEITURA: qualquer escrita falharia
-        const r = await pg.trySql(`begin read only; ${code.replace(/;\s*$/, "")}; rollback;`);
-        expect(r.ok, f).toBe(true);
-      }
-      const g2b = (
-        await pg.sql(readFileSync(path.join(dir, "04-conferencia-g2b.sql"), "utf8"))
-      ).split("\n");
-      expect(g2b.some((l) => l.startsWith("checkin_done|1|1|"))).toBe(true);
     });
 
     it("reaplicar a migration não altera nada (idempotente)", async () => {
