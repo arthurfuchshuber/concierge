@@ -95,7 +95,7 @@ import { sendCopilotSuggestionCore } from "@/lib/copilot-send.server";
 import { generateCopilotSuggestion } from "@/lib/guest-ai/copilot/generate.server";
 import type { CopilotStore, CopilotResultInput } from "@/lib/guest-ai/copilot/store.server";
 import type { GuestSurface } from "@/lib/guest-ai/types";
-import { ctx, history, turn, v4 } from "../guest-ai/__tests__/helpers/b23-chain";
+import { ctx, history, turn, v5 } from "../guest-ai/__tests__/helpers/b23-chain";
 import { fakeProvider, okJson } from "../guest-ai/__tests__/helpers/copilot-provider";
 
 const USER = "5e551000-0000-4000-8000-000000000001"; // atendente da SESSÃO (único autor aceito)
@@ -233,7 +233,7 @@ describe.each(CHANNELS)("Copiloto · canal $label", ({ surface, session, channel
 
   it("recebimento → contexto D9 → geração pelo Gateway (transporte falso) → sugestão disponível do canal", async () => {
     const store = new MemStore();
-    const p = fakeProvider(okJson(v4()));
+    const p = fakeProvider(okJson(v5()));
     const r = await generateCopilotSuggestion(
       { surface, conversationId: CONV, messageId: "m1", expectedOwnerId: "t1" },
       {
@@ -478,7 +478,7 @@ describe.each(CHANNELS)(
 
     it("INICIAL (UI on, geração off, envio off): nenhuma geração nem envio por nenhum caminho", async () => {
       const store = new MemStore();
-      const p = fakeProvider(okJson(v4()));
+      const p = fakeProvider(okJson(v5()));
       const validate = vi.fn(async () => turn({ surface, guestSessionId: session }));
       const r = await generateCopilotSuggestion(
         { surface, conversationId: CONV, messageId: "m1" },
@@ -507,7 +507,7 @@ describe.each(CHANNELS)(
 
     it("FASE A (UI on, geração on, envio off): gera pelo Gateway com contexto D9, grava associada ao turno; envio bloqueado no backend", async () => {
       const store = new MemStore();
-      const p = fakeProvider(okJson(v4()));
+      const p = fakeProvider(okJson(v5()));
       const r = await generateCopilotSuggestion(
         { surface, conversationId: CONV, messageId: "m1" },
         genDeps(CONFIG_FASE_A, store, p) as never,

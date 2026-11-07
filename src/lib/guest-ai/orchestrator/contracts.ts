@@ -95,6 +95,31 @@ export interface ModelDecision {
    * O sistema compara com a autorização formal (R6) e recusa qualquer divergência.
    */
   promisedTimes?: PromisedTime[];
+  // ── G2 (decisão v5 = v4 + `guestEtas` + `milestoneQuote`). Aditivo: v1–v4 seguem válidas.
+  //    Sinais OPERACIONAIS: o modelo só os DECLARA; quem decide se algo acontece é a política
+  //    determinística `guest-ai/ops/policy.ts` (e, na Etapa G2a, nada é escrito: só auditoria).
+  /** Previsões de chegada/saída que o HÓSPEDE informou nesta conversa (no máximo uma por card). */
+  guestEtas?: GuestEta[];
+  /** Trecho LITERAL da mensagem do hóspede que confirma o marco (`hospitalityMilestone`); `null` sem marco. */
+  milestoneQuote?: string | null;
+}
+
+// ─────────────────────────── G2 — previsão informada pelo hóspede (decisão v5) ───────────────────────────
+
+export const GUEST_ETA_CARDS = ["checkin", "checkout"] as const;
+export type GuestEtaCard = (typeof GUEST_ETA_CARDS)[number];
+
+export interface GuestEta {
+  /** Card a que a previsão se refere: chegada (`checkin`) ou saída (`checkout`). */
+  card: GuestEtaCard;
+  /** YYYY-MM-DD no fuso do imóvel (o dia a que o horário se refere). */
+  date: string;
+  /** HH:MM (24 h), horário previsto informado pelo hóspede. */
+  time: string;
+  /** Ids das mensagens do hóspede que trazem a previsão. */
+  evidence: string[];
+  /** Trecho LITERAL da mensagem do hóspede com a previsão. */
+  quote: string;
 }
 
 // ─────────────────────────── B2.5 — horário prometido (decisão v4) ───────────────────────────
@@ -169,17 +194,17 @@ export interface DecisionSignals {
 }
 
 /** Versões do contrato da decisão aceitas pelo parser (compatibilidade preservada). */
-export const DECISION_CONTRACT_VERSIONS = [1, 2, 3, 4] as const;
+export const DECISION_CONTRACT_VERSIONS = [1, 2, 3, 4, 5] as const;
 export type DecisionContractVersion = (typeof DECISION_CONTRACT_VERSIONS)[number];
-/** Versão que o prompt atual (B2.5) pede ao modelo e que a cadeia fail-closed exige. */
-export const CURRENT_DECISION_VERSION: DecisionContractVersion = 4;
+/** Versão que o prompt atual (G2) pede ao modelo e que a cadeia fail-closed exige. */
+export const CURRENT_DECISION_VERSION: DecisionContractVersion = 5;
 
 export function decisionSignals(d: ModelDecision): DecisionSignals {
   if (d.shouldReply === undefined) {
     return { version: 1, shouldReply: true, intents: ["other"], formalChangeRequests: [], hospitalityMilestone: null, speakerName: null };
   }
   return {
-    version: d.promisedTimes !== undefined ? 4 : d.commitmentKinds === undefined ? 2 : 3,
+    version: d.guestEtas !== undefined ? 5 : d.promisedTimes !== undefined ? 4 : d.commitmentKinds === undefined ? 2 : 3,
     shouldReply: d.shouldReply,
     intents: [...(d.intents ?? [])],
     formalChangeRequests: [...(d.formalChangeRequests ?? [])],

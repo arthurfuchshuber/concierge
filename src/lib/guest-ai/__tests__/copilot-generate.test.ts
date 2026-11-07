@@ -43,7 +43,7 @@ import type { ProviderOutcome, ProviderRequest } from "@/lib/guest-ai/llm/provid
 import { llmMessageText } from "@/lib/guest-ai/llm/contracts";
 import { GUEST_AI_DEFAULT_MODEL } from "@/lib/guest-ai/orchestrator/contracts";
 import type { OwnershipLoad } from "@/lib/guest-ai/data/conversation-ownership.server";
-import { CONV, ctx, history, turn, v4, silence } from "./helpers/b23-chain";
+import { CONV, ctx, history, turn, v5, silence } from "./helpers/b23-chain";
 import { fakeProvider, okJson } from "./helpers/copilot-provider";
 
 const ON = { GUEST_AI_COPILOT_GENERATION: "on", GUEST_AI_COPILOT_GENERATION_PROPERTY_IDS: "p1" };
@@ -168,9 +168,44 @@ function deps(
   } as CopilotGenerateDeps & { store: MemoryCopilotStore };
 }
 
+describe("G2a · sinais operacionais na mesma geração (observação)", () => {
+  it("decisão validada chega ao executor (inclusive em silêncio); falha do executor não altera a sugestão", async () => {
+    const calls: Array<{ decision: unknown; suggestionId: unknown; phase: unknown }> = [];
+    const okOps = async (i: { decision: unknown; suggestionId: unknown; phase: unknown }) => {
+      calls.push({ decision: i.decision, suggestionId: i.suggestionId, phase: i.phase });
+    };
+    const p1 = fakeProvider(okJson(v5()));
+    const r1 = await generateCopilotSuggestion(REQ, deps(p1, { ops: okOps as never }));
+    expect(r1.status).toBe("stored");
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.decision).toMatchObject({ guestEtas: [], milestoneQuote: null });
+    expect(calls[0]!.suggestionId).toBeTruthy();
+
+    const p2 = fakeProvider(okJson(silence()));
+    await generateCopilotSuggestion(REQ, deps(p2, { ops: okOps as never }));
+    expect(calls).toHaveLength(2);
+
+    const err = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const p3 = fakeProvider(okJson(v5()));
+    const r3 = await generateCopilotSuggestion(
+      REQ,
+      deps(p3, { ops: (async () => Promise.reject(new Error("x"))) as never }),
+    );
+    expect(r3.status).toBe("stored");
+    err.mockRestore();
+  });
+
+  it("sem decisão validada (saída inválida) ⇒ o executor não é chamado", async () => {
+    const ops = vi.fn(async () => undefined);
+    const p = fakeProvider(okJson({ nada: true }));
+    await generateCopilotSuggestion(REQ, deps(p, { ops: ops as never }));
+    expect(ops).not.toHaveBeenCalled();
+  });
+});
+
 describe("Copiloto · geração com a cadeia real e o Gateway real (transporte falso)", () => {
   it("resposta válida ⇒ sugestão DISPONÍVEL com texto, intenção, contexto e custo; uma única chamada ao provedor", async () => {
-    const p = fakeProvider(okJson(v4()));
+    const p = fakeProvider(okJson(v5()));
     const d = deps(p);
     const r = await generateCopilotSuggestion(REQ, d);
     expect(r).toEqual({ status: "stored", suggestionId: "s-1", state: "available", code: null });
@@ -200,7 +235,7 @@ describe("Copiloto · geração com a cadeia real e o Gateway real (transporte f
   });
 
   it("chave mestra desligada ⇒ nada é lido, reivindicado ou chamado", async () => {
-    const p = fakeProvider(okJson(v4()));
+    const p = fakeProvider(okJson(v5()));
     const d = deps(p, { env: {} });
     expect(await generateCopilotSuggestion(REQ, d)).toEqual({
       status: "skipped",
@@ -212,7 +247,7 @@ describe("Copiloto · geração com a cadeia real e o Gateway real (transporte f
   });
 
   it("idempotência: a mesma mensagem pedida duas vezes (canal + tela) e em paralelo ⇒ UMA geração", async () => {
-    const p = fakeProvider(okJson(v4()));
+    const p = fakeProvider(okJson(v5()));
     const store = new MemoryCopilotStore();
     const [a, b, c] = await Promise.all([
       generateCopilotSuggestion(REQ, deps(p, { store })),
@@ -229,7 +264,7 @@ describe("Copiloto · geração com a cadeia real e o Gateway real (transporte f
 
   it("escopo de imóveis: sem lista (ausente, vazia ou *) ⇒ TODOS os imóveis geram; lista ⇒ só os listados", async () => {
     for (const list of [undefined, "", " ", "*", " * ", " , "]) {
-      const p = fakeProvider(okJson(v4()));
+      const p = fakeProvider(okJson(v5()));
       const env: Record<string, string> = { GUEST_AI_COPILOT_GENERATION: "on" };
       if (list !== undefined) env.GUEST_AI_COPILOT_GENERATION_PROPERTY_IDS = list;
       const d = deps(p, { env });
@@ -237,7 +272,7 @@ describe("Copiloto · geração com a cadeia real e o Gateway real (transporte f
       expect(d.store.claims[0]).toMatchObject({ propertyId: "p1" });
     }
     for (const list of ["p2", "p2,p3", "P1"]) {
-      const p = fakeProvider(okJson(v4()));
+      const p = fakeProvider(okJson(v5()));
       const d = deps(p, {
         env: { GUEST_AI_COPILOT_GENERATION: "on", GUEST_AI_COPILOT_GENERATION_PROPERTY_IDS: list },
       });
@@ -250,7 +285,7 @@ describe("Copiloto · geração com a cadeia real e o Gateway real (transporte f
       expect(p.calls).toBe(0);
     }
     // o id vem do turno re-derivado do banco, não do pedido
-    const p = fakeProvider(okJson(v4()));
+    const p = fakeProvider(okJson(v5()));
     const d = deps(p, {
       env: {
         GUEST_AI_COPILOT_GENERATION: "on",
@@ -277,7 +312,7 @@ describe("Copiloto · geração com a cadeia real e o Gateway real (transporte f
     expect(copilotDailyLimitUsd({ GUEST_AI_COPILOT_DAILY_COST_USD: "300" })).toBe(50);
     // sem variável: o teto de US$ 3,00 vai ao banco e bloqueia o gasto alto (nenhuma chamada ao modelo)
     {
-      const p = fakeProvider(okJson(v4()));
+      const p = fakeProvider(okJson(v5()));
       const store = new MemoryCopilotStore();
       store.spentUsd = 50;
       const d = deps(p, { store, env: { GUEST_AI_COPILOT_GENERATION: "on" } });
@@ -287,7 +322,7 @@ describe("Copiloto · geração com a cadeia real e o Gateway real (transporte f
     }
     // sem variável e abaixo do teto padrão ⇒ gera normalmente
     {
-      const p = fakeProvider(okJson(v4()));
+      const p = fakeProvider(okJson(v5()));
       const store = new MemoryCopilotStore();
       store.spentUsd = 1;
       const d = deps(p, { store, env: { GUEST_AI_COPILOT_GENERATION: "on" } });
@@ -296,7 +331,7 @@ describe("Copiloto · geração com a cadeia real e o Gateway real (transporte f
     }
     // com teto configurado: atingido ⇒ nenhuma chamada
     {
-      const p = fakeProvider(okJson(v4()));
+      const p = fakeProvider(okJson(v5()));
       const store = new MemoryCopilotStore();
       store.spentUsd = 0.9;
       const d = deps(p, {
@@ -309,7 +344,7 @@ describe("Copiloto · geração com a cadeia real e o Gateway real (transporte f
   });
 
   it("escopo recusado no backend (mensagem de outra conversa, outro tenant) ⇒ nada é reivindicado", async () => {
-    const p = fakeProvider(okJson(v4()));
+    const p = fakeProvider(okJson(v5()));
     const d = deps(p, {
       validateTurnScope: async () => {
         throw new GuestAiScopeError("tenant_mismatch");
@@ -325,7 +360,7 @@ describe("Copiloto · geração com a cadeia real e o Gateway real (transporte f
   });
 
   it("mensagem mais nova do hóspede chegou durante a geração ⇒ a sugestão antiga NÃO chama o Gateway", async () => {
-    const p = fakeProvider(okJson(v4()));
+    const p = fakeProvider(okJson(v5()));
     const store = new MemoryCopilotStore();
     store.stateOverride = "superseded";
     const r = await generateCopilotSuggestion(REQ, deps(p, { store }));
@@ -411,7 +446,7 @@ describe("Copiloto · geração com a cadeia real e o Gateway real (transporte f
   }, 20_000);
 
   it("D9 · promessa de ENTRADA ANTECIPADA sem autorização formal ⇒ recusada (nunca vira sugestão)", async () => {
-    const early = v4({
+    const early = v5({
       reply: "Pode entrar às 10h.",
       commitments: ["entrada às 10h"],
       commitmentKinds: ["early_checkin"],
@@ -427,7 +462,7 @@ describe("Copiloto · geração com a cadeia real e o Gateway real (transporte f
   });
 
   it("D9 · credencial no contexto ⇒ a cadeia recusa ANTES do Gateway (o modelo nunca recebe senha)", async () => {
-    const p = fakeProvider(okJson(v4()));
+    const p = fakeProvider(okJson(v5()));
     const leaky = ctx({ credentials: { lockCode: SECRET_CANARY } } as never);
     const d = deps(p, { ports: ports({ loadContext: async () => leaky }) });
     await generateCopilotSuggestion(REQ, d);
@@ -441,7 +476,7 @@ describe("Copiloto · geração com a cadeia real e o Gateway real (transporte f
 
   it("D9 · o prompt enviado ao provedor tem a decisão D9 e nenhuma credencial", async () => {
     let seen = "";
-    const p = fakeProvider(okJson(v4()));
+    const p = fakeProvider(okJson(v5()));
     const orig = p.complete.bind(p);
     p.complete = async (req: ProviderRequest, s?: AbortSignal) => {
       seen = req.messages.map((m) => llmMessageText(m.content)).join("\n");
@@ -459,7 +494,7 @@ describe("Copiloto · geração com a cadeia real e o Gateway real (transporte f
       "Veja [[ tag:checkin ]] aqui",
       "Wi-Fi: [[INFO:wifi]]",
     ]) {
-      const d = deps(fakeProvider(okJson(v4({ reply }))));
+      const d = deps(fakeProvider(okJson(v5({ reply }))));
       await generateCopilotSuggestion(REQ, d);
       const res = d.store.only().result!;
       expect(res.text).toBeNull();
@@ -514,7 +549,7 @@ describe("Copiloto · geração com a cadeia real e o Gateway real (transporte f
   });
 
   it("equipe no comando (IA pausada) ⇒ a sugestão AINDA é gerada para a equipe, com aviso — o veto é do envio autônomo", async () => {
-    const d = deps(fakeProvider(okJson(v4())), {
+    const d = deps(fakeProvider(okJson(v5())), {
       loadOwnership: async () =>
         ownershipRow({ status: "assigned", assigned_to: "u1", ai_paused: true }),
     });
@@ -536,7 +571,7 @@ describe("Copiloto · geração com a cadeia real e o Gateway real (transporte f
   });
 
   it("falha inesperada em uma porta ⇒ técnica e fail-closed (sem texto; a linha não fica 'gerando')", async () => {
-    const d = deps(fakeProvider(okJson(v4())), {
+    const d = deps(fakeProvider(okJson(v5())), {
       ports: ports({
         loadHistory: async () => {
           throw new Error("boom com dado do hóspede");
@@ -558,7 +593,7 @@ describe("Copiloto · gerador (limites próprios sobre o Gateway)", () => {
     promptVersion: "x",
   };
   it("custo por turno acima do teto ⇒ bloqueia antes da rede", async () => {
-    const p = fakeProvider(okJson(v4()));
+    const p = fakeProvider(okJson(v5()));
     const g = createCopilotGenerator({
       modelId: GUEST_AI_DEFAULT_MODEL,
       maxOutputTokens: 1536,
@@ -576,7 +611,7 @@ describe("Copiloto · gerador (limites próprios sobre o Gateway)", () => {
     expect(p.calls).toBe(0);
   });
   it("uma chamada por geração; prazo esgotado e modelo fora do registro bloqueiam antes da rede", async () => {
-    const p = fakeProvider(okJson(v4()));
+    const p = fakeProvider(okJson(v5()));
     const mk = (over: Record<string, unknown> = {}) =>
       createCopilotGenerator({
         modelId: GUEST_AI_DEFAULT_MODEL,
@@ -833,7 +868,7 @@ describe("Copiloto · visão (fotos do hóspede na cadeia real)", () => {
   };
   const capture = () => {
     const seen: ProviderRequest[] = [];
-    const p = fakeProvider(okJson(v4()));
+    const p = fakeProvider(okJson(v5()));
     const orig = p.complete.bind(p);
     p.complete = async (req: ProviderRequest, s?: AbortSignal) => {
       seen.push(req);
@@ -922,7 +957,7 @@ describe("Copiloto · visão (fotos do hóspede na cadeia real)", () => {
 describe("Copiloto · memória do hóspede recorrente na cadeia real", () => {
   const capture = () => {
     const seen: ProviderRequest[] = [];
-    const p = fakeProvider(okJson(v4()));
+    const p = fakeProvider(okJson(v5()));
     const orig = p.complete.bind(p);
     p.complete = async (req: ProviderRequest, s?: AbortSignal) => {
       seen.push(req);

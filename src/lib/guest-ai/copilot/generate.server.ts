@@ -48,7 +48,8 @@ import {
 import { deriveHumanOwnership } from "@/lib/guest-ai/orchestrator/case-ownership";
 import type { LlmProvider } from "@/lib/guest-ai/llm/providers/types";
 import type { LlmLogger } from "@/lib/guest-ai/llm/telemetry";
-import type { ValidatedTurn } from "@/lib/guest-ai/types";
+import type { StayPhase, ValidatedTurn } from "@/lib/guest-ai/types";
+import { runOpsShadow, type OpsRunInput } from "@/lib/guest-ai/ops/executor.server";
 import {
   COPILOT_DEADLINE_MS,
   COPILOT_MAX_OUTPUT_TOKENS,
@@ -113,6 +114,11 @@ export interface CopilotGenerateDeps {
   schedule?: (fn: () => void, ms: number) => () => void;
   env?: Record<string, string | undefined>;
   deadlineMs?: number;
+  /**
+   * G2a · ações operacionais em modo de observação (padrão: `runOpsShadow`). Roda depois da gravação da
+   * sugestão, só com decisão validada; nunca altera card nem a sugestão, e falha nunca derruba a geração.
+   */
+  ops?: (input: OpsRunInput) => Promise<unknown>;
 }
 
 export type CopilotGenerateResult =
@@ -423,6 +429,8 @@ export async function generateCopilotSuggestion(
     let historyMessages: number | null = null;
     let reservationLinked: boolean | null = null;
     let stayPhase: string | null = null;
+    let opsPhase: StayPhase | null = null;
+    let opsTimezone: string | null = null;
     const meta = {
       onDossierEntries: (n: number) => (dossierEntries = n),
       onHistoryMessages: (n: number) => (historyMessages = n),
@@ -480,6 +488,8 @@ export async function generateCopilotSuggestion(
         const ctx = await ports.loadContext(t, sg);
         reservationLinked = !!ctx.guest.stay;
         stayPhase = ctx.guest.phase;
+        opsPhase = ctx.guest.phase;
+        opsTimezone = ctx.guest.stay?.timezone ?? ctx.guest.property.timezone ?? null;
         return ctx;
       },
       loadHistory: async (t, sg) => {
@@ -545,6 +555,24 @@ export async function generateCopilotSuggestion(
         error: g.error,
       },
     });
+    // G2a: sinais operacionais da MESMA decisão validada (observação; nada é escrito em card)
+    if (
+      (outcome.kind === "reply" || outcome.kind === "silence" || outcome.kind === "human_action") &&
+      opsPhase
+    ) {
+      try {
+        await (deps.ops ?? ((i: OpsRunInput) => runOpsShadow(i, { env })))({
+          turn,
+          decision: outcome.decision,
+          history,
+          phase: opsPhase,
+          timezone: opsTimezone,
+          suggestionId: claimed.suggestionId,
+        });
+      } catch {
+        console.error("[copilot] ações operacionais (observação) falharam");
+      }
+    }
     if (stored.kind === "stored")
       return {
         status: "stored",
