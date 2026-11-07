@@ -3,7 +3,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 const renderToStaticMarkup = (el: ReactElement) =>
   rawRender(<QueryClientProvider client={new QueryClient()}>{el}</QueryClientProvider>);
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 
 // Permissão de editar controlada pelo teste (08/10/2026): a janela só mostra
 // botão de edição quando o backend confirma a permissão.
@@ -188,13 +189,15 @@ describe("CleaningDayDetailContent — tabela do dia", () => {
     const botoes = html.match(/<button[\s\S]*?<\/button>/g) ?? [];
     expect(botoes.some((b) => text(b).trim() === "Normal")).toBe(true);
     expect(botoes.some((b) => /R\$\s120,00/.test(text(b)))).toBe(true);
-    // Moldura de botão editável (fundo, borda e cantos) em tipo e valor, sem lápis.
+    // Moldura de botão editável padrão (justa, sem lápis) em tipo e valor.
     const editaveis = botoes.filter((b) => /Mudar para|Alterar valor/.test(b));
     expect(editaveis).toHaveLength(2);
     for (const b of editaveis) {
-      for (const c of ["border", "rounded-[0.3rem]", "bg-card"]) expect(b).toContain(c);
+      for (const c of ["border", "rounded-[0.3rem]", "bg-card", "shrink-0", "justify-center", "px-1.5", "h-[20px]"])
+        expect(b).toContain(c);
       expect(b).not.toContain("lucide-pencil");
     }
+    expect(html).not.toContain("lucide-pencil");
     acesso.liberado = false;
   });
 
@@ -292,5 +295,82 @@ describe("CleaningDayDetailContent — tabela do dia", () => {
       prestador.nome = null;
       expect(render("Anfitrião Sigma")).toContain("17/09/2026 · 14:20 · Anfitrião Sigma ?");
     });
+  });
+});
+
+describe("valor inline com auto-save (sem Cancelar/OK)", () => {
+  const abrir = () => {
+    acesso.liberado = true;
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <CleaningDayDetailContent
+          date="2026-09-17"
+          source={{ mode: "done", items: [items[1]] }}
+          caretX={null}
+          onClose={() => {}}
+        />
+      </QueryClientProvider>,
+    );
+    fireEvent.click(screen.getByTitle("Alterar valor"));
+    return screen.getByLabelText("Valor de Studio B") as HTMLInputElement;
+  };
+  afterEach(() => {
+    cleanup();
+    acesso.liberado = false;
+  });
+
+  it("vira um campo na mesma posição, com foco e sem botões Cancelar/OK", () => {
+    const input = abrir();
+    expect(document.activeElement).toBe(input);
+    expect(input.value).toBe("120,00");
+    expect(input.className).toContain("w-[72px]");
+    expect(input.className).toContain("h-[20px]");
+    expect(input.className).toContain("ring-1");
+    expect(screen.queryByRole("button", { name: "Cancelar" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "OK" })).toBeNull();
+  });
+
+  it("Enter com valor alterado abre o Confirmar Alteração? (De → Para)", () => {
+    const input = abrir();
+    fireEvent.change(input, { target: { value: "150,00" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(screen.getByText("Confirmar Alteração?")).toBeTruthy();
+    const dlg = within(screen.getByRole("alertdialog"));
+    expect(dlg.getByText(/R\$\s120,00/).className).toContain("line-through");
+    expect(dlg.getByText(/R\$\s150,00/)).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Confirmar" })).toBeTruthy();
+  });
+
+  it("sair do campo com valor alterado também abre a confirmação", () => {
+    const input = abrir();
+    fireEvent.change(input, { target: { value: "99,90" } });
+    fireEvent.blur(input);
+    expect(screen.getByText("Confirmar Alteração?")).toBeTruthy();
+  });
+
+  it("valor igual: sair do campo descarta, sem diálogo", () => {
+    const input = abrir();
+    fireEvent.blur(input);
+    expect(screen.queryByText("Confirmar Alteração?")).toBeNull();
+    expect(screen.queryByLabelText("Valor de Studio B")).toBeNull();
+    expect(screen.getByTitle("Alterar valor")).toBeTruthy();
+  });
+
+  it("Escape descarta mesmo com valor alterado, sem diálogo", () => {
+    const input = abrir();
+    fireEvent.change(input, { target: { value: "150,00" } });
+    fireEvent.keyDown(input, { key: "Escape" });
+    fireEvent.blur(input);
+    expect(screen.queryByText("Confirmar Alteração?")).toBeNull();
+    expect(screen.queryByLabelText("Valor de Studio B")).toBeNull();
+  });
+
+  it("cancelar a confirmação descarta a edição", () => {
+    const input = abrir();
+    fireEvent.change(input, { target: { value: "150,00" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
+    expect(screen.queryByText("Confirmar Alteração?")).toBeNull();
+    expect(screen.queryByLabelText("Valor de Studio B")).toBeNull();
   });
 });

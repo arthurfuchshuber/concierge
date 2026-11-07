@@ -1,10 +1,11 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Check, RotateCcw, Search, Pencil } from "lucide-react";
+import { Check, RotateCcw, Search } from "lucide-react";
 import { toast } from "sonner";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { getCleaningProviderBoard, setCleaningAssignment } from "@/lib/cleaning-assign.functions";
+import { EDIT_BTN } from "@/components/dashboard/edit-frame";
 import { useImpersonation } from "@/hooks/useImpersonation";
 
 function initials(name: string) {
@@ -51,7 +52,7 @@ function Face({
     <span
       title={name ?? undefined}
       className={`inline-flex shrink-0 items-center justify-center ${look === "default" ? "rounded-[7px]" : "rounded-[0.3rem]"} ${box}`}
-      style={{ minWidth: size, height: size, paddingInline: name ? 5 : 0 }}
+      style={look === "plain" ? { height: size } : { minWidth: size, height: size, paddingInline: name ? 5 : 0 }}
     >
       {/* Pedido explícito (09/10/2026): SEMPRE as letras do prestador, nunca a
           vassoura. Sem prestador definido ainda, um "?" no mesmo traço. */}
@@ -105,25 +106,17 @@ export function CleaningProviderAvatar({
   propertyId,
   logId,
   reservationId,
-  showName,
-  nameOnly,
   rowStyle,
   look,
 }: {
   propertyId: string;
   logId: string;
   reservationId: string | null;
-  /** Mostra o nome ao lado da bolinha (janela de detalhes). */
-  showName?: boolean;
   /**
-   * Só o NOME do prestador, clicável para trocar, com o lápis à direita — sem
-   * quadrado de iniciais (pedido explícito, 16/10/2026, mockup "Limpeza"
-   * aprovado: "tirar o ícone do prestador e manter somente o nome, clicável
-   * para editar, exatamente como o valor da limpeza"). Usado na janela de
-   * detalhes da limpeza.
+   * Linha "Prestador" do cartão do Kanban (CleaningInlineEditor): o NOME do
+   * prestador dentro da moldura editável padrão (07/11/2026), justa ao texto e
+   * com reticências quando não couber.
    */
-  nameOnly?: boolean;
-  /** Linha do cartão do Histórico da Reserva (mockup 31/10/2026): quadrado "EV" de 22 px + nome em 12 px semibold. */
   rowStyle?: boolean;
   /**
    * Só a janela "Limpezas Realizadas" passa isto (08/10/2026):
@@ -179,20 +172,15 @@ export function CleaningProviderAvatar({
           title={current ? `Responsável: ${current.name}` : "Atribuir prestador"}
           className={
             look === "raised"
-              ? "ds-3d ds-3d-hover inline-flex h-[20px] shrink-0 items-center gap-1 rounded-[0.3rem] border border-border/70 bg-card px-1.5 shadow-sm transition"
+              ? EDIT_BTN
               : rowStyle
-              ? "flex min-w-0 items-center gap-[7px] text-left transition-opacity hover:opacity-80"
-              : nameOnly
-              ? "flex min-w-0 items-center gap-1.5 text-left transition-opacity hover:opacity-80"
-              : showName
-                ? "inline-flex min-w-0 items-center gap-2 rounded-[0.3rem] py-0.5 pl-0.5 pr-2 transition hover:bg-secondary/60"
+                ? `${EDIT_BTN} min-w-0 max-w-full`
                 : "relative shrink-0 rounded-[0.3rem] transition hover:opacity-85"
           }
         >
           {rowStyle ? (
             <>
-              <Face name={current?.name ?? null} url={current?.avatarUrl ?? null} size={22} look="default" />
-              <span className="min-w-0 truncate text-xs font-semibold text-[#f4efea]">{current ? current.name : "Atribuir prestador"}</span>
+              <span className="min-w-0 truncate">{current ? current.name : "Atribuir prestador"}</span>
             </>
           ) : look === "raised" ? (
             <>
@@ -200,25 +188,13 @@ export function CleaningProviderAvatar({
                   editável como tipo e valor — só a moldura de botão, sem lápis. */}
               <Face name={current?.name ?? null} url={current?.avatarUrl ?? null} size={14} look="plain" />
             </>
-          ) : nameOnly ? (
-            <>
-              <span className="min-w-0 truncate text-[13px] font-bold">{current ? current.name : "Atribuir prestador"}</span>
-              <Pencil className="size-[13px] shrink-0 text-foreground" />
-            </>
           ) : (
-          <>
-          <span className="relative shrink-0">
-          <Face name={current?.name ?? null} url={current?.avatarUrl ?? null} size={showName ? 26 : 28} look="default" />
-          {assignedId && (
-            <span className="absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full border-2 border-card bg-primary" />
-          )}
-          </span>
-          {showName && (
-            <span className="min-w-0 break-words text-[12.5px] font-semibold">
-              {current ? current.name : "Atribuir prestador"}
+            <span className="relative shrink-0">
+              <Face name={current?.name ?? null} url={current?.avatarUrl ?? null} size={28} look="default" />
+              {assignedId && (
+                <span className="absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full border-2 border-card bg-primary" />
+              )}
             </span>
-          )}
-          </>
           )}
         </button>
       </PopoverTrigger>
