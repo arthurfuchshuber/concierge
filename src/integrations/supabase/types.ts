@@ -2277,6 +2277,69 @@ export type Database = {
         }
         Relationships: []
       }
+      billing_sync_queue: {
+        Row: {
+          attempts: number
+          last_error: string | null
+          locked_until: string | null
+          next_attempt_at: string
+          owner_id: string
+          requested_at: string
+        }
+        Insert: {
+          attempts?: number
+          last_error?: string | null
+          locked_until?: string | null
+          next_attempt_at?: string
+          owner_id: string
+          requested_at?: string
+        }
+        Update: {
+          attempts?: number
+          last_error?: string | null
+          locked_until?: string | null
+          next_attempt_at?: string
+          owner_id?: string
+          requested_at?: string
+        }
+        Relationships: []
+      }
+      billing_terms: {
+        Row: {
+          billing_starts_at: string | null
+          courtesy: boolean
+          created_at: string
+          min_units: number | null
+          notes: string | null
+          owner_id: string
+          unit_cents: number | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          billing_starts_at?: string | null
+          courtesy?: boolean
+          created_at?: string
+          min_units?: number | null
+          notes?: string | null
+          owner_id: string
+          unit_cents?: number | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          billing_starts_at?: string | null
+          courtesy?: boolean
+          created_at?: string
+          min_units?: number | null
+          notes?: string | null
+          owner_id?: string
+          unit_cents?: number | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       channex_account_settings: {
         Row: {
           changed_by: string | null
@@ -3304,6 +3367,231 @@ export type Database = {
           created_at?: string
           property_id?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      guest_ai_copilot_suggestions: {
+        Row: {
+          context_credential_policy: string | null
+          context_dossier_entries: number | null
+          context_history_messages: number | null
+          context_human_in_command: boolean | null
+          context_reservation_linked: boolean | null
+          context_sender_identity: string | null
+          context_stay_phase: string | null
+          conversation_id: string
+          created_at: string
+          discarded_at: string | null
+          discarded_by: string | null
+          edited_at: string | null
+          edited_by: string | null
+          edited_text: string | null
+          expires_at: string
+          gateway_cost_usd: number
+          gateway_error: string | null
+          gateway_input_tokens: number | null
+          gateway_latency_ms: number | null
+          gateway_output_tokens: number | null
+          generation_attempts: number
+          generation_finished_at: string | null
+          generation_started_at: string
+          handoff_needed: boolean
+          handoff_urgency: string | null
+          id: string
+          intents: string[]
+          internal_question: string | null
+          model_id: string | null
+          outcome_code: string | null
+          outcome_kind: string | null
+          property_id: string
+          send_attempts: number
+          send_claimed_at: string | null
+          send_claimed_by: string | null
+          send_error: string | null
+          send_token: string | null
+          sent_at: string | null
+          sent_by: string | null
+          sent_channel: string | null
+          sent_message_id: string | null
+          sent_provider_message_id: string | null
+          state: string
+          strategy: string | null
+          suggested_text: string | null
+          surface: string
+          tenant_id: string
+          trigger_message_id: string
+          updated_at: string
+          warnings: string[]
+        }
+        Insert: {
+          context_credential_policy?: string | null
+          context_dossier_entries?: number | null
+          context_history_messages?: number | null
+          context_human_in_command?: boolean | null
+          context_reservation_linked?: boolean | null
+          context_sender_identity?: string | null
+          context_stay_phase?: string | null
+          conversation_id: string
+          created_at?: string
+          discarded_at?: string | null
+          discarded_by?: string | null
+          edited_at?: string | null
+          edited_by?: string | null
+          edited_text?: string | null
+          expires_at?: string
+          gateway_cost_usd?: number
+          gateway_error?: string | null
+          gateway_input_tokens?: number | null
+          gateway_latency_ms?: number | null
+          gateway_output_tokens?: number | null
+          generation_attempts?: number
+          generation_finished_at?: string | null
+          generation_started_at?: string
+          handoff_needed?: boolean
+          handoff_urgency?: string | null
+          id?: string
+          intents?: string[]
+          internal_question?: string | null
+          model_id?: string | null
+          outcome_code?: string | null
+          outcome_kind?: string | null
+          property_id: string
+          send_attempts?: number
+          send_claimed_at?: string | null
+          send_claimed_by?: string | null
+          send_error?: string | null
+          send_token?: string | null
+          sent_at?: string | null
+          sent_by?: string | null
+          sent_channel?: string | null
+          sent_message_id?: string | null
+          sent_provider_message_id?: string | null
+          state?: string
+          strategy?: string | null
+          suggested_text?: string | null
+          surface: string
+          tenant_id: string
+          trigger_message_id: string
+          updated_at?: string
+          warnings?: string[]
+        }
+        Update: {
+          context_credential_policy?: string | null
+          context_dossier_entries?: number | null
+          context_history_messages?: number | null
+          context_human_in_command?: boolean | null
+          context_reservation_linked?: boolean | null
+          context_sender_identity?: string | null
+          context_stay_phase?: string | null
+          conversation_id?: string
+          created_at?: string
+          discarded_at?: string | null
+          discarded_by?: string | null
+          edited_at?: string | null
+          edited_by?: string | null
+          edited_text?: string | null
+          expires_at?: string
+          gateway_cost_usd?: number
+          gateway_error?: string | null
+          gateway_input_tokens?: number | null
+          gateway_latency_ms?: number | null
+          gateway_output_tokens?: number | null
+          generation_attempts?: number
+          generation_finished_at?: string | null
+          generation_started_at?: string
+          handoff_needed?: boolean
+          handoff_urgency?: string | null
+          id?: string
+          intents?: string[]
+          internal_question?: string | null
+          model_id?: string | null
+          outcome_code?: string | null
+          outcome_kind?: string | null
+          property_id?: string
+          send_attempts?: number
+          send_claimed_at?: string | null
+          send_claimed_by?: string | null
+          send_error?: string | null
+          send_token?: string | null
+          sent_at?: string | null
+          sent_by?: string | null
+          sent_channel?: string | null
+          sent_message_id?: string | null
+          sent_provider_message_id?: string | null
+          state?: string
+          strategy?: string | null
+          suggested_text?: string | null
+          surface?: string
+          tenant_id?: string
+          trigger_message_id?: string
+          updated_at?: string
+          warnings?: string[]
+        }
+        Relationships: []
+      }
+      guest_ai_ops_actions: {
+        Row: {
+          action: string
+          applied_at: string | null
+          card_after: Json | null
+          card_before: Json
+          code: string | null
+          conversation_id: string
+          created_at: string
+          evidence_message_id: string | null
+          id: string
+          madrugada: boolean
+          mode: string
+          outcome: string
+          property_id: string
+          proposed_date: string | null
+          proposed_time: string | null
+          reservation_id: string | null
+          suggestion_id: string | null
+          tenant_id: string
+          trigger_message_id: string
+        }
+        Insert: {
+          action: string
+          applied_at?: string | null
+          card_after?: Json | null
+          card_before?: Json
+          code?: string | null
+          conversation_id: string
+          created_at?: string
+          evidence_message_id?: string | null
+          id?: string
+          madrugada?: boolean
+          mode: string
+          outcome: string
+          property_id: string
+          proposed_date?: string | null
+          proposed_time?: string | null
+          reservation_id?: string | null
+          suggestion_id?: string | null
+          tenant_id: string
+          trigger_message_id: string
+        }
+        Update: {
+          action?: string
+          applied_at?: string | null
+          card_after?: Json | null
+          card_before?: Json
+          code?: string | null
+          conversation_id?: string
+          created_at?: string
+          evidence_message_id?: string | null
+          id?: string
+          madrugada?: boolean
+          mode?: string
+          outcome?: string
+          property_id?: string
+          proposed_date?: string | null
+          proposed_time?: string | null
+          reservation_id?: string | null
+          suggestion_id?: string | null
+          tenant_id?: string
+          trigger_message_id?: string
         }
         Relationships: []
       }
@@ -6985,69 +7273,6 @@ export type Database = {
         }
         Relationships: []
       }
-      billing_sync_queue: {
-        Row: {
-          attempts: number
-          last_error: string | null
-          locked_until: string | null
-          next_attempt_at: string
-          owner_id: string
-          requested_at: string
-        }
-        Insert: {
-          attempts?: number
-          last_error?: string | null
-          locked_until?: string | null
-          next_attempt_at?: string
-          owner_id: string
-          requested_at?: string
-        }
-        Update: {
-          attempts?: number
-          last_error?: string | null
-          locked_until?: string | null
-          next_attempt_at?: string
-          owner_id?: string
-          requested_at?: string
-        }
-        Relationships: []
-      }
-      billing_terms: {
-        Row: {
-          billing_starts_at: string | null
-          courtesy: boolean
-          created_at: string
-          min_units: number | null
-          notes: string | null
-          owner_id: string
-          unit_cents: number | null
-          updated_at: string
-          updated_by: string | null
-        }
-        Insert: {
-          billing_starts_at?: string | null
-          courtesy?: boolean
-          created_at?: string
-          min_units?: number | null
-          notes?: string | null
-          owner_id: string
-          unit_cents?: number | null
-          updated_at?: string
-          updated_by?: string | null
-        }
-        Update: {
-          billing_starts_at?: string | null
-          courtesy?: boolean
-          created_at?: string
-          min_units?: number | null
-          notes?: string | null
-          owner_id?: string
-          unit_cents?: number | null
-          updated_at?: string
-          updated_by?: string | null
-        }
-        Relationships: []
-      }
       subscriptions: {
         Row: {
           admin_notes: string | null
@@ -7414,15 +7639,6 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      claim_billing_sync: {
-        Args: { _limit?: number }
-        Returns: { owner_id: string; requested_at: string }[]
-      }
-      enqueue_billing_sync: { Args: { _owner_id: string }; Returns: undefined }
-      finish_billing_sync: {
-        Args: { _error: string | null; _owner_id: string; _requested_at: string }
-        Returns: undefined
-      }
       accept_my_account_invite: {
         Args: { _invite_id: string }
         Returns: boolean
@@ -7449,10 +7665,216 @@ export type Database = {
         Returns: boolean
       }
       can_read_system_doc: { Args: { _audience: string[] }; Returns: boolean }
+      claim_billing_sync: {
+        Args: { _limit?: number }
+        Returns: {
+          owner_id: string
+          requested_at: string
+        }[]
+      }
+      copilot_actor_claim_send: {
+        Args: { p_actor: string; p_suggestion_id: string; p_text: string }
+        Returns: Json
+      }
+      copilot_actor_discard: {
+        Args: { p_actor: string; p_suggestion_id: string }
+        Returns: Json
+      }
+      copilot_actor_edit: {
+        Args: { p_actor: string; p_suggestion_id: string; p_text: string }
+        Returns: Json
+      }
+      copilot_actor_finish_send: {
+        Args: {
+          p_actor: string
+          p_channel: string
+          p_error_code: string
+          p_message_id: string
+          p_outcome: string
+          p_provider_message_id: string
+          p_send_token: string
+          p_suggestion_id: string
+        }
+        Returns: Json
+      }
+      copilot_actor_reconcile_send: {
+        Args: {
+          p_actor: string
+          p_attempt_finished?: boolean
+          p_error_code?: string
+          p_suggestion_id: string
+        }
+        Returns: Json
+      }
+      copilot_claim_generation: {
+        Args: {
+          p_conversation_id: string
+          p_daily_cost_limit_usd: number
+          p_property_id: string
+          p_surface: string
+          p_tenant_id: string
+          p_trigger_message_id: string
+          p_turn_cost_ceiling_usd: number
+        }
+        Returns: Json
+      }
+      copilot_generation_state: {
+        Args: { p_suggestion_id: string }
+        Returns: Json
+      }
+      copilot_purge_expired: { Args: never; Returns: Json }
+      copilot_store_result: {
+        Args: {
+          p_attempt: number
+          p_context_credential_policy: string
+          p_context_dossier_entries: number
+          p_context_history_messages: number
+          p_context_human_in_command: boolean
+          p_context_reservation_linked: boolean
+          p_context_sender_identity: string
+          p_context_stay_phase: string
+          p_cost_usd: number
+          p_gateway_error: string
+          p_handoff_needed: boolean
+          p_handoff_urgency: string
+          p_input_tokens: number
+          p_intents: string[]
+          p_internal_question: string
+          p_latency_ms: number
+          p_model_id: string
+          p_outcome_code: string
+          p_outcome_kind: string
+          p_output_tokens: number
+          p_state: string
+          p_strategy: string
+          p_suggestion_id: string
+          p_text: string
+          p_warnings: string[]
+        }
+        Returns: Json
+      }
       current_verified_email: { Args: never; Returns: string }
       decline_my_account_invite: {
         Args: { _invite_id: string }
         Returns: boolean
+      }
+      enqueue_billing_sync: { Args: { _owner_id: string }; Returns: undefined }
+      finish_billing_sync: {
+        Args: { _error: string; _owner_id: string; _requested_at: string }
+        Returns: undefined
+      }
+      guest_ai_copilot_lock_for_actor: {
+        Args: { p_actor: string; p_suggestion_id: string }
+        Returns: {
+          context_credential_policy: string | null
+          context_dossier_entries: number | null
+          context_history_messages: number | null
+          context_human_in_command: boolean | null
+          context_reservation_linked: boolean | null
+          context_sender_identity: string | null
+          context_stay_phase: string | null
+          conversation_id: string
+          created_at: string
+          discarded_at: string | null
+          discarded_by: string | null
+          edited_at: string | null
+          edited_by: string | null
+          edited_text: string | null
+          expires_at: string
+          gateway_cost_usd: number
+          gateway_error: string | null
+          gateway_input_tokens: number | null
+          gateway_latency_ms: number | null
+          gateway_output_tokens: number | null
+          generation_attempts: number
+          generation_finished_at: string | null
+          generation_started_at: string
+          handoff_needed: boolean
+          handoff_urgency: string | null
+          id: string
+          intents: string[]
+          internal_question: string | null
+          model_id: string | null
+          outcome_code: string | null
+          outcome_kind: string | null
+          property_id: string
+          send_attempts: number
+          send_claimed_at: string | null
+          send_claimed_by: string | null
+          send_error: string | null
+          send_token: string | null
+          sent_at: string | null
+          sent_by: string | null
+          sent_channel: string | null
+          sent_message_id: string | null
+          sent_provider_message_id: string | null
+          state: string
+          strategy: string | null
+          suggested_text: string | null
+          surface: string
+          tenant_id: string
+          trigger_message_id: string
+          updated_at: string
+          warnings: string[]
+        }
+        SetofOptions: {
+          from: "*"
+          to: "guest_ai_copilot_suggestions"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      guest_ai_copilot_summary: {
+        Args: {
+          r: Database["public"]["Tables"]["guest_ai_copilot_suggestions"]["Row"]
+        }
+        Returns: Json
+      }
+      guest_ai_ops_claim: {
+        Args: {
+          p_action: string
+          p_card_before: Json
+          p_conversation_id: string
+          p_evidence_message_id: string
+          p_madrugada: boolean
+          p_property_id: string
+          p_proposed_date: string
+          p_proposed_time: string
+          p_reservation_id: string
+          p_suggestion_id: string
+          p_tenant_id: string
+          p_trigger_message_id: string
+        }
+        Returns: Json
+      }
+      guest_ai_ops_finish: {
+        Args: {
+          p_card_after: Json
+          p_code: string
+          p_id: string
+          p_outcome: string
+        }
+        Returns: Json
+      }
+      guest_ai_ops_record: {
+        Args: {
+          p_action: string
+          p_card_before: Json
+          p_code: string
+          p_conversation_id: string
+          p_evidence_message_id: string
+          p_madrugada: boolean
+          p_mode: string
+          p_outcome: string
+          p_property_id: string
+          p_proposed_date: string
+          p_proposed_time: string
+          p_reservation_id: string
+          p_suggestion_id: string
+          p_tenant_id: string
+          p_trigger_message_id: string
+        }
+        Returns: Json
       }
       has_active_subscription: {
         Args: { check_env?: string; user_uuid: string }
@@ -7485,6 +7907,7 @@ export type Database = {
         Args: { _owner_id: string; _user_id: string }
         Returns: boolean
       }
+      kick_billing_sync: { Args: never; Returns: undefined }
       match_ai_kb_chunks: {
         Args: {
           _owner_id: string
