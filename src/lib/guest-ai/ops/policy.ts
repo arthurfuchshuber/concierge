@@ -157,12 +157,8 @@ function checkEvidence(
 function teamOrNegotiationBlock(input: OpsPolicyInput): OpsRefusalCode | null {
   const c = input.conversation;
   if (!c) return "state_unavailable";
-  if (c.assignedTo) return "assigned_to_team";
-  if (c.aiPaused) {
-    const until = c.pausedUntil ? Date.parse(c.pausedUntil) : NaN;
-    // pausa sem prazo, prazo inválido ou ainda vigente ⇒ equipe no comando
-    if (!Number.isFinite(until) || until > input.now.getTime()) return "team_in_command";
-  }
+  // Diretriz do titular (07/11/2026): pausa humana / atendente atribuído só calam a IA no chat; nos bastidores
+  // ela continua registrando fatos inequívocos do hóspede (check-in, check-out, previsões) nos cards.
   if (c.status === "needs_human" || c.status === "assigned") {
     const reason = (c.handoffReason ?? "").trim();
     if ((reason && reason !== input.defaultHandoffReason) || c.handoffUrgency) return "open_case";
