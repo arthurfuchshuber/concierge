@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { carryServerRoutes, type StoredRouteRow } from "@/lib/route-distance";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import { cleanLocationText, normalizeParkingSpots } from "@/lib/property-location";
@@ -1120,7 +1121,24 @@ export const upsertProperty = createServerFn({ method: "POST" })
         console.warn("[properties] exclusões de recomendações não registradas", e);
       }
 
-      await replaceChild("property_recommendations", uniqueRecs as unknown as Record<string, unknown>[]);
+      /*
+       * DISTÂNCIA POR ROTA (Pilar 2, 06/11/2026): a distância que vem do aparelho nunca vale como trajeto
+       * (`distance_kind` nulo). Para o mesmo lugar que a sincronização do servidor já mediu por rota no Google
+       * Maps, a medição do servidor é mantida. Falha na leitura ⇒ tudo nulo (a próxima sincronização refaz).
+       */
+      let toSave: Record<string, unknown>[] = carryServerRoutes([], uniqueRecs);
+      try {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const { data: stored, error: storedErr } = await supabaseAdmin
+          .from("property_recommendations")
+          .select("scope, place_id, distance_kind, distance_meters, distance_text, walk_minutes, drive_minutes, last_synced_at")
+          .eq("property_id", id)
+          .eq("distance_kind", "route");
+        if (!storedErr) toSave = carryServerRoutes((stored ?? []) as StoredRouteRow[], uniqueRecs);
+      } catch (e) {
+        console.warn("[properties] distâncias por rota não preservadas", e);
+      }
+      await replaceChild("property_recommendations", toSave);
     }
     if (want("manual")) await replaceChild("property_manual_items", data.manual as unknown as Record<string, unknown>[]);
     if (want("emergency")) await replaceChild("property_emergency_contacts", data.emergency as unknown as Record<string, unknown>[]);

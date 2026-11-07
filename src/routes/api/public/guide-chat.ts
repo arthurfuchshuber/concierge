@@ -66,6 +66,14 @@ const Body = z.object({
   reservationCode: z.string().trim().max(40).optional(),
   /** Vitrine da landing: ninguém é notificado. */
   demo: z.boolean().optional(),
+  /**
+   * Evento da página principal do guia tocado para abrir o chat (Pilar 4): só tipo + id. O servidor confere o
+   * item na edição vigente da cidade do imóvel e grava nome/categoria oficiais em `guide_context`; inválido ⇒
+   * ignorado. O Explorar não abre o chat.
+   */
+  guideContext: z
+    .object({ kind: z.literal("city_event"), id: z.string().trim().min(1).max(80) })
+    .optional(),
 });
 
 type StageEvent = { step: string; label: string };
@@ -213,6 +221,23 @@ async function runGuideChat(
 
     // Persiste a mensagem do hóspede em qualquer caso. O id vai para o slot da IA,
     // que revalida conversa + mensagem no backend (F0: o slot só recebe identificadores).
+    // Pilar 4: contexto do item do guia, conferido contra os dados reais do imóvel (nunca o que o aparelho diz)
+    let guideContext: Awaited<ReturnType<typeof import("@/lib/guide-context.server").resolveGuideContext>> = null;
+    if (body.guideContext && !body.demo) {
+      const gc = await import("@/lib/guide-context.server");
+      const parsed = gc.parseGuideContextInput(body.guideContext);
+      if (parsed) {
+        guideContext = await gc.resolveGuideContext(
+          supabaseAdmin as SupabaseClient,
+          {
+            id: String(prop.id),
+            city: ((prop as { city?: string | null }).city ?? null) as string | null,
+            country: ((prop as { country?: string | null }).country ?? null) as string | null,
+          },
+          parsed,
+        );
+      }
+    }
     const { data: guestMsg } = await supabaseAdmin
       .from("property_chat_messages")
       .insert({
@@ -220,6 +245,7 @@ async function runGuideChat(
         role: "user",
         content: body.message,
         sender_type: "guest",
+        ...(guideContext ? { guide_context: guideContext } : {}),
       })
       .select("id")
       .single();

@@ -23,11 +23,12 @@ import {
 import { getDailyTip, type DailyTip } from "@/lib/daily-tip.functions";
 import { ensureGuidePass } from "@/lib/guest-pass-client";
 import { getLiveWeather, type LiveWeather } from "@/lib/live-weather.functions";
+import { openGuideChat } from "@/lib/guide-chat-event";
 
 type Lang = "pt" | "en" | "es" | "fr";
 
 function openChat(prompt?: string) {
-  window.dispatchEvent(new CustomEvent("open-guide-chat", { detail: prompt ? { prompt } : {} }));
+  openGuideChat(prompt ? { prompt } : {});
 }
 
 type ChipDef = { label: string; prompt: string; icon: ReactNode };

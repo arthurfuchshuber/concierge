@@ -9,7 +9,7 @@ import { fetchPropertyDossier } from "@/lib/guest-ai/data/property-dossier.serve
 import { composeTurnPrompt, MAX_CANDIDATE_DOSSIERS, type FreeTextGuard } from "@/lib/guest-ai/composer";
 import { normalizeHistory } from "@/lib/guest-ai/history";
 import { SECRET_SCRUBBER, SECRET_MARKER } from "@/lib/guest-ai/secret-scrub";
-import { DOSSIER_TAG, HISTORY_TAG, buildSystemPrompt } from "@/lib/guest-ai/system-prompt";
+import { DOSSIER_TAG, HISTORY_TAG, PLACES_TAG, buildSystemPrompt } from "@/lib/guest-ai/system-prompt";
 import { issuePropertyDossier, withAvailability } from "@/lib/guest-ai/dossier/registry";
 import { issue } from "@/lib/guest-ai/trust";
 import { DECISION_LIMITS } from "@/lib/guest-ai/orchestrator/decision";
@@ -73,7 +73,10 @@ describe("B2.2 · pipeline completo isolado: fontes → projeções → normaliz
     expect(hist.at(-1).texto).toBe(`Somos 6 pessoas, tem outro apartamento maior? A fechadura com a senha ${SECRET_MARKER} travou.`);
     const dos = JSON.parse(blockOf(user, DOSSIER_TAG));
     expect(JSON.stringify(dos[1])).toContain("Vista para o mar MARCADOR-2");
-    expect(dos[2].entorno[0].observacao).toBe(`código do portão ${SECRET_MARKER} para clientes`);
+    // recomendações do guia (Google Maps) saíram do Dossiê para o próprio bloco, com o mesmo guard
+    expect(JSON.stringify(dos)).not.toContain("Mercado P3");
+    const places = JSON.parse(blockOf(user, PLACES_TAG));
+    expect(places[2].itens[0].observacao).toBe(`código do portão ${SECRET_MARKER} para clientes`);
   });
 
   it("principal e alternativos inequivocamente separados, cada um só com os próprios dados e ids", async () => {
@@ -104,7 +107,9 @@ describe("B2.2 · pipeline completo isolado: fontes → projeções → normaliz
     const ids = [...r.prompt.sourceIds!].filter((x) => x.startsWith("dos:"));
     expect(ids.length).toBeGreaterThan(10);
     for (const id of ids) expect(DECISION_LIMITS.sourceIdPattern.test(id), id).toBe(true);
-    expect(ids.some((x) => x.startsWith("dos:alt2:rec:"))).toBe(true);
+    const gm = [...r.prompt.sourceIds!].filter((x) => x.startsWith("gm:"));
+    for (const id of gm) expect(DECISION_LIMITS.sourceIdPattern.test(id), id).toBe(true);
+    expect(gm.some((x) => x.startsWith("gm:alt2:rec:"))).toBe(true);
   });
 
   it("seções do anúncio/dossiê deixam de ser indisponíveis quando o dossiê é carregado", async () => {
@@ -125,7 +130,7 @@ describe("B2.2 · pipeline completo isolado: fontes → projeções → normaliz
     expect(m.examined).toBeGreaterThan(20);
     expect(m.byStatus.sanitized).toBeGreaterThanOrEqual(5);
     expect(Object.keys(m.bySource)).toEqual(expect.arrayContaining(["history.team", "history.legacy_ai", "history.guest", "dossier.principal", "dossier.alt1", "dossier.alt2"]));
-    expect(m.bySource["dossier.alt2"]!.changed).toBeGreaterThanOrEqual(1);
+    expect(m.bySource["places.alt2"]!.changed).toBeGreaterThanOrEqual(1);
     const json = JSON.stringify(m);
     for (const s of [...PLANTED_SECRETS, "MARCADOR", "Padaria"]) expect(json).not.toContain(s);
   });
@@ -252,6 +257,6 @@ describe("B2.2 · composição recusada: guard ausente/inválido/falho e dossiê
     expect(sys).toMatch(/nunca atribua a um imóvel uma característica, regra, localização ou disponibilidade de outro/);
     expect(sys).toMatch(/nao_consultada significa desconhecida/);
     expect(sys).toMatch(/nunca prometa troca de imóvel, transferência ou nova reserva/);
-    expect(sys).toMatch(/não estime tempo de deslocamento/);
+    expect(sys).toMatch(/Tempo de deslocamento: não ofereça por iniciativa própria/);
   });
 });

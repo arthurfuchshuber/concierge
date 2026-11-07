@@ -2,6 +2,7 @@ import { placePhotoUrl } from "@/lib/place-photo-sign";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { AI_MODELS } from "@/lib/llm/models";
+import { ISO_DATE, NEWS_WINDOW_DAYS, addDaysIso, filterUpcoming } from "@/lib/city-news-window";
 
 const Input = z.object({
   cityKey: z.string().min(1).max(80),
@@ -26,39 +27,7 @@ export type NewsItem = {
   venue?: string | null;
 };
 
-const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
-
-/** Janela editorial: 7 dias (hoje + 6). A busca roda toda quarta às 8h. */
-const NEWS_WINDOW_DAYS = 6;
-
-function addDays(iso: string, days: number): string {
-  const [y, m, d] = iso.split("-").map(Number);
-  const dt = new Date(Date.UTC(y, m - 1, d));
-  dt.setUTCDate(dt.getUTCDate() + days);
-  return dt.toISOString().slice(0, 10);
-}
-
-/**
- * Regra de ouro do calendário: nada que já aconteceu chega ao hóspede, e nada
- * distante demais (só a janela de hoje até +8 dias).
- * - Itens de categoria "evento" só passam com data confirmada.
- * - Um evento é válido enquanto (endDate ?? startDate) >= hoje e começa até hoje+8.
- * - Itens perenes (restaurante, passeio, natureza…) não têm data e seguem válidos.
- */
-function filterUpcoming(items: NewsItem[], today: string): NewsItem[] {
-  const horizon = addDays(today, NEWS_WINDOW_DAYS);
-  return items.filter((it) => {
-    const isEvent = (it.category ?? "").toLowerCase() === "evento";
-    const start = it.startDate && ISO_DATE.test(it.startDate) ? it.startDate : null;
-    const end = it.endDate && ISO_DATE.test(it.endDate) ? it.endDate : null;
-    const last = end ?? start;
-    if (isEvent && !last) return false; // evento sem data confirmada nunca é exibido
-    if (last && last < today) return false; // já aconteceu
-    if (start && start > horizon) return false; // fora da janela de 8 dias
-    return true;
-  });
-}
-
+const addDays = addDaysIso;
 
 export type CityNews = { items: NewsItem[] };
 

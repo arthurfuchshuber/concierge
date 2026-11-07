@@ -1,3 +1,4 @@
+import { GUIDE_CHAT_OPEN_EVENT, type GuideChatOpenDetail } from "@/lib/guide-chat-event";
 import { useEffect, useRef, useState } from "react";
 import { GUIDE_LIVE_EVENT } from "@/lib/guide-live";
 import { createPortal } from "react-dom";
@@ -457,18 +458,21 @@ export function GuideAiChat({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
+  const guideContextRef = useRef<{ kind: "city_event"; id: string } | null>(null);
   // Permite abrir o chat via evento global disparado da home (bolha do concierge, sugestões).
   useEffect(() => {
     function onOpen(e: Event) {
-      const detail = (e as CustomEvent<{ prompt?: string }>).detail;
+      const detail = (e as CustomEvent<GuideChatOpenDetail>).detail;
       if (detail?.prompt) setInput(detail.prompt);
+      // Pilar 4: o evento da página principal tocado acompanha a próxima mensagem; o servidor confere.
+      guideContextRef.current = detail?.context ? { kind: detail.context.kind, id: detail.context.id } : null;
       // Não forçamos setHumanMode(false): se um humano assumiu a conversa,
       // o servidor mantém o modo humano e responderá com humanMode:true.
 
       setOpen(true);
     }
-    window.addEventListener("open-guide-chat", onOpen as EventListener);
-    return () => window.removeEventListener("open-guide-chat", onOpen as EventListener);
+    window.addEventListener(GUIDE_CHAT_OPEN_EVENT, onOpen as EventListener);
+    return () => window.removeEventListener(GUIDE_CHAT_OPEN_EVENT, onOpen as EventListener);
   }, []);
 
   const [humanMode, setHumanMode] = useState(false);
@@ -651,6 +655,13 @@ export function GuideAiChat({
     if (!loadingRef.current) scheduleFlush(overrideText ? 0 : CONSOLIDATE_MS);
   }
 
+  /** Contexto do item do guia: vai uma única vez, com a primeira mensagem depois de abrir o chat por ele. */
+  function takeGuideContext() {
+    const c = guideContextRef.current;
+    guideContextRef.current = null;
+    return c ?? undefined;
+  }
+
   async function runTurn(text: string) {
     const next = messagesRef.current;
     loadingRef.current = true;
@@ -688,6 +699,7 @@ export function GuideAiChat({
           checkinDate: readAccessRecord(slug)?.checkinDate ?? undefined,
           checkoutDate: readAccessRecord(slug)?.checkoutDate ?? undefined,
           reservationCode: readAccessRecord(slug)?.code ?? undefined,
+          guideContext: takeGuideContext(),
           // Vitrine da landing (?demo=1): senhas fictícias e nenhum aviso à equipe.
           demo: new URLSearchParams(window.location.search).get("demo") === "1" || undefined,
         }),

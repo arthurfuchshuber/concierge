@@ -253,22 +253,32 @@ describe("G1 · R2: trabalho em segundo plano nunca fica solto", () => {
       return { status: "stored" } as never;
     });
     const handed: Promise<unknown>[] = [];
+    // rajada (06/11/2026): com waitUntil, espera a janela de respiro (6 s) antes de gerar, descontada do prazo
+    const sleep = vi.fn(async () => {});
     await withRequestLifecycle(
       createLifecycle((p) => handed.push(p)),
-      () => triggerCopilotSuggestion(req, env, { generate }),
+      () => triggerCopilotSuggestion(req, env, { generate, sleep }),
     );
     expect(handed).toHaveLength(1);
     gate.resolve();
     await handed[0];
     expect(generate).toHaveBeenCalledTimes(1);
+    expect(sleep).toHaveBeenCalledWith(6_000);
+    expect(generate).toHaveBeenCalledWith(expect.anything(), { env, deadlineMs: 19_000 });
 
     // sem waitUntil: fica na lista da requisição até terminar
     const store = createLifecycle(null);
     const gen2 = vi.fn(async () => ({ status: "stored" }) as never);
-    await withRequestLifecycle(store, () => triggerCopilotSuggestion(req, env, { generate: gen2 }));
+    const sleep2 = vi.fn(async () => {});
+    await withRequestLifecycle(store, () =>
+      triggerCopilotSuggestion(req, env, { generate: gen2, sleep: sleep2 }),
+    );
     expect(store.pending).toHaveLength(1);
     await drainLifecycle(store);
     expect(gen2).toHaveBeenCalledTimes(1);
+    // sem waitUntil a resposta do canal nunca fica presa na janela de respiro
+    expect(sleep2).not.toHaveBeenCalled();
+    expect(gen2).toHaveBeenCalledWith(expect.anything(), { env });
 
     const gen3 = vi.fn();
     await triggerCopilotSuggestion(req, {}, { generate: gen3 as never });

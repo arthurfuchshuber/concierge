@@ -36,6 +36,9 @@ import { loadConversationContext } from "@/lib/guest-ai/context/conversation-con
 import { fetchConversationHistory } from "@/lib/guest-ai/data/history.server";
 import { fetchGuestImages, type GuestImage } from "@/lib/guest-ai/data/guest-images.server";
 import { fetchGuestProfile } from "@/lib/guest-ai/data/guest-profile.server";
+import { fetchCityEvents } from "@/lib/guest-ai/data/city-events.server";
+import { hasNewerGuestMessage } from "@/lib/guest-ai/data/newer-guest-message.server";
+import { formatForChannel } from "./channel-format";
 import type { HistoryResult } from "@/lib/guest-ai/history";
 import { fetchPropertyDossier } from "@/lib/guest-ai/data/property-dossier.server";
 import { primaryDossierTarget } from "@/lib/guest-ai/data/property-access.server";
@@ -81,7 +84,7 @@ export type CopilotPorts = Required<
     | "loadSenderIdentitySource"
   >
 > &
-  Pick<ChainDeps, "loadGuestProfile">;
+  Pick<ChainDeps, "loadGuestProfile" | "loadCityEvents">;
 
 export interface CopilotGenerateDeps {
   db?: GuestAiDb;
@@ -105,6 +108,11 @@ export interface CopilotGenerateDeps {
     traceId: string;
     loadVision: () => Promise<CopilotVisionInput>;
   }) => CopilotGenerator;
+  /** Rajada: há mensagem do hóspede mais nova na conversa? (produção: `hasNewerGuestMessage`). */
+  checkNewerGuestMessage?: (
+    turn: ValidatedTurn,
+    db: GuestAiDb,
+  ) => Promise<"newer" | "none" | "unknown">;
   /** Fotos do hóspede (produção: `fetchGuestImages`; testes: falso em memória). */
   loadImages?: (turn: ValidatedTurn, db: GuestAiDb, signal: AbortSignal) => Promise<GuestImage[]>;
   provider?: LlmProvider;
@@ -136,6 +144,7 @@ export type CopilotGenerateResult =
       code:
         | "generation_off"
         | "property_not_allowlisted"
+        | "superseded_by_newer_message"
         | "scope_refused"
         | "claim_invalid"
         | "claim_failed"
@@ -190,6 +199,7 @@ function productionPorts(
     loadStayAuthorizationSource: (t, s) => loadStayAuthorizationSource(t, { db, signal: s }),
     loadSenderIdentitySource: (t, s) => loadSenderIdentitySource(t, { db, signal: s }),
     loadGuestProfile: (t, s) => fetchGuestProfile(t, { db, signal: s }),
+    loadCityEvents: (t, s) => fetchCityEvents(t, { db, signal: s }),
   };
 }
 
@@ -272,7 +282,8 @@ export function projectOutcome(
       return {
         ...base,
         state: "available",
-        text: outcome.text,
+        // Pilar 3: forma do canal (letras estilizadas, Markdown, links no Airbnb); conteúdo intacto
+        text: formatForChannel(outcome.text, extra.surface),
         strategy: outcome.strategy,
         outcomeKind: "reply",
         outcomeCode: null,
@@ -390,6 +401,17 @@ export async function generateCopilotSuggestion(
       return { status: "skipped", code: "property_not_allowlisted", detail: null };
     }
 
+    // 1c) rajada: o hóspede já mandou outra mensagem depois desta ⇒ quem responde é a geração da mais nova, que vê
+    // o conjunto inteiro como um único turno (uma resposta só). Leitura incerta ⇒ segue gerando.
+    const newer = deps.checkNewerGuestMessage
+      ? await deps.checkNewerGuestMessage(turn, db)
+      : await hasNewerGuestMessage(turn, {
+          db: abortableDb(db, controller.signal),
+          signal: controller.signal,
+        });
+    if (newer === "newer")
+      return { status: "skipped", code: "superseded_by_newer_message", detail: null };
+
     // 2) reivindicação idempotente (uma sugestão por mensagem; teto diário; anteriores ⇒ superseded)
     const claim = await store.claim({
       tenantId: turn.tenantId,
@@ -501,6 +523,7 @@ export async function generateCopilotSuggestion(
       loadStayAuthorizationSource: ports.loadStayAuthorizationSource,
       loadSenderIdentitySource: ports.loadSenderIdentitySource,
       loadGuestProfile: ports.loadGuestProfile,
+      loadCityEvents: ports.loadCityEvents,
       generate: (prompt, sg) => generator.generate(prompt, sg),
       guard: SECRET_SCRUBBER,
       stageTimeoutMs: Math.max(1_000, Math.min(15_000, Math.floor(remainingMs()))),

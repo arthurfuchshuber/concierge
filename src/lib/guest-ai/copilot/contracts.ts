@@ -75,6 +75,12 @@ export const COPILOT_MAX_TURN_COST_USD = 0.15;
 
 /** Prazo total da geração (contexto + Gateway ≤ 15 s + validação). Nada bloqueia o atendimento humano. */
 export const COPILOT_DEADLINE_MS = 25_000;
+/**
+ * Respiro antes de gerar (Pilar 4 do refinamento de hospitalidade, 06/11/2026): mensagens em rajada ("Oi" /
+ * "Tudo bem?" / "Qual a senha do wifi?") viram UMA resposta. Cada mensagem espera esta janela em segundo plano;
+ * se outra do hóspede chegar nesse meio-tempo, só a mais nova gera (ela vê o conjunto). Dentro de 5–8 s.
+ */
+export const COPILOT_BURST_QUIET_MS = 6_000;
 /** Teto de saída do modelo (a resposta ao hóspede é curta; o teto protege o custo por turno). */
 export const COPILOT_MAX_OUTPUT_TOKENS = 1_536;
 export const COPILOT_REASONING_EFFORT = "low" as const;

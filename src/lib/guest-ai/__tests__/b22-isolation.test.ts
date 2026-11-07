@@ -10,7 +10,9 @@ const ROOT = path.resolve(__dirname, "..");
 const SRC = path.resolve(ROOT, "..", "..");
 const NEW_FILES = ["secret-scrub.ts", "dossier/contracts.ts", "dossier/registry.ts", "dossier/normalize.ts", "data/property-access.server.ts", "data/property-dossier.server.ts"];
 const code = (f: string) => readFileSync(f, "utf8").replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
-const LEGACY = /\b(ai_agent_evaluations|ai_agent_learning_metrics|ai_agent_logs|ai_agent_metrics|ai_channel_connections|ai_conversation_channels|ai_conversation_summaries|ai_conversations|ai_messages|ai_global_intelligence|ai_guest_memory|ai_host_corrections|ai_human_escalations|ai_kb_chunks|ai_knowledge_gaps|ai_learning_candidates|ai_learning_impact_logs|ai_memories|ai_operational_memory|ai_precedents|ai_proactive_actions|ai_prompt_change_candidates|ai_property_playbooks|ai_tenant_knowledge|ai_usage_events|chat_message_feedback|host_behavior|host_faqs|host_knowledge|city_references|sigma_city_\w+)\b/;
+const LEGACY = /\b(ai_agent_evaluations|ai_agent_learning_metrics|ai_agent_logs|ai_agent_metrics|ai_channel_connections|ai_conversation_channels|ai_conversation_summaries|ai_conversations|ai_messages|ai_global_intelligence|ai_guest_memory|ai_host_corrections|ai_human_escalations|ai_kb_chunks|ai_knowledge_gaps|ai_learning_candidates|ai_learning_impact_logs|ai_memories|ai_operational_memory|ai_precedents|ai_proactive_actions|ai_prompt_change_candidates|ai_property_playbooks|ai_tenant_knowledge|ai_usage_events|chat_message_feedback|host_behavior|host_faqs|host_knowledge|sigma_city_\w+)\b/;
+// `city_references` saiu da lista (06/11/2026, Pilar 1): é a fonte VIVA do Explorar do guia (Google Maps), lida pelo
+// carregador do dossiê com a mesma resolução do guia público — a IA e o guia bebem da mesma fonte.
 
 function allSources(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {
@@ -53,6 +55,8 @@ describe("B2.2 · módulos novos isolados", () => {
     const tables = (rel: string) => [...code(path.join(ROOT, rel)).matchAll(/\.from\(\s*["'`]([\w]+)["'`]/g)].map((m) => m[1]).sort();
     expect(tables("data/property-access.server.ts")).toEqual(["properties"]);
     expect([...new Set(tables("data/property-dossier.server.ts"))]).toEqual([
+      "city_reference_group_members",
+      "city_references",
       "properties",
       "property_checkout_items",
       "property_emergency_contacts",

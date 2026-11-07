@@ -76,7 +76,8 @@ export const IMAGE_NOT_LOADED = "[imagem não carregada]";
 
 export const VISION_HEADER =
   "Fotos enviadas pelo hóspede nesta conversa (da mais recente para a mais antiga), anexadas abaixo. " +
-  "Use apenas o que estiver claramente visível; não invente detalhes. Nunca repita códigos, senhas ou números " +
+  "Use apenas o que estiver claramente visível; não invente detalhes. Responda ao que a foto mostra na sequência " +
+  "natural da conversa, sem dizer que recebeu a imagem nem agradecer pelo envio. Nunca repita códigos, senhas ou números " +
   "de acesso que apareçam nas fotos.";
 
 const visionLabel = (i: { ref: string | null; at: string | null }) =>

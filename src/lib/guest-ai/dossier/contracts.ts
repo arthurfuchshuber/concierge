@@ -24,6 +24,7 @@ export const DOSSIER_SOURCES = [
   "property_faqs",
   "property_manual_items",
   "property_recommendations",
+  "city_references",
 ] as const;
 export type DossierSource = (typeof DOSSIER_SOURCES)[number];
 
@@ -70,8 +71,15 @@ export interface CapacityFacts {
   bathrooms: Known<number>;
 }
 
-export interface NearbyPlace {
+/**
+ * Recomendação do Explorar do Guia Digital (Pilar 1, 06/11/2026). FONTE DA VERDADE: Google Maps / Google Meu
+ * Negócio — nome, categoria, nota e total de avaliações do Google, horários vigentes e link oficial do Maps.
+ * `scope`: `nearby` ("Aqui pertinho" do imóvel) ou `city` (referências da cidade do guia). Não faz parte da
+ * estrutura física do imóvel: o composer a apresenta FORA do Dossiê.
+ */
+export interface GuidePlace {
   id: string;
+  scope: "nearby" | "city";
   name: string;
   category: string | null;
   type: string | null;
@@ -79,8 +87,13 @@ export interface NearbyPlace {
   ratingsTotal: number | null;
   openingHours: string[] | null;
   note: string | null;
-  /** Distância em LINHA RETA entre o imóvel e o local (nunca trajeto; nunca tempo de deslocamento). */
-  distance: { meters: number; kind: "straight_line"; origin: "property"; destination: string } | null;
+  /** Link oficial do Google Maps (só hosts do Google; qualquer outro vira null). */
+  mapsUrl: string | null;
+  /**
+   * Distância de TRAJETO medida pelo servidor no Google Maps (`distance_kind = 'route'`). Sem rota confirmada
+   * (linha reta, valor do aparelho, referência da cidade) ⇒ null: a IA não informa distância nem tempo.
+   */
+  route: { meters: number; walkMinutes: number | null; driveMinutes: number | null } | null;
 }
 
 export interface DossierManual {
@@ -122,7 +135,8 @@ export interface PropertyDossier {
   capacity: CapacityFacts;
   entries: DossierEntry[];
   manuals: DossierManual[];
-  nearby: NearbyPlace[];
+  /** Recomendações do guia (Google Maps). Não são estrutura física: ficam fora do bloco do Dossiê no prompt. */
+  places: GuidePlace[];
   mediaRefs: Array<{ id: string; url: string; source: DossierSource }>;
   /** Divergências objetivas entre fontes (sem escolher uma). */
   conflicts: string[];

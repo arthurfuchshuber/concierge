@@ -100,6 +100,7 @@ import { GuideAiChat } from "@/components/GuideAiChat";
 import { GUIDE_LIVE_EVENT } from "@/lib/guide-live";
 import { HomeIntelligence } from "@/components/guide/HomeIntelligence";
 import { CityNewsFeed } from "@/components/guide/CityNewsFeed";
+import { openGuideChat } from "@/lib/guide-chat-event";
 import { CheckinCountdown } from "@/components/guide/CheckinCountdown";
 import { PredictedTimeCard } from "@/components/guide/PredictedTimeCard";
 import { propertyTimeZone, todayInTZ, zonedTimeToUtc } from "@/lib/property-timezone";
@@ -4448,11 +4449,7 @@ function PostAccessOnboarding({
   })();
 
   function openDifficultyChat() {
-    window.dispatchEvent(
-      new CustomEvent("open-guide-chat", {
-        detail: { prompt: "Estou com dificuldade no check-in." },
-      }),
-    );
+    openGuideChat({ prompt: "Estou com dificuldade no check-in." });
     onDone();
   }
 

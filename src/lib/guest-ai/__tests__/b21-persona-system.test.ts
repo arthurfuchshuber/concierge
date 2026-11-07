@@ -121,7 +121,9 @@ describe("B2.1 · System Prompt — hierarquia", () => {
 describe("B2.1 · System Prompt — determinismo e isolamento de dados", () => {
   it("mesmo canal ⇒ mesmo texto; canais diferentes só mudam a regra de canal", () => {
     expect(buildSystemPrompt("airbnb")).toBe(buildSystemPrompt("airbnb"));
-    expect(buildSystemPrompt("airbnb")).toMatch(/sem links/);
+    expect(buildSystemPrompt("airbnb")).toMatch(/Proibido: links e endereços de sites/);
+    expect(buildSystemPrompt("airbnb")).toMatch(/letras estilizadas com caracteres Unicode/);
+    expect(buildSystemPrompt("whatsapp")).toMatch(/\*negrito\*/);
     expect(buildSystemPrompt("whatsapp")).toMatch(/WhatsApp/);
     const strip = (s: string) => s.replace(/^Canal: .*$/m, "");
     expect(strip(buildSystemPrompt("airbnb"))).toBe(strip(buildSystemPrompt("guide_chat")));
@@ -160,8 +162,11 @@ describe("B2.1 · System Prompt — silêncio, intenções, interlocutor/titular
   });
   it("interlocutor ≠ titular; nome não autentica", () => {
     expect(sys).toMatch(/pode não ser o titular da reserva/);
-    expect(sys).toMatch(/um nome declarado não prova identidade, legitimidade nem autorização/);
-    expect(sys).toMatch(/Cordialidade não é autenticação/);
+    expect(sys).toMatch(/Um nome declarado não prova identidade, legitimidade nem autorização/);
+    expect(sys).toMatch(/cordialidade não é autenticação/);
+    // refinamento de 06/11/2026: o nome de quem escreve, nunca o do titular imposto
+    expect(sys).toMatch(/Chame a pessoa pelo nome de quem está escrevendo agora/);
+    expect(sys).toMatch(/nunca imponha o nome do titular da reserva/);
     expect(sys).toMatch(/Não atribua ao titular o que um terceiro disse/);
   });
   it("marcos só com evidência na conversa; horário/credencial/reserva não são evidência; sem repetir; resposta nunca é aviso de sistema (G2)", () => {

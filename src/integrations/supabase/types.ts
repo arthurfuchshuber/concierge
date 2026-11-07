@@ -5592,6 +5592,7 @@ export type Database = {
           delivery_status: string | null
           edited_at: string | null
           external_id: string | null
+          guide_context: Json | null
           id: string
           is_internal_note: boolean
           role: string
@@ -5618,6 +5619,7 @@ export type Database = {
           delivery_status?: string | null
           edited_at?: string | null
           external_id?: string | null
+          guide_context?: Json | null
           id?: string
           is_internal_note?: boolean
           role: string
@@ -5644,6 +5646,7 @@ export type Database = {
           delivery_status?: string | null
           edited_at?: string | null
           external_id?: string | null
+          guide_context?: Json | null
           id?: string
           is_internal_note?: boolean
           role?: string
@@ -6175,6 +6178,7 @@ export type Database = {
         Row: {
           category: string | null
           created_at: string
+          distance_kind: string | null
           distance_meters: number | null
           distance_text: string | null
           drive_minutes: number | null
@@ -6197,6 +6201,7 @@ export type Database = {
         Insert: {
           category?: string | null
           created_at?: string
+          distance_kind?: string | null
           distance_meters?: number | null
           distance_text?: string | null
           drive_minutes?: number | null
@@ -6219,6 +6224,7 @@ export type Database = {
         Update: {
           category?: string | null
           created_at?: string
+          distance_kind?: string | null
           distance_meters?: number | null
           distance_text?: string | null
           drive_minutes?: number | null
