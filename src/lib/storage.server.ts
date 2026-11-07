@@ -3,7 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 const BUCKET = "property-images";
 const TTL_SECONDS = 60 * 60; // 1h — guia público (hóspedes)
 /** Prazo curto para a equipe: acesso removido deixa de abrir fotos em minutos. */
-export const TEAM_TTL_SECONDS = 5 * 60;
+export const TEAM_TTL_SECONDS = 60;
 
 function extractPath(url: string | null | undefined): string | null {
   if (!url || typeof url !== "string") return null;
