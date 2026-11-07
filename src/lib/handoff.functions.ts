@@ -1235,6 +1235,21 @@ export const sendHandoffMessage = createServerFn({ method: "POST" })
 
 // -------- Edit / delete a staff message --------
 
+/** Sessão da conversa, só quando a mensagem não traz o canal (registro antigo): define o destino pelo prefixo. */
+async function conversationSessionId(
+  supabase: SupabaseClient,
+  conversationId: string,
+  channel: string | null | undefined,
+): Promise<string | null> {
+  if ((channel ?? "").trim()) return null;
+  const { data } = await supabase
+    .from("property_chat_conversations")
+    .select("guest_session_id")
+    .eq("id", conversationId)
+    .maybeSingle();
+  return ((data as { guest_session_id?: string | null } | null)?.guest_session_id ?? null) || null;
+}
+
 export const editHandoffMessage = createServerFn({ method: "POST" })
   .inputValidator((d: { conversationId: string; messageId: string; content: string }) => {
     if (!d?.conversationId || !d?.messageId) throw new Error("Mensagem inválida.");
@@ -1253,12 +1268,29 @@ export const editHandoffMessage = createServerFn({ method: "POST" })
 
     const { data: msg } = await supabase
       .from("property_chat_messages")
-      .select("id, sender_type, conversation_id")
+      .select("id, sender_type, conversation_id, channel, is_internal_note")
       .eq("id", data.messageId)
       .maybeSingle();
     if (!msg || msg.conversation_id !== data.conversationId)
       throw new Error("Mensagem não encontrada.");
     if (msg.sender_type === "guest") throw new Error("Não é possível editar mensagens do hóspede.");
+    // Canal de destino manda (Airbnb/WhatsApp não permitem editar depois do envio). Notas internas, sim.
+    {
+      const { messageActions, AIRBNB_IMMUTABLE_ERROR, WHATSAPP_NO_EDIT_ERROR } = await import(
+        "@/lib/chat/message-actions"
+      );
+      const session = await conversationSessionId(supabase, data.conversationId, msg.channel);
+      const actions = messageActions({
+        channel: msg.channel,
+        sessionId: session,
+        isNote: !!msg.is_internal_note,
+        isGuest: false,
+      });
+      if (!actions.edit)
+        throw new Error(
+          actions.destination === "airbnb" ? AIRBNB_IMMUTABLE_ERROR : WHATSAPP_NO_EDIT_ERROR,
+        );
+    }
 
     let content = data.content;
     try {
@@ -1299,7 +1331,7 @@ export const deleteHandoffMessage = createServerFn({ method: "POST" })
     await requireChatRespondForConversation(supabase, userId, data.conversationId);
     const { data: msg } = await supabase
       .from("property_chat_messages")
-      .select("id, sender_type, conversation_id")
+      .select("id, sender_type, conversation_id, channel, is_internal_note")
       .eq("id", data.messageId)
       .maybeSingle();
     // Mensagem já apagada (clique duplo / reenvio): trata como sucesso em vez
@@ -1307,6 +1339,19 @@ export const deleteHandoffMessage = createServerFn({ method: "POST" })
     if (!msg || msg.conversation_id !== data.conversationId)
       return { ok: true, alreadyDeleted: true };
     if (msg.sender_type === "guest") throw new Error("Não é possível apagar mensagens do hóspede.");
+    // Canal de destino manda: Airbnb não permite apagar depois do envio. Qualquer atendente com permissão
+    // de responder (conferida acima) apaga mensagens da equipe/IA nos canais que permitem; notas, sempre.
+    {
+      const { messageActions, AIRBNB_IMMUTABLE_ERROR } = await import("@/lib/chat/message-actions");
+      const session = await conversationSessionId(supabase, data.conversationId, msg.channel);
+      const actions = messageActions({
+        channel: msg.channel,
+        sessionId: session,
+        isNote: !!msg.is_internal_note,
+        isGuest: false,
+      });
+      if (!actions.delete) throw new Error(AIRBNB_IMMUTABLE_ERROR);
+    }
     const { error } = await supabase
       .from("property_chat_messages")
       .delete()
