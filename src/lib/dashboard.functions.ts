@@ -1348,8 +1348,8 @@ const AdvanceInput = z
  * Corpo de `advanceArrival`, extraído pra função independente (pedido
  * explícito, 06/09/2026): reaproveitado tanto pelo clique manual em
  * "Confirmar checkout" (via `advanceArrival` abaixo, com o client de sessão
- * do usuário) quanto pela confirmação automática de checkout no horário
- * previsto (`runAutoCheckoutScan`, em `auto-checkout.server.ts`, com
+ * do usuário) quanto pela confirmação automática de checkout no corte
+ * oficial do imóvel (`runAutoCheckoutScan`, em `auto-checkout.server.ts`, com
  * `supabaseAdmin` — sem sessão de usuário, roda por cron). Aceita qualquer
  * `SupabaseClient<Database>`: um client de sessão (RLS do usuário) ou o
  * admin (bypassa RLS, usado pelo cron). `byUserId` só é usado no avanço de
@@ -1364,7 +1364,7 @@ export async function runAdvanceArrival(
     /** Hóspede confirmou pelo guia: o guia manda o próprio aviso, então o painel NÃO manda o da equipe (08/10/2026: eram 2 pushes). */
     skipStaffPush?: boolean;
     /** Quem fez o avanço: grava a origem em `note` do carimbo "feito" (histórico da reserva). */
-    origin?: "guest" | "staff" | "system";
+    origin?: "guest" | "staff" | "system" | "ai";
   },
 ) {
   // Resolve property + stay dates from the source record.
@@ -1445,7 +1445,9 @@ export async function runAdvanceArrival(
           ? "Confirmado pelo hóspede via Guia Digital"
           : opts.origin === "system"
             ? "Confirmado automaticamente"
-            : "Confirmado pela equipe";
+            : opts.origin === "ai"
+              ? "Confirmado pela IA a partir da mensagem do hóspede"
+              : "Confirmado pela equipe";
       // Quem da equipe confirmou (02/11/2026): o Histórico da reserva mostra o
       // nome em vez de "Autor não registrado". Só para a equipe — hóspede e
       // sistema já são identificados pela nota.

@@ -63,8 +63,7 @@ describe("G2 · contrato da decisão v5", () => {
     expect(DECISION_FORMAT_SPEC).toContain('"guestEtas"');
     expect(DECISION_FORMAT_SPEC).toContain('"milestoneQuote"');
   });
-  it("G2a: só os modos off e shadow existem", () =>
-    expect([...OPS_MODES]).toEqual(["off", "shadow"]));
+  it("modos: off, shadow e live", () => expect([...OPS_MODES]).toEqual(["off", "shadow", "live"]));
 });
 
 // ─────────────────────────── barreira léxica (golden set) ───────────────────────────
@@ -330,6 +329,8 @@ describe("G2 · política determinística", () => {
       arrivalTimeOverride: "16:00",
       arrivalTimeSource: "guest",
       mutedUntil: null,
+      lateCheckoutTime: null,
+      lateCheckoutApprovedAt: null,
     };
     expect(one(input({ cards: { checkin: card, checkout: null } }))).toEqual({
       action: "checkin_done",
@@ -400,6 +401,8 @@ describe("G2 · política determinística", () => {
       arrivalTimeOverride: null,
       arrivalTimeSource: null,
       mutedUntil: null,
+      lateCheckoutTime: null,
+      lateCheckoutApprovedAt: null,
     };
     expect(one(input({ cards: { checkin: done, checkout: null } })).code).toBe("card_done");
     const muted = {
@@ -408,6 +411,8 @@ describe("G2 · política determinística", () => {
       arrivalTimeOverride: null,
       arrivalTimeSource: null,
       mutedUntil: "2026-11-11T00:00:00Z",
+      lateCheckoutTime: null,
+      lateCheckoutApprovedAt: null,
     };
     expect(one(input({ cards: { checkin: muted, checkout: null } })).code).toBe("card_muted");
     expect(one(input({ cards: null })).code).toBe("state_unavailable");
@@ -519,6 +524,8 @@ describe("G2 · política determinística", () => {
         arrivalTimeOverride: "18:00",
         arrivalTimeSource: "staff",
         mutedUntil: null,
+        lateCheckoutTime: null,
+        lateCheckoutApprovedAt: null,
       };
       expect(one(pre({ cards: { checkin: staff, checkout: null } })).code).toBe("staff_prediction");
     });
@@ -600,6 +607,8 @@ describe("G2 · política determinística", () => {
         arrivalTimeOverride: null,
         arrivalTimeSource: null,
         mutedUntil: null,
+        lateCheckoutTime: null,
+        lateCheckoutApprovedAt: null,
       };
       const text = "Já saímos, deixamos as chaves";
       expect(

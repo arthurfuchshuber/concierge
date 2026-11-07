@@ -40,6 +40,8 @@ function card(row: Record<string, unknown> | undefined): OpsCardState | null {
     arrivalTimeOverride: str(row["arrival_time_override"]),
     arrivalTimeSource: str(row["arrival_time_source"]),
     mutedUntil: str(row["muted_until"]),
+    lateCheckoutTime: str(row["late_checkout_time"]),
+    lateCheckoutApprovedAt: str(row["late_checkout_approved_at"]),
   };
 }
 

@@ -4,21 +4,27 @@
  * Diretrizes do titular (06/11/2026): conclusão de check-in, conclusão de check-out e previsão de horário
  * informada pelo hóspede, nos cards de `guest_arrival_status`. Decisões D-G2-1 a D-G2-5.
  *
- * ETAPA G2a: só OBSERVAÇÃO. O modo `shadow` registra em auditoria (`guest_ai_ops_actions`) o que a IA
- * faria, sem escrever em card nenhum. O modo `on` não existe nesta etapa: qualquer valor diferente de
- * `shadow` é `off`. A escrita nos cards entra só nas etapas G2c/G2d, com nova homologação.
+ * Modos (`GUEST_AI_OPS_MODE`):
+ *  - `live` (ou `on`) — G2c, decisão do titular (06/11/2026, sem período de observação): a ação é EXECUTADA
+ *    no card com as rotinas oficiais do painel e auditada (`claimed` → `applied`, com fotos antes e depois);
+ *  - `shadow` — só registra em auditoria o que a IA faria, sem escrever em card;
+ *  - qualquer outro valor (ou ausente) — `off`.
+ * A resposta ao hóspede continua sendo só sugestão do Copiloto (`slot.server.ts` devolve `null`).
  */
 
-/** Modos aceitos nesta etapa. `on` NÃO é aceito (G2a): vira `off`. */
-export const OPS_MODES = ["off", "shadow"] as const;
+export const OPS_MODES = ["off", "shadow", "live"] as const;
 export type OpsMode = (typeof OPS_MODES)[number];
 export const OPS_MODE_ENV = "GUEST_AI_OPS_MODE";
 /** Piloto opcional: lista de ids de imóvel; ausente/vazia ⇒ todos os imóveis da conta. */
 export const OPS_PROPERTIES_ENV = "GUEST_AI_OPS_PROPERTY_IDS";
 
 /**
+ * `late_checkout` (G2c, diretriz de 06/11/2026, item 3): concessão EXPRESSA de horário de saída estendido
+ * feita por atendente humano da equipe no chat ⇒ registrada no card de saída com autoria do atendente
+ * (`internal_set_late_checkout`). Pedido do hóspede nunca é autorização.
+ *
  * `early_departure` (diretriz 3): o hóspede confirma, com fato consumado, que JÁ saiu antes da data final da
- * reserva ⇒ o card de checkout seria puxado para HOJE (data local do imóvel) e concluído.
+ * reserva ⇒ o card de checkout é concluído e puxado para HOJE (data local do imóvel).
  */
 export const OPS_ACTIONS = [
   "eta_checkin",
@@ -26,12 +32,15 @@ export const OPS_ACTIONS = [
   "checkin_done",
   "checkout_done",
   "early_departure",
+  "late_checkout",
 ] as const;
 export type OpsAction = (typeof OPS_ACTIONS)[number];
 
-/** Desfechos registráveis na G2a (a migration aceita só estes). */
-export const OPS_OUTCOMES = ["would_apply", "refused"] as const;
-export type OpsOutcome = (typeof OPS_OUTCOMES)[number];
+/** Veredito da política para um sinal. */
+const OPS_VERDICTS = ["would_apply", "refused"] as const;
+export type OpsVerdict = (typeof OPS_VERDICTS)[number];
+/** Desfechos gravados em `guest_ai_ops_actions` (shadow: would_apply|refused; live: claimed → applied|refused). */
+export const OPS_AUDIT_OUTCOMES = ["would_apply", "claimed", "applied", "refused"] as const;
 
 /**
  * Madrugada (diretriz 1): chegada entre 00:00 e 05:00 (exclusivo) no fuso do imóvel pertence à NOITE da
@@ -39,7 +48,7 @@ export type OpsOutcome = (typeof OPS_OUTCOMES)[number];
  */
 export const MADRUGADA_END_MINUTES = 5 * 60;
 
-/** Origem com que a previsão da IA SERÁ gravada (D-G2-2; o auto-checkout a ignora). Não usada na G2a. */
+/** Origem com que a previsão da IA é gravada no card (D-G2-2). Informativa: previsão nenhuma dá baixa. */
 export const GUEST_AI_ARRIVAL_SOURCE = "guest_ai" as const;
 
 /** Motivos fechados de recusa (sem texto do hóspede). */
@@ -65,6 +74,10 @@ export const OPS_REFUSAL_CODES = [
   "not_in_stay",
   "not_checkout_day",
   "early_departure_not_certain",
+  // late checkout concedido pela equipe (G2c)
+  "staff_grant_ambiguous",
+  "staff_grant_not_explicit",
+  "not_checkout_window",
   "eta_date_mismatch",
   "eta_phase_mismatch",
   "eta_out_of_bounds",
@@ -80,6 +93,13 @@ export const OPS_REFUSAL_CODES = [
   "problem_or_negotiation",
   // dados
   "state_unavailable",
+  // execução (live): a rotina oficial do painel recusou ou falhou; a previsão encontrou a da equipe
+  "panel_refused",
+  "apply_failed",
+  "staff_prediction_race",
+  "staff_author_unknown",
+  "staff_not_authorized",
+  "late_checkout_rejected",
 ] as const;
 export type OpsRefusalCode = (typeof OPS_REFUSAL_CODES)[number];
 
@@ -90,6 +110,9 @@ export interface OpsCardState {
   arrivalTimeOverride: string | null;
   arrivalTimeSource: string | null;
   mutedUntil: string | null;
+  /** Late checkout formal já registrado no card de saída (R6), e quando foi aprovado. */
+  lateCheckoutTime: string | null;
+  lateCheckoutApprovedAt: string | null;
 }
 
 /** Estado da conversa relevante para as travas (pedido 6 da diretriz). */
@@ -119,9 +142,9 @@ export interface OpsReservationState {
 /** Resultado da política para UM sinal (registrado em auditoria). */
 export interface OpsEvaluation {
   action: OpsAction;
-  outcome: OpsOutcome;
+  outcome: OpsVerdict;
   code: OpsRefusalCode | null;
-  /** Id real da mensagem do hóspede com a evidência (quando identificada). */
+  /** Id real da mensagem com a evidência (do hóspede; em `late_checkout`, a da equipe que concedeu). */
   evidenceMessageId: string | null;
   /** Previsão proposta (`eta_*`) ou nova data do card de saída (`early_departure`). */
   proposedDate: string | null;

@@ -52,11 +52,15 @@ export function copilotRpcFrom(client: RpcCapableClient, signal?: AbortSignal): 
 }
 
 /**
- * GATE G2a · AUDITORIA das ações operacionais (modo de observação): a ÚNICA RPC é o REGISTRO em
- * `guest_ai_ops_actions` (EXECUTE só service_role; o banco aceita só `mode = 'shadow'`). Nenhuma escrita
- * em card: a G2a não altera `guest_arrival_status`.
+ * GATE G2 · AUDITORIA das ações operacionais: as ÚNICAS RPCs são as de registro em `guest_ai_ops_actions`
+ * (EXECUTE só service_role). A escrita nos cards NÃO passa por este módulo: é feita fora dele
+ * (`src/lib/guest-ai-ops-apply.server.ts`) com as rotinas oficiais do painel.
  */
-export const OPS_RPC_FUNCTIONS = ["guest_ai_ops_record"] as const;
+export const OPS_RPC_FUNCTIONS = [
+  "guest_ai_ops_record",
+  "guest_ai_ops_claim",
+  "guest_ai_ops_finish",
+] as const;
 export type OpsRpcFunction = (typeof OPS_RPC_FUNCTIONS)[number];
 export interface GuestAiOpsRpc {
   call(fn: OpsRpcFunction, args: Record<string, unknown>): Promise<{ data: unknown; error: unknown }>;

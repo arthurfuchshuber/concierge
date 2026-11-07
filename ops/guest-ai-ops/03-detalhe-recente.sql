@@ -1,8 +1,9 @@
--- G2a/G2b · últimos 100 registros, para auditoria caso a caso. SOMENTE LEITURA.
+-- G2 · últimos 100 registros, para auditoria caso a caso (fotos do card antes e depois). SOMENTE LEITURA.
 -- Para ler a mensagem que serviu de evidência, abra a conversa no painel pelo id (a auditoria não guarda texto).
 select
   a.created_at,
   p.name                                       as imovel,
+  a.mode                                       as modo,
   a.action                                     as acao,
   a.outcome                                    as desfecho,
   a.code                                       as motivo,
@@ -13,6 +14,9 @@ select
   a.card_before ->> 'status'                   as card_status_antes,
   a.card_before ->> 'arrivalTimeOverride'      as previsao_antes,
   a.card_before ->> 'arrivalTimeSource'        as origem_previsao_antes,
+  a.card_after ->> 'status'                    as card_status_depois,
+  a.card_after ->> 'arrival_time_override'     as previsao_depois,
+  a.applied_at,
   a.conversation_id,
   a.evidence_message_id,
   a.reservation_id,

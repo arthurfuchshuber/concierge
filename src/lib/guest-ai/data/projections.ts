@@ -149,7 +149,7 @@ export const ARRIVAL_STATUS_COLUMNS = [
 ] as const;
 export const ACCESS_LOG_COLUMNS = ["id", "property_id", "checkin_date"] as const;
 /** G2 · ações operacionais: estado do card (sem preço, limpeza ou autores). Usada só por `data/ops-state.server.ts`. */
-export const OPS_CARD_COLUMNS = ["kind", "status", "done_at", "arrival_time_override", "arrival_time_source", "muted_until", "reservation_id"] as const;
+export const OPS_CARD_COLUMNS = ["kind", "status", "done_at", "arrival_time_override", "arrival_time_source", "muted_until", "late_checkout_time", "late_checkout_approved_at", "reservation_id"] as const;
 /** G2 · limites oficiais de horário do imóvel (mesmos do formulário do guia). */
 export const OPS_PROPERTY_TIME_COLUMNS = ["id", "owner_id", "checkin_time", "checkin_time_max", "checkout_time", "checkout_time_min"] as const;
 export const LISTING_COLUMNS = ["property_id", "normalized", "synced_at"] as const;

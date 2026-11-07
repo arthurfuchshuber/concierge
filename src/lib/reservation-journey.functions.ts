@@ -180,7 +180,7 @@ type StatusRow = {
   arrival_time_source?: string | null;
 };
 
-/** Primeira marca de origem ("Confirmado pela equipe/pelo hóspede/automaticamente") em produção. */
+/** Primeira marca de origem ("Confirmado pela equipe/pelo hóspede/automaticamente/pela IA") em produção. */
 const ORIGIN_MARK_SINCE = "2026-10-14T00:00:00";
 
 function brl(cents: number | null): string | null {
@@ -457,6 +457,8 @@ export const getReservationJourney = createServerFn({ method: "GET" })
       return rows.length ? rows[rows.length - 1]! : null;
     };
     const SYSTEM: JourneyActor = { name: "Sincronização", role: "Sistema" };
+    /** Gate G2c: card movido pela IA a partir da mensagem do hóspede (conclusão ou previsão). */
+    const AI: JourneyActor = { name: "IA (mensagem do hóspede)", role: "Sistema" };
     const GUEST: JourneyActor = {
       name: log?.guest_name ?? reservation?.guest_hint ?? "Hóspede",
       role: "Hóspede",
@@ -485,6 +487,7 @@ export const getReservationJourney = createServerFn({ method: "GET" })
       const note = row?.note ?? "";
       if (/pela equipe/i.test(note)) return staffActor(row?.manual_created_by);
       if (/automaticamente/i.test(note)) return SYSTEM;
+      if (/pela IA/i.test(note)) return AI;
       if (/pelo h[óo]spede/i.test(note)) return GUEST;
       // Sem marca de origem: antes de 14/10/2026 o sistema não gravava quem confirmou
       // (decisão do cliente, 02/11/2026: dizer isso, em vez de atribuir ao hóspede).
@@ -565,7 +568,12 @@ export const getReservationJourney = createServerFn({ method: "GET" })
               : co?.arrival_time_override || co?.arrival_date_override
                 ? co
                 : null;
-          if (pr) return pr.arrival_time_source === "guest" ? GUEST : staffActor(pr.manual_created_by);
+          if (pr)
+            return pr.arrival_time_source === "guest"
+              ? GUEST
+              : pr.arrival_time_source === "guest_ai"
+                ? AI
+                : staffActor(pr.manual_created_by);
           return log?.guest_arrival_time ? GUEST : SYSTEM;
         })(),
       });
