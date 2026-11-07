@@ -13,3 +13,13 @@ O merge na `main` entra no ar automaticamente. Por isso a mudança de banco do G
 - Depois do passo 3: reaplicar o PR. As RPCs antigas só voltam reaplicando a migration `20261105150000`, o que não é recomendado.
 
 Nenhum arquivo daqui cria cron, chama serviço externo ou altera secrets ou flags.
+
+## Situação (06/11/2026)
+
+| Passo | Situação |
+|---|---|
+| 1. G1a | aplicada e conferida |
+| 2. PR #5 | mergeado (`main` `9b1fa07f`); build `1794011207760` no ar |
+| 3. G1b | aplicada e conferida |
+
+A G1b está registrada em `supabase/migrations/20261107000100_copilot_g1b_revoke_legacy.sql`. O conteúdo é idêntico ao deste diretório, com um cabeçalho de registro. Não há nada a executar.
