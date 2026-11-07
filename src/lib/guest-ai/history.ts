@@ -39,6 +39,30 @@ export interface HistoryRow {
   attachment_type: string | null;
   attachment_duration_ms: number | null;
   attachment_transcript: string | null;
+  /** Item do Guia Digital que abriu o chat (conferido pelo servidor do guia antes de gravar). Opcional. */
+  guide_context?: unknown;
+}
+
+/** Item do guia (evento da Home ou recomendação do Explorar) que o hóspede tocou para abrir o chat. */
+export interface GuideItemContext {
+  kind: "city_event" | "place";
+  id: string;
+  name: string;
+  type: string | null;
+  category: string | null;
+}
+
+/** Lê `guide_context` com forma fechada; qualquer outra coisa ⇒ null (nunca texto livre arbitrário). */
+export function parseGuideContext(v: unknown): GuideItemContext | null {
+  if (!v || typeof v !== "object" || Array.isArray(v)) return null;
+  const o = v as Record<string, unknown>;
+  const s = (x: unknown, max: number) =>
+    typeof x === "string" && x.trim() ? x.trim().slice(0, max) : null;
+  const kind = o["kind"] === "city_event" || o["kind"] === "place" ? o["kind"] : null;
+  const id = s(o["id"], 80);
+  const name = s(o["name"], 200);
+  if (!kind || !id || !name || !/^[a-z0-9:_-]+$/i.test(id)) return null;
+  return { kind, id, name, type: s(o["type"], 40), category: s(o["category"], 80) };
 }
 
 export interface HistoryMedia {
@@ -64,6 +88,8 @@ export interface HistoryEntry {
   delivery: HistoryDelivery;
   /** A mensagem que o turno responde (sempre a última entrada). */
   current: boolean;
+  /** Item do guia que abriu o chat (só em mensagem do hóspede). */
+  guideContext?: GuideItemContext | null;
 }
 
 export type HistoryUnavailableReason =
@@ -212,6 +238,9 @@ export function normalizeHistory(
       media: mediaOf(row),
       delivery: classifyDelivery(row.delivery_status),
       current: i === idx,
+      ...(speaker === "guest" && row.guide_context != null
+        ? { guideContext: parseGuideContext(row.guide_context) }
+        : {}),
     };
   });
 

@@ -166,20 +166,26 @@ export const PROPERTY_ACCESS_COLUMNS = ["id", "owner_id", "archived_at"] as cons
 /** Manuais COM descrição e referências de imagem (faltavam na projeção F1, que segue intacta). */
 export const MANUAL_DOSSIER_COLUMNS = ["id", "title", "description", "body", "images"] as const;
 /**
- * Recomendações do entorno. FORA de propósito: `walk_minutes`, `drive_minutes` e `distance_text`
- * (minutos derivados de velocidade presumida — decisão D5) e `image_url`/`maps_url`/`last_synced_at`.
- * `distance_meters` = linha reta.
+ * Recomendações "Aqui pertinho" do guia (Google Maps / Google Meu Negócio é a fonte da verdade). FORA de
+ * propósito: `distance_text`, `image_url`, `place_id`, `last_synced_at`. `distance_meters`, `walk_minutes` e
+ * `drive_minutes` só são usados quando `distance_kind = 'route'` (trajeto medido pelo servidor no Google Maps;
+ * Pilar 2, 06/11/2026) — com qualquer outra procedência a IA não recebe distância nem tempo.
  */
 export const RECOMMENDATION_PUBLIC_COLUMNS = [
   "id",
   "property_id",
+  "scope",
   "name",
   "category",
   "type",
   "rating",
   "user_ratings_total",
   "distance_meters",
+  "distance_kind",
+  "walk_minutes",
+  "drive_minutes",
   "opening_hours",
+  "maps_url",
   "note",
   "position",
 ] as const;
@@ -222,3 +228,30 @@ export const SENDER_TWIN_COLUMNS = ["owner_id", "property_id", "primary_listing_
 export const SENDER_ACCOUNT_COLUMNS = ["owner_id", "channex_channel_id", "status"] as const;
 /** Preferência do anfitrião (`airbnb_sender_pref`): só os campos usados, por caminho JSON. */
 export const SENDER_PREF_SELECT = "channex_id, owner_id:payload->>owner_id, channel_id:payload->>channel_id, updated_at:payload->>updated_at";
+
+// ─────────────── Guia Digital × IA (06/11/2026): eventos da cidade e recomendações do Google Maps ───────────────
+
+/** Cidade do imóvel (para os eventos da Home do guia). Posse conferida pelo `owner_id`. */
+export const PROPERTY_CITY_COLUMNS = ["id", "owner_id", "city", "country"] as const;
+/** Edição gravada do feed "O que rola na cidade" (mesma tabela que a Home lê). */
+export const CITY_NEWS_COLUMNS = ["items", "date"] as const;
+/** Grupo de referências compartilhado entre guias (mesma resolução do guia público). */
+export const CITY_REFERENCE_GROUP_COLUMNS = ["group_id"] as const;
+/**
+ * Referências da cidade exibidas no Explorar do guia (Google Maps). SEM coordenadas e sem endereço: a
+ * distância delas não é calculada por rota para cada imóvel, então a IA não recebe distância nenhuma.
+ */
+export const CITY_REFERENCE_PUBLIC_COLUMNS = [
+  "id",
+  "property_id",
+  "group_id",
+  "type",
+  "category",
+  "name",
+  "note",
+  "rating",
+  "user_ratings_total",
+  "opening_hours",
+  "maps_url",
+  "display_order",
+] as const;

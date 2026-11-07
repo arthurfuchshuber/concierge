@@ -107,16 +107,18 @@ describe("B2.2 · carregador sob demanda (projeções, revalidação, isolamento
     expect(calls).toHaveLength(0);
   });
 
-  it("toda consulta é filtrada pelo imóvel do alvo e usa projeção explícita (sem senha, sem minutos)", async () => {
+  it("toda consulta é filtrada pelo imóvel do alvo e usa projeção explícita (sem senha, sem texto de distância)", async () => {
     const { calls } = await load(P1, "primary");
     for (const c of calls) {
       expect(c.select).not.toMatch(/\*/);
       expect(c.filters[0]![1]).toBe(P1);
       for (const col of SENSITIVE_PROPERTY_COLUMNS) expect(c.select ?? "").not.toMatch(new RegExp(`(^|, )${col}(,|$)`));
-      expect(c.select ?? "").not.toMatch(/walk_minutes|drive_minutes|distance_text|cohost_payout|amount/);
+      // minutos só entram com trajeto confirmado (normalize); texto de distância e coordenadas nunca
+      expect(c.select ?? "").not.toMatch(/distance_text|cohost_payout|amount/);
+      if (c.table === "city_references") expect(c.select ?? "").not.toMatch(/\blat\b|\blng\b|address/);
     }
     expect(new Set(calls.map((c) => c.table))).toEqual(
-      new Set(["properties", "property_faqs", "property_checkout_items", "property_emergency_contacts", "property_manual_items", "property_playbook_entries", "property_listing_raw_data", "property_recommendations"]),
+      new Set(["properties", "property_faqs", "property_checkout_items", "property_emergency_contacts", "property_manual_items", "property_playbook_entries", "property_listing_raw_data", "property_recommendations", "city_reference_group_members", "city_references"]),
     );
   });
 
@@ -156,7 +158,7 @@ describe("B2.2 · carregador sob demanda (projeções, revalidação, isolamento
 });
 
 describe("B2.2 · dossiê normalizado — cobertura, procedência e exclusões", () => {
-  it("principal (P+G): cadastro, FAQ, anúncio, página pública, reviews, manuais com descrição/imagens, entorno", async () => {
+  it("principal (P+G): cadastro, FAQ, anúncio, página pública, reviews, manuais com descrição/imagens, recomendações do guia", async () => {
     const { dossier: d } = await load(P1, "primary");
     expect(d.propertyId).toBe(P1);
     expect(d.tenantId).toBe(T1);
@@ -167,9 +169,14 @@ describe("B2.2 · dossiê normalizado — cobertura, procedência e exclusões",
     expect(d.entries.find((e) => e.id === "listing:review:1")).toMatchObject({ kind: "guest_review", temporal: "historical", observedAt: "2026-09-01T00:00:00Z", source: "listing_channex" });
     expect(d.entries.find((e) => e.id === "listing:public:unavailable")).toMatchObject({ kind: "amenity_unavailable", value: "Secadora" });
     expect(d.manuals).toEqual([{ id: "manual:man-1", title: "TV", description: "Como usar a TV MARCADOR-1", body: "Ligue no botão vermelho. A senha da TV: Netflix55", imageRefs: ["https://cdn.example.com/tv.jpg"] }]);
-    expect(d.nearby).toEqual([
-      { id: "rec:rec-1", name: "Padaria P1", category: "padaria", type: "bakery", rating: 4.7, ratingsTotal: 120, openingHours: ["seg–sáb 6h–20h"], note: "Ótimo pão", distance: { meters: 350, kind: "straight_line", origin: "property", destination: "Padaria P1" } },
+    // Google Maps como fonte: trajeto confirmado ⇒ distância e minutos; linha reta ⇒ sem distância; link só do Google;
+    // "Pela cidade" vem de city_references (o antigo scope=city de property_recommendations não entra); oculta não entra
+    expect(d.places).toEqual([
+      { id: "rec:rec-1", scope: "nearby", name: "Padaria P1", category: "padaria", type: "bakery", rating: 4.7, ratingsTotal: 120, openingHours: ["seg–sáb 6h–20h"], note: "Ótimo pão", mapsUrl: "https://maps.google.com/?cid=1", route: { meters: 350, walkMinutes: 4, driveMinutes: 1 } },
+      { id: "rec:rec-4", scope: "nearby", name: "Farmácia P1", category: "farmácia", type: "pharmacy", rating: 4.1, ratingsTotal: 80, openingHours: null, note: null, mapsUrl: null, route: null },
+      { id: "cref:cref-1", scope: "city", name: "Mirante P1", category: "Atrações", type: "attraction", rating: 4.8, ratingsTotal: 5000, openingHours: null, note: null, mapsUrl: "https://www.google.com/maps/place/?q=place_id:x", route: null },
     ]);
+    expect(d.completeness.sourcesPresent).toEqual(expect.arrayContaining(["property_recommendations", "city_references"]));
     expect(d.mediaRefs).toEqual([{ id: "listing:public:cover", url: expect.stringContaining("p1.jpg"), source: "listing_public_page" }]);
     expect(d.availability).toEqual({ status: "not_consulted" });
   });
@@ -180,7 +187,10 @@ describe("B2.2 · dossiê normalizado — cobertura, procedência e exclusões",
     expect(t).not.toMatch(/PRIVADO-P1|Private feedback|repasse|cohost/i);
     expect(t).not.toMatch(/5511999990000|Conta Sigma/);
     expect(t).not.toMatch(/AP01 -/);
-    expect(t).not.toMatch(/walk|drive|min a pé|min de carro/);
+    // minutos presumidos (texto de distância) nunca; minutos só do trajeto confirmado no Google Maps
+    expect(t).not.toMatch(/min a pé|min de carro/);
+    expect(d.places.filter((p) => p.route === null).every((p) => p.route === null)).toBe(true);
+    expect(d.places.find((p) => p.id === "rec:rec-4")!.route).toBeNull();
   });
 
   it("capacidade com procedência: confirmada, conflito (não escolhe) e desconhecida (não infere)", async () => {
@@ -270,7 +280,7 @@ describe("B2.2 · normalização — determinismo, imutabilidade, fidelidade", (
     (src.listingNormalized as Record<string, Record<string, unknown>>)["public_listing"]!["descriptions"] = [long];
     const d = normalizePropertyDossier({ target, sources: src, retrievedAt: "x", buildPlaybook: realBuild });
     expect(d.entries.find((e) => e.id === "listing:public:description:1")!.value).toBe(long);
-    expect(d.nearby[0]!.distance!.meters).toBe(350);
+    expect(d.places[0]!.route!.meters).toBe(350);
   });
 
   it("duplicata exata entre fontes vira uma entrada com a procedência adicional (alsoIn)", () => {
@@ -302,7 +312,7 @@ describe("B2.2 · normalização — determinismo, imutabilidade, fidelidade", (
     expect(d.capacity).toEqual({ guests: { status: "unknown" }, bedrooms: { status: "unknown" }, beds: { status: "unknown" }, bathrooms: { status: "unknown" } });
     expect(d.unknown).toEqual(expect.arrayContaining(["capacity.guests", "capacity.beds", "public_name"]));
     expect(d.completeness.sourcesMissing).toEqual(expect.arrayContaining(["listing_channex", "listing_public_page", "property_recommendations"]));
-    expect(d.nearby).toEqual([]);
+    expect(d.places).toEqual([]);
     expect(t).toBeTruthy();
   });
 });
@@ -341,14 +351,16 @@ describe("B2.2 · disponibilidade separada das características", () => {
 });
 
 describe("B2.2 · projeções novas existem no banco real e excluem o proibido", () => {
-  const REC_REAL = ["id", "property_id", "scope", "type", "name", "category", "rating", "distance_text", "distance_meters", "drive_minutes", "note", "image_url", "maps_url", "place_id", "position", "created_at", "user_ratings_total", "walk_minutes", "opening_hours", "last_synced_at"];
+  // + distance_kind (migration 20261107030000)
+  const REC_REAL = ["id", "property_id", "scope", "type", "name", "category", "rating", "distance_text", "distance_meters", "drive_minutes", "note", "image_url", "maps_url", "place_id", "position", "created_at", "user_ratings_total", "walk_minutes", "opening_hours", "last_synced_at", "distance_kind"];
   it("colunas reais (snapshot de produção)", () => {
     expect(PROPERTY_ACCESS_COLUMNS.filter((c) => !REAL_COLUMNS["properties"]!.includes(c))).toEqual([]);
     expect(MANUAL_DOSSIER_COLUMNS.filter((c) => !REAL_COLUMNS["property_manual_items"]!.includes(c))).toEqual([]);
     expect(RECOMMENDATION_PUBLIC_COLUMNS.filter((c) => !REC_REAL.includes(c))).toEqual([]);
   });
-  it("recomendações sem minutos estimados nem texto de distância derivado; acesso sem segredo", () => {
-    for (const c of ["walk_minutes", "drive_minutes", "distance_text"]) expect(RECOMMENDATION_PUBLIC_COLUMNS as readonly string[]).not.toContain(c);
+  it("recomendações sem texto de distância derivado (minutos só com trajeto confirmado); acesso sem segredo", () => {
+    for (const c of ["distance_text", "image_url", "place_id", "last_synced_at"]) expect(RECOMMENDATION_PUBLIC_COLUMNS as readonly string[]).not.toContain(c);
+    expect(RECOMMENDATION_PUBLIC_COLUMNS as readonly string[]).toContain("distance_kind");
     for (const c of SENSITIVE_PROPERTY_COLUMNS) {
       expect(PROPERTY_ACCESS_COLUMNS as readonly string[]).not.toContain(c);
       expect(MANUAL_DOSSIER_COLUMNS as readonly string[]).not.toContain(c);

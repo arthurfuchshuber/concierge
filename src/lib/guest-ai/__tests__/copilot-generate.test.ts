@@ -262,6 +262,25 @@ describe("Copiloto · geração com a cadeia real e o Gateway real (transporte f
     expect(p.calls).toBe(1);
   });
 
+  it("rajada: com mensagem mais nova do hóspede, esta é dispensada (a mais nova responde ao conjunto); incerto ⇒ gera", async () => {
+    const p = fakeProvider(okJson(v5()));
+    const d = deps(p, { checkNewerGuestMessage: async () => "newer" });
+    expect(await generateCopilotSuggestion(REQ, d)).toEqual({
+      status: "skipped",
+      code: "superseded_by_newer_message",
+      detail: null,
+    });
+    expect(p.calls).toBe(0);
+    expect(d.store.claims).toHaveLength(0);
+    for (const v of ["none", "unknown"] as const) {
+      const p2 = fakeProvider(okJson(v5()));
+      expect(
+        (await generateCopilotSuggestion(REQ, deps(p2, { checkNewerGuestMessage: async () => v })))
+          .status,
+      ).toBe("stored");
+    }
+  });
+
   it("escopo de imóveis: sem lista (ausente, vazia ou *) ⇒ TODOS os imóveis geram; lista ⇒ só os listados", async () => {
     for (const list of [undefined, "", " ", "*", " * ", " , "]) {
       const p = fakeProvider(okJson(v5()));

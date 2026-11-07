@@ -4,6 +4,13 @@ import { crossBorderCategory } from "@/lib/poi-country";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import { AI_MODELS } from "@/lib/llm/models";
+import {
+  distanceMatrixPath,
+  parseDistanceMatrix,
+  routeFields,
+  ROUTE_MAX_DESTINATIONS,
+  type RouteLeg,
+} from "@/lib/route-distance";
 
 const GATEWAY = "https://connector-gateway.lovable.dev/google_maps";
 
@@ -1034,6 +1041,44 @@ export async function fetchPlaceDetails(placeId: string): Promise<PlaceRaw | nul
   return (await res.json()) as PlaceRaw;
 }
 
+/**
+ * Trajetos (Google Maps, Distance Matrix pelo gateway) do imóvel até os destinos: a pé primeiro; sem rota a pé,
+ * de carro. Também traz o trajeto de carro dos destinos a mais de 1,5 km (o guia mostra "min de carro").
+ * Falha de rede/API ⇒ `null` naquele destino (o chamador fica com a linha reta, marcada como tal).
+ */
+async function routeLegs(
+  origin: { lat: number; lng: number },
+  dests: Array<{ lat: number; lng: number }>,
+): Promise<Array<{ walk: RouteLeg; drive: RouteLeg | null } | null>> {
+  const out: Array<{ walk: RouteLeg; drive: RouteLeg | null } | null> = dests.map(() => null);
+  const matrix = async (idx: number[], mode: "walking" | "driving") => {
+    const legs: Array<RouteLeg | null> = idx.map(() => null);
+    for (let i = 0; i < idx.length; i += ROUTE_MAX_DESTINATIONS) {
+      const part = idx.slice(i, i + ROUTE_MAX_DESTINATIONS);
+      try {
+        const res = await gatewayFetch(distanceMatrixPath(origin, part.map((k) => dests[k]!), mode));
+        const parsed = res.ok ? parseDistanceMatrix(await res.json(), part.length, mode) : part.map(() => null);
+        parsed.forEach((leg, j) => (legs[i + j] = leg));
+      } catch {
+        /* sem rota: fica nulo */
+      }
+    }
+    return legs;
+  };
+  const all = dests.map((_, i) => i);
+  const walking = await matrix(all, "walking");
+  const needDrive = all.filter((i) => !walking[i] || walking[i]!.meters > 1500);
+  const driving = needDrive.length ? await matrix(needDrive, "driving") : [];
+  const driveBy = new Map(needDrive.map((k, j) => [k, driving[j] ?? null]));
+  for (const i of all) {
+    const w = walking[i];
+    const d = driveBy.get(i) ?? null;
+    if (w) out[i] = { walk: w, drive: d };
+    else if (d) out[i] = { walk: d, drive: d };
+  }
+  return out;
+}
+
 async function refreshRecommendationsForProperty(
   supabaseAdmin: typeof import("@/integrations/supabase/client.server").supabaseAdmin,
   property: { id: string; lat: number | null; lng: number | null },
@@ -1046,12 +1091,35 @@ async function refreshRecommendationsForProperty(
   // Limita concorrência simples — Places API é pago por chamada.
   const BATCH = 5;
   for (let i = 0; i < recs.length; i += BATCH) {
-    const slice = recs.slice(i, i + BATCH);
-    await Promise.all(
+    const slice = recs.slice(i, i + BATCH).filter((r) => !!r.place_id);
+    const details = await Promise.all(
       slice.map(async (r) => {
-        if (!r.place_id) return;
         try {
-          const p = await fetchPlaceDetails(r.place_id);
+          return await fetchPlaceDetails(r.place_id!);
+        } catch {
+          return null;
+        }
+      }),
+    );
+    // Distância de TRAJETO (Pilar 2, 06/11/2026): uma chamada de rota para o lote inteiro.
+    const located = slice
+      .map((r, k) => ({ r, p: details[k] }))
+      .filter((x): x is { r: RecRow; p: PlaceRaw & { location: { latitude: number; longitude: number } } } =>
+        !!x.p && !!x.p.location,
+      );
+    const legs =
+      hasCoords && located.length
+        ? await routeLegs(
+            { lat: property.lat as number, lng: property.lng as number },
+            located.map((x) => ({ lat: x.p.location.latitude, lng: x.p.location.longitude })),
+          )
+        : [];
+    const legById = new Map(located.map((x, k) => [x.r.id, legs[k] ?? null]));
+
+    await Promise.all(
+      slice.map(async (r, k) => {
+        const p = details[k];
+        try {
           if (!p || !p.location) {
             failed += 1;
             // marca como sincronizado mesmo assim para não travar a fila
@@ -1077,19 +1145,26 @@ async function refreshRecommendationsForProperty(
             last_synced_at: new Date().toISOString(),
           };
           if (hasCoords) {
-            const dist = haversineMeters(
-              { lat: property.lat as number, lng: property.lng as number },
-              { lat: p.location.latitude, lng: p.location.longitude },
-            );
-            const fmt = formatDistance(dist);
-            patch.distance_meters = dist;
-            patch.distance_text = fmt.text;
-            patch.drive_minutes = fmt.driveMin;
-            patch.walk_minutes = fmt.walkMin;
+            const leg = legById.get(r.id) ?? null;
+            if (leg) {
+              Object.assign(patch, routeFields(leg.walk, leg.drive));
+            } else {
+              // sem rota (API indisponível ou destino sem caminho): linha reta, marcada como tal
+              const dist = haversineMeters(
+                { lat: property.lat as number, lng: property.lng as number },
+                { lat: p.location.latitude, lng: p.location.longitude },
+              );
+              const fmt = formatDistance(dist);
+              patch.distance_meters = dist;
+              patch.distance_text = fmt.text;
+              patch.drive_minutes = fmt.driveMin;
+              patch.walk_minutes = fmt.walkMin;
+              patch.distance_kind = "straight_line";
+            }
           }
           // remove undefined para não sobrescrever com null indesejado
-          for (const k of Object.keys(patch)) {
-            if (patch[k] === undefined) delete patch[k];
+          for (const key of Object.keys(patch)) {
+            if (patch[key] === undefined) delete patch[key];
           }
           const { error } = await supabaseAdmin
             .from("property_recommendations")

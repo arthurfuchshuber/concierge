@@ -36,6 +36,8 @@ export const HISTORY_MESSAGE_COLUMNS = [
   "attachment_type",
   "attachment_duration_ms",
   "attachment_transcript",
+  // item do Guia Digital que abriu o chat (migration 20261107030000; forma fechada, sem texto do hóspede)
+  "guide_context",
 ] as const;
 
 /** Teto de linhas por conversa. Acima disso: `over_limit` explícito (sem corte). */

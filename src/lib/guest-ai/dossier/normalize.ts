@@ -30,7 +30,7 @@ import {
   type DossierManual,
   type DossierSource,
   type Known,
-  type NearbyPlace,
+  type GuidePlace,
   type PropertyDossier,
   type PropertyRole,
 } from "./contracts";
@@ -47,6 +47,10 @@ export interface DossierSources {
   /** `property_listing_raw_data.normalized` da linha mais recente DO MESMO imóvel (ou null). */
   listingNormalized: unknown;
   recommendations: Row[];
+  /** Referências da cidade do Explorar (mesma resolução do guia público: grupo vinculado ou o próprio imóvel). */
+  cityReferences?: Row[];
+  /** Grupo de referências do imóvel (`city_reference_group_members`), ou null. */
+  cityReferenceGroupId?: string | null;
 }
 
 export interface NormalizeInput {
@@ -61,6 +65,33 @@ const num = (v: unknown): number | null => {
   const n = typeof v === "number" ? v : typeof v === "string" && v.trim() !== "" ? Number(v) : Number.NaN;
   return Number.isFinite(n) && n >= 0 ? n : null;
 };
+
+/** Hosts oficiais do Google Maps aceitos como link da recomendação (qualquer outro ⇒ null). */
+const GOOGLE_MAPS_HOSTS = new Set([
+  "maps.google.com",
+  "www.google.com",
+  "google.com",
+  "maps.app.goo.gl",
+  "goo.gl",
+  "www.google.com.br",
+  "google.com.br",
+  "maps.google.com.br",
+]);
+export function googleMapsUrl(v: unknown): string | null {
+  if (typeof v !== "string" || v.length > 2048) return null;
+  try {
+    const u = new URL(v.trim());
+    if (u.protocol !== "https:" || u.username || u.password) return null;
+    const host = u.hostname.toLowerCase();
+    if (!GOOGLE_MAPS_HOSTS.has(host)) return null;
+    // em google.com, só caminhos do Maps
+    if ((host.endsWith("google.com") || host.endsWith("google.com.br")) && host !== "maps.google.com" && host !== "maps.google.com.br" && !u.pathname.startsWith("/maps"))
+      return null;
+    return u.toString();
+  } catch {
+    return null;
+  }
+}
 const dedupeKey = (v: string) => v.normalize("NFC").replace(/\s+/g, " ").trim().toLowerCase();
 
 function knownOf(cands: Array<{ value: number | null; source: string }>): Known<number> {
@@ -98,6 +129,11 @@ export function normalizePropertyDossier(input: NormalizeInput): PropertyDossier
   const p = src.property;
   if (!p || p["id"] !== target.propertyId) throw new DossierError("cross_property_row");
   for (const r of src.recommendations) if (r["property_id"] !== target.propertyId) throw new DossierError("cross_property_row");
+  const groupId = src.cityReferenceGroupId ?? null;
+  for (const r of src.cityReferences ?? []) {
+    const own = groupId ? r["group_id"] === groupId : r["property_id"] === target.propertyId && r["group_id"] == null;
+    if (!own) throw new DossierError("cross_property_row");
+  }
 
   const publicName = publicPropertyTitle(str(p["name"]));
   const listing = pickNormalized(src.listingNormalized, publicName);
@@ -214,23 +250,49 @@ export function normalizePropertyDossier(input: NormalizeInput): PropertyDossier
     withheld += src.manuals.length;
   }
 
-  // 5) Entorno: só distância em LINHA RETA; minutos estimados não são lidos (projeção) nem aceitos aqui.
-  const nearby: NearbyPlace[] = src.recommendations.map((r) => {
-    const name = str(r["name"]) ?? "";
-    const meters = num(r["distance_meters"]);
-    const hours = Array.isArray(r["opening_hours"]) ? (r["opening_hours"] as unknown[]).filter((h): h is string => typeof h === "string") : null;
-    return {
-      id: `rec:${String(r["id"])}`,
-      name,
-      category: str(r["category"]),
-      type: str(r["type"]),
-      rating: num(r["rating"]),
-      ratingsTotal: num(r["user_ratings_total"]),
-      openingHours: hours,
-      note: str(r["note"]),
-      distance: meters === null ? null : { meters, kind: "straight_line", origin: "property", destination: name },
-    };
-  });
+  // 5) Recomendações do guia (Google Maps). Distância só de TRAJETO confirmado pelo servidor (Pilar 2).
+  const hoursOf = (v: unknown) =>
+    Array.isArray(v) ? (v as unknown[]).filter((h): h is string => typeof h === "string") : null;
+  const places: GuidePlace[] = [
+    ...src.recommendations
+      .filter((r) => (r["scope"] ?? "nearby") === "nearby")
+      .map((r): GuidePlace => {
+        const meters = num(r["distance_meters"]);
+        const routed = r["distance_kind"] === "route" && meters !== null && meters >= 0;
+        const minutes = (v: unknown) => {
+          const n = num(v);
+          return n !== null && n > 0 ? Math.round(n) : null;
+        };
+        return {
+          id: `rec:${String(r["id"])}`,
+          scope: "nearby",
+          name: str(r["name"]) ?? "",
+          category: str(r["category"]),
+          type: str(r["type"]),
+          rating: num(r["rating"]),
+          ratingsTotal: num(r["user_ratings_total"]),
+          openingHours: hoursOf(r["opening_hours"]),
+          note: str(r["note"]),
+          mapsUrl: googleMapsUrl(r["maps_url"]),
+          route: routed ? { meters: Math.round(meters!), walkMinutes: minutes(r["walk_minutes"]), driveMinutes: minutes(r["drive_minutes"]) } : null,
+        };
+      }),
+    ...(src.cityReferences ?? []).map(
+      (r): GuidePlace => ({
+        id: `cref:${String(r["id"])}`,
+        scope: "city",
+        name: str(r["name"]) ?? "",
+        category: str(r["category"]),
+        type: str(r["type"]),
+        rating: num(r["rating"]),
+        ratingsTotal: num(r["user_ratings_total"]),
+        openingHours: hoursOf(r["opening_hours"]),
+        note: str(r["note"]),
+        mapsUrl: googleMapsUrl(r["maps_url"]),
+        route: null,
+      }),
+    ),
+  ].filter((x) => x.name.trim());
 
   const mediaRefs: PropertyDossier["mediaRefs"] = [];
   const cover = str(pub?.["cover"]);
@@ -242,7 +304,8 @@ export function normalizePropertyDossier(input: NormalizeInput): PropertyDossier
   if (listing) present.add("listing_channex");
   if (pub) present.add("listing_public_page");
   if (manuals.length) present.add("property_manual_items");
-  if (nearby.length) present.add("property_recommendations");
+  if (places.some((x) => x.scope === "nearby")) present.add("property_recommendations");
+  if (places.some((x) => x.scope === "city")) present.add("city_references");
 
   return {
     version: 1,
@@ -255,7 +318,7 @@ export function normalizePropertyDossier(input: NormalizeInput): PropertyDossier
     capacity,
     entries,
     manuals,
-    nearby,
+    places,
     mediaRefs,
     conflicts,
     unknown,

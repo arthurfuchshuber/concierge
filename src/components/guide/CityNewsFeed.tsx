@@ -4,16 +4,27 @@ import { motion } from "framer-motion";
 import { ArrowUpRight } from "lucide-react";
 import { getCityNews, type NewsItem } from "@/lib/city-news.functions";
 import { cityKey } from "@/lib/city-key";
+import { cityNewsItemId } from "@/lib/city-news-window";
+import { openGuideChat } from "@/lib/guide-chat-event";
 import recBeach from "@/assets/rec-beach.jpg";
 import recRestaurant from "@/assets/rec-restaurant.jpg";
 import recCafe from "@/assets/rec-cafe.jpg";
 
 type Lang = "pt" | "en" | "es" | "fr";
 
-function openChat(prompt: string) {
-  window.dispatchEvent(
-    new CustomEvent("open-guide-chat", { detail: { prompt, source: "city_news" } }),
-  );
+function openChat(prompt: string, item: NewsItem) {
+  // Pilar 4: o chat já começa sabendo qual item da Home o hóspede tocou (o servidor confere o id).
+  openGuideChat({
+    prompt,
+    source: "city_news",
+    context: {
+      kind: "city_event",
+      id: cityNewsItemId(item),
+      name: item.title,
+      type: item.category ?? null,
+      category: item.category ?? null,
+    },
+  });
 }
 
 // Category color system — editorial pills over the image
@@ -181,7 +192,7 @@ export function CityNewsFeed({
                 <button
                   type="button"
                   onClick={() =>
-                    openChat(`Me conta mais sobre "${it.title}"${city ? ` em ${city}` : ""}.`)
+                    openChat(`Me conta mais sobre "${it.title}"${city ? ` em ${city}` : ""}.`, it)
                   }
 
                   className="block h-full w-full text-left group"

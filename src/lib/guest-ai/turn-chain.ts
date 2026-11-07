@@ -20,6 +20,7 @@
  * situação da conversa (chamado já existente, emergência, necessidade humana) vem à parte e nunca
  * transforma uma recusa em autorização para outra ação.
  */
+import type { CityEventsLoad } from "./data/city-events.server";
 import {
   CURRENT_DECISION_VERSION,
   TURN_MAX_DEADLINE_MS,
@@ -313,6 +314,11 @@ export interface ChainDeps {
    * `indisponivel` no prompt, nunca recusa o turno. Cancelamento externo continua encerrando o turno.
    */
   loadGuestProfile?: (turn: ValidatedTurn, signal: AbortSignal) => Promise<GuestProfileLoad>;
+  /**
+   * Pilar 1 (06/11/2026) — eventos da Home do guia para a cidade do imóvel (só leitura). Enriquecimento:
+   * falha ⇒ bloco `indisponivel` (a IA admite não saber), nunca recusa o turno.
+   */
+  loadCityEvents?: (turn: ValidatedTurn, signal: AbortSignal) => Promise<CityEventsLoad>;
   /**
    * B3.2 — fontes da pausa humana DERIVADA (mensagens gravadas + webhooks brutos + coluna). Pausa
    * ativa, indeterminada ou desconhecida (inclusive falha de leitura) ⇒ mesmo VETO da pausa da equipe.
@@ -763,6 +769,16 @@ export async function runTurnChain(input: ChainInput, deps: ChainDeps): Promise<
         guestProfile = buildGuestProfileContext({ status: "unavailable" });
       }
     }
+    // Eventos da cidade (enriquecimento; nunca recusa o turno)
+    let cityEvents: CityEventsLoad | null = null;
+    if (deps.loadCityEvents) {
+      try {
+        cityEvents = await timeAsync("context", () => step((s) => deps.loadCityEvents!(turn, s)));
+      } catch (e) {
+        if (deps.signal?.aborted) return failure("context", e);
+        cityEvents = { status: "unavailable", reason: "lookup_failed" };
+      }
+    }
     completed.push("context");
 
     // 3) Dossiê (opcional; quando há, é crítico)
@@ -803,7 +819,7 @@ export async function runTurnChain(input: ChainInput, deps: ChainDeps): Promise<
     const composeStart = now();
     const guardBefore = timings.guard ?? 0;
     const composed = composeTurnPrompt(
-      { context: ctx, history, dossiers, batch, guestProfile, operational: { stayAuthorizations, humanOwnership, aiPausedByTeam: paused } },
+      { context: ctx, history, dossiers, batch, guestProfile, cityEvents, operational: { stayAuthorizations, humanOwnership, aiPausedByTeam: paused } },
       { guard: timedGuard, budget: deps.budget },
     );
     timings.compose = Math.max(0, Math.round(now() - composeStart) - ((timings.guard ?? 0) - guardBefore));

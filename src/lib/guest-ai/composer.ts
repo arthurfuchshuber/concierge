@@ -35,7 +35,7 @@
 import type { ComposedPrompt, ConversationContext } from "@/lib/guest-ai/orchestrator/contracts";
 import type { HistoryEntry, HistoryResult, HistoryUnavailableReason } from "./history";
 import { PERSONA_VERSION } from "./persona";
-import { CONTEXT_TAG, DOSSIER_TAG, GUEST_PROFILE_TAG, HISTORY_TAG, SYSTEM_PROMPT_VERSION, buildSystemPrompt } from "./system-prompt";
+import { CITY_EVENTS_TAG, CONTEXT_TAG, DOSSIER_TAG, GUEST_PROFILE_TAG, HISTORY_TAG, PLACES_TAG, SYSTEM_PROMPT_VERSION, buildSystemPrompt } from "./system-prompt";
 import type { GuestProfileContext } from "./context/guest-profile";
 import { defaultBudgetConfig, evaluateBudget, type BudgetConfig, type BudgetMetrics, type BudgetOverReason } from "./budget";
 import { assertAvailabilityFor, type PropertyDossier } from "./dossier/contracts";
@@ -44,8 +44,9 @@ import type { ResolvedFact } from "./dossier/authority";
 import type { StayAuthorizations } from "./policy/stay-authorizations";
 import type { HumanOwnershipSnapshot } from "./orchestrator/case-ownership";
 import type { GuestMessageBatch } from "./batch/message-batch";
+import type { CityEventsLoad } from "./data/city-events.server";
 
-export const COMPOSER_VERSION = "composer.2026-11-06.6";
+export const COMPOSER_VERSION = "composer.2026-11-06.7";
 export const PROMPT_VERSION = `b2.5/${COMPOSER_VERSION}/${SYSTEM_PROMPT_VERSION}/${PERSONA_VERSION}`;
 /** Teto de dossiês alternativos num mesmo turno (cada um é carregado sob demanda e autorizado). */
 export const MAX_CANDIDATE_DOSSIERS = 5;
@@ -92,6 +93,11 @@ export interface ComposeInput {
    * texto livre e passam pelo guard. Ausente ⇒ o bloco não entra (comportamento anterior).
    */
   guestProfile?: GuestProfileContext | null;
+  /**
+   * Pilar 1 (06/11/2026): eventos da Home do guia para a cidade do imóvel (`data/city-events.server.ts`).
+   * Ausente ⇒ o bloco não entra; indisponível ⇒ o bloco declara a indisponibilidade.
+   */
+  cityEvents?: CityEventsLoad | null;
 }
 
 /**
@@ -335,6 +341,16 @@ function historyItem(e: HistoryEntry, guarded: Guarded, previous: string | null,
       texto_derivado: e.media.derivedText.status === "available" ? guarded(e.media.derivedText.text, `${source}.media`) : null,
     };
   }
+  if (e.guideContext) {
+    // Pilar 4: o item do guia que abriu a conversa (evento da Home ou recomendação), conferido pelo servidor.
+    item["contexto_do_guia"] = {
+      tipo: e.guideContext.kind === "city_event" ? "evento_da_cidade" : "recomendacao",
+      // mesmos ids dos blocos <eventos_da_cidade> (evt:…) e <recomendacoes_google_maps> (gm:principal:…)
+      id: e.guideContext.kind === "city_event" ? `evt:${e.guideContext.id}` : `gm:principal:${e.guideContext.id}`,
+      nome: guarded(e.guideContext.name, `${source}.guide_context`),
+      categoria: e.guideContext.category === null ? null : guarded(e.guideContext.category, `${source}.guide_context`),
+    };
+  }
   if (e.current) item["atual"] = true;
   if (inBatch) item["lote_atual"] = true;
   return item;
@@ -405,17 +421,6 @@ function dossierItem(d: PropertyDossier, ref: string, guarded: Guarded, ids: Set
       return out;
     }),
     manuais: d.manuals.map((m) => ({ id: id(m.id), titulo: g(m.title), descricao: g(m.description), conteudo: g(m.body), imagens: m.imageRefs.length })),
-    entorno: d.nearby.map((n) => ({
-      id: id(n.id),
-      nome: g(n.name),
-      categoria: g(n.category),
-      tipo: g(n.type),
-      nota_media: n.rating,
-      total_avaliacoes: n.ratingsTotal,
-      horarios: n.openingHours ? n.openingHours.map((h) => guarded(h, source)) : null,
-      observacao: g(n.note),
-      distancia_linha_reta_m: n.distance ? n.distance.meters : null,
-    })),
     referencias_visuais: d.mediaRefs.length + d.manuals.reduce((n, m) => n + m.imageRefs.length, 0),
     conflitos_entre_fontes: d.conflicts.map((c) => guarded(c, source)),
     // B2.4: fatos resolvidos por autoridade de domínio (divergências preservadas, nunca promovidas).
@@ -435,6 +440,66 @@ function dossierItem(d: PropertyDossier, ref: string, guarded: Guarded, ids: Set
     fontes_presentes: [...d.completeness.sourcesPresent],
     fontes_ausentes: [...d.completeness.sourcesMissing],
     retidos_por_politica: d.completeness.withheldByPolicy,
+  };
+}
+
+/**
+ * Recomendações do Guia Digital (Google Maps) — FORA do Dossiê (Pilar 1, 06/11/2026). Distância só de trajeto
+ * confirmado; tempos só como estimativa para quando o hóspede insistir. No Airbnb, sem link (o canal bloqueia).
+ */
+function placesItem(d: PropertyDossier, ref: string, guarded: Guarded, ids: Set<string>, withLinks: boolean): Record<string, unknown> {
+  const source = `places.${ref}`;
+  return {
+    ref,
+    itens: d.places.map((pl) => {
+      const id = `gm:${ref}:${pl.id}`;
+      ids.add(id);
+      const out: Record<string, unknown> = {
+        id,
+        nome: guarded(pl.name, source),
+        escopo: pl.scope === "nearby" ? "aqui_pertinho" : "pela_cidade",
+        categoria: pl.category === null ? null : guarded(pl.category, source),
+        tipo: pl.type,
+        nota_google: pl.rating,
+        total_avaliacoes_google: pl.ratingsTotal,
+        horarios_vigentes: pl.openingHours ? pl.openingHours.map((h) => guarded(h, source)) : null,
+        observacao: pl.note === null ? null : guarded(pl.note, source),
+      };
+      if (withLinks) out["link_google_maps"] = pl.mapsUrl;
+      if (pl.route) {
+        out["distancia_trajeto_m"] = pl.route.meters;
+        out["tempo_estimado_somente_se_o_hospede_insistir"] = {
+          a_pe_min: pl.route.walkMinutes,
+          de_carro_min: pl.route.driveMinutes,
+        };
+      } else {
+        out["distancia_trajeto_m"] = null;
+      }
+      return out;
+    }),
+  };
+}
+
+/** Eventos da Home do guia ("O que rola na cidade"); indisponível é declarado, nunca omitido. */
+function eventsData(ev: CityEventsLoad, guarded: Guarded, ids: Set<string>): Record<string, unknown> {
+  if (ev.status !== "available") return { status: "indisponivel", motivo: ev.reason };
+  return {
+    status: "disponivel",
+    cidade: guarded(ev.city, "events.city"),
+    hoje: ev.today,
+    itens: ev.items.map((it) => {
+      const id = `evt:${it.id}`;
+      ids.add(id);
+      return {
+        id,
+        titulo: guarded(it.title, "events"),
+        categoria: it.category,
+        inicio: it.startDate,
+        fim: it.endDate,
+        local: it.venue === null ? null : guarded(it.venue, "events"),
+        descricao: it.summary === null ? null : guarded(it.summary, "events"),
+      };
+    }),
   };
 }
 
@@ -502,14 +567,21 @@ export function composeTurnPrompt(input: ComposeInput, options: ComposeOptions =
   let dossierJson: string | null = null;
   let profileJson: string | null = null;
   const profileIds: string[] = [];
+  let placesJson: string | null = null;
+  let eventsJson: string | null = null;
+  const guideIds = new Set<string>();
   try {
     contextData = buildContextData(ctx, guarded, unavailable, input.operational ?? null);
     contextJson = encodeDataBlock(contextData);
-    const batchIds = new Set(input.batch ? input.batch.messages.map((m) => m.id) : []);
+    // B2.5: lote declarado; sem ele, a RAJADA aparente no fim do histórico (mensagens seguidas do hóspede, ainda
+    // sem resposta, terminando na atual) também é um único turno (refinamento de hospitalidade, 06/11/2026).
+    const trailing: string[] = [];
+    for (let i = history.entries.length - 1; i >= 0 && history.entries[i]!.speaker === "guest"; i -= 1) trailing.unshift(history.entries[i]!.messageId);
+    const batchIds = new Set(input.batch ? input.batch.messages.map((m) => m.id) : trailing.length > 1 ? trailing : []);
     const items = history.entries.map((e, i) => historyItem(e, guarded, i > 0 ? history.entries[i - 1]!.text : null, batchIds.has(e.messageId)));
     // B2.5: o CONJUNTO do lote também passa pelo guard (segredo dividido entre mensagens). O texto
     // saneado de cada mensagem, unido, precisa voltar `safe` — senão a composição é recusada.
-    if (input.batch && input.batch.size > 1) {
+    if (batchIds.size > 1) {
       const parts = items.filter((it) => it["lote_atual"] === true).map((it) => String(it["texto"]));
       // Duas junções: por linha (fronteira preservada) e por espaço (um número partido entre
       // mensagens — "é 44" + "71" — vira uma sequência contínua que o guard reconhece).
@@ -545,7 +617,11 @@ export function composeTurnPrompt(input: ComposeInput, options: ComposeOptions =
         return dossierItem(d, ref, guarded, dossierIds);
       });
       dossierJson = encodeDataBlock(items);
+      const withLinks = it.surface !== "airbnb";
+      const places = all.map((d, i) => placesItem(d, i === 0 ? "principal" : `alt${i}`, guarded, guideIds, withLinks));
+      if (places.some((p) => (p["itens"] as unknown[]).length > 0)) placesJson = encodeDataBlock(places);
     }
+    if (input.cityEvents) eventsJson = encodeDataBlock(eventsData(input.cityEvents, guarded, guideIds));
   } catch (e) {
     if (e instanceof GuardRefusal) return { kind: "unavailable", reason: e.status === "ambiguous" ? "guard_ambiguous" : "guard_blocked" };
     return { kind: "unavailable", reason: e instanceof GuardFailure ? "guard_failed" : "compose_failed" };
@@ -555,13 +631,29 @@ export function composeTurnPrompt(input: ComposeInput, options: ComposeOptions =
   const contextBlock = `<${CONTEXT_TAG}>\n${contextJson}\n</${CONTEXT_TAG}>`;
   const dossierBlock = dossierJson === null ? null : `<${DOSSIER_TAG} total="${dossierRefs.length}">\n${dossierJson}\n</${DOSSIER_TAG}>`;
   const profileBlock = profileJson === null ? null : `<${GUEST_PROFILE_TAG}>\n${profileJson}\n</${GUEST_PROFILE_TAG}>`;
+  const placesBlock = placesJson === null ? null : `<${PLACES_TAG}>\n${placesJson}\n</${PLACES_TAG}>`;
+  const eventsBlock = eventsJson === null ? null : `<${CITY_EVENTS_TAG}>\n${eventsJson}\n</${CITY_EVENTS_TAG}>`;
   const historyBlock = `<${HISTORY_TAG} mensagem_atual="${last.ref}" total="${history.entries.length}">\n${historyJson}\n</${HISTORY_TAG}>`;
-  const batchRefs = input.batch ? history.entries.filter((e) => input.batch!.messages.some((m) => m.id === e.messageId)).map((e) => e.ref) : [];
+  const lotIds = new Set(input.batch ? input.batch.messages.map((m) => m.id) : (() => {
+    const t: string[] = [];
+    for (let i = history.entries.length - 1; i >= 0 && history.entries[i]!.speaker === "guest"; i -= 1) t.unshift(history.entries[i]!.messageId);
+    return t.length > 1 ? t : [];
+  })());
+  const batchRefs = history.entries.filter((e) => lotIds.has(e.messageId)).map((e) => e.ref);
   const closing =
     batchRefs.length > 1
       ? `As mensagens ${batchRefs.join(", ")} (lote_atual: true) foram enviadas em sequência pelo mesmo hóspede e formam um único turno. Considere-as em conjunto e produza uma única decisão para todas, no formato exigido pelas instruções de sistema.`
       : `Responda à mensagem ${last.ref} (atual: true) no formato exigido pelas instruções de sistema.`;
-  const user = [preamble, contextBlock, ...(profileBlock ? [profileBlock] : []), ...(dossierBlock ? [dossierBlock] : []), historyBlock, closing].join("\n\n");
+  const user = [
+    preamble,
+    contextBlock,
+    ...(profileBlock ? [profileBlock] : []),
+    ...(dossierBlock ? [dossierBlock] : []),
+    ...(placesBlock ? [placesBlock] : []),
+    ...(eventsBlock ? [eventsBlock] : []),
+    historyBlock,
+    closing,
+  ].join("\n\n");
 
   const messages: ComposedPrompt["messages"] = [{ role: "user", content: user }];
   const verdict = evaluateBudget(
@@ -572,6 +664,8 @@ export function composeTurnPrompt(input: ComposeInput, options: ComposeOptions =
       { name: "context", chars: contextBlock.length },
       ...(profileBlock ? [{ name: "guest_profile", chars: profileBlock.length }] : []),
       ...(dossierBlock ? [{ name: "dossiers", chars: dossierBlock.length }] : []),
+      ...(placesBlock ? [{ name: "guide_places", chars: placesBlock.length }] : []),
+      ...(eventsBlock ? [{ name: "city_events", chars: eventsBlock.length }] : []),
       { name: "history", chars: historyBlock.length },
       { name: "closing", chars: closing.length },
     ],
@@ -585,6 +679,7 @@ export function composeTurnPrompt(input: ComposeInput, options: ComposeOptions =
     ...history.entries.map((e) => e.ref),
     ...dossierIds,
     ...profileIds,
+    ...guideIds,
   ]);
 
   return {

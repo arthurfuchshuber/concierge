@@ -6,7 +6,7 @@
  * - Revalida no banco, no momento da leitura, a posse (tenant) e — para candidato — que o imóvel
  *   segue ativo (sem janela entre autorizar e ler).
  * - Todas as consultas filtradas pelo `propertyId` do alvo, com projeções explícitas (nada de `*`,
- *   nenhuma coluna de senha, nenhuma coluna financeira, nenhum minuto estimado).
+ *   nenhuma coluna de senha, nenhuma coluna financeira; minutos e distância só com trajeto do Google Maps).
  * - Normalização pura em `dossier/normalize.ts`; o dossiê sai emitido (congelado) no registro.
  * - Não carrega o portfólio: um imóvel por chamada. Nenhum chamador de produção nesta etapa.
  */
@@ -18,6 +18,8 @@ import type { BuildPlaybookFn } from "./dossier.server";
 import { abortableDb, getGuestAiDb, throwIfAborted, type GuestAiDb } from "./client.server";
 import {
   CHECKOUT_ITEM_COLUMNS,
+  CITY_REFERENCE_GROUP_COLUMNS,
+  CITY_REFERENCE_PUBLIC_COLUMNS,
   EMERGENCY_COLUMNS,
   ENTRY_COLUMNS,
   FAQ_COLUMNS,
@@ -44,7 +46,7 @@ export async function fetchPropertyDossier(target: DossierTarget, deps: Property
   const db = abortableDb(deps.db ?? (await getGuestAiDb()), deps.signal);
   const id = target.propertyId;
 
-  const [access, prop, faqs, checkout, emergency, manuals, entries, listing, recs] = await Promise.all([
+  const [access, prop, faqs, checkout, emergency, manuals, entries, listing, recs, membership] = await Promise.all([
     db.from("properties").select(cols(PROPERTY_ACCESS_COLUMNS)).eq("id", id).maybeSingle(),
     db.from("properties").select(cols(PROPERTY_DOSSIER_COLUMNS)).eq("id", id).maybeSingle(),
     db.from("property_faqs").select(cols(FAQ_COLUMNS)).eq("property_id", id).order("position", { ascending: true }),
@@ -53,12 +55,24 @@ export async function fetchPropertyDossier(target: DossierTarget, deps: Property
     db.from("property_manual_items").select(cols(MANUAL_DOSSIER_COLUMNS)).eq("property_id", id).order("position", { ascending: true }),
     db.from("property_playbook_entries").select(cols(ENTRY_COLUMNS)).eq("property_id", id),
     db.from("property_listing_raw_data").select(cols(LISTING_COLUMNS)).eq("property_id", id).order("synced_at", { ascending: false }).limit(5),
-    db.from("property_recommendations").select(cols(RECOMMENDATION_PUBLIC_COLUMNS)).eq("property_id", id).order("position", { ascending: true }),
+    // só "Aqui pertinho": as referências da cidade do guia vêm de city_references (abaixo), como no Explorar
+    db.from("property_recommendations").select(cols(RECOMMENDATION_PUBLIC_COLUMNS)).eq("property_id", id).eq("scope", "nearby").order("position", { ascending: true }),
+    db.from("city_reference_group_members").select(cols(CITY_REFERENCE_GROUP_COLUMNS)).eq("property_id", id).maybeSingle(),
   ]);
   throwIfAborted(deps.signal);
-  for (const r of [access, prop, faqs, checkout, emergency, manuals, entries, listing, recs]) {
+  for (const r of [access, prop, faqs, checkout, emergency, manuals, entries, listing, recs, membership]) {
     if (r?.error) throw new Error("dossier_lookup_failed");
   }
+  // Referências da cidade do Explorar — mesma resolução do guia público (`getPublicGuide`): o grupo vinculado
+  // do imóvel ou, sem grupo, as do próprio imóvel. Nunca por cidade (vazaria entre guias da mesma cidade).
+  const groupId = ((membership.data as Row | null)?.["group_id"] as string | null | undefined) ?? null;
+  const crefBase = db.from("city_references").select(cols(CITY_REFERENCE_PUBLIC_COLUMNS));
+  const cityRefs = await (groupId ? crefBase.eq("group_id", groupId) : crefBase.eq("property_id", id).is("group_id", null))
+    .eq("is_hidden", false)
+    .order("type", { ascending: true })
+    .order("display_order", { ascending: true });
+  throwIfAborted(deps.signal);
+  if (cityRefs.error) throw new Error("dossier_lookup_failed");
 
   // Revalidação de posse no momento da leitura (nunca confia só no alvo).
   const a = (access.data as Row | null) ?? null;
@@ -83,6 +97,8 @@ export async function fetchPropertyDossier(target: DossierTarget, deps: Property
       entries: (entries.data ?? []) as Row[],
       listingNormalized: listingRows[0]?.["normalized"] ?? null,
       recommendations: (recs.data ?? []) as Row[],
+      cityReferences: (cityRefs.data ?? []) as Row[],
+      cityReferenceGroupId: groupId,
     },
     retrievedAt: (deps.now ?? (() => new Date()))().toISOString(),
     buildPlaybook: build,

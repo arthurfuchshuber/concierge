@@ -135,8 +135,17 @@ export function portfolioTables(): Record<string, Row[]> {
     property_playbook_entries: [],
     property_listing_raw_data: [listing(P1, 1), listing(P2, 2), listing(P3, 3), listing(PX, 9)],
     property_recommendations: [
-      { id: "rec-1", property_id: P1, name: "Padaria P1", category: "padaria", type: "bakery", rating: 4.7, user_ratings_total: 120, distance_meters: 350, opening_hours: ["seg–sáb 6h–20h"], note: "Ótimo pão", position: 1, walk_minutes: 4, drive_minutes: 1, distance_text: "350 m · 4 min a pé" },
-      { id: "rec-3", property_id: P3, name: "Mercado P3", category: "mercado", type: "supermarket", rating: null, user_ratings_total: null, distance_meters: 1800, opening_hours: null, note: "código do portão 9911 para clientes", position: 1, walk_minutes: 23, drive_minutes: 3, distance_text: "1.8 km · 3 min de carro" },
+      { id: "rec-1", property_id: P1, scope: "nearby", distance_kind: "route", maps_url: "https://maps.google.com/?cid=1", name: "Padaria P1", category: "padaria", type: "bakery", rating: 4.7, user_ratings_total: 120, distance_meters: 350, opening_hours: ["seg–sáb 6h–20h"], note: "Ótimo pão", position: 1, walk_minutes: 4, drive_minutes: 1, distance_text: "350 m · 4 min a pé" },
+      { id: "rec-3", property_id: P3, scope: "nearby", distance_kind: "route", maps_url: "https://maps.google.com/?cid=3", name: "Mercado P3", category: "mercado", type: "supermarket", rating: null, user_ratings_total: null, distance_meters: 1800, opening_hours: null, note: "código do portão 9911 para clientes", position: 1, walk_minutes: 23, drive_minutes: 3, distance_text: "1.8 km · 3 min de carro" },
+      // linha reta (rota não confirmada) e "Pela cidade" antigo: nenhum dos dois chega como distância ou como "pertinho"
+      { id: "rec-4", property_id: P1, scope: "nearby", distance_kind: "straight_line", maps_url: "https://evil.example.com/x", name: "Farmácia P1", category: "farmácia", type: "pharmacy", rating: 4.1, user_ratings_total: 80, distance_meters: 900, opening_hours: null, note: null, position: 2, walk_minutes: 11, drive_minutes: null, distance_text: "900 m · 11 min a pé" },
+      { id: "rec-5", property_id: P1, scope: "city", name: "Antigo Pela Cidade P1", category: "atração", type: "attraction", position: 3 },
+    ],
+    city_reference_group_members: [],
+    city_references: [
+      { id: "cref-1", property_id: P1, group_id: null, is_hidden: false, type: "attraction", category: "Atrações", name: "Mirante P1", note: null, rating: 4.8, user_ratings_total: 5000, opening_hours: null, maps_url: "https://www.google.com/maps/place/?q=place_id:x", display_order: 1, lat: -27.1, lng: -48.5, address: "Rua secreta 1" },
+      { id: "cref-h", property_id: P1, group_id: null, is_hidden: true, type: "attraction", category: "Atrações", name: "Oculto P1", display_order: 2 },
+      { id: "cref-2", property_id: P2, group_id: null, is_hidden: false, type: "bar", category: "Bares", name: "Bar P2 MARCADOR-2", display_order: 1 },
     ],
   };
 }
@@ -158,7 +167,7 @@ export function portfolioDb(tables: Record<string, Row[]> = portfolioTables(), o
       const rows = () => {
         const cols = (st.select ?? "").split(",").map((c) => c.trim()).filter(Boolean);
         return (tables[table] ?? [])
-          .filter((r) => opts.ignoreFiltersOn === table || st.filters.every(([k, v]) => r[k] === v))
+          .filter((r) => opts.ignoreFiltersOn === table || st.filters.every(([k, v]) => (r[k] ?? null) === v))
           .map((r) => Object.fromEntries(cols.map((c) => [c, r[c] ?? null])));
       };
       const result = () => (opts.failTable === table ? { data: null, error: { message: "fail" } } : { data: rows(), error: null });
@@ -166,6 +175,7 @@ export function portfolioDb(tables: Record<string, Row[]> = portfolioTables(), o
         select(c: string) { st.select = c; return q; },
         abortSignal(s: AbortSignal) { st.signal = s; return q; },
         eq(k: string, v: unknown) { st.filters.push([k, v]); return q; },
+        is(k: string, v: unknown) { st.filters.push([k, v]); return q; },
         order() { return q; },
         limit() { return q; },
         maybeSingle() {

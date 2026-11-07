@@ -192,9 +192,8 @@ export function buildGuestMessageBatch(input: BuildBatchInput): BuildBatchResult
 // ─────────────────────────── Preparação da B3 (SÓ contrato; nada é executado aqui) ───────────────────────────
 
 /**
- * Política de agrupamento a ser IMPLEMENTADA na B3 (coletor + worker). Valores por canal, sem
- * constante rígida: referência inicial de ~10 s de silêncio dentro de 8–15 s, a calibrar pela B3
- * conforme canal, latência do provedor e experiência do hóspede.
+ * Política de agrupamento. Referência (refinamento de hospitalidade, 06/11/2026): respiro de ~6 s dentro de
+ * 5–8 s — o Copiloto já a aplica no disparo (`COPILOT_BURST_QUIET_MS`, `copilot/trigger.server.ts`).
  */
 export interface DebounceConfig {
   /** Silêncio que encerra o lote (ms). Nova mensagem válida reinicia a contagem. */
@@ -205,7 +204,7 @@ export interface DebounceConfig {
   maxTotalChars: number;
   perChannel?: Partial<Record<BatchChannel, { quietWindowMs?: number; maxWaitMs?: number }>>;
 }
-export const DEBOUNCE_REFERENCE = Object.freeze({ quietWindowMs: 10_000, minQuietWindowMs: 8_000, maxQuietWindowMs: 15_000 });
+export const DEBOUNCE_REFERENCE = Object.freeze({ quietWindowMs: 6_000, minQuietWindowMs: 5_000, maxQuietWindowMs: 8_000 });
 
 /** Valida uma configuração proposta (faixas de sanidade); não agenda nada. */
 export function checkDebounceConfig(c: DebounceConfig): "ok" | "quiet_window_out_of_range" | "max_wait_below_quiet_window" | "limits_invalid" {
