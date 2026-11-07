@@ -35,15 +35,45 @@ export interface GuestAiCopilotRpc {
   call(fn: CopilotRpcFunction, args: Record<string, unknown>): Promise<{ data: unknown; error: unknown }>;
 }
 
+/** Única chamada `rpc` do módulo: sempre atrás de uma lista FECHADA conferida pelo adaptador. */
+async function invokeRpc(client: RpcCapableClient, fn: string, args: Record<string, unknown>, signal?: AbortSignal): Promise<{ data: unknown; error: unknown }> {
+  if (signal?.aborted) return { data: null, error: { code: "aborted" } };
+  const q = client.rpc(fn, args);
+  return await (signal && typeof q.abortSignal === "function" ? q.abortSignal(signal) : q);
+}
+
 export function copilotRpcFrom(client: RpcCapableClient, signal?: AbortSignal): GuestAiCopilotRpc {
   return {
     async call(fn, args) {
       if (!(COPILOT_RPC_FUNCTIONS as readonly string[]).includes(fn)) return { data: null, error: { code: "copilot_rpc_not_allowed" } };
-      if (signal?.aborted) return { data: null, error: { code: "aborted" } };
-      const q = client.rpc(fn, args);
-      return await (signal && typeof q.abortSignal === "function" ? q.abortSignal(signal) : q);
+      return await invokeRpc(client, fn, args, signal);
     },
   };
+}
+
+/**
+ * GATE G2a · AUDITORIA das ações operacionais (modo de observação): a ÚNICA RPC é o REGISTRO em
+ * `guest_ai_ops_actions` (EXECUTE só service_role; o banco aceita só `mode = 'shadow'`). Nenhuma escrita
+ * em card: a G2a não altera `guest_arrival_status`.
+ */
+export const OPS_RPC_FUNCTIONS = ["guest_ai_ops_record"] as const;
+export type OpsRpcFunction = (typeof OPS_RPC_FUNCTIONS)[number];
+export interface GuestAiOpsRpc {
+  call(fn: OpsRpcFunction, args: Record<string, unknown>): Promise<{ data: unknown; error: unknown }>;
+}
+
+export function opsRpcFrom(client: RpcCapableClient, signal?: AbortSignal): GuestAiOpsRpc {
+  return {
+    async call(fn, args) {
+      if (!(OPS_RPC_FUNCTIONS as readonly string[]).includes(fn)) return { data: null, error: { code: "ops_rpc_not_allowed" } };
+      return await invokeRpc(client, fn, args, signal);
+    },
+  };
+}
+
+export async function getGuestAiOpsRpc(signal?: AbortSignal): Promise<GuestAiOpsRpc> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  return opsRpcFrom(supabaseAdmin as unknown as RpcCapableClient, signal);
 }
 
 export async function getGuestAiCopilotRpc(signal?: AbortSignal): Promise<GuestAiCopilotRpc> {

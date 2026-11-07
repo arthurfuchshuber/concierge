@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 import { evaluateStayAuthorizations, type StayAuthorizationInput, type StayCardRow } from "@/lib/guest-ai/policy/stay-authorizations";
 import { resolveDomain } from "@/lib/guest-ai/dossier/authority";
 import { runTurnChain } from "@/lib/guest-ai/turn-chain";
-import { harness, turn, v4 } from "./helpers/b23-chain";
+import { harness, turn, v5 } from "./helpers/b23-chain";
 
 const NOW = "2026-11-03T12:00:00Z";
 const card = (over: Partial<StayCardRow> = {}): StayCardRow => ({ kind: "checkout", status: "pending", property_id: "p1", reservation_id: "r1", ...over });
@@ -106,8 +106,8 @@ describe("B2.4 · o modelo não consegue criar autorização (cadeia completa)",
   const T0 = Date.parse(NOW);
   const src = (cards: StayCardRow[]) => async () => ({ reservation: input().reservation, stayReservationIds: [], property: input().property, cards });
   // B2.5: compromisso temporal declara o horário (promisedTimes), comparado com o R6
-  const lateReply = v4({ reply: "Pode sair às 13h.", commitments: ["saída às 13h"], commitmentKinds: ["late_checkout"], groundedOn: ["ctx:saida_tardia"], promisedTimes: [{ kind: "late_checkout", date: "2026-11-07", time: "13:00", timezone: "America/Sao_Paulo" }] });
-  const earlyReply = v4({ reply: "Pode entrar às 10h.", commitments: ["entrada às 10h"], commitmentKinds: ["early_checkin"], groundedOn: ["ctx:entrada_antecipada"] });
+  const lateReply = v5({ reply: "Pode sair às 13h.", commitments: ["saída às 13h"], commitmentKinds: ["late_checkout"], groundedOn: ["ctx:saida_tardia"], promisedTimes: [{ kind: "late_checkout", date: "2026-11-07", time: "13:00", timezone: "America/Sao_Paulo" }] });
+  const earlyReply = v5({ reply: "Pode entrar às 10h.", commitments: ["entrada às 10h"], commitmentKinds: ["early_checkin"], groundedOn: ["ctx:entrada_antecipada"] });
 
   it("compromisso de saída tardia SEM R6 ⇒ recusado; COM R6 válido ⇒ aprovado (e o fato aparece no prompt)", async () => {
     const none = harness(lateReply, { now: () => T0, loadStayAuthorizationSource: src([]) });

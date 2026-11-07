@@ -40,7 +40,7 @@ describe("B2.3 · parser — formatos válidos e compatibilidade", () => {
     expect(parseModelDecision({ ...validDecision(), extra: 1 })).toBeNull();
   });
   it("exigência de versão: a cadeia pede v3; v1/v2 viram version_mismatch", () => {
-    expect(CURRENT_DECISION_VERSION).toBe(4); // B2.5: a cadeia exige v4; v3 continua aceita pelo parser sem exigência
+    expect(CURRENT_DECISION_VERSION).toBe(5); // G2: a cadeia exige v5; v3/v4 continuam aceitas pelo parser sem exigência
     expect(err(parseDecision(v2(), { expectVersion: 3 }))?.code).toBe("version_mismatch");
     expect(err(parseDecision(validDecision(), { expectVersion: 3 }))?.code).toBe("version_mismatch");
     expect(parseDecision(v3(), { expectVersion: 3 }).ok).toBe(true);

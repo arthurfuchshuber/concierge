@@ -58,3 +58,10 @@ Ordem de execução no builder: validar escopo → estado → D9 → se negado, 
 - Não reativar o cron iCal 682.
 - Título público do imóvel (`data/public-title.ts`): o prefixo de código interno (`AP014 - `) é removido só na representação para o hóspede (listing, dossiê, builder); `properties.name` nunca é alterado. Sem separação comprovada, o nome sai inteiro.
 - O módulo é somente leitura: nenhum `.insert/.update/.upsert/.delete/.rpc` e nenhuma chamada às funções internas de autorização (teste estático em `data-boundary.test.ts`). A IA nunca altera autorizações.
+- Exceções de escrita, todas por RPC `service_role` atrás de lista fechada em `data/client.server.ts`: geração do Copiloto (`COPILOT_RPC_FUNCTIONS`) e, desde o Gate G2a, o REGISTRO de auditoria das ações operacionais (`OPS_RPC_FUNCTIONS = ["guest_ai_ops_record"]`, usado só por `ops/executor.server.ts`).
+
+## Ações operacionais (Gate G2)
+- Sinais vêm da MESMA decisão do Copiloto (contrato v5: `hospitalityMilestone` + `milestoneQuote`, `guestEtas`); quem decide é `ops/policy.ts` (pura) com a barreira léxica `ops/lexical.ts`. Na dúvida, recusa.
+- G2a = observação: `GUEST_AI_OPS_MODE` aceita só `shadow` (qualquer outro valor, inclusive `on`, é `off`); o banco aceita só `mode = 'shadow'`. Nada aqui escreve em `guest_arrival_status`, chama `runAdvanceArrival` ou grava previsão; isso só nas etapas G2c/G2d, com nova homologação.
+- Conclusão de check-in só na fase `in_stay` (depois do horário oficial); check-out no dia da saída; SAÍDA ANTECIPADA (`early_departure`, card puxado para hoje) só com a estadia em curso e fato consumado explícito ("já saí", "deixei as chaves"); previsão só na data do card, dentro dos limites oficiais (janela que vira a meia-noite é respeitada) e nunca sobre previsão `staff`; MADRUGADA: chegada 00:00–05:00 no fuso do imóvel é da noite da data de entrada, nunca "amanhã". Atendente atribuído, equipe no comando, chamado aberto (motivo diferente do padrão "sem IA"), problema ou negociação ⇒ nada.
+- A resposta ao hóspede é sempre só sugestão do Copiloto; nunca anuncia registro de sistema.

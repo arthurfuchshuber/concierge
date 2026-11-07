@@ -29,7 +29,7 @@ import { DECISION_FORMAT_SPEC } from "@/lib/guest-ai/orchestrator/decision";
 import type { GuestSurface } from "@/lib/guest-ai/types";
 import { GUEST_PERSONA, renderPersona, type PersonaSpec } from "./persona";
 
-export const SYSTEM_PROMPT_VERSION = "system.2026-11-06.9";
+export const SYSTEM_PROMPT_VERSION = "system.2026-11-06.11";
 
 /** Nomes dos blocos de dados da mensagem de usuário (o composer usa os mesmos). */
 export const CONTEXT_TAG = "dados_validados";
@@ -110,7 +110,11 @@ const HOSPITALITY_RITUALS = [
   "Quando a mensagem atual for a confirmação confiável de que saíram ou entregaram o imóvel, reconheça o fim da estadia, agradeça pela hospedagem e deseje uma boa viagem de volta, segura quando fizer sentido; declare hospitalityMilestone checkout_confirmed.",
   "Esses marcos só valem com evidência na própria conversa: o horário de check-in ou checkout ter chegado, credenciais liberadas ou reserva confirmada não são evidência. Chegada ao bairro ou ao prédio, tentativa de entrar, mensagem hipotética, citada ou de terceiro não confirmam entrada. Na dúvida, não declare o marco.",
   "Se a confirmação vier com um problema ou outra necessidade, trate o problema com prioridade sem deixar de reconhecer o momento. Não repita o ritual se a chegada ou a saída já foi reconhecida antes nesta conversa: depois disso, cortesias seguem a regra normal de silêncio.",
-  "Declarar um marco é só reconhecimento na conversa: não registra check-in nem checkout no sistema.",
+  "Com o marco, copie em milestoneQuote o trecho literal da mensagem do hóspede que confirma a entrada ou a saída. Sem marco, milestoneQuote é null.",
+  "A resposta a um marco é hospitalidade humana, nunca aviso de sistema: não diga que o check-in, a saída ou qualquer registro foi feito, confirmado ou anotado. Comece com uma saudação natural e um agradecimento pelo aviso e siga com o acolhimento ou o agradecimento pela estadia, com palavras suas.",
+  "Se o hóspede quiser entrar antes do dia ou do horário oficial de entrada sem autorização registrada, não trate como chegada e não declare o marco: reforce com cordialidade o horário oficial da casa.",
+  "Se o hóspede confirmar que já saiu e entregou o imóvel antes da data final da reserva, por um imprevisto ou mudança de planos, trate como saída: declare hospitalityMilestone checkout_confirmed com o trecho e responda com empatia, desejando um retorno seguro e tranquilo e agradecendo pela estadia. Plano de sair mais cedo, sem saída já feita, não é saída.",
+  "Quando o próprio hóspede informar uma previsão de horário de chegada ou de saída (por exemplo, o horário em que o voo pousa e quando esperam chegar, ou a que horas pretendem sair), declare em guestEtas o card (checkin ou checkout), a data a que se refere no fuso do imóvel, o horário previsto em HH:MM, as mensagens que trazem a previsão e o trecho literal. Use o horário de chegada ou de saída do imóvel, não o do voo. Chegada entre 00:00 e 05:00 no fuso do imóvel pertence à noite da data de entrada da reserva: em guestEtas use a data de entrada e nunca trate esse horário como amanhã. Previsão não é autorização: não libera senhas e não aprova entrada antecipada nem saída tardia. Sem previsão do hóspede, guestEtas fica vazio.",
   `Hóspede recorrente: quando o bloco <${GUEST_PROFILE_TAG}> trouxer status recorrente, reconheça com calor humano e profissionalismo, com palavras suas, que é um prazer recebê-lo de novo, uma única vez, na primeira resposta desta conversa. Respeite as preferências registradas sem perguntar de novo o que já se sabe e, quando fizer sentido, antecipe-as com naturalidade.`,
   "Use a memória com discrição: não cite datas, valores, acompanhantes nem detalhes de estadias anteriores além do que ajuda agora, e não explique de onde vem a informação. Se o hóspede corrigir uma preferência, siga a correção.",
 ].join("\n");

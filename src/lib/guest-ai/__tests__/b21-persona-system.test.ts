@@ -164,10 +164,17 @@ describe("B2.1 · System Prompt — silêncio, intenções, interlocutor/titular
     expect(sys).toMatch(/Cordialidade não é autenticação/);
     expect(sys).toMatch(/Não atribua ao titular o que um terceiro disse/);
   });
-  it("marcos só com evidência na conversa; horário/credencial/reserva não são evidência; sem repetir; sem efeito operacional", () => {
+  it("marcos só com evidência na conversa; horário/credencial/reserva não são evidência; sem repetir; resposta nunca é aviso de sistema (G2)", () => {
     expect(sys).toMatch(/horário de check-in ou checkout ter chegado, credenciais liberadas ou reserva confirmada não são evidência/);
     expect(sys).toMatch(/Não repita o ritual/);
-    expect(sys).toMatch(/não registra check-in nem checkout no sistema/);
+    expect(sys).toMatch(/nunca aviso de sistema: não diga que o check-in, a saída ou qualquer registro foi feito, confirmado ou anotado/);
+    expect(sys).toMatch(/Comece com uma saudação natural e um agradecimento pelo aviso/);
+    expect(sys).toMatch(/antes do dia ou do horário oficial de entrada sem autorização registrada, não trate como chegada/);
+    expect(sys).toMatch(/Previsão não é autorização: não libera senhas/);
+    expect(sys).toMatch(/milestoneQuote/);
+    expect(sys).toMatch(/já saiu e entregou o imóvel antes da data final da reserva/);
+    expect(sys).toMatch(/Plano de sair mais cedo, sem saída já feita, não é saída/);
+    expect(sys).toMatch(/Chegada entre 00:00 e 05:00 no fuso do imóvel pertence à noite da data de entrada/);
     expect(sys).toMatch(/trate o problema com prioridade/);
   });
   it("comportamento não é roteiro: nenhuma frase de exemplo da diretriz embutida", () => {

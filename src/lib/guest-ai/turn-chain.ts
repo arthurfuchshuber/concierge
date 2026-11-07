@@ -280,8 +280,8 @@ export type ChainOutcome =
   | ({ kind: "reply"; text: string; strategy: Strategy; decision: ModelDecision; situation: ChainSituation; dispatch: DispatchPreparation; audit: ChainAudit } & NotSent)
   | ({ kind: "paused"; situation: ChainSituation; audit: ChainAudit } & NotSent)
   | ({ kind: "urgent_internal_alert"; alert: UrgentInternalAlert; situation: ChainSituation; audit: ChainAudit } & NotSent)
-  | ({ kind: "silence"; situation: ChainSituation; audit: ChainAudit } & NotSent)
-  | ({ kind: "human_action"; question: string; situation: ChainSituation; audit: ChainAudit } & NotSent)
+  | ({ kind: "silence"; decision: ModelDecision; situation: ChainSituation; audit: ChainAudit } & NotSent)
+  | ({ kind: "human_action"; question: string; decision: ModelDecision; situation: ChainSituation; audit: ChainAudit } & NotSent)
   | ({ kind: "refused"; stage: ChainStageId; code: ChainRefusalCode; situation: ChainSituation | null; audit: ChainAudit } & NotSent)
   | ({ kind: "technical_error"; stage: ChainStageId; code: ChainTechnicalCode; audit: ChainAudit } & NotSent);
 
@@ -939,11 +939,11 @@ export async function runTurnChain(input: ChainInput, deps: ChainDeps): Promise<
     const sig = decisionSignals(decision);
     if (!sig.shouldReply) {
       if (decision.reply !== "" || decision.strategy !== "silence") return refuse("final_decision", "final_inconsistent", situation);
-      return emit({ kind: "silence", situation, audit: audit("silence", "final_decision", null), ...NOT_SENT });
+      return emit({ kind: "silence", decision, situation, audit: audit("silence", "final_decision", null), ...NOT_SENT });
     }
     if (decision.strategy === "handoff") {
       if (!decision.handoff.needed || !decision.handoff.question) return refuse("final_decision", "final_inconsistent", situation);
-      return emit({ kind: "human_action", question: decision.handoff.question, situation, audit: audit("human_action", "final_decision", null), ...NOT_SENT });
+      return emit({ kind: "human_action", question: decision.handoff.question, decision, situation, audit: audit("human_action", "final_decision", null), ...NOT_SENT });
     }
     if (!decision.reply) return refuse("final_decision", "final_inconsistent", situation);
     const dispatch: DispatchPreparation = {
