@@ -1,8 +1,9 @@
 /**
  * MODO COPILOTO (diretriz definitiva de 05/11/2026) — server functions da tela de Atendimento.
  *
- * Só a casca: autenticação (`requireSupabaseAuth` → cliente da SESSÃO, RLS + `auth.uid()`), validação de
- * entrada e import dinâmico do corpo no servidor. Cada corpo confere a SUA chave antes de qualquer efeito:
+ * Só a casca: autenticação (`requireSupabaseAuth` → cliente da SESSÃO e `userId` validado), validação de
+ * entrada e import dinâmico do corpo no servidor. Gate G1: as ações do atendente chamam o banco como
+ * `service_role` com o ator = `context.userId`; nenhuma RPC do Copiloto é executável pelo navegador. Cada corpo confere a SUA chave antes de qualquer efeito:
  *  - `getCopilotSuggestion`, `editCopilotSuggestion`, `discardCopilotSuggestion` ⇒ `GUEST_AI_COPILOT_UI`
  *    (`copilot-actions.server.ts`);
  *  - `ensureCopilotSuggestion` ⇒ `GUEST_AI_COPILOT_UI` + `GUEST_AI_COPILOT_GENERATION`;
@@ -43,7 +44,7 @@ export const editCopilotSuggestion = createServerFn({ method: "POST" })
   .inputValidator((raw) => z.object({ suggestionId: UUID, text: TEXT }).parse(raw))
   .handler(async ({ data, context }) => {
     const { editCopilotSuggestionCore } = await import("@/lib/copilot-actions.server");
-    return await editCopilotSuggestionCore(context.supabase, data);
+    return await editCopilotSuggestionCore(context.supabase, context.userId, data);
   });
 
 export const discardCopilotSuggestion = createServerFn({ method: "POST" })
@@ -51,7 +52,7 @@ export const discardCopilotSuggestion = createServerFn({ method: "POST" })
   .inputValidator((raw) => z.object({ suggestionId: UUID }).parse(raw))
   .handler(async ({ data, context }) => {
     const { discardCopilotSuggestionCore } = await import("@/lib/copilot-actions.server");
-    return await discardCopilotSuggestionCore(context.supabase, data);
+    return await discardCopilotSuggestionCore(context.supabase, context.userId, data);
   });
 
 // -------- Enviar ao hóspede (pela rotina humana do canal) --------

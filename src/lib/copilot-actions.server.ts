@@ -6,7 +6,9 @@
  *  - geração sob demanda          ⇒ `GUEST_AI_COPILOT_UI` E `GUEST_AI_COPILOT_GENERATION` (a geração ainda
  *    confere a própria chave dentro de `generateCopilotSuggestion`, para qualquer chamador);
  *  - envio                        ⇒ `GUEST_AI_COPILOT_SEND`, em `copilot-send.server.ts`.
- * Tudo com o cliente da SESSÃO do usuário (RLS + `auth.uid()`); nenhum id de usuário vem do navegador.
+ * Leitura com o cliente da SESSÃO do usuário (RLS). Edição e descarte (Gate G1, D2): RPCs `copilot_actor_*`
+ * só para `service_role`, com `p_actor` = usuário da sessão validada pelo `requireSupabaseAuth`; o banco
+ * continua conferindo acesso ao imóvel e `chat_respond`. Nenhum id de usuário vem do navegador.
  */
 import {
   COPILOT_ROW_COLUMNS,
@@ -15,6 +17,12 @@ import {
   type CopilotSuggestionRow,
 } from "@/lib/guest-ai/copilot/contracts";
 import type { GuestSurface } from "@/lib/guest-ai/types";
+import {
+  COPILOT_ACTOR_RPC,
+  copilotActorRpc,
+  defaultCopilotActorDb,
+  type CopilotActorDb,
+} from "@/lib/copilot-actor-rpc.server";
 
 type Env = Record<string, string | undefined>;
 
@@ -30,19 +38,8 @@ type Env = Record<string, string | undefined>;
 interface UntypedClient {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   from(table: string): any;
-  rpc(
-    fn: string,
-    args: Record<string, unknown>,
-  ): PromiseLike<{ data: unknown; error: { message: string; code?: string } | null }>;
 }
 const untyped = (c: unknown): UntypedClient => c as UntypedClient;
-
-type Rpc = Record<string, unknown> & { result?: string };
-async function rpc(client: unknown, fn: string, args: Record<string, unknown>): Promise<Rpc> {
-  const { data, error } = await untyped(client).rpc(fn, args);
-  if (error) throw new Error(`copilot_rpc_failed:${fn}`);
-  return (typeof data === "object" && data !== null ? data : {}) as Rpc;
-}
 
 export function surfaceOfSession(sessionId: string): GuestSurface {
   if (sessionId.startsWith("wa:")) return "whatsapp";
@@ -164,13 +161,22 @@ export async function ensureCopilotSuggestionCore(
 
 // -------- edição / descarte --------
 
+/** Dependências das ações do atendente (testáveis). */
+export interface ActorActionDeps {
+  env?: Env;
+  /** Cliente das RPCs do atendente (padrão: administrativo do servidor). */
+  actorDb?: CopilotActorDb;
+}
+
 export async function editCopilotSuggestionCore(
   supabase: unknown,
+  userId: string,
   data: { suggestionId: string; text: string },
-  env?: Env,
+  deps: ActorActionDeps = {},
 ): Promise<{ ok: true; suggestion: CopilotSuggestionRow | null }> {
-  if (!copilotFlags(env).ui) throw new Error("Sugestões da IA desativadas.");
-  const r = await rpc(supabase, "copilot_edit", {
+  if (!copilotFlags(deps.env).ui) throw new Error("Sugestões da IA desativadas.");
+  const db = deps.actorDb ?? (await defaultCopilotActorDb());
+  const r = await copilotActorRpc(db, COPILOT_ACTOR_RPC.edit, userId, {
     p_suggestion_id: data.suggestionId,
     p_text: data.text,
   });
@@ -184,11 +190,15 @@ export async function editCopilotSuggestionCore(
 
 export async function discardCopilotSuggestionCore(
   supabase: unknown,
+  userId: string,
   data: { suggestionId: string },
-  env?: Env,
+  deps: ActorActionDeps = {},
 ): Promise<{ ok: true; suggestion: CopilotSuggestionRow | null }> {
-  if (!copilotFlags(env).ui) throw new Error("Sugestões da IA desativadas.");
-  const r = await rpc(supabase, "copilot_discard", { p_suggestion_id: data.suggestionId });
+  if (!copilotFlags(deps.env).ui) throw new Error("Sugestões da IA desativadas.");
+  const db = deps.actorDb ?? (await defaultCopilotActorDb());
+  const r = await copilotActorRpc(db, COPILOT_ACTOR_RPC.discard, userId, {
+    p_suggestion_id: data.suggestionId,
+  });
   if (r.result === "forbidden") throw new Error("Sem permissão para responder nesta conta.");
   if (r.result === "not_found" || r.result === "unauthenticated")
     throw new Error("Sugestão não encontrada.");

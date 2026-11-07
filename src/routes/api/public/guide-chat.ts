@@ -236,7 +236,7 @@ async function runGuideChat(
     if (!body.demo && guestMsg?.id) {
       try {
         const { triggerCopilotSuggestion } = await import("@/lib/guest-ai/copilot/trigger.server");
-        triggerCopilotSuggestion({
+        await triggerCopilotSuggestion({
           surface: "guide_chat",
           conversationId,
           messageId: guestMsg.id,
