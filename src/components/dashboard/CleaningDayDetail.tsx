@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { ArrowRight, CalendarDays, ChevronDown, Pencil, X } from "lucide-react";
+import { ArrowRight, CalendarDays, Pencil, X } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { centsToReaisInput, parseReaisInputToCents } from "@/components/ui/money-input";
-import { CleaningProviderAvatar } from "@/components/dashboard/CleaningProviderAvatar";
+import { CleaningProviderAvatar, useCleaningProviderName } from "@/components/dashboard/CleaningProviderAvatar";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -88,12 +88,14 @@ function dateSP(iso: string | null): string | null {
 }
 
 /**
- * DADO EDITÁVEL (mockup aprovado, 04/11/2026): sem fundo e sem borda, na mesma
- * letra das demais linhas; um lápis à direita do dado avisa que ele pode ser
- * alterado. Só aparece para quem tem permissão; sem ela o dado é texto simples.
+ * DADO EDITÁVEL (07/11/2026): volta a moldura de botão — fundo suave, borda
+ * sutil, cantos arredondados e lápis à direita — em tipo, valor e prestador,
+ * na mesma letra das demais linhas. Só aparece para quem tem permissão; sem
+ * ela o dado é texto simples, sem moldura.
  */
-const EDIT_BTN = "inline-flex min-w-0 max-w-full items-center transition-opacity hover:opacity-80";
-const EDIT_PENCIL = "ml-1.5 size-3 shrink-0 opacity-60";
+const EDIT_BTN =
+  "ds-3d ds-3d-hover inline-flex h-[20px] min-w-0 max-w-full items-center gap-1 rounded-[0.3rem] border border-border/70 bg-card px-1.5 shadow-sm transition";
+const EDIT_PENCIL = "size-3 shrink-0 opacity-60";
 
 /** Namespace que decide quem pode alterar tipo, valor e prestador da limpeza. */
 const CLEANING_EDIT_PERMISSION = "tenant.dashboard.chegadas.limpeza";
@@ -140,109 +142,80 @@ function PropertyCell({
   );
 }
 
-/**
- * Célula do imóvel na lista "Limpezas Realizadas": título, proprietário e a
- * tipo e valor (`children`), onde só o dado é botão. A linha da ação
- * (data · hora · quem fez) fica no FIM do card, em uma linha, com reticências
- * quando não couber (texto completo no `title`).
- */
-function DoneCell({
-  name,
-  owner,
-  phone = null,
-  country = null,
-  action,
-  tail,
-  children,
-}: {
-  name: string;
-  owner: string | null;
-  phone?: string | null;
-  country?: string | null;
-  action: string | null;
-  /** Fim da última linha (ex.: seletor do prestador). */
-  tail?: React.ReactNode;
-  children: React.ReactNode;
-}) {
-  return (
-    <td className={TD}>
-      <ClampName text={name} className="font-bold" />
-      <OwnerLine name={owner} phone={phone} country={country} phonePosition="adjacent" />
-      {children}
-      {action && (
-        <span className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[11.5px] font-semibold text-foreground/80">
-          <span className="truncate" title={action}>
-            {action}
-          </span>
-          {tail}
-        </span>
-      )}
-    </td>
-  );
-}
+/** Letra das linhas de informação do card. */
+const LINE = "text-[11.5px] font-semibold text-foreground/80";
 
 /**
- * RECOLHER/EXPANDIR (mockup aprovado, 04/11/2026): a seta delicada fica ao lado
- * do rótulo principal do card ("Situação", "Tipo da Limpeza", "Quantidade",
- * "Data de Saída"); as demais informações ficam recolhidas e avançam 30px para
- * dentro ao abrir — o mesmo recuo dos cards de reservas. Só um card abre por
- * vez e toda janela nasce recolhida (o estado vive só no componente).
+ * LINHA INFERIOR DO CARD (07/11/2026): à esquerda a informação (data · hora ·
+ * quem concluiu + prestador, ou horário/quantidade), que encolhe com
+ * reticências; à direita o VALOR, na mesma coluna do "Valor Total" do rodapé.
+ * Anti-corte: o valor nunca encolhe e a esquerda nunca vaza (360–390px).
  */
-function Chevron({ open }: { open: boolean }) {
+function BottomRow({ children, value }: { children: React.ReactNode; value: React.ReactNode }) {
   return (
-    <ChevronDown
-      aria-hidden
-      className={`size-3.5 shrink-0 opacity-70 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
-    />
-  );
-}
-
-function RowToggle({
-  open,
-  onToggle,
-  title,
-  children,
-}: {
-  open: boolean;
-  onToggle: () => void;
-  title?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      aria-expanded={open}
-      title={title}
-      onClick={onToggle}
-      className="mt-0.5 flex w-full min-w-0 items-center gap-1 text-left text-[11.5px] font-semibold text-foreground/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
-    >
-      <span className="min-w-0 truncate">{children}</span>
-      <Chevron open={open} />
-    </button>
-  );
-}
-
-/** Parte recolhível: abre com altura suave; fechada, fica fora do foco. */
-function Reveal({ open, children }: { open: boolean; children: React.ReactNode }) {
-  const closedProps = open ? {} : ({ inert: true } as object);
-  return (
-    <div
-      aria-hidden={!open}
-      {...closedProps}
-      className={`grid transition-[grid-template-rows,opacity] duration-200 ${open ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`}
-    >
-      <div className="min-h-0 min-w-0 overflow-hidden pl-[30px]">{children}</div>
+    <div data-bottom-row="" className={`mt-0.5 flex min-w-0 items-center justify-between gap-2 ${LINE}`}>
+      <span className="flex min-w-0 items-center gap-1.5">{children}</span>
+      <span className="ml-auto flex shrink-0 items-center gap-1 text-[11.5px] font-semibold tabular-nums">{value}</span>
     </div>
   );
 }
 
-/** O valor entra como uma linha comum, logo abaixo das demais informações do card. */
-function ValueLine({ label = "Valor do Serviço", children }: { label?: string; children: React.ReactNode }) {
+const sameName = (a: string | null | undefined, b: string | null | undefined) => {
+  const n = (s: string) => s.normalize("NFD").replace(/\p{Diacritic}/gu, "").replace(/\s+/g, " ").trim().toLowerCase();
+  return !!a && !!b && n(a) === n(b);
+};
+
+/**
+ * Texto da ação (07/11/2026): data · hora e quem concluiu no sistema. Se quem
+ * concluiu é o próprio prestador atribuído, o nome NÃO se repete — o botão de
+ * iniciais ao lado já diz quem foi. Pessoas diferentes (ou prestador "?"):
+ * o nome de quem concluiu aparece por extenso.
+ */
+function actionText(
+  concludedAt: string | null,
+  doneByName: string | null,
+  providerName: string | null,
+): string {
+  const who = sameName(doneByName, providerName) ? null : doneByName;
+  return [dateSP(concludedAt), timeSP(concludedAt), who].filter(Boolean).join(" · ");
+}
+
+function ActionText({ text }: { text: string }) {
+  if (!text) return null;
   return (
-    <span className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[11.5px] font-semibold text-foreground/80">
-      <span className="shrink-0">{label}:</span>
-      {children}
+    <span className="min-w-0 truncate" title={text}>
+      {text}
     </span>
+  );
+}
+
+/** Ação de uma limpeza com prestador: compara quem concluiu com o prestador. */
+function CleaningAction({
+  propertyId,
+  logId,
+  reservationId,
+  concludedAt,
+  doneByName,
+  canEdit,
+}: {
+  propertyId: string;
+  logId: string;
+  reservationId: string | null;
+  concludedAt: string | null;
+  doneByName: string | null;
+  canEdit: boolean;
+}) {
+  const provider = useCleaningProviderName(propertyId, logId, reservationId);
+  return (
+    <>
+      <ActionText text={actionText(concludedAt, doneByName, provider)} />
+      <CleaningProviderAvatar
+        propertyId={propertyId}
+        logId={logId}
+        reservationId={reservationId}
+        look={canEdit ? "raised" : "plain"}
+      />
+    </>
   );
 }
 
@@ -386,8 +359,6 @@ export function CleaningDayDetailContent({
   const canEdit = access.ready && access.can(CLEANING_EDIT_PERMISSION);
   // Janela de custo do período todo: "Custo por Serviço Realizado" (04/11/2026).
   const heading = source.mode === "cost" && date === "all" ? "Custo por Serviço Realizado" : (title ?? dayTitle(date));
-  const [openKey, setOpenKey] = useState<string | null>(null);
-  const toggle = (k: string) => setOpenKey((cur) => (cur === k ? null : k));
   let subtitle = "";
   let body: React.ReactNode = null;
   let footer: React.ReactNode = null;
@@ -405,17 +376,10 @@ export function CleaningDayDetailContent({
           {rows.map((r) => (
             <tr key={r.id} className="snap-start">
               <PropertyCell name={r.propertyName} owner={r.ownerName} phone={r.ownerPhone} country={r.ownerPhoneCountry}>
-                <RowToggle open={openKey === `f:${r.id}`} onToggle={() => toggle(`f:${r.id}`)}>
-                  Data de Saída: {dateISO(r.date)}
-                </RowToggle>
-                <Reveal open={openKey === `f:${r.id}`}>
-                  <span className="block truncate text-[11.5px] font-semibold text-foreground/80">
-                    Horário de Saída: {r.timeLabel ?? "—"}
-                  </span>
-                  <ValueLine label="Previsto">
-                    <span>{brl(r.estimateCents)}</span>
-                  </ValueLine>
-                </Reveal>
+                <span className={`mt-0.5 block truncate ${LINE}`}>Data de Saída: {dateISO(r.date)}</span>
+                <BottomRow value={<span className="whitespace-nowrap">{brl(r.estimateCents)}</span>}>
+                  <span className="min-w-0 truncate">Horário de Saída: {r.timeLabel ?? "—"}</span>
+                </BottomRow>
               </PropertyCell>
             </tr>
           ))}
@@ -456,79 +420,58 @@ export function CleaningDayDetailContent({
           {rows.length > 0 && (
         <table className="w-full table-fixed border-collapse tabular-nums">
           <tbody>
-            {rows.map((r) => {
-              const action = [dateSP(r.concludedAt), timeSP(r.concludedAt), r.doneByName]
-                .filter(Boolean)
-                .join(" · ");
-              return (
-                <tr key={r.id} className="snap-start">
-                  <DoneCell
-                    name={r.propertyName}
-                    owner={r.ownerName}
-                    phone={r.ownerPhone}
-                    country={r.ownerPhoneCountry}
-                    action={action}
-                    tail={
-                      r.logId || r.reservationId ? (
-                        <CleaningProviderAvatar
-                          propertyId={r.propertyId}
-                          logId={r.logId ?? ""}
-                          reservationId={r.reservationId}
-                          look={canEdit ? "raised" : "plain"}
-                        />
-                      ) : null
+            {rows.map((r) => (
+              <tr key={r.id} className="snap-start">
+                <PropertyCell name={r.propertyName} owner={r.ownerName} phone={r.ownerPhone} country={r.ownerPhoneCountry}>
+                  <TypeToggle
+                    statusId={r.id}
+                    type={r.cleaningType}
+                    pending={r.pending}
+                    title={r.propertyName}
+                    canEdit={canEdit}
+                  />
+                  <BottomRow
+                    value={
+                      <EditablePrice statusId={r.id} cents={r.priceCents} title={r.propertyName} canEdit={canEdit} />
                     }
                   >
-                    <TypeToggle
-                      statusId={r.id}
-                      type={r.cleaningType}
-                      pending={r.pending}
-                      title={r.propertyName}
-                      canEdit={canEdit}
-                      open={openKey === `c:${r.id}`}
-                      onToggle={() => toggle(`c:${r.id}`)}
-                    />
-                    <Reveal open={openKey === `c:${r.id}`}>
-                      <ValueLine>
-                        <EditablePrice statusId={r.id} cents={r.priceCents} title={r.propertyName} canEdit={canEdit} />
-                      </ValueLine>
-                    </Reveal>
-                  </DoneCell>
-                </tr>
-              );
-            })}
+                    {r.logId || r.reservationId ? (
+                      <CleaningAction
+                        propertyId={r.propertyId}
+                        logId={r.logId ?? ""}
+                        reservationId={r.reservationId}
+                        concludedAt={r.concludedAt}
+                        doneByName={r.doneByName}
+                        canEdit={canEdit}
+                      />
+                    ) : (
+                      <ActionText text={actionText(r.concludedAt, r.doneByName, null)} />
+                    )}
+                  </BottomRow>
+                </PropertyCell>
+              </tr>
+            ))}
           </tbody>
         </table>
           )}
           {xrows.length > 0 && (
             <table className="w-full table-fixed border-collapse tabular-nums">
               <tbody>
-                {xrows.map((r) => {
-                  const action = [dateSP(r.concludedAt), timeSP(r.concludedAt), r.doneByName]
-                    .filter(Boolean)
-                    .join(" · ");
-                  return (
-                    <tr key={r.id} className="snap-start">
-                      <DoneCell name={r.propertyName} owner={r.ownerName} phone={r.ownerPhone} country={r.ownerPhoneCountry} action={action}>
-                        <RowToggle
-                          open={openKey === `x:${r.id}`}
-                          onToggle={() => toggle(`x:${r.id}`)}
-                          title={`${r.situationName}: ${r.title}`}
-                        >
-                          Situação: {r.situationName}
-                        </RowToggle>
-                        <Reveal open={openKey === `x:${r.id}`}>
-                          <span className="block truncate text-[11px] text-muted-foreground" title={r.title}>
-                            {r.title}
-                          </span>
-                          <ValueLine>
-                            <span className="whitespace-nowrap">{brl(r.priceCents ?? 0)}</span>
-                          </ValueLine>
-                        </Reveal>
-                      </DoneCell>
-                    </tr>
-                  );
-                })}
+                {xrows.map((r) => (
+                  <tr key={r.id} className="snap-start">
+                    <PropertyCell name={r.propertyName} owner={r.ownerName} phone={r.ownerPhone} country={r.ownerPhoneCountry}>
+                      <span className={`mt-0.5 block truncate ${LINE}`} title={`${r.situationName}: ${r.title}`}>
+                        Situação: {r.situationName}
+                      </span>
+                      <span className="block truncate text-[11px] text-muted-foreground" title={r.title}>
+                        {r.title}
+                      </span>
+                      <BottomRow value={<span className="whitespace-nowrap">{brl(r.priceCents ?? 0)}</span>}>
+                        <ActionText text={actionText(r.concludedAt, r.doneByName, null)} />
+                      </BottomRow>
+                    </PropertyCell>
+                  </tr>
+                ))}
               </tbody>
             </table>
           )}
@@ -623,24 +566,15 @@ export function CleaningDayDetailContent({
             {aggs.map((a) => (
               <tr key={a.key} className="snap-start">
                 <PropertyCell name={a.name} owner={a.owner} phone={a.phone} country={a.country}>
-                  <RowToggle open={openKey === `k:${a.key}`} onToggle={() => toggle(`k:${a.key}`)}>
-                    Quantidade: {a.count} ·{" "}
-                    {a.label ? (
-                      a.label
-                    ) : a.types.size > 1 ? (
-                      "Normal + completa"
-                    ) : (
-                      <TypeLabel
-                        type={(Array.from(a.types)[0] as "normal" | "completa" | undefined) ?? null}
-                        pending={a.pending}
-                      />
+                  <BottomRow value={<span className="whitespace-nowrap">{brl(a.cents)}</span>}>
+                    <span className="min-w-0 truncate">
+                      Quantidade: {a.count} ·{" "}
+                      {a.label ? a.label : a.types.size > 1 ? "Normal + completa" : (a.types.has("completa") ? "Completa" : "Normal")}
+                    </span>
+                    {a.pending && (
+                      <span className="shrink-0 text-[9.5px] font-extrabold text-amber-500 dark:text-amber-400">em análise</span>
                     )}
-                  </RowToggle>
-                  <Reveal open={openKey === `k:${a.key}`}>
-                    <ValueLine>
-                      <span>{brl(a.cents)}</span>
-                    </ValueLine>
-                  </Reveal>
+                  </BottomRow>
                 </PropertyCell>
               </tr>
             ))}
@@ -689,6 +623,8 @@ export function CleaningDayDetailContent({
           <X className="size-3.5" strokeWidth={2.2} />
         </button>
       </div>
+      {/* O rodapé reserva a mesma calha da barra de rolagem da lista, para o
+          "Valor Total" cair exatamente na coluna dos valores dos cards. */}
       {/* Rolagem NATIVA (sem JS mexendo na altura): o iOS não congela e o rodapé nunca sai da tela.
           Anti-corte: `snap-start` nas linhas faz a lista parar numa linha inteira. */}
       {body && (
@@ -697,7 +633,7 @@ export function CleaningDayDetailContent({
         </div>
       )}
       {footer && (
-        <div className="flex shrink-0 items-baseline justify-between gap-3 border-t border-border bg-foreground/[0.03] px-5 py-3.5">
+        <div className="flex shrink-0 items-baseline justify-between gap-3 overflow-hidden border-t border-border bg-foreground/[0.03] px-5 py-3.5 [scrollbar-gutter:stable]">
           {footer}
         </div>
       )}
@@ -712,16 +648,12 @@ function TypeToggle({
   pending,
   title,
   canEdit,
-  open,
-  onToggle,
 }: {
   statusId: string;
   type: "normal" | "completa" | null;
   pending?: boolean;
   title: string;
   canEdit: boolean;
-  open: boolean;
-  onToggle: () => void;
 }) {
   const [target, setTarget] = useState<"normal" | "completa" | null>(null);
   const [busy, setBusy] = useState(false);
@@ -746,17 +678,6 @@ function TypeToggle({
       setBusy(false);
     }
   }
-  const chevron = (
-    <button
-      type="button"
-      aria-expanded={open}
-      aria-label={open ? "Recolher card" : "Expandir card"}
-      onClick={onToggle}
-      className="inline-grid size-4 shrink-0 place-items-center rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
-    >
-      <Chevron open={open} />
-    </button>
-  );
   const emAnalise = pending && (
     <span className="mt-0.5 block text-[9.5px] font-extrabold text-amber-500 dark:text-amber-400">em análise</span>
   );
@@ -765,7 +686,6 @@ function TypeToggle({
       <>
         <span className={labelCls} title={`Tipo da Limpeza: ${typeText}`}>
           <span className="min-w-0 truncate">Tipo da Limpeza: {typeText}</span>
-          {chevron}
         </span>
         {emAnalise}
       </>
@@ -784,7 +704,6 @@ function TypeToggle({
           <span className="truncate">{typeText}</span>
           <Pencil className={EDIT_PENCIL} aria-hidden />
         </button>
-        {chevron}
       </span>
       {emAnalise}
       <ConfirmChange
