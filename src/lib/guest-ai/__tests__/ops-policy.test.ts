@@ -376,6 +376,26 @@ describe("G2 · política determinística", () => {
     expect(one(input({ phase: "inquiry" })).code).toBe("not_in_stay");
   });
 
+  it("entrada antecipada combinada pela equipe no chat ⇒ conclui o check-in no dia da entrada", () => {
+    const early = new Date("2026-11-10T14:00:00Z"); // 11:00 em São Paulo, antes das 15:00
+    const hist = (team: string) => [
+      { ref: "hist:team:h1", messageId: "m-team-1", speaker: "team", text: team, at: "2026-11-10T12:00:00Z" },
+      { ref: "hist:guest:h2", messageId: MSG, speaker: "guest", text: "Oi! Já entramos, tudo lindo." },
+    ];
+    const run = (team: string, now = early) =>
+      one(input({ phase: "pre_stay", now, history: hist(team) }));
+    expect(run("Pode entrar às 11h, o apartamento já está pronto").outcome).toBe("would_apply");
+    expect(run("Check-in antecipado liberado!").outcome).toBe("would_apply");
+    expect(run("Infelizmente não dá para entrar antes das 15h").code).toBe("not_in_stay");
+    expect(run("Vou verificar se dá para entrar mais cedo").code).toBe("not_in_stay");
+    expect(run("Pode entrar às 11h com taxa de R$ 50").code).toBe("not_in_stay");
+    expect(run("Seja bem-vindo").code).toBe("not_in_stay");
+    // sem alinhamento: antes do horário oficial nunca conclui
+    expect(one(input({ phase: "pre_stay", now: early })).code).toBe("not_in_stay");
+    // concessão não vale em outro dia
+    expect(run("Pode entrar às 11h", new Date("2026-11-09T14:00:00Z")).code).toBe("not_in_stay");
+  });
+
   it("reserva: sem vínculo, cancelada, no-show, sem fuso ⇒ recusa", () => {
     expect(one(input({ reservation: null })).code).toBe("no_reservation");
     expect(
@@ -418,32 +438,16 @@ describe("G2 · política determinística", () => {
     expect(one(input({ cards: null })).code).toBe("state_unavailable");
   });
 
-  it("item 6: atendente, equipe no comando, chamado aberto, encaminhamento, problema ou negociação ⇒ recusa", () => {
+  it("diretriz 07/11: pausa, atendente, chamado, encaminhamento, problema ou negociação NÃO suspendem os cards", () => {
     const c = input().conversation!;
-    // pausa humana e atendente atribuído NÃO impedem a atuação nos bastidores (diretriz 07/11/2026)
-    expect(one(input({ conversation: { ...c, assignedTo: "u1" } })).outcome).toBe("would_apply");
-    expect(one(input({ conversation: { ...c, aiPaused: true } })).outcome).toBe("would_apply");
-    expect(
-      one(input({ conversation: { ...c, aiPaused: true, assignedTo: "u1", pausedUntil: "2026-11-11T00:00:00Z" } }))
-        .outcome,
-    ).toBe("would_apply");
-    expect(
-      one(input({ conversation: { ...c, handoffReason: "Hóspede pediu desconto" } })).code,
-    ).toBe("open_case");
-    expect(one(input({ conversation: { ...c, handoffUrgency: "high" } })).code).toBe("open_case");
+    expect(one(input({ conversation: { ...c, assignedTo: "u1", aiPaused: true } })).outcome).toBe("would_apply");
+    expect(one(input({ conversation: { ...c, handoffReason: "Hóspede pediu desconto" } })).outcome).toBe("would_apply");
+    expect(one(input({ conversation: { ...c, handoffUrgency: "high" } })).outcome).toBe("would_apply");
     expect(one(input({ conversation: null })).code).toBe("state_unavailable");
     const d = milestone("checkin_confirmed", "Já entramos");
-    expect(
-      one(
-        input({ decision: { ...d, handoff: { needed: true, question: "q", urgency: "normal" } } }),
-      ).code,
-    ).toBe("handoff_needed");
-    expect(
-      one(input({ decision: { ...d, intents: ["arrival_confirmation", "problem_report"] } })).code,
-    ).toBe("problem_or_negotiation");
-    expect(one(input({ decision: { ...d, formalChangeRequests: ["late_checkout"] } })).code).toBe(
-      "problem_or_negotiation",
-    );
+    expect(one(input({ decision: { ...d, handoff: { needed: true, question: "q", urgency: "normal" } } })).outcome).toBe("would_apply");
+    expect(one(input({ decision: { ...d, intents: ["arrival_confirmation", "problem_report"] } })).outcome).toBe("would_apply");
+    expect(one(input({ decision: { ...d, formalChangeRequests: ["late_checkout"] } })).outcome).toBe("would_apply");
   });
 
   it("check-out: só no dia da saída, no fuso do imóvel", () => {
@@ -514,7 +518,7 @@ describe("G2 · política determinística", () => {
       expect(one(pre({ decision: eta({ date: "2026-11-11" }) })).code).toBe("eta_date_mismatch");
       expect(one(pre({ now: new Date("2026-11-11T12:00:00Z") })).code).toBe("eta_phase_mismatch");
     });
-    it("nunca sobrescreve previsão da equipe", () => {
+    it("a informação mais recente do hóspede sobrescreve a previsão da equipe", () => {
       const staff = {
         status: "pending",
         doneAt: null,
@@ -524,7 +528,7 @@ describe("G2 · política determinística", () => {
         lateCheckoutTime: null,
         lateCheckoutApprovedAt: null,
       };
-      expect(one(pre({ cards: { checkin: staff, checkout: null } })).code).toBe("staff_prediction");
+      expect(one(pre({ cards: { checkin: staff, checkout: null } })).outcome).toBe("would_apply");
     });
     it("saída: data da saída e limites de saída", () => {
       const out = decision({

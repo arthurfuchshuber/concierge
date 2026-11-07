@@ -70,7 +70,6 @@ export interface OpsPolicyInput {
   defaultHandoffReason: string;
 }
 
-const BLOCKING_INTENTS = new Set(["problem_report", "emergency", "formal_change_request"]);
 
 /** Data local (YYYY-MM-DD) de um instante no fuso dado; `null` se o fuso for inválido. */
 export function localDate(instant: Date, timezone: string): string | null {
