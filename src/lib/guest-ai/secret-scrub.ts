@@ -84,7 +84,7 @@ export const MAX_FINDINGS_BEFORE_BLOCK = 12;
 
 // ───────────────────────────── 0. Normalização ─────────────────────────────
 
-const INVISIBLE = /[\u00AD\u034F\u061C\u115F\u1160\u17B4\u17B5\u180B-\u180F\u200B-\u200F\u202A-\u202E\u2060-\u206F\u3164\uFE00-\uFE0F\uFEFF\uFFA0]/g;
+const INVISIBLE = /[\u00AD\u034F\u061C\u115F\u1160\u17B4\u17B5\u180B-\u180F\u200B-\u200F\u202A-\u202E\u2060-\u206F\u3164\uFE00-\uFE0D\uFEFF\uFFA0]/g;
 /** Sentinelas (área de uso privado) que protegem os marcadores durante a varredura. */
 const S_SECRET = "\uE000";
 const S_BLOCK = "\uE001";
