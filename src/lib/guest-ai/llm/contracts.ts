@@ -59,8 +59,12 @@ export function llmImageCount(content: LlmMessageContent): number {
   return typeof content === "string" ? 0 : content.filter((p) => p && p.type === "image_url").length;
 }
 
-/** Esforço de raciocínio. `none` = não pedir raciocínio (o parâmetro não é enviado). */
-export type ReasoningEffort = "none" | "low" | "medium" | "high";
+/**
+ * Esforço de raciocínio. `none` = não pedir raciocínio; `auto` = elasticidade nativa: o parâmetro também
+ * NÃO é enviado e o próprio modelo dosa a profundidade do pensamento a cada chamada (o custo continua
+ * contido pelo teto de saída e pelo teto de custo do chamador).
+ */
+export type ReasoningEffort = "none" | "auto" | "low" | "medium" | "high";
 
 export type LlmResponseFormat = "text" | "json";
 

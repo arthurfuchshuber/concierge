@@ -54,9 +54,9 @@ export interface CopilotGeneratorTelemetry {
   readonly imagesSent: number;
   /** Fotos que não foram ao modelo (falha de leitura, formato, tamanho ou orçamento do turno). */
   readonly imagesNotLoaded: number;
-  /** Esforço de raciocínio efetivo da chamada (raciocínio elástico); ausente antes de decidir. */
+  /** Esforço de raciocínio enviado (`auto` no Copiloto); ausente antes da chamada. */
   readonly reasoningEffort?: ReasoningEffort;
-  /** Teto de saída efetivo da chamada (cresce com o esforço, dentro do teto de custo do turno). */
+  /** Teto de saída efetivo da chamada (cheio ou recuo, sempre dentro do teto de custo do turno). */
   readonly maxOutputTokens?: number;
   /** Modelo que de fato respondeu (o Reserva, se o Titular caiu). Ausente antes da chamada. */
   readonly model?: string;
@@ -98,13 +98,13 @@ export interface CopilotGenerator {
 export interface CopilotGeneratorDeps {
   modelId: string;
   maxOutputTokens: number;
+  /** Esforço de raciocínio enviado ao Gateway (o Copiloto usa `auto`: o modelo dosa sozinho). */
+  reasoningEffort: ReasoningEffort;
   /**
-   * Esforço de raciocínio: fixo, ou escolhido no momento da chamada (raciocínio elástico) a partir do que
-   * foi de fato anexado (`imagesSent`). Ver `copilotReasoningEffort`.
+   * Recuo do teto de saída: se `maxOutputTokens` não couber no teto de custo do turno, a chamada segue com
+   * este teto menor (ainda conferido); ausente ⇒ sem recuo (`maxOutputTokens`).
    */
-  reasoningEffort: ReasoningEffort | ((signals: { imagesSent: number }) => ReasoningEffort);
-  /** Teto de saída por esforço (os tokens de raciocínio contam como saída). Ausente ⇒ `maxOutputTokens`. */
-  outputTokensFor?: (effort: ReasoningEffort) => number;
+  minOutputTokens?: number;
   /** Tempo (ms) que resta do prazo global da geração. */
   remainingMs: () => number;
   /** Conferido IMEDIATAMENTE antes da rede: `false` ⇒ a sugestão deixou de ser a vigente (nada é chamado). */
@@ -238,8 +238,9 @@ export function createCopilotGenerator(deps: CopilotGeneratorDeps): CopilotGener
       const textBound = copilotInputTokenBound(prompt);
       t = Object.freeze({ ...t, estimatedInputTokens: textBound });
       // pior caso do turno: toda a entrada (limite superior) + todo o teto de saída
-      const fits = (inputTokens: number) =>
-        estimateCostUsd(spec!, inputTokens, deps.maxOutputTokens) <= ceiling;
+      const minOut = Math.min(deps.minOutputTokens ?? deps.maxOutputTokens, deps.maxOutputTokens);
+      const fitsWith = (inputTokens: number, out: number) => estimateCostUsd(spec!, inputTokens, out) <= ceiling;
+      const fits = (inputTokens: number) => fitsWith(inputTokens, minOut);
       if (textBound <= 0 || !fits(textBound)) block("budget_turn_exceeded");
 
       // visão: fotos do hóspede (falha ao carregar ⇒ só texto + aviso; nunca derruba a geração)
@@ -262,21 +263,9 @@ export function createCopilotGenerator(deps: CopilotGeneratorDeps): CopilotGener
         imagesNotLoaded: attached.notLoaded,
       });
       if (!fits(bound)) block("budget_turn_exceeded");
-      // raciocínio elástico: o esforço (e o teto de saída que ele exige) só é decidido agora, com as fotos
-      // já anexadas; o orçamento do turno é reconferido com o teto efetivo.
-      let effort: ReasoningEffort;
-      try {
-        effort =
-          typeof deps.reasoningEffort === "function"
-            ? deps.reasoningEffort({ imagesSent: attached.sent })
-            : deps.reasoningEffort;
-      } catch {
-        effort = "low";
-      }
-      let outputTokens = Math.max(deps.maxOutputTokens, deps.outputTokensFor?.(effort) ?? deps.maxOutputTokens);
-      // esforço mais alto que não cabe no teto do turno ⇒ volta ao teto base (nunca estoura o custo)
-      if (estimateCostUsd(spec!, bound, outputTokens) > ceiling) outputTokens = deps.maxOutputTokens;
-      t = Object.freeze({ ...t, reasoningEffort: effort, maxOutputTokens: outputTokens });
+      // guarda-corpo financeiro externo: teto de saída cheio se couber no teto de custo do turno; senão o recuo
+      const outputTokens = fitsWith(bound, deps.maxOutputTokens) ? deps.maxOutputTokens : minOut;
+      t = Object.freeze({ ...t, reasoningEffort: deps.reasoningEffort, maxOutputTokens: outputTokens });
       if (!(await deps.beforeNetwork())) block("superseded");
       if (signal.aborted || deps.remainingMs() <= 0) block("deadline_expired");
 
@@ -287,7 +276,7 @@ export function createCopilotGenerator(deps: CopilotGeneratorDeps): CopilotGener
           model: deps.modelId,
           messages: attached.messages,
           maxOutputTokens: outputTokens,
-          reasoningEffort: effort,
+          reasoningEffort: deps.reasoningEffort,
           responseFormat: "json",
           timeoutMs: Math.max(1_000, Math.min(15_000, Math.floor(deps.remainingMs()))),
           signal,

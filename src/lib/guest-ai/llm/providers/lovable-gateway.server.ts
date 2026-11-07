@@ -73,7 +73,8 @@ export function buildChatBody(req: ProviderRequest): Json {
     max_tokens: req.maxOutputTokens,
     stream: false,
   };
-  if (req.reasoningEffort !== "none") body["reasoning_effort"] = req.reasoningEffort;
+  // `none` e `auto` não enviam o parâmetro (em `auto` o modelo decide sozinho quanto raciocinar)
+  if (req.reasoningEffort !== "none" && req.reasoningEffort !== "auto") body["reasoning_effort"] = req.reasoningEffort;
   if (req.temperature !== null && req.spec.supportsTemperature) body["temperature"] = req.temperature;
   if (req.responseFormat === "json") body["response_format"] = { type: "json_object" };
   return body;
@@ -141,7 +142,7 @@ export function buildResponsesBody(req: ProviderRequest): Json {
     store: false,
   };
   if (system) body["instructions"] = system;
-  if (req.reasoningEffort !== "none") body["reasoning"] = { effort: req.reasoningEffort };
+  if (req.reasoningEffort !== "none" && req.reasoningEffort !== "auto") body["reasoning"] = { effort: req.reasoningEffort };
   if (req.temperature !== null && req.spec.supportsTemperature) body["temperature"] = req.temperature;
   if (req.responseFormat === "json") body["text"] = { format: { type: "json_object" } };
   return body;

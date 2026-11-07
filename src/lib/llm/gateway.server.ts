@@ -8,7 +8,7 @@
  * diretamente. NÃO faz parte da IA de atendimento ao hóspede (removida em
  * 01/11/2026); a nova arquitetura de atendimento não deve nascer daqui.
  */
-import { estimateCostUsd, fallbackModel, isResponsesModel, modelFor, reasoningEffortFor, shouldFallback, type AiTask } from "./models";
+import { estimateCostUsd, fallbackModel, isResponsesModel, modelFor, shouldFallback, type AiTask } from "./models";
 import { cached, cacheKeyOf } from "./cache.server";
 
 const BASE = "https://ai.gateway.lovable.dev/v1";
@@ -114,7 +114,7 @@ async function chatTextOnce(
         })),
       tools: [],
       maxSteps: 1,
-      reasoningEffort: reasoningEffortFor(task) ?? "low",
+      reasoningEffort: "auto",
       signal: opts?.signal,
       modelOverride: model,
     });
@@ -132,8 +132,6 @@ async function chatTextOnce(
     body: JSON.stringify({
       model,
       messages,
-      // Raciocínio elástico por tarefa (ver `TASK_REASONING_EFFORT`).
-      ...(reasoningEffortFor(task) ? { reasoning_effort: reasoningEffortFor(task) } : {}),
       ...(opts?.json ? { response_format: { type: "json_object" } } : {}),
     }),
   });
@@ -377,7 +375,8 @@ async function runAgentOnce(params: {
   input: ResponsesItem[];
   tools: AgentTool[];
   maxSteps?: number;
-  reasoningEffort?: "low" | "medium" | "high" | "xhigh" | "max";
+  /** `auto` = não fixa o esforço: o modelo dosa o raciocínio sozinho. Ausente = `max` (assistente do painel). */
+  reasoningEffort?: "auto" | "low" | "medium" | "high" | "xhigh" | "max";
   signal?: AbortSignal;
   /**
    * Recebe o texto da resposta conforme ele é escrito, para a interface poder
@@ -433,7 +432,10 @@ async function runAgentOnce(params: {
         stream: true,
         store: false,
         ...(toolDefs.length ? { tools: toolDefs, tool_choice: "auto" } : {}),
-        reasoning: { effort: params.reasoningEffort ?? "max", summary: "auto" },
+        reasoning:
+          params.reasoningEffort === "auto"
+            ? { summary: "auto" }
+            : { effort: params.reasoningEffort ?? "max", summary: "auto" },
         include: ["reasoning.encrypted_content"],
       },
       signal,

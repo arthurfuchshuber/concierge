@@ -52,7 +52,7 @@ export interface GatewayDeps {
 }
 
 const ROLES = new Set(["system", "user", "assistant"]);
-const EFFORTS = new Set<ReasoningEffort>(["none", "low", "medium", "high"]);
+const EFFORTS = new Set<ReasoningEffort>(["none", "auto", "low", "medium", "high"]);
 const TRACE_ID = /^[\w.:-]{1,80}$/;
 
 let defaultProvider: LlmProvider | null = null;
@@ -119,7 +119,7 @@ export function validateLlmRequest(req: LlmRequest): ValidatedRequest | null {
   if (!Number.isInteger(req.maxOutputTokens) || req.maxOutputTokens < 1 || req.maxOutputTokens > maxOut) return null;
   const effort: ReasoningEffort = req.reasoningEffort ?? "none";
   if (!EFFORTS.has(effort)) return null;
-  if (effort !== "none" && !(spec.reasoningEfforts as readonly string[]).includes(effort)) return null;
+  if (effort !== "none" && effort !== "auto" && !(spec.reasoningEfforts as readonly string[]).includes(effort)) return null;
   if (imageCount > 0 && !spec.supportsImages) return null;
   const format = req.responseFormat ?? "text";
   if (format !== "text" && format !== "json") return null;

@@ -1,7 +1,7 @@
 import { placePhotoUrl } from "@/lib/place-photo-sign";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { AI_MODELS, TASK_REASONING_EFFORT } from "@/lib/llm/models";
+import { AI_MODELS } from "@/lib/llm/models";
 import { ISO_DATE, NEWS_WINDOW_DAYS, addDaysIso, filterUpcoming } from "@/lib/city-news-window";
 
 const Input = z.object({
@@ -190,7 +190,6 @@ ${feed}`;
     headers: { "Content-Type": "application/json", "Lovable-API-Key": key },
     body: JSON.stringify({
       model: AI_MODELS.cityPulse,
-      reasoning_effort: TASK_REASONING_EFFORT.cityPulse,
       messages: [
         { role: "system", content: sys },
         { role: "user", content: user },
@@ -293,7 +292,6 @@ async function verifyEventDates(items: NewsItem[], today: string): Promise<NewsI
           headers: { "Content-Type": "application/json", "Lovable-API-Key": key },
           body: JSON.stringify({
             model: AI_MODELS.cityPulse,
-            reasoning_effort: TASK_REASONING_EFFORT.cityPulse,
             messages: [
               {
                 role: "system",

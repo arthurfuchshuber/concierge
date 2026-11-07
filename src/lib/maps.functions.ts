@@ -3,7 +3,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { crossBorderCategory } from "@/lib/poi-country";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
-import { AI_MODELS, TASK_REASONING_EFFORT } from "@/lib/llm/models";
+import { AI_MODELS } from "@/lib/llm/models";
 import {
   distanceMatrixPath,
   parseDistanceMatrix,
@@ -635,7 +635,6 @@ Responda APENAS com JSON válido (sem markdown) no formato:
       },
       body: JSON.stringify({
         model: AI_MODELS.recommendations,
-        reasoning_effort: TASK_REASONING_EFFORT.recommendations,
         messages: [
           { role: "system", content: "Você é um concierge local que conhece em profundidade as cidades brasileiras e seus estados. Responda sempre com JSON válido, sem markdown." },
           { role: "user", content: prompt },

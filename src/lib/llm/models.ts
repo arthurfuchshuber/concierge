@@ -63,23 +63,9 @@ export const FALLBACK_MODELS: Record<string, string> = {
 };
 
 /**
- * ESFORÇO DE RACIOCÍNIO POR TAREFA (raciocínio elástico): rotina leve em `low`, curadoria factual em
- * `medium`, leitura de documentos e contratos em `high`. Prazos e tetos de custo continuam valendo.
+ * RACIOCÍNIO ELÁSTICO NATIVO (ajuste fino do PR #11): não há tabela de esforço por tarefa. Nenhuma chamada
+ * convencional fixa `reasoning_effort`; o modelo dosa sozinho (`auto`). Custo contido pelos tetos de cada rota.
  */
-export type TaskReasoningEffort = "low" | "medium" | "high";
-export const TASK_REASONING_EFFORT: Record<Exclude<AiTask, "embeddings">, TaskReasoningEffort> = {
-  translate: "low",
-  content: "low",
-  cityPulse: "medium",
-  recommendations: "medium",
-  documents: "high",
-  contracts: "high",
-  internal: "medium",
-};
-
-export function reasoningEffortFor(task: AiTask): TaskReasoningEffort | null {
-  return task === "embeddings" ? null : TASK_REASONING_EFFORT[task];
-}
 
 export function fallbackModel(model: string): string | null {
   return FALLBACK_MODELS[model] ?? null;

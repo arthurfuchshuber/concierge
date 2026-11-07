@@ -9,9 +9,7 @@ import {
   AUTHORIZED_EMBEDDING_MODEL,
   AUTHORIZED_TEXT_MODELS,
   FALLBACK_MODELS,
-  TASK_REASONING_EFFORT,
   fallbackModel,
-  reasoningEffortFor,
 } from "@/lib/llm/models";
 import { GUEST_AI_MODELS, guestFallbackModel } from "@/lib/guest-ai/llm/models";
 import {
@@ -19,15 +17,24 @@ import {
   GUEST_AI_RESERVE_MODEL,
 } from "@/lib/guest-ai/orchestrator/contracts";
 import {
-  COPILOT_OUTPUT_TOKENS_BY_EFFORT,
-  copilotEffortSignals,
+  COPILOT_MAX_OUTPUT_TOKENS,
+  COPILOT_MAX_TURN_COST_USD,
+  COPILOT_MIN_OUTPUT_TOKENS,
+  COPILOT_REASONING_EFFORT,
   copilotModelId,
-  copilotReasoningEffort,
 } from "@/lib/guest-ai/copilot/contracts";
-import { generateGuestLlm } from "@/lib/guest-ai/llm/gateway.server";
-import type { LlmProvider, ProviderOutcome } from "@/lib/guest-ai/llm/providers/types";
-import type { HistoryEntry, HistoryResult } from "@/lib/guest-ai/history";
+import { generateGuestLlm, validateLlmRequest } from "@/lib/guest-ai/llm/gateway.server";
+import {
+  buildChatBody,
+  buildResponsesBody,
+} from "@/lib/guest-ai/llm/providers/lovable-gateway.server";
+import type {
+  LlmProvider,
+  ProviderOutcome,
+  ProviderRequest,
+} from "@/lib/guest-ai/llm/providers/types";
 import { LIMITS } from "@/lib/guest-ai/llm/contracts";
+import { createCopilotGenerator } from "@/lib/guest-ai/copilot/generator.server";
 
 const TITULAR = "openai/gpt-6-astra";
 const RESERVA = "google/gemini-3.8-flash";
@@ -83,135 +90,148 @@ describe("catálogo único de modelos", () => {
   });
 });
 
-describe("raciocínio elástico por tarefa (funções convencionais)", () => {
-  it("rotina em low, curadoria em medium, documentos e contratos em high", () => {
-    expect(reasoningEffortFor("translate")).toBe("low");
-    expect(reasoningEffortFor("content")).toBe("low");
-    expect(reasoningEffortFor("cityPulse")).toBe("medium");
-    expect(reasoningEffortFor("recommendations")).toBe("medium");
-    expect(reasoningEffortFor("documents")).toBe("high");
-    expect(reasoningEffortFor("contracts")).toBe("high");
-    expect(reasoningEffortFor("embeddings")).toBeNull();
-    expect(Object.keys(TASK_REASONING_EFFORT)).not.toContain("embeddings");
+describe("raciocínio 100% elástico (sem tabela de esforço por assunto)", () => {
+  it("não existe mais classificação estática de esforço em lugar nenhum", () => {
+    const files = [
+      "src/lib/guest-ai/copilot/contracts.ts",
+      "src/lib/guest-ai/copilot/generate.server.ts",
+      "src/lib/guest-ai/copilot/generator.server.ts",
+      "src/lib/llm/models.ts",
+      "src/lib/llm/gateway.server.ts",
+      "src/lib/translate.functions.ts",
+      "src/lib/city-news.functions.ts",
+      "src/lib/daily-tip.functions.ts",
+      "src/lib/maps.functions.ts",
+      "src/routes/api/public/guest-doc-upload.ts",
+    ];
+    for (const f of files) {
+      const src = readFileSync(f, "utf8");
+      expect(src, f).not.toMatch(
+        /copilotReasoningEffort|TASK_REASONING_EFFORT|reasoningEffortFor|OUTPUT_TOKENS_BY_EFFORT/,
+      );
+      expect(src, f).not.toMatch(/reasoning_effort:\s*["'](low|medium|high)["']/);
+    }
   });
 
-  it("a trava fixa COPILOT_REASONING_EFFORT deixou de existir", () => {
-    const src = readFileSync("src/lib/guest-ai/copilot/contracts.ts", "utf8");
-    expect(src).not.toMatch(/COPILOT_REASONING_EFFORT\s*=/);
-    expect(readFileSync("src/lib/guest-ai/copilot/generate.server.ts", "utf8")).not.toMatch(
-      /COPILOT_REASONING_EFFORT/,
+  it("o Copiloto chama o modelo em `auto`", () => {
+    expect(COPILOT_REASONING_EFFORT).toBe("auto");
+    expect(readFileSync("src/lib/guest-ai/copilot/generate.server.ts", "utf8")).toMatch(
+      /reasoningEffort: COPILOT_REASONING_EFFORT/,
     );
+  });
+
+  it("`auto` é aceito pelo gateway para os dois modelos do catálogo", () => {
+    for (const model of [TITULAR, RESERVA]) {
+      const v = validateLlmRequest({
+        purpose: "test",
+        model,
+        messages: [{ role: "user", content: "oi" }],
+        maxOutputTokens: COPILOT_MAX_OUTPUT_TOKENS,
+        reasoningEffort: "auto",
+      });
+      expect(v, model).not.toBeNull();
+      expect(v!.provider.reasoningEffort).toBe("auto");
+    }
+  });
+
+  it("em `auto` nenhum esforço é fixado no fio: o modelo dosa sozinho", () => {
+    const req = (
+      model: string,
+      reasoningEffort: ProviderRequest["reasoningEffort"],
+    ): ProviderRequest => ({
+      spec: GUEST_AI_MODELS.get(model)!,
+      messages: [{ role: "user", content: "oi" }],
+      maxOutputTokens: 512,
+      reasoningEffort,
+      responseFormat: "json",
+      temperature: null,
+    });
+    expect(buildChatBody(req(RESERVA, "auto"))).not.toHaveProperty("reasoning_effort");
+    expect(buildResponsesBody(req(TITULAR, "auto"))).not.toHaveProperty("reasoning");
+    // um esforço explícito continua indo ao fio (contrato do gateway preservado)
+    expect(buildChatBody(req(RESERVA, "high"))).toMatchObject({ reasoning_effort: "high" });
+    expect(buildResponsesBody(req(TITULAR, "high"))).toMatchObject({
+      reasoning: { effort: "high" },
+    });
+  });
+
+  it("funções convencionais: Responses API sem `effort` fixo; chat sem `reasoning_effort`", () => {
+    const src = readFileSync("src/lib/llm/gateway.server.ts", "utf8");
+    expect(src).toMatch(/reasoningEffort: "auto"/);
+    expect(src).toMatch(/params\.reasoningEffort === "auto"\s*\?\s*\{ summary: "auto" \}/);
   });
 });
 
-describe("raciocínio elástico do Copiloto", () => {
-  const e = (guestText: string, imagesSent = 0, hasAttachment = false) =>
-    copilotReasoningEffort({ guestText, imagesSent, hasAttachment });
-
-  it("cortesia e rotina ⇒ low", () => {
-    for (const t of [
-      "Oi",
-      "Bom dia!",
-      "Obrigado 🙏",
-      "Valeu, perfeito!",
-      "ok 👍",
-      "Oi, tudo bem?",
-      "Muito obrigada ❤️",
-      "👩‍🍳☀️",
-    ]) {
-      expect(e(t), t).toBe("low");
-    }
-  });
-
-  it("pergunta factual (Dossiê, regras, guia) ⇒ medium", () => {
-    for (const t of [
-      "Qual a senha do wifi?",
-      "Que horas é o check-in?",
-      "Posso levar meu cachorro?",
-      "Tem algum restaurante bom perto?",
-      "O que tem pra fazer na cidade hoje à noite?",
-    ]) {
-      expect(e(t), t).toBe("medium");
-    }
-  });
-
-  it("incidente, dano, documento ou contrato ⇒ high", () => {
-    for (const t of [
-      "O chuveiro não esquenta",
-      "Tem um vazamento embaixo da pia",
-      "Quebrou o vidro da janela",
-      "Estamos sem luz no apartamento",
-      "Sinto cheiro de gás na cozinha",
-      "Quero o reembolso da cobrança extra",
-      "Pode me mandar o contrato?",
-    ]) {
-      expect(e(t), t).toBe("high");
-    }
-  });
-
-  it("foto ou anexo do hóspede ⇒ high, mesmo com texto trivial", () => {
-    expect(e("Oi", 1)).toBe("high");
-    expect(e("", 2)).toBe("high");
-    expect(e("segue", 0, true)).toBe("high");
-  });
-
-  it("o esforço escala monotonicamente com a complexidade", () => {
-    const rank = { low: 0, medium: 1, high: 2 } as const;
-    const ladder = [
-      e("Obrigado!"),
-      e("Qual o horário do check-out?"),
-      e("O ar-condicionado parou de funcionar"),
-    ];
-    expect(ladder).toEqual(["low", "medium", "high"]);
-    expect(rank[ladder[0]!]).toBeLessThan(rank[ladder[1]!]);
-    expect(rank[ladder[1]!]).toBeLessThan(rank[ladder[2]!]);
-  });
-
-  it("teto de saída cresce com o esforço e respeita o limite do gateway", () => {
-    expect(COPILOT_OUTPUT_TOKENS_BY_EFFORT.low).toBeLessThan(
-      COPILOT_OUTPUT_TOKENS_BY_EFFORT.medium,
+describe("guarda-corpo financeiro externo do Copiloto", () => {
+  const prompt = {
+    system: "s",
+    messages: [{ role: "user" as const, content: "olá" }],
+    sourceIds: null,
+    promptVersion: "x",
+  };
+  const run = async (opts: { maxTurnCostUsd?: number; content?: string } = {}) => {
+    const seen: Array<{ effort: string; max: number; model: string }> = [];
+    const provider: LlmProvider = {
+      id: "fake",
+      async complete(req) {
+        seen.push({ effort: req.reasoningEffort, max: req.maxOutputTokens, model: req.spec.id });
+        return {
+          kind: "ok",
+          text: '{"ok":true}',
+          finishReason: "stop",
+          usage: { inputTokens: 10, outputTokens: 10 },
+          requestId: null,
+        };
+      },
+    };
+    const g = createCopilotGenerator({
+      modelId: TITULAR,
+      maxOutputTokens: COPILOT_MAX_OUTPUT_TOKENS,
+      minOutputTokens: COPILOT_MIN_OUTPUT_TOKENS,
+      reasoningEffort: COPILOT_REASONING_EFFORT,
+      remainingMs: () => 10_000,
+      beforeNetwork: async () => true,
+      traceId: "t",
+      provider,
+      log: () => {},
+      ...(opts.maxTurnCostUsd ? { maxTurnCostUsd: opts.maxTurnCostUsd } : {}),
+    });
+    const p = opts.content
+      ? { ...prompt, messages: [{ role: "user" as const, content: opts.content }] }
+      : prompt;
+    const outcome = await g.generate(p, new AbortController().signal).then(
+      () => "ok" as const,
+      (e: { code?: string }) => e.code ?? "erro",
     );
-    expect(COPILOT_OUTPUT_TOKENS_BY_EFFORT.medium).toBeLessThan(
-      COPILOT_OUTPUT_TOKENS_BY_EFFORT.high,
-    );
-    expect(COPILOT_OUTPUT_TOKENS_BY_EFFORT.high).toBeLessThanOrEqual(LIMITS.maxOutputTokens);
+    return { seen, telemetry: g.telemetry(), outcome };
+  };
+
+  it("teto de US$ 0,15 por turno e teto de saída dentro do limite do gateway", () => {
+    expect(COPILOT_MAX_TURN_COST_USD).toBe(0.15);
+    expect(COPILOT_MAX_OUTPUT_TOKENS).toBeLessThanOrEqual(LIMITS.maxOutputTokens);
+    expect(COPILOT_MIN_OUTPUT_TOKENS).toBeLessThan(COPILOT_MAX_OUTPUT_TOKENS);
   });
 
-  it("sinais vêm só da rajada atual do hóspede (depois da última fala da equipe)", () => {
-    const entry = (
-      speaker: HistoryEntry["speaker"],
-      text: string,
-      media: HistoryEntry["media"] = null,
-    ): HistoryEntry =>
-      ({
-        ref: `hist:${speaker}:h1`,
-        messageId: text,
-        speaker,
-        channel: "airbnb",
-        at: "2026-11-07T10:00:00Z",
-        text,
-        media,
-        delivery: "delivered",
-        current: false,
-      }) as unknown as HistoryEntry;
-    const history = {
-      status: "available",
-      conversationId: "c",
-      currentMessageId: "m",
-      counts: {},
-      entries: [
-        entry("guest", "o chuveiro quebrou"),
-        entry("team", "Já resolvemos!"),
-        entry("guest", "Obrigado"),
-        entry("guest", "tudo certo"),
-      ],
-    } as unknown as HistoryResult;
-    const sig = copilotEffortSignals(history, 0);
-    expect(sig.guestText).toBe("Obrigado\ntudo certo");
-    expect(copilotReasoningEffort(sig)).toBe("low");
-    expect(
-      copilotEffortSignals({ status: "unavailable", reason: "x" } as unknown as HistoryResult, 1),
-    ).toEqual({ guestText: "", imagesSent: 1 });
+  it("chamada normal: `auto` + teto de saída cheio, no Titular", async () => {
+    const r = await run();
+    expect(r.seen).toEqual([{ effort: "auto", max: COPILOT_MAX_OUTPUT_TOKENS, model: TITULAR }]);
+    expect(r.telemetry).toMatchObject({
+      reasoningEffort: "auto",
+      maxOutputTokens: COPILOT_MAX_OUTPUT_TOKENS,
+      model: TITULAR,
+    });
+  });
+
+  it("teto cheio que não cabe no custo do turno ⇒ recua para o teto mínimo (ainda em `auto`)", async () => {
+    // US$ 0,02 comporta 1.536 tokens de saída do Titular (US$ 0,0154), mas não 4.096 (US$ 0,041)
+    const r = await run({ maxTurnCostUsd: 0.02 });
+    expect(r.seen).toEqual([{ effort: "auto", max: COPILOT_MIN_OUTPUT_TOKENS, model: TITULAR }]);
+  });
+
+  it("nem o teto mínimo cabe ⇒ bloqueia antes da rede (disjuntor financeiro)", async () => {
+    const r = await run({ maxTurnCostUsd: 0.005 });
+    expect(r.outcome).toBe("budget_turn_exceeded");
+    expect(r.seen).toEqual([]);
   });
 });
 
@@ -283,77 +303,5 @@ describe("reserva automática no gateway da Guest AI", () => {
       expect(models).toEqual([TITULAR]);
       expect(res.ok).toBe(false);
     }
-  });
-});
-
-describe("gerador do Copiloto com esforço elástico", () => {
-  const prompt = {
-    system: "s",
-    messages: [{ role: "user" as const, content: "olá" }],
-    sourceIds: null,
-    promptVersion: "x",
-  };
-  const capture = () => {
-    const seen: Array<{ effort: string; max: number; model: string }> = [];
-    const provider: LlmProvider = {
-      id: "fake",
-      async complete(req) {
-        seen.push({ effort: req.reasoningEffort, max: req.maxOutputTokens, model: req.spec.id });
-        return {
-          kind: "ok",
-          text: '{"ok":true}',
-          finishReason: "stop",
-          usage: { inputTokens: 10, outputTokens: 10 },
-          requestId: null,
-        };
-      },
-    };
-    return { seen, provider };
-  };
-  const mk = async (
-    effort: (s: { imagesSent: number }) => "low" | "medium" | "high",
-    maxTurnCostUsd?: number,
-  ) => {
-    const { createCopilotGenerator } = await import("@/lib/guest-ai/copilot/generator.server");
-    const c = capture();
-    const g = createCopilotGenerator({
-      modelId: TITULAR,
-      maxOutputTokens: COPILOT_OUTPUT_TOKENS_BY_EFFORT.low,
-      reasoningEffort: effort,
-      outputTokensFor: (x) => COPILOT_OUTPUT_TOKENS_BY_EFFORT[x as "low" | "medium" | "high"],
-      remainingMs: () => 10_000,
-      beforeNetwork: async () => true,
-      traceId: "t",
-      provider: c.provider,
-      log: () => {},
-      ...(maxTurnCostUsd ? { maxTurnCostUsd } : {}),
-    });
-    await g.generate(prompt, new AbortController().signal);
-    return { ...c, telemetry: g.telemetry() };
-  };
-
-  it("cortesia vai em low com o teto base; incidente sobe para high com teto maior", async () => {
-    const low = await mk(() => copilotReasoningEffort({ guestText: "Obrigado!", imagesSent: 0 }));
-    expect(low.seen).toEqual([
-      { effort: "low", max: COPILOT_OUTPUT_TOKENS_BY_EFFORT.low, model: TITULAR },
-    ]);
-    const high = await mk(() =>
-      copilotReasoningEffort({ guestText: "Tem um vazamento na pia", imagesSent: 0 }),
-    );
-    expect(high.seen[0]).toMatchObject({
-      effort: "high",
-      max: COPILOT_OUTPUT_TOKENS_BY_EFFORT.high,
-    });
-    expect(high.telemetry).toMatchObject({
-      reasoningEffort: "high",
-      maxOutputTokens: COPILOT_OUTPUT_TOKENS_BY_EFFORT.high,
-      model: TITULAR,
-    });
-  });
-
-  it("teto de custo do turno continua soberano: esforço alto que não cabe volta ao teto base", async () => {
-    // teto que comporta a saída base mas não a de `high`
-    const r = await mk(() => "high", 0.02);
-    expect(r.seen[0]).toMatchObject({ effort: "high", max: COPILOT_OUTPUT_TOKENS_BY_EFFORT.low });
   });
 });

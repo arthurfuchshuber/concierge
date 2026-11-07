@@ -57,10 +57,9 @@ import {
   COPILOT_DEADLINE_MS,
   COPILOT_MAX_OUTPUT_TOKENS,
   COPILOT_MAX_TURN_COST_USD,
-  COPILOT_OUTPUT_TOKENS_BY_EFFORT,
+  COPILOT_MIN_OUTPUT_TOKENS,
+  COPILOT_REASONING_EFFORT,
   copilotDailyLimitUsd,
-  copilotEffortSignals,
-  copilotReasoningEffort,
   copilotFlagOn,
   copilotPropertyAllowed,
   copilotModelId,
@@ -503,12 +502,9 @@ export async function generateCopilotSuggestion(
       : createCopilotGenerator({
           modelId: copilotModelId(env),
           maxOutputTokens: COPILOT_MAX_OUTPUT_TOKENS,
-          // raciocínio elástico: decidido na hora da chamada, com a rajada atual do hóspede e as fotos anexadas
-          reasoningEffort: ({ imagesSent }) => copilotReasoningEffort(copilotEffortSignals(history, imagesSent)),
-          outputTokensFor: (effort) =>
-            effort === "low" || effort === "medium" || effort === "high"
-              ? COPILOT_OUTPUT_TOKENS_BY_EFFORT[effort]
-              : COPILOT_MAX_OUTPUT_TOKENS,
+          minOutputTokens: COPILOT_MIN_OUTPUT_TOKENS,
+          // elasticidade nativa: sem tabela por assunto; o modelo dosa o raciocínio, o custo é contido por fora
+          reasoningEffort: COPILOT_REASONING_EFFORT,
           remainingMs,
           beforeNetwork,
           traceId: claimed.suggestionId,
