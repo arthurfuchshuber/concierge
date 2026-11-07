@@ -43,9 +43,9 @@ export interface HistoryRow {
   guide_context?: unknown;
 }
 
-/** Item do guia (evento da Home ou recomendação do Explorar) que o hóspede tocou para abrir o chat. */
+/** Item da página principal do guia (evento da cidade) que o hóspede tocou para abrir o chat. */
 export interface GuideItemContext {
-  kind: "city_event" | "place";
+  kind: "city_event";
   id: string;
   name: string;
   type: string | null;
@@ -58,7 +58,7 @@ export function parseGuideContext(v: unknown): GuideItemContext | null {
   const o = v as Record<string, unknown>;
   const s = (x: unknown, max: number) =>
     typeof x === "string" && x.trim() ? x.trim().slice(0, max) : null;
-  const kind = o["kind"] === "city_event" || o["kind"] === "place" ? o["kind"] : null;
+  const kind = o["kind"] === "city_event" ? "city_event" : null;
   const id = s(o["id"], 80);
   const name = s(o["name"], 200);
   if (!kind || !id || !name || !/^[a-z0-9:_-]+$/i.test(id)) return null;

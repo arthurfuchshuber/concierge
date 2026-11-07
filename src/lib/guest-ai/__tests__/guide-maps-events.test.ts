@@ -10,11 +10,21 @@ import { buildPlaybook } from "@/lib/playbook-build";
 import { composeTurnPrompt } from "@/lib/guest-ai/composer";
 import { normalizeHistory, parseGuideContext } from "@/lib/guest-ai/history";
 import { SECRET_MARKER, SECRET_SCRUBBER } from "@/lib/guest-ai/secret-scrub";
-import { CITY_EVENTS_TAG, DOSSIER_TAG, HISTORY_TAG, PLACES_TAG, buildSystemPrompt } from "@/lib/guest-ai/system-prompt";
+import {
+  CITY_EVENTS_TAG,
+  DOSSIER_TAG,
+  HISTORY_TAG,
+  PLACES_TAG,
+  buildSystemPrompt,
+} from "@/lib/guest-ai/system-prompt";
 import { GUEST_PERSONA, renderPersona } from "@/lib/guest-ai/persona";
 import { primaryDossierTarget } from "@/lib/guest-ai/data/property-access.server";
 import { fetchPropertyDossier } from "@/lib/guest-ai/data/property-dossier.server";
-import { fetchCityEvents, normalizeCityEvents, type CityEventsLoad } from "@/lib/guest-ai/data/city-events.server";
+import {
+  fetchCityEvents,
+  normalizeCityEvents,
+  type CityEventsLoad,
+} from "@/lib/guest-ai/data/city-events.server";
 import { hasNewerGuestMessage } from "@/lib/guest-ai/data/newer-guest-message.server";
 import { googleMapsUrl } from "@/lib/guest-ai/dossier/normalize";
 import { formatForChannel, unstyleUnicode } from "@/lib/guest-ai/copilot/channel-format";
@@ -45,7 +55,14 @@ const NOW = () => new Date("2026-11-06T12:00:00Z");
 const ctx = (surface: "guide_chat" | "airbnb" | "whatsapp" = "guide_chat") =>
   conversationContext({
     interlocutor: { guestId: "s", conversationId: CONV, messageId: MSG, surface },
-    property: { id: P1, tenantId: T1, name: "Flat", timezone: "America/Sao_Paulo", listingFacts: null, dossierKnowledge: null },
+    property: {
+      id: P1,
+      tenantId: T1,
+      name: "Flat",
+      timezone: "America/Sao_Paulo",
+      listingFacts: null,
+      dossierKnowledge: null,
+    },
   });
 const block = (user: string, tag: string) => {
   const open = user.indexOf(`<${tag}`);
@@ -65,8 +82,21 @@ const dossier = async () => ({
 // ─────────────────────────── eventos da cidade (Pilar 1) ───────────────────────────
 
 const ITEMS = [
-  { title: "Festival de Jazz", category: "evento", startDate: "2026-11-07", endDate: "2026-11-08", venue: "Praça Central", summary: "Shows gratuitos." },
-  { title: "Feira antiga", category: "evento", startDate: "2026-11-01", endDate: "2026-11-02", venue: "Centro" },
+  {
+    title: "Festival de Jazz",
+    category: "evento",
+    startDate: "2026-11-07",
+    endDate: "2026-11-08",
+    venue: "Praça Central",
+    summary: "Shows gratuitos.",
+  },
+  {
+    title: "Feira antiga",
+    category: "evento",
+    startDate: "2026-11-01",
+    endDate: "2026-11-02",
+    venue: "Centro",
+  },
   { title: "Evento sem data", category: "evento" },
   { title: "Restaurante do Porto", category: "gastronomia", summary: "Frutos do mar." },
   { title: "  ", category: "evento", startDate: "2026-11-07" },
@@ -86,11 +116,19 @@ describe("eventos da Home do guia para a IA", () => {
       summary: "Shows gratuitos.",
     });
     expect(filterUpcoming(ITEMS, "2026-11-06").map((x) => x.title)).toContain("Festival de Jazz");
-    expect(cityNewsItemId({ title: "festival  de JAZZ", startDate: "2026-11-07" })).toBe(cityNewsItemId(ITEMS[0]!));
+    expect(cityNewsItemId({ title: "festival  de JAZZ", startDate: "2026-11-07" })).toBe(
+      cityNewsItemId(ITEMS[0]!),
+    );
     expect(cityNewsItemId(ITEMS[0]!)).toMatch(/^evt-[0-9a-f]{8}$/);
   });
 
-  function newsDb(over: { prop?: Record<string, unknown> | null; edition?: Record<string, unknown> | null; fail?: boolean } = {}) {
+  function newsDb(
+    over: {
+      prop?: Record<string, unknown> | null;
+      edition?: Record<string, unknown> | null;
+      fail?: boolean;
+    } = {},
+  ) {
     const calls: Array<{ table: string; filters: Array<[string, unknown]> }> = [];
     const db = {
       from(table: string) {
@@ -108,8 +146,20 @@ describe("eventos da Home do guia para a IA", () => {
             over.fail
               ? { data: null, error: { message: "x" } }
               : table === "properties"
-                ? { data: over.prop === undefined ? { id: P1, owner_id: T1, city: "Florianópolis", country: "Brasil" } : over.prop, error: null }
-                : { data: over.edition === undefined ? { items: ITEMS, date: "2026-11-05" } : over.edition, error: null },
+                ? {
+                    data:
+                      over.prop === undefined
+                        ? { id: P1, owner_id: T1, city: "Florianópolis", country: "Brasil" }
+                        : over.prop,
+                    error: null,
+                  }
+                : {
+                    data:
+                      over.edition === undefined
+                        ? { items: ITEMS, date: "2026-11-05" }
+                        : over.edition,
+                    error: null,
+                  },
         };
         return q;
       },
@@ -121,17 +171,42 @@ describe("eventos da Home do guia para a IA", () => {
     const { db, calls } = newsDb();
     const r = await fetchCityEvents(turn(), { db, now: new Date("2026-11-06T15:00:00Z") });
     expect(r.status).toBe("available");
-    if (r.status === "available") expect(r.items.map((e) => e.title)).toEqual(["Festival de Jazz", "Restaurante do Porto"]);
+    if (r.status === "available")
+      expect(r.items.map((e) => e.title)).toEqual(["Festival de Jazz", "Restaurante do Porto"]);
     expect(calls[0]!.filters).toEqual([["id", P1]]);
-    expect(calls[1]!.filters).toEqual([["city_key", "florianopolis"], ["date>=", "2026-10-29"], ["date<=", "2026-11-06"]]);
+    expect(calls[1]!.filters).toEqual([
+      ["city_key", "florianopolis"],
+      ["date>=", "2026-10-29"],
+      ["date<=", "2026-11-06"],
+    ]);
   });
 
   it("dono diferente, sem cidade, sem fuso comprovado, sem edição ou falha ⇒ indisponível (nunca inventa)", async () => {
-    expect(await fetchCityEvents(turn(), { db: newsDb({ prop: { id: P1, owner_id: "outro", city: "Florianópolis" } }).db })).toEqual({ status: "unavailable", reason: "lookup_failed" });
-    expect(await fetchCityEvents(turn(), { db: newsDb({ prop: { id: P1, owner_id: T1, city: null } }).db })).toEqual({ status: "unavailable", reason: "no_city" });
-    expect(await fetchCityEvents(turn(), { db: newsDb({ prop: { id: P1, owner_id: T1, city: "Cidade Inexistente XYZ", country: "Atlântida" } }).db })).toEqual({ status: "unavailable", reason: "no_timezone" });
-    expect(await fetchCityEvents(turn(), { db: newsDb({ edition: null }).db })).toEqual({ status: "unavailable", reason: "no_edition" });
-    expect(await fetchCityEvents(turn(), { db: newsDb({ fail: true }).db })).toEqual({ status: "unavailable", reason: "lookup_failed" });
+    expect(
+      await fetchCityEvents(turn(), {
+        db: newsDb({ prop: { id: P1, owner_id: "outro", city: "Florianópolis" } }).db,
+      }),
+    ).toEqual({ status: "unavailable", reason: "lookup_failed" });
+    expect(
+      await fetchCityEvents(turn(), {
+        db: newsDb({ prop: { id: P1, owner_id: T1, city: null } }).db,
+      }),
+    ).toEqual({ status: "unavailable", reason: "no_city" });
+    expect(
+      await fetchCityEvents(turn(), {
+        db: newsDb({
+          prop: { id: P1, owner_id: T1, city: "Cidade Inexistente XYZ", country: "Atlântida" },
+        }).db,
+      }),
+    ).toEqual({ status: "unavailable", reason: "no_timezone" });
+    expect(await fetchCityEvents(turn(), { db: newsDb({ edition: null }).db })).toEqual({
+      status: "unavailable",
+      reason: "no_edition",
+    });
+    expect(await fetchCityEvents(turn(), { db: newsDb({ fail: true }).db })).toEqual({
+      status: "unavailable",
+      reason: "lookup_failed",
+    });
   });
 });
 
@@ -146,7 +221,10 @@ const EVENTS: CityEventsLoad = {
 
 describe("composição: recomendações fora do Dossiê, distância por trajeto, eventos", () => {
   it("recomendações do Google Maps em bloco próprio; Dossiê sem catálogo de lugares", async () => {
-    const r = composeTurnPrompt({ context: ctx(), history: history(), dossiers: await dossier(), cityEvents: EVENTS }, { guard: SECRET_SCRUBBER });
+    const r = composeTurnPrompt(
+      { context: ctx(), history: history(), dossiers: await dossier(), cityEvents: EVENTS },
+      { guard: SECRET_SCRUBBER },
+    );
     if (r.kind !== "prompt") throw new Error(r.kind);
     const user = r.prompt.messages[0]!.content;
     expect(JSON.stringify(block(user, DOSSIER_TAG))).not.toMatch(/Padaria P1|Mirante P1|entorno/);
@@ -172,18 +250,25 @@ describe("composição: recomendações fora do Dossiê, distância por trajeto,
     expect(farmacia).not.toHaveProperty("tempo_estimado_somente_se_o_hospede_insistir");
     expect(farmacia.link_google_maps).toBeNull();
     expect(mirante).toMatchObject({ escopo: "pela_cidade", distancia_trajeto_m: null });
-    for (const id of ["gm:principal:rec:rec-1", "gm:principal:cref:cref-1"]) expect(r.prompt.sourceIds!.has(id)).toBe(true);
+    for (const id of ["gm:principal:rec:rec-1", "gm:principal:cref:cref-1"])
+      expect(r.prompt.sourceIds!.has(id)).toBe(true);
   });
 
   it("Airbnb: nenhum link no bloco de recomendações (o canal bloqueia links)", async () => {
-    const r = composeTurnPrompt({ context: ctx("airbnb"), history: history(), dossiers: await dossier() }, { guard: SECRET_SCRUBBER });
+    const r = composeTurnPrompt(
+      { context: ctx("airbnb"), history: history(), dossiers: await dossier() },
+      { guard: SECRET_SCRUBBER },
+    );
     if (r.kind !== "prompt") throw new Error(r.kind);
     const places = block(r.prompt.messages[0]!.content, PLACES_TAG);
     expect(JSON.stringify(places)).not.toMatch(/link_google_maps|https?:\/\//);
   });
 
   it("eventos: título, datas, local e descrição; ids citáveis; indisponível é declarado", async () => {
-    const r = composeTurnPrompt({ context: ctx(), history: history(), cityEvents: EVENTS }, { guard: SECRET_SCRUBBER });
+    const r = composeTurnPrompt(
+      { context: ctx(), history: history(), cityEvents: EVENTS },
+      { guard: SECRET_SCRUBBER },
+    );
     if (r.kind !== "prompt") throw new Error(r.kind);
     const ev = block(r.prompt.messages[0]!.content, CITY_EVENTS_TAG);
     expect(ev.status).toBe("disponivel");
@@ -197,17 +282,41 @@ describe("composição: recomendações fora do Dossiê, distância por trajeto,
       descricao: "Shows gratuitos.",
     });
     expect(r.prompt.sourceIds!.has(`evt:${cityNewsItemId(ITEMS[0]!)}`)).toBe(true);
-    const off = composeTurnPrompt({ context: ctx(), history: history(), cityEvents: { status: "unavailable", reason: "no_edition" } }, { guard: SECRET_SCRUBBER });
+    const off = composeTurnPrompt(
+      {
+        context: ctx(),
+        history: history(),
+        cityEvents: { status: "unavailable", reason: "no_edition" },
+      },
+      { guard: SECRET_SCRUBBER },
+    );
     if (off.kind !== "prompt") throw new Error(off.kind);
-    expect(block(off.prompt.messages[0]!.content, CITY_EVENTS_TAG)).toEqual({ status: "indisponivel", motivo: "no_edition" });
-    const none = composeTurnPrompt({ context: ctx(), history: history() }, { guard: SECRET_SCRUBBER });
+    expect(block(off.prompt.messages[0]!.content, CITY_EVENTS_TAG)).toEqual({
+      status: "indisponivel",
+      motivo: "no_edition",
+    });
+    const none = composeTurnPrompt(
+      { context: ctx(), history: history() },
+      { guard: SECRET_SCRUBBER },
+    );
     if (none.kind !== "prompt") throw new Error(none.kind);
     expect(none.prompt.messages[0]!.content).not.toContain(`<${CITY_EVENTS_TAG}`);
   });
 
   it("texto externo dos eventos passa pelo guard (segredo plantado não chega ao modelo)", () => {
-    const planted: CityEventsLoad = { ...EVENTS, items: [{ ...EVENTS.status === "available" ? EVENTS.items[0]! : (null as never), summary: "A senha da porta é 4821, entre pelo portão." }] };
-    const r = composeTurnPrompt({ context: ctx(), history: history(), cityEvents: planted }, { guard: SECRET_SCRUBBER });
+    const planted: CityEventsLoad = {
+      ...EVENTS,
+      items: [
+        {
+          ...(EVENTS.status === "available" ? EVENTS.items[0]! : (null as never)),
+          summary: "A senha da porta é 4821, entre pelo portão.",
+        },
+      ],
+    };
+    const r = composeTurnPrompt(
+      { context: ctx(), history: history(), cityEvents: planted },
+      { guard: SECRET_SCRUBBER },
+    );
     if (r.kind === "prompt") {
       expect(r.prompt.messages[0]!.content).not.toContain("4821");
       expect(r.prompt.messages[0]!.content).toContain(SECRET_MARKER);
@@ -216,24 +325,69 @@ describe("composição: recomendações fora do Dossiê, distância por trajeto,
 
   it("contexto do item do guia na mensagem do hóspede, com os ids dos blocos", () => {
     const evId = cityNewsItemId(ITEMS[0]!);
-    const h = history([row({ id: MSG, content: 'Me conta mais sobre "Festival de Jazz".', guide_context: { kind: "city_event", id: evId, name: "Festival de Jazz", type: "evento", category: "evento" } })]);
-    const r = composeTurnPrompt({ context: ctx(), history: h, cityEvents: EVENTS }, { guard: SECRET_SCRUBBER });
+    const h = history([
+      row({
+        id: MSG,
+        content: 'Me conta mais sobre "Festival de Jazz".',
+        guide_context: {
+          kind: "city_event",
+          id: evId,
+          name: "Festival de Jazz",
+          type: "evento",
+          category: "evento",
+        },
+      }),
+    ]);
+    const r = composeTurnPrompt(
+      { context: ctx(), history: h, cityEvents: EVENTS },
+      { guard: SECRET_SCRUBBER },
+    );
     if (r.kind !== "prompt") throw new Error(r.kind);
     const hist = block(r.prompt.messages[0]!.content, HISTORY_TAG);
-    expect(hist.at(-1).contexto_do_guia).toEqual({ tipo: "evento_da_cidade", id: `evt:${evId}`, nome: "Festival de Jazz", categoria: "evento" });
-    const h2 = history([row({ id: MSG, content: "E essa padaria?", guide_context: { kind: "place", id: "rec:rec-1", name: "Padaria P1", type: "bakery", category: "padaria" } })]);
+    expect(hist.at(-1).contexto_do_guia).toEqual({
+      tipo: "evento_da_cidade",
+      id: `evt:${evId}`,
+      nome: "Festival de Jazz",
+      categoria: "evento",
+    });
+    // recomendação do Explorar nunca vira contexto (o Explorar não abre o chat)
+    const h2 = history([
+      row({
+        id: MSG,
+        content: "E essa padaria?",
+        guide_context: { kind: "place", id: "rec:rec-1", name: "Padaria P1" },
+      }),
+    ]);
     const r2 = composeTurnPrompt({ context: ctx(), history: h2 }, { guard: SECRET_SCRUBBER });
     if (r2.kind !== "prompt") throw new Error(r2.kind);
-    expect(block(r2.prompt.messages[0]!.content, HISTORY_TAG).at(-1).contexto_do_guia.id).toBe("gm:principal:rec:rec-1");
+    expect(block(r2.prompt.messages[0]!.content, HISTORY_TAG).at(-1)).not.toHaveProperty(
+      "contexto_do_guia",
+    );
   });
 
   it("forma fechada do contexto do guia; mensagem da equipe nunca carrega contexto", () => {
-    expect(parseGuideContext({ kind: "place", id: "rec:abc", name: "X", type: null, category: null })).toEqual({ kind: "place", id: "rec:abc", name: "X", type: null, category: null });
+    expect(
+      parseGuideContext({
+        kind: "city_event",
+        id: "evt-0a1b2c3d",
+        name: "X",
+        type: null,
+        category: null,
+      }),
+    ).toEqual({ kind: "city_event", id: "evt-0a1b2c3d", name: "X", type: null, category: null });
+    expect(parseGuideContext({ kind: "place", id: "rec:abc", name: "X" })).toBeNull();
     expect(parseGuideContext({ kind: "outro", id: "x", name: "X" })).toBeNull();
-    expect(parseGuideContext({ kind: "place", id: "rec abc <script>", name: "X" })).toBeNull();
+    expect(parseGuideContext({ kind: "city_event", id: "evt abc <script>", name: "X" })).toBeNull();
     expect(parseGuideContext("texto")).toBeNull();
     const h = normalizeHistory(
-      [row({ role: "assistant", sender_type: "human", guide_context: { kind: "place", id: "rec:1", name: "X" } }), row({ id: MSG })],
+      [
+        row({
+          role: "assistant",
+          sender_type: "human",
+          guide_context: { kind: "city_event", id: "evt-0a1b2c3d", name: "X" },
+        }),
+        row({ id: MSG }),
+      ],
       { conversationId: CONV, currentMessageId: MSG },
     );
     if (h.status !== "available") throw new Error("x");
@@ -244,19 +398,34 @@ describe("composição: recomendações fora do Dossiê, distância por trajeto,
     const a = "00000000-0000-4000-8000-0000000000a1";
     const b = "00000000-0000-4000-8000-0000000000a2";
     const rows = [
-      row({ role: "assistant", sender_type: "human", content: "Bem-vindos!", created_at: "2026-11-06T11:00:00Z" }),
+      row({
+        role: "assistant",
+        sender_type: "human",
+        content: "Bem-vindos!",
+        created_at: "2026-11-06T11:00:00Z",
+      }),
       row({ id: a, content: "Oi", created_at: "2026-11-06T11:59:50Z" }),
       row({ id: b, content: "Tudo bem?", created_at: "2026-11-06T11:59:53Z" }),
       row({ id: MSG, content: "Qual o horário do check-out?", created_at: "2026-11-06T11:59:56Z" }),
     ];
-    const r = composeTurnPrompt({ context: ctx(), history: history(rows) }, { guard: SECRET_SCRUBBER });
+    const r = composeTurnPrompt(
+      { context: ctx(), history: history(rows) },
+      { guard: SECRET_SCRUBBER },
+    );
     if (r.kind !== "prompt") throw new Error(r.kind);
     const user = r.prompt.messages[0]!.content;
     const hist = block(user, HISTORY_TAG);
-    expect(hist.filter((x: { lote_atual?: boolean }) => x.lote_atual).map((x: { texto: string }) => x.texto)).toEqual(["Oi", "Tudo bem?", "Qual o horário do check-out?"]);
+    expect(
+      hist
+        .filter((x: { lote_atual?: boolean }) => x.lote_atual)
+        .map((x: { texto: string }) => x.texto),
+    ).toEqual(["Oi", "Tudo bem?", "Qual o horário do check-out?"]);
     expect(user).toMatch(/formam um único turno/);
     // uma mensagem só ⇒ nada de lote
-    const one = composeTurnPrompt({ context: ctx(), history: history() }, { guard: SECRET_SCRUBBER });
+    const one = composeTurnPrompt(
+      { context: ctx(), history: history() },
+      { guard: SECRET_SCRUBBER },
+    );
     if (one.kind !== "prompt") throw new Error(one.kind);
     expect(one.prompt.messages[0]!.content).not.toMatch(/lote_atual/);
   });
@@ -265,7 +434,9 @@ describe("composição: recomendações fora do Dossiê, distância por trajeto,
 describe("link do Google Maps: só hosts oficiais", () => {
   it("aceita Maps; recusa outro host, http, credencial na URL e google.com fora de /maps", () => {
     expect(googleMapsUrl("https://maps.google.com/?cid=1")).toBe("https://maps.google.com/?cid=1");
-    expect(googleMapsUrl("https://www.google.com/maps/place/?q=place_id:x")).toContain("/maps/place");
+    expect(googleMapsUrl("https://www.google.com/maps/place/?q=place_id:x")).toContain(
+      "/maps/place",
+    );
     expect(googleMapsUrl("https://maps.app.goo.gl/abc")).toBe("https://maps.app.goo.gl/abc");
     expect(googleMapsUrl("http://maps.google.com/?cid=1")).toBeNull();
     expect(googleMapsUrl("https://evil.example.com/maps")).toBeNull();
@@ -296,20 +467,29 @@ describe("formatação por canal", () => {
   });
 
   it("WhatsApp: negrito nativo leve; ** vira *; link em colchetes vira texto: url", () => {
-    expect(formatForChannel("**Padaria P1** é ótima. [Mapa](https://maps.google.com/?cid=1)", "whatsapp")).toBe(
-      "*Padaria P1* é ótima. Mapa: https://maps.google.com/?cid=1",
-    );
+    expect(
+      formatForChannel(
+        "**Padaria P1** é ótima. [Mapa](https://maps.google.com/?cid=1)",
+        "whatsapp",
+      ),
+    ).toBe("*Padaria P1* é ótima. Mapa: https://maps.google.com/?cid=1");
     expect(formatForChannel("Fica *perto*.", "whatsapp")).toBe("Fica *perto*.");
   });
 
   it("Guia: texto limpo, sem Markdown; marcador de credenciais intacto em todos os canais", () => {
-    expect(formatForChannel("**Oi!** Aqui está:\n\n" + CREDENTIAL_MARKER, "guide_chat")).toBe("Oi! Aqui está:\n\n" + CREDENTIAL_MARKER);
-    for (const ch of ["airbnb", "whatsapp", "guide_chat"]) expect(formatForChannel(`Senha: ${CREDENTIAL_MARKER}`, ch)).toContain(CREDENTIAL_MARKER);
+    expect(formatForChannel("**Oi!** Aqui está:\n\n" + CREDENTIAL_MARKER, "guide_chat")).toBe(
+      "Oi! Aqui está:\n\n" + CREDENTIAL_MARKER,
+    );
+    for (const ch of ["airbnb", "whatsapp", "guide_chat"])
+      expect(formatForChannel(`Senha: ${CREDENTIAL_MARKER}`, ch)).toContain(CREDENTIAL_MARKER);
     expect(formatForChannel("", "airbnb")).toBe("");
   });
 
   it("a sugestão do Copiloto passa pela formatação do canal", () => {
-    const src = readFileSync(path.resolve(__dirname, "..", "copilot", "generate.server.ts"), "utf8");
+    const src = readFileSync(
+      path.resolve(__dirname, "..", "copilot", "generate.server.ts"),
+      "utf8",
+    );
     expect(src).toMatch(/text: formatForChannel\(outcome\.text, extra\.surface\)/);
   });
 });
@@ -328,7 +508,9 @@ describe("System Prompt e persona: Google Maps, distância, eventos, formataçã
     expect(sys).toMatch(/informe sempre a distância física do trajeto/);
     expect(sys).toMatch(/Quando distancia_trajeto_m for null, não informe distância nenhuma/);
     expect(sys).toMatch(/Tempo de deslocamento: não ofereça por iniciativa própria/);
-    expect(sys).toMatch(/apenas uma estimativa que pode variar com o ritmo da caminhada ou o trânsito/);
+    expect(sys).toMatch(
+      /apenas uma estimativa que pode variar com o ritmo da caminhada ou o trânsito/,
+    );
   });
   it("eventos só do bloco; desconhecido ⇒ admite que não sabe", () => {
     expect(sys).toContain(`<${CITY_EVENTS_TAG}>`);
@@ -348,8 +530,12 @@ describe("System Prompt e persona: Google Maps, distância, eventos, formataçã
   it("refinamento: sem saudação repetida, sem ping-pong, visão natural, avarias com urgência alta e sem culpa", () => {
     expect(sys).toMatch(/não reabra a resposta com 'Olá', 'Oi de novo'/);
     expect(sys).toMatch(/Resolva por completo em uma resposta/);
-    expect(sys).toMatch(/Nunca diga que recebeu a foto, a imagem ou o vídeo, nem agradeça pelo envio/);
-    expect(sys).toMatch(/strategy answer_and_handoff, com handoff\.needed true, handoff\.urgency high/);
+    expect(sys).toMatch(
+      /Nunca diga que recebeu a foto, a imagem ou o vídeo, nem agradeça pelo envio/,
+    );
+    expect(sys).toMatch(
+      /strategy answer_and_handoff, com handoff\.needed true, handoff\.urgency high/,
+    );
     expect(sys).toMatch(/nunca assuma culpa ou responsabilidade formal/);
     expect(sys).toMatch(/nunca prometa prazos de terceiros/);
     expect(sys).toMatch(/Chame a pessoa pelo nome de quem está escrevendo agora/);
@@ -358,7 +544,10 @@ describe("System Prompt e persona: Google Maps, distância, eventos, formataçã
     expect(persona).toMatch(/parágrafos curtos, com quebras de linha naturais/);
   });
   it("o cabeçalho das fotos para o modelo também pede resposta natural", () => {
-    const src = readFileSync(path.resolve(__dirname, "..", "copilot", "generator.server.ts"), "utf8");
+    const src = readFileSync(
+      path.resolve(__dirname, "..", "copilot", "generator.server.ts"),
+      "utf8",
+    );
     expect(src).toMatch(/sem dizer que recebeu a imagem nem agradecer pelo envio/);
   });
 });
@@ -369,7 +558,11 @@ describe("rajadas: respiro de 5–8 s e uma resposta só", () => {
   it("janela do Copiloto dentro da faixa de referência", () => {
     expect(COPILOT_BURST_QUIET_MS).toBeGreaterThanOrEqual(5_000);
     expect(COPILOT_BURST_QUIET_MS).toBeLessThanOrEqual(8_000);
-    expect(DEBOUNCE_REFERENCE).toEqual({ quietWindowMs: 6_000, minQuietWindowMs: 5_000, maxQuietWindowMs: 8_000 });
+    expect(DEBOUNCE_REFERENCE).toEqual({
+      quietWindowMs: 6_000,
+      minQuietWindowMs: 5_000,
+      maxQuietWindowMs: 8_000,
+    });
   });
 
   function msgDb(rows: Array<Record<string, unknown>> | null) {
@@ -382,7 +575,8 @@ describe("rajadas: respiro de 5–8 s e uma resposta só", () => {
           eq: (k: string, v: unknown) => (filters.push(["eq", k, v]), q),
           gt: (k: string, v: unknown) => (filters.push(["gt", k, v]), q),
           neq: (k: string, v: unknown) => (filters.push(["neq", k, v]), q),
-          limit: async () => (rows === null ? { data: null, error: { message: "x" } } : { data: rows, error: null }),
+          limit: async () =>
+            rows === null ? { data: null, error: { message: "x" } } : { data: rows, error: null },
         };
         return q;
       },
@@ -403,6 +597,8 @@ describe("rajadas: respiro de 5–8 s e uma resposta só", () => {
     ]);
     expect(await hasNewerGuestMessage(turn(), { db: msgDb([]).db })).toBe("none");
     expect(await hasNewerGuestMessage(turn(), { db: msgDb(null).db })).toBe("unknown");
-    expect(await hasNewerGuestMessage(turn({ messageCreatedAt: null }), { db: msgDb([{ id: "x" }]).db })).toBe("unknown");
+    expect(
+      await hasNewerGuestMessage(turn({ messageCreatedAt: null }), { db: msgDb([{ id: "x" }]).db }),
+    ).toBe("unknown");
   });
 });

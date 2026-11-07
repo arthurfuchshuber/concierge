@@ -10,9 +10,9 @@
 --    A IA só cita metros/quilômetros quando distance_kind = 'route'.
 --
 -- 2) property_chat_messages.guide_context
---    Item que o hóspede tocou no Guia Digital para abrir o chat (evento da Home ou recomendação), conferido pelo
---    servidor contra os dados reais do imóvel ANTES de gravar: {kind, id, name, type, category}. Pequeno objeto
---    (≤ 2 KB), nunca texto livre do hóspede, nunca credencial.
+--    Evento da PÁGINA PRINCIPAL do Guia Digital que o hóspede tocou para abrir o chat ("O que rola na cidade"),
+--    conferido pelo servidor na edição vigente da cidade do imóvel ANTES de gravar: {kind, id, name, type,
+--    category}. O Explorar não abre o chat. Pequeno objeto (≤ 2 KB), nunca texto livre do hóspede, nunca credencial.
 
 alter table public.property_recommendations add column if not exists distance_kind text;
 alter table public.property_recommendations drop constraint if exists property_recommendations_distance_kind_check;
@@ -29,12 +29,12 @@ alter table public.property_chat_messages add constraint property_chat_messages_
     or (
       jsonb_typeof(guide_context) = 'object'
       and guide_context ? 'kind'
-      and guide_context->>'kind' in ('city_event', 'place')
+      and guide_context->>'kind' = 'city_event'
       and pg_column_size(guide_context) <= 2048
     )
   );
 comment on column public.property_chat_messages.guide_context is
-  'Item do Guia Digital que abriu o chat (evento da Home ou recomendação), conferido pelo servidor: {kind, id, name, type, category}.';
+  'Evento da página principal do Guia Digital que abriu o chat, conferido pelo servidor: {kind, id, name, type, category}.';
 
 do $post$
 begin

@@ -458,13 +458,13 @@ export function GuideAiChat({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  const guideContextRef = useRef<{ kind: "city_event" | "place"; id: string } | null>(null);
+  const guideContextRef = useRef<{ kind: "city_event"; id: string } | null>(null);
   // Permite abrir o chat via evento global disparado da home (bolha do concierge, sugestões).
   useEffect(() => {
     function onOpen(e: Event) {
       const detail = (e as CustomEvent<GuideChatOpenDetail>).detail;
       if (detail?.prompt) setInput(detail.prompt);
-      // Pilar 4: o item tocado (evento da Home / recomendação) acompanha a próxima mensagem; o servidor confere.
+      // Pilar 4: o evento da página principal tocado acompanha a próxima mensagem; o servidor confere.
       guideContextRef.current = detail?.context ? { kind: detail.context.kind, id: detail.context.id } : null;
       // Não forçamos setHumanMode(false): se um humano assumiu a conversa,
       // o servidor mantém o modo humano e responderá com humanMode:true.

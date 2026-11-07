@@ -342,11 +342,11 @@ function historyItem(e: HistoryEntry, guarded: Guarded, previous: string | null,
     };
   }
   if (e.guideContext) {
-    // Pilar 4: o item do guia que abriu a conversa (evento da Home ou recomendação), conferido pelo servidor.
+    // Pilar 4: o evento da página principal do guia que abriu a conversa, conferido pelo servidor.
     item["contexto_do_guia"] = {
-      tipo: e.guideContext.kind === "city_event" ? "evento_da_cidade" : "recomendacao",
-      // mesmos ids dos blocos <eventos_da_cidade> (evt:…) e <recomendacoes_google_maps> (gm:principal:…)
-      id: e.guideContext.kind === "city_event" ? `evt:${e.guideContext.id}` : `gm:principal:${e.guideContext.id}`,
+      tipo: "evento_da_cidade",
+      // mesmo id do bloco <eventos_da_cidade>
+      id: `evt:${e.guideContext.id}`,
       nome: guarded(e.guideContext.name, `${source}.guide_context`),
       categoria: e.guideContext.category === null ? null : guarded(e.guideContext.category, `${source}.guide_context`),
     };

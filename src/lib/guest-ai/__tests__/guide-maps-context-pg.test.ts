@@ -37,25 +37,49 @@ describe.skipIf(!PG_AVAILABLE)("migration guide_maps_context contra PostgreSQL r
   afterAll(() => pg?.stop());
 
   it("linhas existentes ficam intactas, com procedência e contexto nulos", async () => {
-    expect(await pg.sql(`select coalesce(distance_kind, 'NULL') || ':' || distance_meters from public.property_recommendations`)).toBe("NULL:300");
-    expect(await pg.sql(`select count(*) from public.property_chat_messages where guide_context is not null`)).toBe("0");
+    expect(
+      await pg.sql(
+        `select coalesce(distance_kind, 'NULL') || ':' || distance_meters from public.property_recommendations`,
+      ),
+    ).toBe("NULL:300");
+    expect(
+      await pg.sql(
+        `select count(*) from public.property_chat_messages where guide_context is not null`,
+      ),
+    ).toBe("0");
   });
 
   it("distance_kind: só route, straight_line ou nulo", async () => {
     for (const ok of ["'route'", "'straight_line'", "null"])
-      expect((await pg.trySql(`update public.property_recommendations set distance_kind = ${ok}`)).ok, ok).toBe(true);
-    expect((await pg.trySql(`update public.property_recommendations set distance_kind = 'haversine'`)).ok).toBe(false);
+      expect(
+        (await pg.trySql(`update public.property_recommendations set distance_kind = ${ok}`)).ok,
+        ok,
+      ).toBe(true);
+    expect(
+      (await pg.trySql(`update public.property_recommendations set distance_kind = 'haversine'`))
+        .ok,
+    ).toBe(false);
   });
 
-  it("guide_context: objeto com kind fechado e no máximo 2 KB", async () => {
-    const set = (v: string) => pg.trySql(`update public.property_chat_messages set guide_context = ${v}`);
-    expect((await set(`'{"kind":"place","id":"rec:1","name":"Padaria","type":null,"category":null}'::jsonb`)).ok).toBe(true);
-    expect((await set(`'{"kind":"city_event","id":"evt-0a1b2c3d","name":"Festival"}'::jsonb`)).ok).toBe(true);
+  it("guide_context: só evento da página principal, objeto de no máximo 2 KB", async () => {
+    const set = (v: string) =>
+      pg.trySql(`update public.property_chat_messages set guide_context = ${v}`);
+    expect(
+      (
+        await set(
+          `'{"kind":"city_event","id":"evt-0a1b2c3d","name":"Festival","type":"evento","category":"evento"}'::jsonb`,
+        )
+      ).ok,
+    ).toBe(true);
+    // o Explorar não abre o chat: recomendação nunca é contexto
+    expect((await set(`'{"kind":"place","id":"rec:1","name":"Padaria"}'::jsonb`)).ok).toBe(false);
     expect((await set(`null`)).ok).toBe(true);
     expect((await set(`'{"kind":"outro","id":"x"}'::jsonb`)).ok).toBe(false);
     expect((await set(`'{"id":"x"}'::jsonb`)).ok).toBe(false);
     expect((await set(`'["place"]'::jsonb`)).ok).toBe(false);
-    expect((await set(`jsonb_build_object('kind','place','id','x','name', repeat('a', 4000))`)).ok).toBe(false);
+    expect(
+      (await set(`jsonb_build_object('kind','city_event','id','x','name', repeat('a', 4000))`)).ok,
+    ).toBe(false);
   });
 
   it("reaplicar não altera nada (idempotente)", async () => {

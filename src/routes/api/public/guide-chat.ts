@@ -67,11 +67,12 @@ const Body = z.object({
   /** Vitrine da landing: ninguém é notificado. */
   demo: z.boolean().optional(),
   /**
-   * Item do guia tocado para abrir o chat (Pilar 4, 06/11/2026): só tipo + id. O servidor confere o item nos
-   * dados reais do imóvel e grava nome/categoria oficiais em `guide_context`; inválido ⇒ ignorado.
+   * Evento da página principal do guia tocado para abrir o chat (Pilar 4): só tipo + id. O servidor confere o
+   * item na edição vigente da cidade do imóvel e grava nome/categoria oficiais em `guide_context`; inválido ⇒
+   * ignorado. O Explorar não abre o chat.
    */
   guideContext: z
-    .object({ kind: z.enum(["city_event", "place"]), id: z.string().trim().min(1).max(80) })
+    .object({ kind: z.literal("city_event"), id: z.string().trim().min(1).max(80) })
     .optional(),
 });
 
