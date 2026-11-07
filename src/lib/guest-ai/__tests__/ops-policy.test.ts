@@ -420,16 +420,13 @@ describe("G2 · política determinística", () => {
 
   it("item 6: atendente, equipe no comando, chamado aberto, encaminhamento, problema ou negociação ⇒ recusa", () => {
     const c = input().conversation!;
-    expect(one(input({ conversation: { ...c, assignedTo: "u1" } })).code).toBe("assigned_to_team");
-    expect(one(input({ conversation: { ...c, aiPaused: true } })).code).toBe("team_in_command");
+    // pausa humana e atendente atribuído NÃO impedem a atuação nos bastidores (diretriz 07/11/2026)
+    expect(one(input({ conversation: { ...c, assignedTo: "u1" } })).outcome).toBe("would_apply");
+    expect(one(input({ conversation: { ...c, aiPaused: true } })).outcome).toBe("would_apply");
     expect(
-      one(input({ conversation: { ...c, aiPaused: true, pausedUntil: "2026-11-11T00:00:00Z" } }))
-        .code,
-    ).toBe("team_in_command");
-    expect(
-      one(input({ conversation: { ...c, aiPaused: true, pausedUntil: "2026-11-10T00:00:00Z" } }))
+      one(input({ conversation: { ...c, aiPaused: true, assignedTo: "u1", pausedUntil: "2026-11-11T00:00:00Z" } }))
         .outcome,
-    ).toBe("would_apply"); // pausa expirada
+    ).toBe("would_apply");
     expect(
       one(input({ conversation: { ...c, handoffReason: "Hóspede pediu desconto" } })).code,
     ).toBe("open_case");
