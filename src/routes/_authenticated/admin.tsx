@@ -16,6 +16,7 @@ import { OnboardingCheckout } from "@/components/OnboardingCheckout";
 import { ClientSwitcher } from "@/components/admin/ClientSwitcher";
 import { AccountSwitcher } from "@/components/admin/AccountSwitcher";
 import { FloatingHandoffDock } from "@/components/handoff/FloatingHandoffDock";
+import { usePushNavigation } from "@/hooks/usePushNavigation";
 import { FloatingDock } from "@/components/FloatingDock";
 import { PushNotificationBanner } from "@/components/PushNotificationBanner";
 import { countPendingHandoffs } from "@/lib/handoff.functions";
@@ -119,6 +120,8 @@ const BOTTOM_NAV_SHORT_LABEL: Record<string, string> = {
 
 function AdminLayout() {
   const navigate = useNavigate();
+  // Clique no push com o app aberto → vai direto ao destino (07/11/2026).
+  usePushNavigation();
   const qc = useQueryClient();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { isAdmin, isLoading: adminLoading } = useIsAdmin();

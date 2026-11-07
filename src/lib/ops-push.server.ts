@@ -2,7 +2,22 @@
 // Importar somente dentro de handlers (server routes / server functions).
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { ownerRoleLabel } from "@/lib/owner-gender";
+import {
+  PUSH_GAP_MINUTES,
+  arrivalStepBody,
+  arrivalStepTitle,
+  bodyByCity,
+  conversationBody,
+  conversationTitle,
+  dashboardWindowUrl,
+  guestPushBody,
+  inDailyWindow,
+  opsTitles,
+  rankScanCandidates,
+  truncateLine,
+  truncateText,
+  type ScanCandidate,
+} from "@/lib/push-format";
 import type { Database } from "@/integrations/supabase/types";
 import { sendPushToSubscriptions, type PushPayload } from "@/lib/push.server";
 
@@ -185,100 +200,24 @@ type PropRow = {
   checkout_time: string | null;
 };
 
-const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);
-
 /**
- * Monta o corpo da notificação agrupado por cidade:
- *   "2 em Foz do Iguaçu\n1 em Praia do Peró"
- * Quando não há cidade cadastrada, usa o nome do imóvel como fallback.
- */
-function bodyByCity(counts: Map<string, number>, suffix: string): string {
-  const lines = Array.from(counts.entries())
-    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
-    .map(([city, n]) => `${n} em ${city}`);
-  return lines.length > 0 ? `${lines.join("\n")}${suffix ? `\n${suffix}` : ""}` : suffix;
-}
-
-
-/** "A, B e mais 2" — nomes curtos para o corpo de um push. */
-function summarizeNames(names: string[]): string {
-  const uniq = Array.from(new Set(names.filter(Boolean)));
-  if (uniq.length <= 3) return uniq.join(" · ");
-  return `${uniq.slice(0, 3).join(" · ")} e mais ${uniq.length - 3}`;
-}
-
-/**
- * Plano de limpezas para cada PRESTADOR vinculado: só os imóveis dele.
- * Retorna quantos avisos saíram. Prestador sem login ou sem notificação
- * ativa não recebe (sendOpsPush libera o dedupe e tenta na próxima rodada).
- */
-async function notifyProvidersPlan(
-  admin: Admin,
-  opts: { ownerId: string; rows: Array<{ propertyId: string; name: string }>; day: "Amanhã" | "Hoje"; dedupePrefix: string },
-): Promise<number> {
-  const { data: providersRaw } = await admin
-    .from("service_providers")
-    .select("member_user_id, category, categories, status")
-    .eq("account_owner_id", opts.ownerId)
-    .not("member_user_id", "is", null);
-  const cleanerIds = Array.from(
-    new Set(
-      (providersRaw ?? [])
-        .filter(
-          (p) =>
-            (p.status ?? "active") !== "inactive" &&
-            isCleaningCategory(p as { category?: string | null; categories?: string[] | null }),
-        )
-        .map((p) => p.member_user_id as string),
-    ),
-  );
-  if (cleanerIds.length === 0) return 0;
-  const propIds = Array.from(new Set(opts.rows.map((r) => r.propertyId)));
-  const { data: assignments } = await admin
-    .from("property_assignments")
-    .select("user_id, property_id, status")
-    .in("property_id", propIds)
-    .in("user_id", cleanerIds);
-  const byUser = new Map<string, Set<string>>();
-  for (const a of assignments ?? []) {
-    if ((a.status ?? "active") === "inactive") continue;
-    const set = byUser.get(a.user_id as string) ?? new Set<string>();
-    set.add(a.property_id as string);
-    byUser.set(a.user_id as string, set);
-  }
-  let n = 0;
-  for (const [userId, props] of byUser) {
-    const mine = opts.rows.filter((r) => props.has(r.propertyId));
-    if (mine.length === 0) continue;
-    const r = await sendOpsPush(admin, {
-      ownerId: opts.ownerId,
-      kind: "cleaning-plan-provider",
-      dedupeKey: `cleaning-plan-provider:${opts.dedupePrefix}:${userId}`,
-      userIds: [userId],
-      payload: {
-        title: `🧹 ${opts.day}: ${mine.length} ${plural(mine.length, "limpeza para você", "limpezas para você")}`,
-        body: summarizeNames(mine.map((m) => m.name)),
-        data: { url: "/admin/dashboard", tag: `cleaning-plan-${opts.dedupePrefix}` },
-      },
-    });
-    if (!r.skipped && r.sent > 0) n++;
-  }
-  return n;
-}
-
-/**
- * Varredura operacional. Deve rodar a cada 30 minutos.
+ * Varredura operacional. Roda a cada 30 minutos (cron).
  * A fonte de verdade é EXATAMENTE a mesma esteira (Kanban) do dashboard:
  * usamos `buildArrivalRows` e consideramos apenas os cards pendentes.
- * Regras:
- *  1. 20h — quantos check-outs ocorrem amanhã
- *  2. 07h — quantos check-ins ocorrem hoje
- *  3. a cada 30min — check-outs atrasados (passou do horário oficial, sem "check")
- *  4. a cada 1h após o horário de check-in — check-ins ainda pendentes
- *  5. a cada 2h (em hora cheia), o dia todo — cards "Em Limpeza" ainda sem
- *     confirmação, independentemente de horário de checkin/checkout.
- *  6. atraso grave (check-out +2h / check-in +3h) vira alerta crítico — e nesse
- *     caso o aviso "normal" correspondente NÃO é enviado (evita push duplicado).
+ *
+ * Avisos (textos do mockup aprovado em 07/11/2026):
+ *  · 🔴 Check-Out(s) Atrasado(s) — passou do horário oficial, sem "check";
+ *  · 🔴 Check-In(s) Atrasado(s) — passou do horário LIMITE (ou da chegada
+ *    avisada pelo hóspede). Antes do limite é só pendente: não avisa;
+ *  · Check-In(s) de Hoje — a partir das 07h;
+ *  · Check-Out(s) de Amanhã — a partir das 20h;
+ *  · 🧹 Aguardando Limpeza — cards "Em Limpeza", a cada 2h, o dia todo.
+ *
+ * TIMING (pedido explícito, 07/11/2026: "precisa ter intervalo entre os
+ * pushs"): no máximo UM aviso por rodada e por conta, escolhido por
+ * prioridade (`rankScanCandidates`); o resto fica para a rodada seguinte.
+ * Nada sai se a conta recebeu um push nos últimos 5 minutos. Atrasos repetem
+ * no máximo de hora em hora (chave de unicidade por hora).
  */
 export async function runOpsPushScan(admin: Admin, now = new Date()) {
   const t = localNow(now);
@@ -303,10 +242,12 @@ export async function runOpsPushScan(admin: Admin, now = new Date()) {
     propsByOwner.set(p.owner_id, arr);
   }
 
-  const slot30 = `${t.date}-${String(t.hour).padStart(2, "0")}${t.minute < 30 ? "00" : "30"}`;
-  const slotHour = `${t.date}-${String(t.hour).padStart(2, "0")}`;
-  const url = "/admin/dashboard";
+  const hourKey = (h: number) => `${t.date}-${String(h).padStart(2, "0")}`;
+  const slotHour = hourKey(t.hour);
+  const prevHour = t.hour > 0 ? hourKey(t.hour - 1) : null;
+  const slot2h = `${t.date}-b${Math.floor(t.hour / 2)}`;
   const nowMs = now.getTime();
+  const gapSince = new Date(nowMs - PUSH_GAP_MINUTES * 60_000).toISOString();
 
   let notifications = 0;
   const owners = new Set<string>();
@@ -319,18 +260,21 @@ export async function runOpsPushScan(admin: Admin, now = new Date()) {
   // "desistir" antes do fim mesmo com o endpoint funcionando normalmente.
   await Promise.all(
     Array.from(propsByOwner.entries()).map(async ([ownerId, ownerProps]) => {
+    // Respiro: a conta recebeu um push há pouco → esta rodada não manda nada.
+    const { data: recent } = await admin
+      .from("ops_push_log")
+      .select("id")
+      .eq("owner_id", ownerId)
+      .gt("sent_count", 0)
+      .gte("created_at", gapSince)
+      .limit(1);
+    if ((recent ?? []).length > 0) return;
+
     const propById = new Map(ownerProps.map((p) => [p.id, p]));
     const propIds = ownerProps.map((p) => p.id);
 
-    const fire = async (kind: string, dedupeKey: string, payload: PushPayload) => {
-      const r = await sendOpsPush(admin, { ownerId, kind, dedupeKey, payload });
-      if (!r.skipped) {
-        notifications++;
-        owners.add(ownerId);
-      }
-    };
-
-    const needTomorrow = t.hour === 20;
+    const needTomorrow = inDailyWindow(t.hour, 20);
+    const needToday = inDailyWindow(t.hour, 7);
     const [checkoutToday, checkinToday, checkoutTomorrow] = await Promise.all([
       buildArrivalRows(admin as never, { kind: "checkout", range: "today", propIds }),
       buildArrivalRows(admin as never, { kind: "checkin", range: "today", propIds }),
@@ -346,70 +290,49 @@ export async function runOpsPushScan(admin: Admin, now = new Date()) {
       const p = propById.get(propertyId);
       return (p?.city || p?.name || fallback || "Imóvel sem cidade").trim();
     };
-    const nameOf = (propertyId: string, fallback: string | null) =>
-      (propById.get(propertyId)?.name || fallback || "Imóvel").trim();
     /** Card silenciado pelo usuário no Kanban (só afeta alertas de atraso). */
     const isMuted = (r: { mutedUntil: string | null }) =>
       !!r.mutedUntil && new Date(r.mutedUntil).getTime() > nowMs;
     const tally = (map: Map<string, number>, city: string) => map.set(city, (map.get(city) ?? 0) + 1);
 
-    // 1. 20h — check-outs de amanhã (mesma lista do Kanban, filtro "Amanhã")
+    type Candidate = ScanCandidate & { dedupeKey: string; payload: PushPayload };
+    const candidates: Candidate[] = [];
+
+    // Check-outs de amanhã (mesma lista do Kanban, filtro "Amanhã").
     const tomorrowRows = checkoutTomorrow.rows.filter((r) => r.status === "pending");
-    const checkoutsTomorrow = tomorrowRows.length;
-    if (needTomorrow && checkoutsTomorrow > 0) {
+    if (needTomorrow && tomorrowRows.length > 0) {
       const byCity = new Map<string, number>();
       for (const r of tomorrowRows) tally(byCity, cityOf(r.propertyId, r.propertyName));
-      await fire("checkouts-tomorrow", `checkouts-tomorrow:${ownerId}:${today}`, {
-        title: `Amanhã: ${checkoutsTomorrow} ${plural(checkoutsTomorrow, "check-out", "check-outs")}`,
-        body: bodyByCity(byCity, "Prepare a equipe."),
-        data: { url, tag: "ops-checkouts-tomorrow" },
+      candidates.push({
+        kind: "checkouts-tomorrow",
+        dedupeKey: `checkouts-tomorrow:${ownerId}:${today}`,
+        payload: {
+          title: opsTitles.checkoutsTomorrow(tomorrowRows.length),
+          body: bodyByCity(byCity),
+          data: { url: dashboardWindowUrl("checkouts-amanha"), tag: "ops-checkouts-tomorrow" },
+        },
       });
     }
 
-    // 1b. 20h — PLANEJAMENTO DE LIMPEZA DO DIA SEGUINTE (05/10/2026).
-    // Pedido explícito: "planejamento de limpeza do dia seguinte" e
-    // "informações inteligentes para prestadores". A equipe recebe a lista de
-    // imóveis (não só a contagem por cidade, que já saía em 1) e cada
-    // prestador de limpeza recebe SÓ os imóveis a que está vinculado.
-    if (needTomorrow && checkoutsTomorrow > 0) {
-      const planRows = tomorrowRows.map((r) => ({ propertyId: r.propertyId, name: nameOf(r.propertyId, r.propertyName) }));
-      await fire("cleaning-plan-tomorrow", `cleaning-plan-tomorrow:${ownerId}:${today}`, {
-        title: `🧹 Limpezas de amanhã: ${planRows.length}`,
-        body: summarizeNames(planRows.map((r) => r.name)),
-        data: { url, tag: "ops-cleaning-plan-tomorrow" },
-      });
-      notifications += await notifyProvidersPlan(admin, { ownerId, rows: planRows, day: "Amanhã", dedupePrefix: `plan-tomorrow:${today}` });
-    }
-
-    // 1c. 07h — o mesmo plano, para o prestador, no dia da limpeza.
-    if (t.hour === 7) {
-      const todayRows = checkoutToday.rows
-        .filter((r) => r.date === today)
-        .map((r) => ({ propertyId: r.propertyId, name: nameOf(r.propertyId, r.propertyName) }));
-      if (todayRows.length > 0) {
-        notifications += await notifyProvidersPlan(admin, { ownerId, rows: todayRows, day: "Hoje", dedupePrefix: `plan-today:${today}` });
-      }
-    }
-
-    // 2. 07h — check-ins de hoje
+    // Check-ins de hoje.
     const checkinTodayRows = pendingCheckins.filter((r) => r.date === today);
-    const checkinsToday = checkinTodayRows.length;
-    if (t.hour === 7 && checkinsToday > 0) {
+    if (needToday && checkinTodayRows.length > 0) {
       const byCity = new Map<string, number>();
       for (const r of checkinTodayRows) tally(byCity, cityOf(r.propertyId, r.propertyName));
-      await fire("checkins-today", `checkins-today:${ownerId}:${today}`, {
-        title: `Hoje: ${checkinsToday} ${plural(checkinsToday, "check-in", "check-ins")}`,
-        body: bodyByCity(byCity, "Confira a esteira de chegadas."),
-        data: { url, tag: "ops-checkins-today" },
+      candidates.push({
+        kind: "checkins-today",
+        dedupeKey: `checkins-today:${ownerId}:${today}`,
+        payload: {
+          title: opsTitles.checkinsToday(checkinTodayRows.length),
+          body: bodyByCity(byCity),
+          data: { url: dashboardWindowUrl("checkins"), tag: "ops-checkins-today" },
+        },
       });
     }
 
     // ----- atrasos (com base nos cards pendentes da esteira) -----
-    const lateCheckoutNames: string[] = [];
     const lateCheckoutsByCity = new Map<string, number>();
-    const criticalCheckoutsByCity = new Map<string, number>();
     let lateCheckouts = 0;
-    let criticalCheckouts = 0;
     for (const r of pendingCheckouts) {
       if (r.date > today) continue;
       if (isMuted(r)) continue;
@@ -418,29 +341,20 @@ export async function runOpsPushScan(admin: Admin, now = new Date()) {
       const lateBy = r.date < today ? 24 * 60 : t.minutes - limit;
       if (lateBy <= 0) continue;
       lateCheckouts++;
-      const city = cityOf(r.propertyId, r.propertyName);
-      tally(lateCheckoutsByCity, city);
-      if (lateCheckoutNames.length < 3) lateCheckoutNames.push(nameOf(r.propertyId, r.propertyName));
-      if (lateBy >= 120) {
-        criticalCheckouts++;
-        tally(criticalCheckoutsByCity, city);
-      }
+      tally(lateCheckoutsByCity, cityOf(r.propertyId, r.propertyName));
     }
 
-    const pendingCheckinNames: string[] = [];
     const lateCheckinsByCity = new Map<string, number>();
-    const criticalCheckinsByCity = new Map<string, number>();
-    let latePendingCheckins = 0;
-    let criticalCheckins = 0;
+    let lateCheckins = 0;
     for (const r of pendingCheckins) {
       // Previsão de chegada posterior (o `date` do card já resolve o
       // override): enquanto o dia previsto não chegou, nada está atrasado.
       if (r.date > today) continue;
       if (isMuted(r)) continue;
       const p = propById.get(r.propertyId);
-      // Pedido explícito do cliente (05/09/2026): só é atraso depois do
-      // HORÁRIO LIMITE de check-in configurado para o imóvel — o horário
-      // inicial da janela (checkin_time) não serve de gatilho. Se o hóspede
+      // Pedido explícito do cliente (05/09/2026, reforçado em 07/11/2026):
+      // check-in só é ATRASADO depois do HORÁRIO LIMITE configurado para o
+      // imóvel — antes disso é só pendente e não gera aviso. Se o hóspede
       // avisou uma chegada ainda mais tarde, ela prevalece.
       const configuredLimit = timeToMinutes(
         r.standardTimeMax ?? p?.checkin_time_max ?? r.standardTime ?? p?.checkin_time ?? null,
@@ -451,68 +365,72 @@ export async function runOpsPushScan(admin: Admin, now = new Date()) {
       const limit = Math.max(configuredLimit, predictedLimit);
       const lateBy = r.date < today ? 24 * 60 : t.minutes - limit;
       if (lateBy <= 0) continue;
-      latePendingCheckins++;
-      const city = cityOf(r.propertyId, r.propertyName);
-      tally(lateCheckinsByCity, city);
-      if (pendingCheckinNames.length < 3) pendingCheckinNames.push(nameOf(r.propertyId, r.propertyName));
-      if (lateBy >= 180) {
-        criticalCheckins++;
-        tally(criticalCheckinsByCity, city);
-      }
+      lateCheckins++;
+      tally(lateCheckinsByCity, cityOf(r.propertyId, r.propertyName));
     }
 
-    // 5. alerta crítico (vermelho) — substitui os avisos normais correspondentes
-    const critical = criticalCheckouts + criticalCheckins;
-    if (critical > 0) {
-      const titulo =
-        criticalCheckouts > 0 && criticalCheckins > 0
-          ? `🔴 ${critical} ${plural(critical, "atraso crítico", "atrasos críticos")}`
-          : criticalCheckouts > 0
-            ? `🔴 ${criticalCheckouts} ${plural(criticalCheckouts, "Check-out atrasado", "Check-outs atrasados")}`
-            : `🔴 ${criticalCheckins} ${plural(criticalCheckins, "Check-in atrasado", "Check-ins atrasados")}`;
-      const byCity = new Map<string, number>();
-      for (const [c, n] of criticalCheckoutsByCity) byCity.set(c, (byCity.get(c) ?? 0) + n);
-      for (const [c, n] of criticalCheckinsByCity) byCity.set(c, (byCity.get(c) ?? 0) + n);
-      await fire("ops-critical", `ops-critical:${ownerId}:${slot30}`, {
-        title: titulo,
-        body: bodyByCity(byCity, "Ação imediata recomendada."),
-        data: { url, tag: "ops-critical", urgency: "high", critical: true },
+    // Repetição = o mesmo atraso já foi avisado na hora anterior.
+    const prevKeys = prevHour
+      ? [`checkouts-late:${ownerId}:${prevHour}`, `checkins-late:${ownerId}:${prevHour}`]
+      : [];
+    const { data: prevRows } = prevKeys.length
+      ? await admin.from("ops_push_log").select("dedupe_key").in("dedupe_key", prevKeys)
+      : { data: [] as Array<{ dedupe_key: string }> };
+    const sentBefore = new Set((prevRows ?? []).map((r) => r.dedupe_key as string));
+
+    if (lateCheckouts > 0) {
+      candidates.push({
+        kind: "checkouts-late",
+        repeat: sentBefore.has(`checkouts-late:${ownerId}:${prevHour}`),
+        dedupeKey: `checkouts-late:${ownerId}:${slotHour}`,
+        payload: {
+          title: opsTitles.checkoutsLate(lateCheckouts),
+          body: bodyByCity(lateCheckoutsByCity),
+          data: { url: dashboardWindowUrl("checkouts"), tag: "ops-checkouts-late" },
+        },
+      });
+    }
+    if (lateCheckins > 0) {
+      candidates.push({
+        kind: "checkins-late",
+        repeat: sentBefore.has(`checkins-late:${ownerId}:${prevHour}`),
+        dedupeKey: `checkins-late:${ownerId}:${slotHour}`,
+        payload: {
+          title: opsTitles.checkinsLate(lateCheckins),
+          body: bodyByCity(lateCheckinsByCity),
+          data: { url: dashboardWindowUrl("checkins"), tag: "ops-checkins-late" },
+        },
       });
     }
 
-    // 3. a cada 30min — check-outs atrasados (só se não houver crítico de saída)
-    if (lateCheckouts > 0 && criticalCheckouts === 0) {
-      await fire("checkouts-late", `checkouts-late:${ownerId}:${slot30}`, {
-        title: `${lateCheckouts} ${plural(lateCheckouts, "Check-out atrasado", "Check-outs atrasados")}`,
-        body: bodyByCity(lateCheckoutsByCity, "Sem confirmação de saída."),
-        data: { url, tag: "ops-checkouts-late" },
-      });
-    }
-
-    // 4. a cada 1h — check-ins pendentes (só se não houver crítico de chegada)
-    if (latePendingCheckins > 0 && criticalCheckins === 0 && t.minute < 30) {
-      await fire("checkins-pending", `checkins-pending:${ownerId}:${slotHour}`, {
-        title: `${latePendingCheckins} ${plural(latePendingCheckins, "Check-in pendente", "Check-ins pendentes")}`,
-        body: bodyByCity(lateCheckinsByCity, "Sem confirmação de entrada."),
-        data: { url, tag: "ops-checkins-pending" },
-      });
-    }
-
-    // 5. a cada 2h (em hora cheia) — cards "Em Limpeza" (checkout já
-    // confirmado, faxina ainda sem "concluir"), o dia todo, sem depender de
-    // horário de checkin/checkout — mesma lista "Liberado para Limpeza" do
-    // Kanban: checkoutToday.rows com status "done" (buildArrivalRows já
-    // exclui o que tem concluded_at, ou seja, já saiu de "Em Limpeza").
+    // Aguardando Limpeza — cards "Em Limpeza" (checkout já confirmado, faxina
+    // ainda sem "concluir"), a cada 2h, o dia todo: mesma lista do Kanban
+    // (checkoutToday.rows com status "done"; buildArrivalRows já exclui o
+    // que tem concluded_at, ou seja, já saiu de "Em Limpeza").
     const cleaningPendingRows = checkoutToday.rows.filter((r) => r.status === "done" && !isMuted(r));
-    if (cleaningPendingRows.length > 0 && t.hour % 2 === 0 && t.minute < 30) {
+    if (cleaningPendingRows.length > 0) {
       const byCity = new Map<string, number>();
       for (const r of cleaningPendingRows) tally(byCity, cityOf(r.propertyId, r.propertyName));
-      const n = cleaningPendingRows.length;
-      await fire("cleaning-pending", `cleaning-pending:${ownerId}:${slotHour}`, {
-        title: `🧹 ${n} ${plural(n, "imóvel em limpeza", "imóveis em limpeza")}`,
-        body: bodyByCity(byCity, "Ainda sem confirmação de limpeza concluída."),
-        data: { url, tag: "ops-cleaning-pending" },
+      candidates.push({
+        kind: "cleaning-pending",
+        dedupeKey: `cleaning-pending:${ownerId}:${slot2h}`,
+        payload: {
+          title: opsTitles.cleaningPending(),
+          body: bodyByCity(byCity, { one: "imóvel", many: "imóveis" }),
+          data: { url: dashboardWindowUrl("limpeza"), tag: "ops-cleaning-pending" },
+        },
       });
+    }
+
+    // Um só por rodada: o primeiro da fila que ainda não saiu nesta janela.
+    for (const c of rankScanCandidates(candidates)) {
+      const r = await sendOpsPush(admin, { ownerId, kind: c.kind, dedupeKey: c.dedupeKey, payload: c.payload });
+      if (r.skipped) continue; // já saiu nesta janela → tenta o próximo
+      if (r.sent > 0) {
+        notifications++;
+        owners.add(ownerId);
+      }
+      break;
     }
     }),
   );
@@ -523,7 +441,6 @@ export async function runOpsPushScan(admin: Admin, now = new Date()) {
     localTime: `${today} ${fmtTime(t.minutes)}`,
   };
 }
-
 
 /** Aviso de que um hóspede iniciou uma conversa com a IA. */
 export async function sendConversationStartedPush(
@@ -537,17 +454,18 @@ export async function sendConversationStartedPush(
     .maybeSingle();
   if (!prop?.owner_id) return { sent: 0, skipped: true };
 
-  const guest = opts.guestName?.trim() || "Um hóspede";
-  const preview = (opts.firstMessage ?? "").trim().slice(0, 140);
+  // Padrão Airbnb (mockup 07/11/2026): "Nome • 7–8 de nov." / imóvel / mensagem.
+  const guest = opts.guestName?.trim() || "Hóspede";
+  const { resolveStayRange } = await import("@/lib/handoff.server");
+  const range = await resolveStayRange(admin, { propertyId: opts.propertyId, guestName: opts.guestName });
+  const message = truncateText(opts.firstMessage, 140) || "Nova conversa com a IA.";
   return sendOpsPush(admin, {
     ownerId: prop.owner_id as string,
     kind: "conversation-started",
     dedupeKey: `conversation-started:${opts.conversationId}`,
     payload: {
-      title: `${guest} iniciou uma conversa`,
-      body: preview
-        ? `${opts.propertyName ? `${opts.propertyName}: ` : ""}“${preview}”`
-        : `${opts.propertyName ?? "Imóvel"} — nova conversa com a IA.`,
+      title: conversationTitle(guest, range),
+      body: conversationBody(opts.propertyName, message),
       data: {
         url: `/admin/atendimento?conv=${opts.conversationId}`,
         conversationId: opts.conversationId,
@@ -586,7 +504,7 @@ function cleanCity(city?: string | null): string {
 async function getPropertyBasics(admin: Admin, propertyId: string) {
   const { data } = await admin
     .from("properties")
-    .select("id, owner_id, name, city, address, owner_contact_id")
+    .select("id, owner_id, name, city, address")
     .eq("id", propertyId)
     .maybeSingle();
   const prop = data as
@@ -596,34 +514,14 @@ async function getPropertyBasics(admin: Admin, propertyId: string) {
         name: string | null;
         city: string | null;
         address: string | null;
-        owner_contact_id: string | null;
       }
     | null;
   if (!prop) return null;
 
-  let ownerName = "";
-  let district = "";
-  if (prop.owner_contact_id) {
-    const { data: oc } = await admin
-      .from("property_owners")
-      .select("name, trade_name, district")
-      .eq("id", prop.owner_contact_id)
-      .maybeSingle();
-    ownerName = ((oc?.trade_name as string) || (oc?.name as string) || "").trim();
-    district = ((oc?.district as string) || "").trim();
-  }
-
   return {
     ...prop,
     cityClean: cleanCity(prop.city),
-    ownerName,
-    district,
   };
-}
-
-/** "Proprietário · Imóvel · Cidade · Bairro" (só o que existir). */
-function locLine(parts: (string | null | undefined)[]): string {
-  return parts.map((p) => (p ?? "").trim()).filter(Boolean).join(" · ");
 }
 
 /**
@@ -664,17 +562,16 @@ export async function notifyCleaningReady(
   if (targets.length === 0) return { sent: 0, skipped: true };
 
   const name = (prop.name || "Residência").trim();
-  const line = locLine([prop.ownerName, name, prop.cityClean, prop.district]);
   return sendOpsPush(admin, {
     ownerId: prop.owner_id,
     kind: "cleaning-ready",
     dedupeKey: `cleaning-ready:${opts.propertyId}:${opts.refKey}`,
     userIds: targets,
     payload: {
-      title: `🧹 Liberado para limpeza`,
-      body: line,
+      title: "🧹 Liberado para Limpeza",
+      body: truncateLine(name),
       data: {
-        url: "/admin/dashboard",
+        url: dashboardWindowUrl("limpeza"),
         tag: `cleaning-ready-${opts.propertyId}`,
         style: "cleaning-ready",
         propertyId: opts.propertyId,
@@ -683,7 +580,11 @@ export async function notifyCleaningReady(
   });
 }
 
-/** Limpeza finalizada → avisa a equipe do anfitrião (owner + membros ativos). */
+/**
+ * Limpeza finalizada → avisa TODOS os vinculados ao imóvel (pedido explícito,
+ * 07/11/2026), menos quem acabou de concluir — como no check-in/check-out
+ * confirmado, ninguém recebe o aviso da própria ação.
+ */
 export async function notifyCleaningDone(
   admin: Admin,
   opts: { propertyId: string; refKey: string; byUserId?: string | null },
@@ -691,28 +592,21 @@ export async function notifyCleaningDone(
   const prop = await getPropertyBasics(admin, opts.propertyId);
   if (!prop) return { sent: 0, skipped: true };
 
-  let who = "";
-  if (opts.byUserId) {
-    const { data: provider } = await admin
-      .from("service_providers")
-      .select("name, trade_name")
-      .eq("member_user_id", opts.byUserId)
-      .maybeSingle();
-    who = ((provider?.trade_name as string) || (provider?.name as string) || "").trim();
-  }
+  const all = await getPropertyLinkedUsers(admin, prop.owner_id, opts.propertyId);
+  const userIds = all.filter((u) => u !== (opts.byUserId ?? null));
+  if (userIds.length === 0) return { sent: 0, skipped: true };
 
   const name = (prop.name || "Residência").trim();
-  const line = locLine([prop.ownerName, name, prop.cityClean, who ? `Finalizado por ${who}` : ""]);
   return sendOpsPush(admin, {
     ownerId: prop.owner_id,
     kind: "cleaning-done",
     dedupeKey: `cleaning-done:${opts.propertyId}:${opts.refKey}`,
-    userIds: await getPropertyLinkedUsers(admin, prop.owner_id, opts.propertyId),
+    userIds,
     payload: {
-      title: `✨ Limpeza finalizada`,
-      body: line,
+      title: "✨ Limpeza Finalizada",
+      body: truncateLine(name),
       data: {
-        url: "/admin/dashboard",
+        url: dashboardWindowUrl("limpeza"),
         tag: `cleaning-done-${opts.propertyId}`,
         style: "cleaning-done",
         propertyId: opts.propertyId,
@@ -730,7 +624,7 @@ export async function notifyCleaningDone(
 export async function notifyGuestCheckinReleased(admin: Admin, opts: { propertyId: string }) {
   const { data: prop } = await admin
     .from("properties")
-    .select("owner_id, slug, checkin_time, name")
+    .select("owner_id, slug, checkin_time, name, city")
     .eq("id", opts.propertyId)
     .maybeSingle();
   if (!prop) return { sent: 0 };
@@ -780,10 +674,14 @@ export async function notifyGuestCheckinReleased(admin: Admin, opts: { propertyI
       continue;
     }
     for (const c of mine) {
+      // Push ao hóspede (mockup 07/11/2026): título = imóvel; "📍 cidade" + mensagem.
       const r = await sendPushToGuest(c.id, {
-        title: "Seu imóvel foi liberado para check-in",
-        body: "Antes de sair, confirme pelo chat se já pode acessá-lo neste momento.",
-        data: { url: prop.slug ? `/g/${prop.slug}` : "/", tag: `guest-release-${l.id}` },
+        title: ((prop as { name?: string | null }).name ?? "").trim() || "Seu imóvel",
+        body: guestPushBody(
+          cleanCity((prop as { city?: string | null }).city),
+          "A limpeza foi concluída! Verifique com a equipe se há possibilidade de antecipação!",
+        ),
+        data: { url: prop.slug ? `/g/${prop.slug}?chat=1` : "/", tag: `guest-release-${l.id}` },
       });
       n += r.sent;
     }
@@ -805,24 +703,18 @@ export async function notifyGuestCheckinReleased(admin: Admin, opts: { propertyI
  * dividem a MESMA chave de unicidade: se por qualquer caminho os dois
  * tentarem sair, só o primeiro sai.
  *
- * Ordem das linhas (título = a informação; corpo = uma linha por dado, só o
- * que existir):
- *   Check-in feito pelo hóspede / Check-in confirmado por Fulano
- *   Título do imóvel
- *   Proprietário(a): nome
- *   Hóspede: nome
+ * Formato (mockup aprovado em 07/11/2026): título = a informação
+ * ("Check-In Feito pelo Hóspede" / "Check-In Confirmado por Fulano");
+ * corpo = imóvel numa linha (cortado com reticências) + "Hóspede: nome".
+ * O proprietário não aparece mais no push.
  */
 function arrivalPushDedupeKey(kind: "checkin" | "checkout", stayKey: string): string {
   return `arrival-step-${kind}:${stayKey}`;
 }
 
-function arrivalPushBody(parts: { property: string; owner: string; guest: string }): string {
-  const lines = [
-    parts.property,
-    ownerRoleLabel(parts.owner) ?? "",
-    parts.guest ? `Hóspede: ${parts.guest}` : "",
-  ];
-  return lines.map((l) => l.trim()).filter(Boolean).join("\n");
+/** Check-in confirmado → janela Em Estadia; check-out → Fila de Limpeza. */
+function arrivalPushUrl(kind: "checkin" | "checkout"): string {
+  return dashboardWindowUrl(kind === "checkin" ? "estadia" : "limpeza");
 }
 
 /** Push interno: hóspede confirmou check-in/check-out pelo guia. */
@@ -834,16 +726,15 @@ export async function notifyGuestSelfStep(
   if (!prop) return { sent: 0, skipped: true };
   const userIds = await getPropertyLinkedUsers(admin, prop.owner_id, opts.propertyId);
   const name = (prop.name || "Residência").trim();
-  const label = opts.kind === "checkin" ? "Check-in" : "Check-out";
   return sendOpsPush(admin, {
     ownerId: prop.owner_id,
     kind: `guest-self-${opts.kind}`,
     dedupeKey: arrivalPushDedupeKey(opts.kind, opts.stayKey),
     userIds,
     payload: {
-      title: `${label} feito pelo hóspede`,
-      body: arrivalPushBody({ property: name, owner: prop.ownerName, guest: (opts.guestName ?? "").trim() }),
-      data: { url: "/admin/dashboard", tag: `arrival-step-${opts.kind}-${opts.stayKey}`, propertyId: opts.propertyId },
+      title: arrivalStepTitle(opts.kind, { guest: true }),
+      body: arrivalStepBody(name, opts.guestName),
+      data: { url: arrivalPushUrl(opts.kind), tag: `arrival-step-${opts.kind}-${opts.stayKey}`, propertyId: opts.propertyId },
     },
   });
 }
@@ -876,7 +767,6 @@ export async function notifyManualCleaningAssigned(
   if (!userId) return { sent: 0, skipped: true };
 
   const name = (prop.name || "Residência").trim();
-  const line = locLine([prop.ownerName, name, prop.cityClean, prop.district]);
   const future = opts.date > opts.today;
   const ddmm = `${opts.date.slice(8, 10)}/${opts.date.slice(5, 7)}`;
   return sendOpsPush(admin, {
@@ -885,10 +775,10 @@ export async function notifyManualCleaningAssigned(
     dedupeKey: `cleaning-manual:${opts.refKey}:${opts.providerId}`,
     userIds: [userId],
     payload: {
-      title: future ? `🧹 Limpeza agendada para ${ddmm}` : "🧹 Nova limpeza para você",
-      body: line,
+      title: future ? `🧹 Limpeza Agendada para ${ddmm}` : "🧹 Nova Limpeza para Você",
+      body: truncateLine(name),
       data: {
-        url: "/admin/dashboard",
+        url: dashboardWindowUrl("limpeza"),
         tag: `cleaning-manual-${opts.refKey}`,
         style: "cleaning-ready",
         propertyId: opts.propertyId,
@@ -952,16 +842,15 @@ export async function notifyStaffArrivalStep(
   }
 
   const name = (prop.name || "Residência").trim();
-  const label = opts.kind === "checkin" ? "Check-in" : "Check-out";
   return sendOpsPush(admin, {
     ownerId: prop.owner_id,
     kind: `staff-${opts.kind}`,
     dedupeKey: arrivalPushDedupeKey(opts.kind, opts.stayKey),
     userIds,
     payload: {
-      title: who ? `${label} confirmado por ${who}` : `${label} confirmado`,
-      body: arrivalPushBody({ property: name, owner: prop.ownerName, guest }),
-      data: { url: "/admin/dashboard", tag: `arrival-step-${opts.kind}-${opts.stayKey}`, propertyId: opts.propertyId },
+      title: arrivalStepTitle(opts.kind, { who }),
+      body: arrivalStepBody(name, guest),
+      data: { url: arrivalPushUrl(opts.kind), tag: `arrival-step-${opts.kind}-${opts.stayKey}`, propertyId: opts.propertyId },
     },
   });
 }

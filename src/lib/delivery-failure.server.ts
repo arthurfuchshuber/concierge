@@ -68,6 +68,9 @@ export async function reportDeliveryFailure(
       checkinDate: null,
       reason,
       urgency: "high",
+      // Texto do push aprovado no mockup (07/11/2026); o motivo técnico fica
+      // no alerta e na conversa.
+      bodyText: "A resposta da IA falhou e não foi enviada ao hóspede.",
     });
   } catch (e) {
     console.error("[delivery-failure] push falhou", e);

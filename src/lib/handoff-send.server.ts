@@ -144,16 +144,20 @@ export async function sendHumanMessageToConversation(
       try {
         const { data: conv } = await supabase
           .from("property_chat_conversations")
-          .select("id, properties:property_id(name, slug)")
+          .select("id, properties:property_id(name, slug, city)")
           .eq("id", data.conversationId)
           .maybeSingle();
-        const propName = (conv?.properties as { name?: string } | null)?.name ?? "Anfitrião";
-        const slug = (conv?.properties as { slug?: string } | null)?.slug ?? "";
+        const p = (conv?.properties ?? null) as { name?: string; slug?: string; city?: string | null } | null;
+        const propName = p?.name?.trim() || "Anfitrião";
+        const slug = p?.slug ?? "";
         const { sendPushToGuest } = await import("@/lib/guest-push.server");
-        const preview = data.content.length > 120 ? `${data.content.slice(0, 117)}…` : data.content;
+        const { guestPushBody } = await import("@/lib/push-format");
+        // Mockup aprovado (07/11/2026): título = imóvel (o celular corta em 1
+        // linha); corpo = "📍 cidade" + a mensagem em até ~2 linhas.
+        const city = (p?.city ?? "").split(",")[0]?.trim() ?? "";
         await sendPushToGuest(data.conversationId, {
-          title: `Nova mensagem — ${propName}`,
-          body: preview,
+          title: propName,
+          body: guestPushBody(city, data.content),
           data: {
             url: slug ? `/g/${slug}?chat=1` : "/",
             conversationId: data.conversationId,

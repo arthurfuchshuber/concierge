@@ -47,7 +47,7 @@ self.addEventListener("push", (event) => {
       vibrate: [40, 40, 40],
       requireInteraction: false,
       silent: false,
-      actions: [{ action: "open", title: "Ver residência" }],
+      actions: [{ action: "open", title: "Abrir operação" }],
       dir: "ltr",
     },
   };
@@ -100,6 +100,9 @@ self.addEventListener("notificationclick", (event) => {
   event.waitUntil(
     (async () => {
       const all = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+      // App já aberto: traz para frente e manda o app abrir o destino do
+      // push (conversa → chat; operação → janela certa do Dashboard). Antes
+      // só focava e a pessoa ficava na tela em que estava.
       for (const client of all) {
         try {
           const clientUrl = new URL(client.url);
