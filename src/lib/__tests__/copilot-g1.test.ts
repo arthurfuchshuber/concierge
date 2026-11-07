@@ -321,6 +321,19 @@ describe("G1 · estáticos", () => {
     }
   });
 
+  it("G1b registrada em supabase/migrations com o conteúdo idêntico ao de ops/ (registro histórico)", () => {
+    const ops = read("ops/copilot-g1/g1b-revoke-legacy.sql");
+    const record = read("supabase/migrations/20261107000100_copilot_g1b_revoke_legacy.sql");
+    expect(record.startsWith("-- REGISTRO HISTÓRICO — GATE G1b")).toBe(true);
+    expect(record.endsWith(ops)).toBe(true);
+    expect(
+      record
+        .slice(0, record.length - ops.length)
+        .split("\n")
+        .filter((l) => l && !l.startsWith("--")),
+    ).toEqual([]);
+  });
+
   it("slot da IA continua devolvendo null", () => {
     const slot = read("src/lib/guest-ai/slot.server.ts");
     const body = slot.slice(slot.indexOf("export async function requestGuestAiReply"));
