@@ -35,23 +35,16 @@ function Face({
   url: string | null;
   size?: number;
   /**
-   * "default": como sempre foi. "raised": botão com relevo (janela "Limpezas
-   * Realizadas", quem pode editar). "plain": só a letra, sem fundo (quem não
-   * pode editar). Nos dois últimos a letra, no tema claro, usa o azul-escuro
-   * do sistema (`--cleaning-soft-foreground`); no escuro nada muda.
+   * "default": como sempre foi. "plain": só a letra, sem fundo (janela
+   * "Limpezas Realizadas"; ali a moldura editável é do botão, não da letra).
    */
-  look?: "default" | "raised" | "plain";
+  look?: "default" | "plain";
 }) {
   // 09/10/2026: o azul-bebê sumia no tema claro (letras "EV" quase invisíveis
   // sobre o quadradinho). Agora TODO modo usa o azul-escuro do sistema no
   // claro; no escuro nada muda.
   const ink = "text-[var(--cleaning-soft-foreground)] dark:text-[var(--cleaning-soft)]";
-  const box =
-    look === "raised"
-      ? "ds-3d ds-3d-hover border border-border/70 bg-card shadow-sm"
-      : look === "plain"
-        ? ""
-        : "border-0 bg-[var(--action-sq-bg)]";
+  const box = look === "plain" ? "" : "border-0 bg-[var(--action-sq-bg)]";
   return url ? (
     <img src={url} alt={name ?? ""} className="rounded-[0.3rem] object-cover" style={{ width: size, height: size }} />
   ) : (
@@ -69,6 +62,43 @@ function Face({
   );
 }
 void initials;
+
+type CleaningBoard = NonNullable<ReturnType<typeof useCleaningBoard>["data"]>;
+
+/**
+ * Quem é o prestador desta limpeza: o atribuído pontualmente (limpeza manual,
+ * reserva ou registro) ou, sem isso, o padrão do imóvel.
+ */
+function resolveCleaningProvider(
+  b: CleaningBoard | undefined,
+  propertyId: string,
+  logId: string,
+  reservationId: string | null,
+) {
+  const realLog = /^[0-9a-f-]{36}$/i.test(logId) ? logId : null;
+  const resId = reservationId ?? (logId.startsWith("ical:") ? logId.slice(5) : null);
+  // Limpeza criada manualmente (02/10/2026): o card vem como "manual:<id>".
+  const manualId = logId.startsWith("manual:") ? logId.slice(7) : null;
+  const assignedId =
+    (manualId && b?.assigned[`s:${manualId}`]) ||
+    (resId && b?.assigned[`r:${resId}`]) ||
+    (realLog && b?.assigned[`l:${realLog}`]) ||
+    null;
+  const defaultId = b?.defaults[propertyId] ?? null;
+  const currentId = assignedId ?? defaultId;
+  const current = b?.providers.find((p) => p.id === currentId) ?? null;
+  return { realLog, resId, manualId, assignedId, defaultId, currentId, current };
+}
+
+/**
+ * Nome do prestador atribuído a esta limpeza (null = ainda "?"). Usado na
+ * janela de limpezas para não repetir o nome quando quem concluiu é o próprio
+ * prestador (07/11/2026).
+ */
+export function useCleaningProviderName(propertyId: string, logId: string, reservationId: string | null) {
+  const board = useCleaningBoard();
+  return resolveCleaningProvider(board.data, propertyId, logId, reservationId).current?.name ?? null;
+}
 
 /** Bolinha do responsável pela limpeza + troca pontual (só esta limpeza). */
 export function CleaningProviderAvatar({
@@ -108,20 +138,13 @@ export function CleaningProviderAvatar({
   const setFn = useServerFn(setCleaningAssignment);
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
-  const realLog = /^[0-9a-f-]{36}$/i.test(logId) ? logId : null;
-  const resId = reservationId ?? (logId.startsWith("ical:") ? logId.slice(5) : null);
-  // Limpeza criada manualmente (02/10/2026): o card vem como "manual:<id>".
-  const manualId = logId.startsWith("manual:") ? logId.slice(7) : null;
-
   const b = board.data;
-  const assignedId =
-    (manualId && b?.assigned[`s:${manualId}`]) ||
-    (resId && b?.assigned[`r:${resId}`]) ||
-    (realLog && b?.assigned[`l:${realLog}`]) ||
-    null;
-  const defaultId = b?.defaults[propertyId] ?? null;
-  const currentId = assignedId ?? defaultId;
-  const current = b?.providers.find((p) => p.id === currentId) ?? null;
+  const { realLog, resId, manualId, assignedId, defaultId, currentId, current } = resolveCleaningProvider(
+    b,
+    propertyId,
+    logId,
+    reservationId,
+  );
 
   const filtered = useMemo(() => {
     const norm = (s: string) => s.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
@@ -155,7 +178,9 @@ export function CleaningProviderAvatar({
           aria-label={current ? `Responsável: ${current.name}. Trocar` : "Atribuir prestador"}
           title={current ? `Responsável: ${current.name}` : "Atribuir prestador"}
           className={
-            rowStyle
+            look === "raised"
+              ? "ds-3d ds-3d-hover inline-flex h-[20px] shrink-0 items-center gap-1 rounded-[0.3rem] border border-border/70 bg-card px-1.5 shadow-sm transition"
+              : rowStyle
               ? "flex min-w-0 items-center gap-[7px] text-left transition-opacity hover:opacity-80"
               : nameOnly
               ? "flex min-w-0 items-center gap-1.5 text-left transition-opacity hover:opacity-80"
@@ -169,6 +194,13 @@ export function CleaningProviderAvatar({
               <Face name={current?.name ?? null} url={current?.avatarUrl ?? null} size={22} look="default" />
               <span className="min-w-0 truncate text-xs font-semibold text-[#f4efea]">{current ? current.name : "Atribuir prestador"}</span>
             </>
+          ) : look === "raised" ? (
+            <>
+              {/* Janela "Limpezas Realizadas" (07/11/2026): o prestador é um dado
+                  editável como tipo e valor — moldura de botão + lápis à direita. */}
+              <Face name={current?.name ?? null} url={current?.avatarUrl ?? null} size={14} look="plain" />
+              <Pencil className="size-3 shrink-0 opacity-60" aria-hidden />
+            </>
           ) : nameOnly ? (
             <>
               <span className="min-w-0 truncate text-[13px] font-bold">{current ? current.name : "Atribuir prestador"}</span>
@@ -177,7 +209,7 @@ export function CleaningProviderAvatar({
           ) : (
           <>
           <span className="relative shrink-0">
-          <Face name={current?.name ?? null} url={current?.avatarUrl ?? null} size={showName ? 26 : look ? 18 : 28} look={look ?? "default"} />
+          <Face name={current?.name ?? null} url={current?.avatarUrl ?? null} size={showName ? 26 : 28} look="default" />
           {assignedId && (
             <span className="absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full border-2 border-card bg-primary" />
           )}

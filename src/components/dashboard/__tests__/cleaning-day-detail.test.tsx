@@ -11,6 +11,17 @@ const acesso = vi.hoisted(() => ({ liberado: false }));
 vi.mock("@/lib/permissions/useAreaAccess", () => ({
   useAreaAccess: () => ({ ready: true, can: () => acesso.liberado }),
 }));
+// Prestador atribuído controlado pelo teste: o avatar vira um botãozinho com as
+// iniciais e o hook devolve o nome do prestador (null = "?").
+const prestador = vi.hoisted(() => ({ nome: null as string | null }));
+vi.mock("@/components/dashboard/CleaningProviderAvatar", () => ({
+  useCleaningProviderName: () => prestador.nome,
+  CleaningProviderAvatar: () => (
+    <span data-provider="">
+      {prestador.nome ? prestador.nome.split(" ").map((p) => p[0]).join("") : "?"}
+    </span>
+  ),
+}));
 import { CleaningDayDetailContent } from "../CleaningDayDetail";
 import type { CleaningDayItem } from "@/lib/dashboard.functions";
 
@@ -159,7 +170,7 @@ describe("CleaningDayDetailContent — tabela do dia", () => {
     expect(t).toContain("Clayton");
     expect(t).toContain("17/09/2026 · 14:20 · Maria");
     expect(t).toContain("Tipo da Limpeza: Normal");
-    // Sem permissão não há botão de edição (só a seta de recolher/expandir e o "Fechar").
+    // Sem permissão não há botão de edição (só o "Fechar").
     expect(html).not.toContain("Alterar valor");
     expect(html).not.toContain("Mudar para");
   });
@@ -177,21 +188,109 @@ describe("CleaningDayDetailContent — tabela do dia", () => {
     const botoes = html.match(/<button[\s\S]*?<\/button>/g) ?? [];
     expect(botoes.some((b) => text(b).trim() === "Normal")).toBe(true);
     expect(botoes.some((b) => /R\$\s120,00/.test(text(b)))).toBe(true);
+    // Moldura de botão editável (fundo, borda, cantos e lápis) em tipo e valor.
+    const editaveis = botoes.filter((b) => /Mudar para|Alterar valor/.test(b));
+    expect(editaveis).toHaveLength(2);
+    for (const b of editaveis) {
+      for (const c of ["border", "rounded-[0.3rem]", "bg-card"]) expect(b).toContain(c);
+      expect(b).toContain("lucide-pencil");
+    }
     acesso.liberado = false;
   });
 
-  it("recolher/expandir: nasce tudo recolhido, com a seta ao lado do rótulo principal", () => {
+  it("sem expansividade: tudo nasce visível, sem seta, com o valor na linha da data", () => {
     acesso.liberado = false;
+    for (const mode of ["done", "cost"] as const) {
+      const html = renderToStaticMarkup(
+        <CleaningDayDetailContent date="2026-09-17" source={{ mode, items }} caretX={null} onClose={() => {}} />,
+      );
+      expect(html).not.toContain("aria-expanded");
+      expect(html).not.toContain("grid-rows-[0fr]");
+      expect(html).not.toContain("pl-[30px]");
+      expect(html).not.toContain("Valor do Serviço");
+    }
+    const html = renderToStaticMarkup(
+      <CleaningDayDetailContent date="2026-09-17" source={{ mode: "done", items: [items[1]] }} caretX={null} onClose={() => {}} />,
+    );
+    // Linha inferior: data/hora à esquerda e o valor à direita, na mesma linha.
+    const linha = html.match(/<div data-bottom-row[\s\S]*?<\/div>/)?.[0] ?? "";
+    expect(text(linha)).toMatch(/17\/09\/2026 · 14:20 · Maria .*R\$\s120,00/);
+    expect(linha).toContain("min-w-0");
+  });
+
+  it("serviços extras: mesma linha inferior, com o valor à direita", () => {
     const html = renderToStaticMarkup(
       <CleaningDayDetailContent
         date="2026-09-17"
-        source={{ mode: "cost", items }}
+        source={{
+          mode: "done",
+          items: [],
+          extras: [
+            {
+              id: "e1",
+              date: "2026-09-17",
+              propertyId: "a",
+              propertyName: "Casa A",
+              ownerName: null,
+              ownerPhone: null,
+              ownerPhoneCountry: null,
+              situation: "manutencao",
+              situationName: "Manutenção",
+              title: "Troca do chuveiro",
+              priceCents: 8000,
+              concludedAt: "2026-09-17T17:20:00.000Z",
+              doneByName: "João",
+              logId: null,
+              reservationId: null,
+            },
+          ],
+        }}
         caretX={null}
         onClose={() => {}}
       />,
     );
-    expect(html).not.toContain('aria-expanded="true"');
-    expect(html.match(/aria-expanded="false"/g)?.length).toBeGreaterThanOrEqual(2);
-    expect(html).toContain("grid-rows-[0fr]");
+    const t = text(html);
+    expect(t).toContain("Situação: Manutenção");
+    expect(t).toContain("Troca do chuveiro");
+    const linha = html.match(/<div data-bottom-row[\s\S]*?<\/div>/)?.[0] ?? "";
+    expect(text(linha)).toMatch(/17\/09\/2026 · 14:20 · João .*R\$\s80,00/);
+    expect(html).not.toContain("aria-expanded");
+  });
+
+  describe("desduplicação de quem concluiu × prestador", () => {
+    const comPrestador = { ...items[1], logId: "11111111-1111-1111-1111-111111111111" };
+    const render = (doneByName: string) =>
+      text(
+        renderToStaticMarkup(
+          <CleaningDayDetailContent
+            date="2026-09-17"
+            source={{ mode: "done", items: [{ ...comPrestador, doneByName }] }}
+            caretX={null}
+            onClose={() => {}}
+          />,
+        ),
+      );
+
+    it("mesma pessoa: só data/hora + iniciais, sem repetir o nome", () => {
+      prestador.nome = "Esther Villar";
+      const t = render("Esther Villar");
+      expect(t).toContain("17/09/2026 · 14:20 EV");
+      expect(t).not.toContain("Esther Villar");
+    });
+
+    it("mesma pessoa com acento/caixa diferentes também não repete", () => {
+      prestador.nome = "Esther Villar";
+      expect(render("esther  villár")).not.toMatch(/villar/i);
+    });
+
+    it("pessoas diferentes: nome de quem concluiu + iniciais do prestador", () => {
+      prestador.nome = "Esther Villar";
+      expect(render("Anfitrião Sigma")).toContain("17/09/2026 · 14:20 · Anfitrião Sigma EV");
+    });
+
+    it("prestador ainda indefinido: nome de quem concluiu + ?", () => {
+      prestador.nome = null;
+      expect(render("Anfitrião Sigma")).toContain("17/09/2026 · 14:20 · Anfitrião Sigma ?");
+    });
   });
 });
