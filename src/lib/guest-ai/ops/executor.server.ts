@@ -68,6 +68,9 @@ export type OpsApplyPort = (req: OpsApplyPortRequest) => Promise<OpsApplyPortRes
 /** Modo efetivo: `live`/`on` ⇒ ação real; `shadow` ⇒ observação; qualquer outro valor ⇒ `off`. */
 export function opsMode(env: Env = process.env): OpsMode {
   const v = env[OPS_MODE_ENV];
+  // Ausente ⇒ `live` (decisão do titular de 06/11/2026: a IA age de verdade nos cards). Antes, a ausência do
+  // segredo desligava os bastidores em silêncio. Para desligar: qualquer valor explícito (ex.: `off`); `shadow` só registra.
+  if (v === undefined) return "live";
   if (v === "live" || v === "on") return "live";
   if (v === "shadow") return "shadow";
   return "off";
@@ -86,7 +89,8 @@ export function opsPropertyAllowed(propertyId: string, env: Env = process.env): 
 
 export interface OpsRunInput {
   turn: ValidatedTurn;
-  decision: ModelDecision;
+  /** Só os sinais operacionais (decisão do Copiloto ou extrator dos bastidores). */
+  decision: Pick<ModelDecision, "hospitalityMilestone" | "milestoneQuote" | "guestEtas"> & Partial<ModelDecision>;
   history: HistoryResult | null;
   phase: StayPhase;
   timezone: string | null;

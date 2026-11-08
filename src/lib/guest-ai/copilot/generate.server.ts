@@ -57,6 +57,7 @@ import type { LlmProvider } from "@/lib/guest-ai/llm/providers/types";
 import type { LlmLogger } from "@/lib/guest-ai/llm/telemetry";
 import type { StayPhase, ValidatedTurn } from "@/lib/guest-ai/types";
 import { runOps, type OpsRunInput } from "@/lib/guest-ai/ops/executor.server";
+import { extractOpsSignals, type OpsExtractorInput, type OpsSignals } from "./ops-extractor.server";
 import {
   COPILOT_DEADLINE_MS,
   COPILOT_MAX_OUTPUT_TOKENS,
@@ -137,6 +138,11 @@ export interface CopilotGenerateDeps {
    * sugestão, só com decisão validada; nunca altera a sugestão, e falha nunca derruba a geração.
    */
   ops?: (input: OpsRunInput) => Promise<unknown>;
+  /**
+   * Bastidores (08/11/2026): extrator próprio dos sinais operacionais (padrão: `extractOpsSignals`, Reserva).
+   * Roda em paralelo com a resposta assim que contexto e histórico estão lidos e NÃO depende dela dar certo.
+   */
+  extractOps?: (input: OpsExtractorInput) => Promise<OpsSignals | null>;
 }
 
 export type CopilotGenerateResult =
@@ -409,6 +415,8 @@ export async function generateCopilotSuggestion(
   const cancelTimer = schedule(() => controller.abort(), deadlineMs);
   let claimed: { suggestionId: string; attempt: number } | null = null;
   let store: CopilotStore | null = null;
+  // bastidores em andamento (o segundo plano do Worker só termina quando a geração resolve: nunca abandoná-los)
+  let pendingBackstage: Promise<boolean> | null = null;
 
   try {
     const db = deps.db ?? (await getGuestAiDb());
@@ -493,6 +501,8 @@ export async function generateCopilotSuggestion(
     let stayPhase: string | null = null;
     let opsPhase: StayPhase | null = null;
     let opsTimezone: string | null = null;
+    let opsCheckInAt: string | null = null;
+    let opsCheckOutAt: string | null = null;
     const meta = {
       onDossierEntries: (n: number) => (dossierEntries = n),
       onHistoryMessages: (n: number) => (historyMessages = n),
@@ -506,6 +516,46 @@ export async function generateCopilotSuggestion(
     };
     // visão: só consulta fotos se o histórico do turno tiver imagem do hóspede; ids citáveis vêm do histórico
     let history: HistoryResult | null = null;
+    // BASTIDORES (08/11/2026): trabalho próprio, ligado à mesma geração mas independente da resposta. Começa assim
+    // que contexto e histórico estão lidos (em paralelo com a chamada da resposta) e grava as ações nos cards pela
+    // política determinística de sempre. Se o extrator falhar, os sinais da resposta (se houver) são o reserva.
+    let backstage: Promise<boolean> | null = null;
+    const opsRun = deps.ops ?? ((i: OpsRunInput) => runOps(i, { env }));
+    const startBackstage = () => {
+      // só há ação de card antes/durante a estadia; nas demais fases não gasta chamada (a resposta segue igual)
+      if (backstage || !opsPhase || !history || history.status !== "available") return;
+      if (opsPhase !== "pre_stay" && opsPhase !== "in_stay" && opsPhase !== "post_checkout") return;
+      const phase = opsPhase;
+      const h = history;
+      backstage = pendingBackstage = (async () => {
+        try {
+          const signals = await (deps.extractOps ?? ((i: OpsExtractorInput) => extractOpsSignals(i, { provider: deps.provider, log: deps.log })))({
+            history: h,
+            phase,
+            timezone: opsTimezone,
+            checkInAt: opsCheckInAt,
+            checkOutAt: opsCheckOutAt,
+            now: new Date(now()),
+            traceId: claimed?.suggestionId ?? turn.messageId,
+            remainingMs,
+            signal: controller.signal,
+          });
+          if (!signals) return false;
+          await opsRun({
+            turn,
+            decision: signals,
+            history: h,
+            phase,
+            timezone: opsTimezone,
+            suggestionId: claimed?.suggestionId ?? null,
+          });
+          return true;
+        } catch {
+          console.error("[copilot] bastidores falharam");
+          return false;
+        }
+      })();
+    };
     const loadVision = async (): Promise<CopilotVisionInput> => {
       if (!history || history.status !== "available") return NO_VISION;
       const refs = new Map(history.entries.map((e) => [e.messageId, e.ref]));
@@ -564,11 +614,15 @@ export async function generateCopilotSuggestion(
         stayPhase = ctx.guest.phase;
         opsPhase = ctx.guest.phase;
         opsTimezone = ctx.guest.stay?.timezone ?? ctx.guest.property.timezone ?? null;
+        opsCheckInAt = ctx.guest.stay?.checkInAt ?? null;
+        opsCheckOutAt = ctx.guest.stay?.checkOutAt ?? null;
+        startBackstage();
         return ctx;
       },
       loadHistory: async (t, sg) => {
         const h = await ports.loadHistory(t, sg);
         history = h;
+        startBackstage();
         return h;
       },
       loadDossiers: ports.loadDossiers,
@@ -632,13 +686,16 @@ export async function generateCopilotSuggestion(
         error: g.error,
       },
     });
-    // G2: sinais operacionais da MESMA decisão validada (ação real em `live`, registro em `shadow`)
+    // G2: os bastidores já rodaram em paralelo (extrator próprio). Reserva: se o extrator não respondeu, usa os
+    // sinais da MESMA decisão validada da resposta, como antes (a reivindicação é idempotente por mensagem + ação).
+    const backstageDone = backstage ? await backstage : false;
     if (
+      !backstageDone &&
       (outcome.kind === "reply" || outcome.kind === "silence" || outcome.kind === "human_action") &&
       opsPhase
     ) {
       try {
-        await (deps.ops ?? ((i: OpsRunInput) => runOps(i, { env })))({
+        await opsRun({
           turn,
           decision: outcome.decision,
           history,
@@ -664,6 +721,8 @@ export async function generateCopilotSuggestion(
       detail: stored.kind === "invalid" ? stored.reason : stored.kind,
     };
   } catch (e) {
+    const pb = pendingBackstage as Promise<boolean> | null;
+    if (pb) await pb.catch(() => false);
     // falha inesperada: a sugestão reivindicada não pode ficar "gerando" para sempre
     if (claimed && store) {
       try {

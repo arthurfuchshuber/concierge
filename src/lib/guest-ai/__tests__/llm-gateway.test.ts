@@ -382,7 +382,7 @@ describe("F2-A · isolamento no repositório", () => {
       .filter((f) => /guest-ai\/llm/.test(readFileSync(f, "utf8")));
     const allowed = [/guest-ai[\\/]orchestrator[\\/]/, /guest-ai[\\/]shadow[\\/]contracts\.ts$/, /routes[\\/]api[\\/]public[\\/]guest-ai\.llm-probe\.ts$/, /[\\/]routeTree\.gen\.ts$/, /guest-ai[\\/]shadow-exec[\\/]/,
       // Copiloto (05/11/2026): registro de modelos (contratos), tipos do transporte (geração) e o gerador — lista nominal
-      /guest-ai[\\/]copilot[\\/](contracts\.ts|generate\.server\.ts|generator\.server\.ts)$/,
+      /guest-ai[\\/]copilot[\\/](contracts\.ts|generate\.server\.ts|generator\.server\.ts|ops-extractor\.server\.ts)$/,
       // Memória do hóspede (06/11/2026): processo pós-checkout — prompt (registro de modelos/tipos) e worker (Gateway)
       /lib[\\/]guest-memory[\\/](prompt\.ts|worker\.server\.ts)$/,
       // Tool calling (07/11/2026): só os TIPOS do gateway (declaração de ferramenta e chamada) — lista nominal

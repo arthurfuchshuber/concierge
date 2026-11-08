@@ -8,7 +8,8 @@
  *  - `live` (ou `on`) — G2c, decisão do titular (06/11/2026, sem período de observação): a ação é EXECUTADA
  *    no card com as rotinas oficiais do painel e auditada (`claimed` → `applied`, com fotos antes e depois);
  *  - `shadow` — só registra em auditoria o que a IA faria, sem escrever em card;
- *  - qualquer outro valor (ou ausente) — `off`.
+ *  - AUSENTE — `live` (08/11/2026: a falta do segredo não desliga mais os bastidores em silêncio);
+ *  - qualquer outro valor explícito (ex.: `off`) — desligado.
  * A resposta ao hóspede continua sendo só sugestão do Copiloto (`slot.server.ts` devolve `null`).
  */
 

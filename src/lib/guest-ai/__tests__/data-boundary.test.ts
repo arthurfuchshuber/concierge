@@ -88,7 +88,8 @@ describe("F0 · fronteira de dados (varredura estática do módulo guest-ai/)", 
   it("F2-B · B1: só o gerador do Copiloto chama o Gateway; demais módulos novos usam apenas tipos/registro de llm/", () => {
     const runtime = files.filter((f) => /guest-ai\/llm\/gateway\.server|generateGuestLlm/.test(code(f)) && !rel(f).startsWith("llm/"));
     // Copiloto (05/11/2026): o gerador do Copiloto é o ÚNICO chamador do Gateway (uma chamada por sugestão, custo por turno limitado).
-    expect(runtime.map(rel).sort()).toEqual(["copilot/generator.server.ts"]);
+    // Bastidores (08/11/2026): o extrator dos sinais operacionais é o 2º chamador (Reserva, contexto mínimo, custo ≤ US$ 0,01).
+    expect(runtime.map(rel).sort()).toEqual(["copilot/generator.server.ts", "copilot/ops-extractor.server.ts"]);
     // fora de llm/, nada de rede direta nem de outro provedor — exceto os transportes das ferramentas
     // (Google Maps; clima/voos desde a Etapa 3, 08/11/2026)
     expect(files.filter((f) => !rel(f).startsWith("llm/") && /\bfetch\(|ai\.gateway|openai\.com|anthropic\.com/.test(code(f))).map(rel).sort()).toEqual([
