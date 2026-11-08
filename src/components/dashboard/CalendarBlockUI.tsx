@@ -345,11 +345,11 @@ export function CalendarBlockDialog({
       >
         {/* Cabeçalho universal de janela ampla (07/11/2026): sem ícone, título
             14px em 1 linha, subtítulo 12px e "X" oficial no canto. */}
-        <ResponsiveDialogHeader className={cn("text-left", !isMobile && "px-4 pt-3.5 pb-0 pr-14")}>
-          <ResponsiveDialogTitle className="truncate text-sm font-bold leading-6 text-foreground">
+        <ResponsiveDialogHeader className={cn("text-left", !isMobile && "px-4 pt-3 pb-2.5 pr-12")}>
+          <ResponsiveDialogTitle className="truncate text-sm font-bold leading-5 text-foreground">
             {release ? "Liberar datas" : edit ? "Alterar bloqueio" : "Bloquear datas"}
           </ResponsiveDialogTitle>
-          <ResponsiveDialogDescription className="text-xs leading-5 text-muted-foreground">
+          <ResponsiveDialogDescription className="text-xs leading-4 text-muted-foreground">
             {ddmmISO(from)} a {ddmmISO(to)} · {n} {n === 1 ? "noite" : "noites"}
           </ResponsiveDialogDescription>
         </ResponsiveDialogHeader>

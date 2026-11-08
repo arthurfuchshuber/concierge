@@ -78,17 +78,16 @@ const DialogContent = React.forwardRef<
         {hideClose ? null : (
           <DialogPrimitive.Close
             data-window-close
-            // X OFICIAL (08/11/2026): BOTÃO estruturado, não ícone solto — 28px, cantos `rounded-lg`, fundo sutil
-            // e borda suave, alinhado à linha do título (`top-3.5 right-4`; o cabeçalho reserva `pr-14`). Ícone
-            // nítido de 16px, hover/foco visíveis e área de toque ampliada pelo `after` (sem mudar o desenho).
-            // Mora AQUI para valer em todas as janelas; abaixo de `lg`, em janela "como página" (`pageLike`),
-            // ele some e o "Voltar" (`DialogDateRow`) assume.
+            // X OFICIAL INTEGRADO DE QUINA (08/11/2026): aba colada no canto superior direito, sem borda, com o
+            // canto inferior esquerdo arredondado (12px) e o superior direito acompanhando o raio da janela.
+            // Mora AQUI para valer em todas as janelas; o cabeçalho reserva `pr-12`. Abaixo de `lg`, em janela
+            // "como página" (`pageLike`), ele some e o "Voltar" (`DialogDateRow`) assume.
             className={cn(
-              "absolute right-4 top-3.5 z-10 grid size-7 cursor-pointer place-items-center rounded-lg border border-border/40 bg-foreground/5 text-foreground/80 transition-colors after:absolute after:-inset-1.5 after:content-[''] hover:bg-foreground/10 hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none",
+              "absolute right-0 top-0 z-[10] grid size-8 cursor-pointer place-items-center rounded-bl-[12px] rounded-tr-[calc(var(--win-radius,12px)-1px)] bg-[color-mix(in_oklab,var(--card)_100%,var(--foreground)_8%)] text-muted-foreground transition-colors hover:bg-[color-mix(in_oklab,var(--card)_100%,var(--foreground)_14%)] hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none",
               pageLike && "max-lg:hidden",
             )}
           >
-            <X className="size-4" strokeWidth={2} />
+            <X className="size-[13px]" strokeWidth={1.8} />
             <span className="sr-only">Fechar</span>
           </DialogPrimitive.Close>
         )}
@@ -132,7 +131,7 @@ const DialogDateRow = ({ className, ...props }: React.HTMLAttributes<HTMLDivElem
 DialogDateRow.displayName = "DialogDateRow";
 
 const DialogHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
-  <div className={cn("flex flex-col space-y-1.5 text-left pr-12", className)} {...props} />
+  <div className={cn("flex flex-col space-y-0.5 text-left pr-12", className)} {...props} />
 );
 
 DialogHeader.displayName = "DialogHeader";

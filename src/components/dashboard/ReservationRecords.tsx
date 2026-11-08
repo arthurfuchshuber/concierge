@@ -406,8 +406,8 @@ function RecordEditDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-[calc(100vw-2rem)] gap-0 p-0 sm:max-w-sm">
-        <DialogHeader className="px-4 pb-2 pt-3.5 pr-14 text-left">
-          <DialogTitle className="truncate text-sm font-bold leading-6 text-foreground">Editar registro</DialogTitle>
+        <DialogHeader className="px-4 pb-2.5 pt-3 pr-12 text-left">
+          <DialogTitle className="truncate text-sm font-bold leading-5 text-foreground">Editar registro</DialogTitle>
         </DialogHeader>
         <div className="space-y-2.5 px-4 pb-4">
           <input
@@ -658,8 +658,8 @@ function RecordBlock({
 
       <Dialog open={!!viewing} onOpenChange={(v) => !v && setViewIndex(null)}>
         <DialogContent className="w-[calc(100vw-2rem)] gap-0 overflow-hidden p-0 sm:max-w-lg">
-          <DialogHeader className="px-4 pb-2 pt-3.5 pr-14 text-left">
-            <DialogTitle className="flex min-w-0 items-center gap-2 text-sm font-bold leading-6 text-foreground">
+          <DialogHeader className="px-4 pb-2.5 pt-3 pr-12 text-left">
+            <DialogTitle className="flex min-w-0 items-center gap-2 text-sm font-bold leading-5 text-foreground">
               <span className="min-w-0 truncate">
                 {viewing?.fileName ?? KIND_LABEL[viewing?.kind ?? "file"]}
               </span>
@@ -796,9 +796,9 @@ function CategorySheet({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-[calc(100vw-2rem)] gap-0 p-0 sm:max-w-sm">
-        <DialogHeader className="px-4 pb-2 pt-3.5 pr-14 text-left">
-          <DialogTitle className="truncate text-sm font-bold leading-6 text-foreground">O que você vai registrar?</DialogTitle>
-          <p className="text-xs leading-5 text-muted-foreground">Escolha a categoria — só depois a captura começa.</p>
+        <DialogHeader className="px-4 pb-2.5 pt-3 pr-12 text-left">
+          <DialogTitle className="truncate text-sm font-bold leading-5 text-foreground">O que você vai registrar?</DialogTitle>
+          <p className="text-xs leading-4 text-muted-foreground">Escolha a categoria — só depois a captura começa.</p>
         </DialogHeader>
         <div className="flex flex-col gap-1.5 px-3 pb-3.5">
           {CATEGORIES.map((c) => {
@@ -980,8 +980,8 @@ export function ReservationRecordsDialog({
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="w-[calc(100vw-2rem)] overflow-hidden p-0 sm:w-full sm:max-w-md">
           <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
-          <DialogHeader className="border-b border-border/50 px-4 pb-3 pt-3.5 pr-14 text-left">
-            <DialogTitle className="truncate text-sm font-bold leading-6 text-foreground">
+          <DialogHeader className="border-b border-border/40 px-4 pb-2.5 pt-3 pr-12 text-left">
+            <DialogTitle className="truncate text-sm font-bold leading-5 text-foreground">
               {row.guestName && row.guestName !== row.reservationCode
                 ? row.guestName
                 : "Registros da reserva"}
