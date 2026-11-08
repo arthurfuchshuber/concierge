@@ -1,8 +1,13 @@
 import { renderToStaticMarkup as rawRender } from "react-dom/server";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactElement } from "react";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 const renderToStaticMarkup = (el: ReactElement) =>
-  rawRender(<QueryClientProvider client={new QueryClient()}>{el}</QueryClientProvider>);
+  rawRender(
+    <QueryClientProvider client={new QueryClient()}>
+      <Dialog open>{el}</Dialog>
+    </QueryClientProvider>,
+  );
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 
@@ -87,7 +92,6 @@ describe("CleaningDayDetailContent — tabela do dia", () => {
         date="2026-09-17"
         source={{ mode: "done", items }}
         caretX={40}
-        onClose={() => {}}
       />,
     );
     expect(html.match(/<tbody>[\s\S]*<\/tbody>/)?.[0].match(/<tr/g)).toHaveLength(3);
@@ -107,7 +111,6 @@ describe("CleaningDayDetailContent — tabela do dia", () => {
         date="2026-09-17"
         source={{ mode: "cost", items }}
         caretX={null}
-        onClose={() => {}}
       />,
     );
     const rows =
@@ -139,7 +142,6 @@ describe("CleaningDayDetailContent — tabela do dia", () => {
           ],
         }}
         caretX={10}
-        onClose={() => {}}
       />,
     );
     const t = text(html);
@@ -163,7 +165,6 @@ describe("CleaningDayDetailContent — tabela do dia", () => {
           ],
         }}
         caretX={null}
-        onClose={() => {}}
       />,
     );
     const t = text(html);
@@ -171,7 +172,7 @@ describe("CleaningDayDetailContent — tabela do dia", () => {
     expect(t).toContain("Clayton");
     expect(t).toContain("17/09/2026 · 14:20 · Maria");
     expect(t).toContain("Tipo da Limpeza: Normal");
-    // Sem permissão não há botão de edição (só o "Fechar").
+    // Sem permissão não há botão de edição.
     expect(html).not.toContain("Alterar valor");
     expect(html).not.toContain("Mudar para");
   });
@@ -183,7 +184,6 @@ describe("CleaningDayDetailContent — tabela do dia", () => {
         date="2026-09-17"
         source={{ mode: "done", items: [items[1]] }}
         caretX={null}
-        onClose={() => {}}
       />,
     );
     const botoes = html.match(/<button[\s\S]*?<\/button>/g) ?? [];
@@ -205,7 +205,7 @@ describe("CleaningDayDetailContent — tabela do dia", () => {
     acesso.liberado = false;
     for (const mode of ["done", "cost"] as const) {
       const html = renderToStaticMarkup(
-        <CleaningDayDetailContent date="2026-09-17" source={{ mode, items }} caretX={null} onClose={() => {}} />,
+        <CleaningDayDetailContent date="2026-09-17" source={{ mode, items }} caretX={null} />,
       );
       expect(html).not.toContain("aria-expanded");
       expect(html).not.toContain("grid-rows-[0fr]");
@@ -213,7 +213,7 @@ describe("CleaningDayDetailContent — tabela do dia", () => {
       expect(html).not.toContain("Valor do Serviço");
     }
     const html = renderToStaticMarkup(
-      <CleaningDayDetailContent date="2026-09-17" source={{ mode: "done", items: [items[1]] }} caretX={null} onClose={() => {}} />,
+      <CleaningDayDetailContent date="2026-09-17" source={{ mode: "done", items: [items[1]] }} caretX={null} />,
     );
     // Linha inferior: data/hora à esquerda e o valor à direita, na mesma linha.
     const linha = html.match(/<div data-bottom-row[\s\S]*?<\/div>/)?.[0] ?? "";
@@ -249,7 +249,6 @@ describe("CleaningDayDetailContent — tabela do dia", () => {
           ],
         }}
         caretX={null}
-        onClose={() => {}}
       />,
     );
     const t = text(html);
@@ -269,7 +268,6 @@ describe("CleaningDayDetailContent — tabela do dia", () => {
             date="2026-09-17"
             source={{ mode: "done", items: [{ ...comPrestador, doneByName }] }}
             caretX={null}
-            onClose={() => {}}
           />,
         ),
       );
@@ -303,12 +301,15 @@ describe("valor inline com auto-save (sem Cancelar/OK)", () => {
     acesso.liberado = true;
     render(
       <QueryClientProvider client={new QueryClient()}>
-        <CleaningDayDetailContent
-          date="2026-09-17"
-          source={{ mode: "done", items: [items[1]] }}
-          caretX={null}
-          onClose={() => {}}
-        />
+        <Dialog open>
+          <DialogContent aria-describedby={undefined}>
+            <CleaningDayDetailContent
+              date="2026-09-17"
+              source={{ mode: "done", items: [items[1]] }}
+              caretX={null}
+            />
+          </DialogContent>
+        </Dialog>
       </QueryClientProvider>,
     );
     fireEvent.click(screen.getByTitle("Alterar valor"));
@@ -330,11 +331,11 @@ describe("valor inline com auto-save (sem Cancelar/OK)", () => {
     expect(screen.queryByRole("button", { name: "OK" })).toBeNull();
   });
 
-  it("Enter com valor alterado abre o Confirmar Alteração? (De → Para)", () => {
+  it("Enter com valor alterado abre o Confirmar alteração? (De → Para)", () => {
     const input = abrir();
     fireEvent.change(input, { target: { value: "150,00" } });
     fireEvent.keyDown(input, { key: "Enter" });
-    expect(screen.getByText("Confirmar Alteração?")).toBeTruthy();
+    expect(screen.getByText("Confirmar alteração?")).toBeTruthy();
     const dlg = within(screen.getByRole("alertdialog"));
     expect(dlg.getByText(/R\$\s120,00/).className).toContain("line-through");
     expect(dlg.getByText(/R\$\s150,00/)).toBeTruthy();
@@ -345,13 +346,13 @@ describe("valor inline com auto-save (sem Cancelar/OK)", () => {
     const input = abrir();
     fireEvent.change(input, { target: { value: "99,90" } });
     fireEvent.blur(input);
-    expect(screen.getByText("Confirmar Alteração?")).toBeTruthy();
+    expect(screen.getByText("Confirmar alteração?")).toBeTruthy();
   });
 
   it("valor igual: sair do campo descarta, sem diálogo", () => {
     const input = abrir();
     fireEvent.blur(input);
-    expect(screen.queryByText("Confirmar Alteração?")).toBeNull();
+    expect(screen.queryByText("Confirmar alteração?")).toBeNull();
     expect(screen.queryByLabelText("Valor de Studio B")).toBeNull();
     expect(screen.getByTitle("Alterar valor")).toBeTruthy();
   });
@@ -361,7 +362,7 @@ describe("valor inline com auto-save (sem Cancelar/OK)", () => {
     fireEvent.change(input, { target: { value: "150,00" } });
     fireEvent.keyDown(input, { key: "Escape" });
     fireEvent.blur(input);
-    expect(screen.queryByText("Confirmar Alteração?")).toBeNull();
+    expect(screen.queryByText("Confirmar alteração?")).toBeNull();
     expect(screen.queryByLabelText("Valor de Studio B")).toBeNull();
   });
 
@@ -370,7 +371,45 @@ describe("valor inline com auto-save (sem Cancelar/OK)", () => {
     fireEvent.change(input, { target: { value: "150,00" } });
     fireEvent.keyDown(input, { key: "Enter" });
     fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
-    expect(screen.queryByText("Confirmar Alteração?")).toBeNull();
+    expect(screen.queryByText("Confirmar alteração?")).toBeNull();
     expect(screen.queryByLabelText("Valor de Studio B")).toBeNull();
+  });
+});
+
+describe("cabeçalho universal de janela ampla", () => {
+  afterEach(() => cleanup());
+
+  it("sem ícone e sem X improvisado: título 14px e subtítulo 12px no DialogHeader", () => {
+    const html = renderToStaticMarkup(
+      <CleaningDayDetailContent date="all" title="Custo Total Limpeza" source={{ mode: "done", items }} caretX={null} />,
+    );
+    const h2 = html.match(/<h2[^>]*>[\s\S]*?<\/h2>/)?.[0] ?? "";
+    expect(text(h2).trim()).toBe("Custo Total Limpeza");
+    for (const c of ["truncate", "text-sm", "font-bold", "leading-6", "text-foreground"]) expect(h2).toContain(c);
+    const header = html.match(/<div class="[^"]*pr-14[^"]*">/)?.[0] ?? "";
+    for (const c of ["px-4", "pt-3.5", "pb-0", "pr-14", "text-left"]) expect(header).toContain(c);
+    expect(html).toContain('class="text-xs leading-5 text-muted-foreground"');
+    expect(html).not.toContain("Fechar detalhe");
+    expect(html).not.toContain("size-10");
+    expect(html).not.toContain("rounded-xl");
+    // Respiro do topo dentro da área rolável.
+    expect(html).toMatch(/sg-elegant-scroll[^"]*px-4[^"]*pt-2\.5/);
+  });
+
+  it("dentro da janela, o único X é o oficial do DialogContent", () => {
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <Dialog open>
+          <DialogContent aria-describedby={undefined}>
+            <CleaningDayDetailContent date="all" title="Custo Total Limpeza" source={{ mode: "done", items }} caretX={null} />
+          </DialogContent>
+        </Dialog>
+      </QueryClientProvider>,
+    );
+    const fechar = screen.getAllByRole("button", { name: "Close" });
+    expect(fechar).toHaveLength(1);
+    expect(fechar[0].className).toContain("rounded-bl-[12px]");
+    expect(fechar[0].className).toContain("size-8");
+    expect(screen.queryByLabelText("Fechar detalhe")).toBeNull();
   });
 });

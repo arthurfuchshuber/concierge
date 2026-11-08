@@ -797,7 +797,7 @@ function CategorySheet({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-[calc(100vw-2rem)] gap-0 p-0 sm:max-w-sm">
         <DialogHeader className="px-4 pb-2 pt-4">
-          <DialogTitle className="text-[15px] font-display">O que Você Vai Registrar?</DialogTitle>
+          <DialogTitle className="text-[15px] font-display">O que você vai registrar?</DialogTitle>
           <p className="ds-meta mt-0.5">Escolha a categoria — só depois a captura começa.</p>
         </DialogHeader>
         <div className="flex flex-col gap-1.5 px-3 pb-3.5">

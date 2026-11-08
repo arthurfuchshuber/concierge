@@ -785,7 +785,7 @@ export function BulkEditDialog({
         <AlertDialog open={discardConfirmOpen} onOpenChange={setDiscardConfirmOpen}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Descartar Alterações Não Salvas?</AlertDialogTitle>
+              <AlertDialogTitle>Descartar alterações não salvas?</AlertDialogTitle>
               <AlertDialogDescription>
                 Você editou campos que ainda não foram salvos. Fechar agora descarta essas alterações — elas não
                 afetarão os guias selecionados.

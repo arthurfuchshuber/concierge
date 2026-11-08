@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { ChevronDown, ChevronUp, Receipt } from "lucide-react";
 import { toast } from "sonner";
-import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { SearchActionRow } from "@/components/dashboard/SearchActionRow";
 import { MiniSwitch } from "@/components/admin-pages/admin-mobile-ui";
@@ -83,11 +83,13 @@ export function ImoveisCobradosDialog({ open, onOpenChange }: { open: boolean; o
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg gap-0 p-0 sm:p-0" onOpenAutoFocus={(e) => e.preventDefault()}>
-        <div className="flex h-12 items-center px-4 pr-12">
-          <DialogTitle className="font-display text-[14px] font-bold leading-none tracking-normal">Imóveis Cobrados</DialogTitle>
-        </div>
-        <DialogDescription className="-mt-1.5 px-4 pr-12 text-[12px] text-muted-foreground">{subtitle || " "}</DialogDescription>
-        <div className="px-4 pt-3">
+        {/* Cabeçalho universal de janela ampla (07/11/2026): título 14px em 1
+            linha, subtítulo 12px e "X" oficial no canto (pr-14). */}
+        <DialogHeader className="px-4 pt-3.5 pb-0 pr-14 text-left">
+          <DialogTitle className="truncate text-sm font-bold leading-6 text-foreground">Imóveis Cobrados</DialogTitle>
+          <DialogDescription className="text-xs leading-5 text-muted-foreground">{subtitle || " "}</DialogDescription>
+        </DialogHeader>
+        <div className="px-4 pt-2.5">
           <SearchActionRow value={q} onChange={setQ} placeholder="Buscar imóvel ou proprietário" />
         </div>
         <div className="px-4 pb-2 pt-1">

@@ -3324,7 +3324,7 @@ function GenerateModeDialog({
           <div className="mx-auto mb-3 grid place-items-center size-11 rounded-full bg-primary/10 ring-1 ring-primary/20 text-primary">
             <Sparkles className="size-5" strokeWidth={1.75} />
           </div>
-          <DialogTitle className="font-display text-xl tracking-tight">Como Gerar as Recomendações?</DialogTitle>
+          <DialogTitle className="font-display text-xl tracking-tight">Como gerar as recomendações?</DialogTitle>
           <p className="text-[13px] text-muted-foreground mt-1.5 leading-relaxed max-w-sm mx-auto">
             Escolha o modo de geração com IA.
           </p>

@@ -138,7 +138,7 @@ export function CleaningPriceDialog({
         <AlertDialog open={confirm} onOpenChange={setConfirm}>
           <AlertDialogContent className="w-[calc(100vw-2rem)] sm:max-w-sm">
             <AlertDialogHeader>
-              <AlertDialogTitle>Confirmar Alteração?</AlertDialogTitle>
+              <AlertDialogTitle>Confirmar alteração?</AlertDialogTitle>
               <AlertDialogDescription className="break-words">
                 O valor desta limpeza vai passar a ser {brl(cents)}. Vale só para esta limpeza.
               </AlertDialogDescription>
