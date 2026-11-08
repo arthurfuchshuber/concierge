@@ -63,7 +63,8 @@ describe("F2-A · Lovable AI Gateway — requisição", () => {
     expect(f.calls[0]!.init.signal).toBeInstanceOf(AbortSignal);
     expect(f.calls[0]!.body).toEqual({
       model: "google/gemini-3.8-flash",
-      messages: preq().messages,
+      // JSON sem a palavra "json" na entrada ⇒ a instrução é anexada à última mensagem do usuário (08/11/2026)
+      messages: [...preq().messages.slice(0, 3), { role: "user", content: "Coberta?\n\nResponda estritamente em formato JSON válido." }],
       max_tokens: 300,
       stream: false,
       reasoning_effort: "medium",
@@ -94,7 +95,7 @@ describe("F2-A · Lovable AI Gateway — requisição", () => {
       input: [
         { type: "message", role: "user", content: [{ type: "input_text", text: "Tem estacionamento?" }] },
         { type: "message", role: "assistant", content: [{ type: "output_text", text: "Sim, uma vaga." }] },
-        { type: "message", role: "user", content: [{ type: "input_text", text: "Coberta?" }] },
+        { type: "message", role: "user", content: [{ type: "input_text", text: "Coberta?\n\nResponda estritamente em formato JSON válido." }] },
       ],
       max_output_tokens: 300,
       stream: true,
