@@ -196,7 +196,7 @@ export interface LlmSuccess {
   telemetry: LlmTelemetry;
 }
 
-/** Os 17 códigos de erro do Gateway (lista em tempo de execução: permite verificar compatibilidade exaustiva). */
+/** Os 18 códigos de erro do Gateway (lista em tempo de execução: permite verificar compatibilidade exaustiva). */
 export const LLM_ERROR_CODES = [
   "invalid_request", // contrato violado (modelo fora do registro, limites, esforço não suportado…)
   "sensitive_content_blocked", // valor proibido detectado nas mensagens; nada saiu para a rede
@@ -208,6 +208,7 @@ export const LLM_ERROR_CODES = [
   "auth", // 401/403
   "model_unavailable", // 404
   "bad_request", // 400/422 do provedor
+  "json_format_rejected", // 400 específico: o provedor exigiu a palavra "json" no pedido em formato JSON
   "provider_unavailable", // 5xx
   "network", // falha de rede sem resposta HTTP
   "invalid_response", // corpo ilegível, JSON pedido e não entregue, formato inesperado
