@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useServerFn } from "@tanstack/react-start";
 import {
   Search,
@@ -103,6 +104,10 @@ const FILTERS: Array<{ key: FilterKey; label: string; icon: typeof Plug }> = [
   { key: "em_breve", label: "Em breve", icon: Clock },
 ];
 
+// Cache quente: navegar entre as abas do Administrativo reaproveita o resultado sem piscar nem refetch.
+const QUERY_STALE_MS = 5 * 60 * 1000;
+const QUERY_GC_MS = 10 * 60 * 1000;
+
 const STATUS_ORDER: Record<StatusKey, number> = { ativa: 0, inativa: 1, em_breve: 2 };
 
 export function IntegracoesPage() {
@@ -118,6 +123,8 @@ export function IntegracoesPage() {
     queryKey: ["whatsapp-config", accountOwnerId],
     queryFn: () => waFn({ data: { ownerId: accountOwnerId } }),
     retry: false,
+    staleTime: QUERY_STALE_MS,
+    gcTime: QUERY_GC_MS,
   });
   const waActive = !!wa.data?.senderNumber;
 
@@ -126,6 +133,8 @@ export function IntegracoesPage() {
     queryKey: ["clicksign-config", accountOwnerId],
     queryFn: () => csFn({ data: { ownerId: accountOwnerId } }),
     retry: false,
+    staleTime: QUERY_STALE_MS,
+    gcTime: QUERY_GC_MS,
   });
   const csActive = !!cs.data?.hasToken;
 
@@ -134,6 +143,8 @@ export function IntegracoesPage() {
     queryKey: ["gcal-status", accountOwnerId],
     queryFn: () => gcalFn({ data: { ownerId: accountOwnerId } }),
     retry: false,
+    staleTime: QUERY_STALE_MS,
+    gcTime: QUERY_GC_MS,
   });
   const gcalActive = !!gcal.data?.connected;
 
@@ -142,8 +153,15 @@ export function IntegracoesPage() {
     queryKey: ["channex-status"],
     queryFn: () => channexFn(),
     retry: false,
+    staleTime: QUERY_STALE_MS,
+    gcTime: QUERY_GC_MS,
   });
   const channexActive = !!channex.data?.configured;
+
+  // Primeira carga: até cada consulta responder não sabemos se a integração está ativa.
+  // Nunca declarar "inativa"/"Conectar" nesse intervalo (evita o flash e o layout shift).
+  const mobileLoading = (cs.isLoading && !cs.data) || (gcal.isLoading && !gcal.data);
+  const isLoading = mobileLoading || (wa.isLoading && !wa.data) || (channex.isLoading && !channex.data);
 
   const items = useMemo(
     () =>
@@ -203,8 +221,10 @@ export function IntegracoesPage() {
           </span>
         }
       />
-      <div className="grid grid-cols-2 gap-2.5">
-        {mobileItems.map(({ cfg, statusKey }) => {
+      <div className="grid grid-cols-2 gap-2.5" aria-busy={mobileLoading}>
+        {mobileLoading
+          ? mobileItems.map(({ cfg }) => <IntegrationSkeletonMobile key={cfg.key} />)
+          : mobileItems.map(({ cfg, statusKey }) => {
           const act = statusKey === "ativa";
           return (
             <div
@@ -298,7 +318,7 @@ export function IntegracoesPage() {
                     active ? "bg-primary-foreground/20" : "bg-muted",
                   )}
                 >
-                  {counts[f.key]}
+                  {isLoading ? "–" : counts[f.key]}
                 </span>
               </button>
             );
@@ -306,7 +326,13 @@ export function IntegracoesPage() {
         </div>
       </div>
 
-      {filtered.length === 0 ? (
+      {isLoading ? (
+        <div className="grid gap-1.5 sm:grid-cols-2 xl:grid-cols-3" aria-busy>
+          {items.map(({ cfg }) => (
+            <IntegrationSkeletonDesktop key={cfg.key} />
+          ))}
+        </div>
+      ) : filtered.length === 0 ? (
         <p className="py-16 text-center text-sm text-muted-foreground">
           Nenhuma integração encontrada com esses filtros.
         </p>
@@ -388,6 +414,41 @@ export function IntegracoesPage() {
       </Dialog>
     </div>
     </>
+  );
+}
+
+// Mesma casca e altura do card mobile real (sem faixa verde nem botão "Conectar").
+function IntegrationSkeletonMobile() {
+  return (
+    <div
+      data-testid="integration-skeleton"
+      aria-hidden
+      className="relative h-[108px] min-w-0 overflow-hidden rounded-[12px] border border-border/70 bg-card py-3.5 pl-[17px] pr-3.5 shadow-sm"
+    >
+      <div className="flex h-full flex-col">
+        <div className="min-w-0">
+          <Skeleton className="h-[14px] w-3/4 rounded-[4px]" />
+          <Skeleton className="mt-1.5 h-[9px] w-1/2 rounded-[3px]" />
+        </div>
+        <Skeleton className="mt-auto h-7 w-full rounded-[8px]" />
+      </div>
+    </div>
+  );
+}
+
+// Mesma casca do card desktop recolhido (ícone 40px + título + categoria/selo).
+function IntegrationSkeletonDesktop() {
+  return (
+    <div data-testid="integration-skeleton" aria-hidden className="ds-surface border border-border bg-card p-4">
+      <div className="flex w-full items-center gap-3">
+        <Skeleton className="size-10 shrink-0 rounded-xl" />
+        <div className="min-w-0 flex-1">
+          <Skeleton className="h-4 w-2/3 rounded-[4px]" />
+          <Skeleton className="mt-1.5 h-[18px] w-1/2 rounded-[4px]" />
+        </div>
+        <Skeleton className="size-4 shrink-0 rounded-[4px]" />
+      </div>
+    </div>
   );
 }
 
