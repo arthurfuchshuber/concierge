@@ -5,6 +5,7 @@
  * Estes tipos são o vocabulário entre Orchestrator, contexto, Gateway (F2-A), validação e
  * (na B3) o shadow. Nenhum deles carrega credenciais nem texto de resposta para persistência.
  */
+import type { VisualDiagnosis } from "../vision/analyzer";
 import type { LlmErrorCode, LlmTelemetry, ReasoningEffort } from "@/lib/guest-ai/llm/contracts";
 import type { AccessPolicyReason, GuestContext, GuestSurface } from "@/lib/guest-ai/types";
 import type { CapabilityId } from "./capabilities";
@@ -107,6 +108,9 @@ export interface ModelDecision {
   guestEtas?: GuestEta[];
   /** Trecho LITERAL da mensagem do hóspede que confirma o marco (`hospitalityMilestone`); `null` sem marco. */
   milestoneQuote?: string | null;
+  // ── Visão de incidentes (decisão v6 = v5 + `visualDiagnosis`, 07/11/2026). Aditivo: v1–v5 seguem válidas.
+  /** Diagnóstico da foto do hóspede anexada ao turno (`guest-ai/vision/analyzer.ts`); `null` sem foto. */
+  visualDiagnosis?: VisualDiagnosis | null;
 }
 
 // ─────────────────────────── G2 — previsão informada pelo hóspede (decisão v5) ───────────────────────────
@@ -199,10 +203,10 @@ export interface DecisionSignals {
 }
 
 /** Versões do contrato da decisão aceitas pelo parser (compatibilidade preservada). */
-export const DECISION_CONTRACT_VERSIONS = [1, 2, 3, 4, 5] as const;
+export const DECISION_CONTRACT_VERSIONS = [1, 2, 3, 4, 5, 6] as const;
 export type DecisionContractVersion = (typeof DECISION_CONTRACT_VERSIONS)[number];
 /** Versão que o prompt atual (G2) pede ao modelo e que a cadeia fail-closed exige. */
-export const CURRENT_DECISION_VERSION: DecisionContractVersion = 5;
+export const CURRENT_DECISION_VERSION: DecisionContractVersion = 6;
 
 export function decisionSignals(d: ModelDecision): DecisionSignals {
   if (d.shouldReply === undefined) {

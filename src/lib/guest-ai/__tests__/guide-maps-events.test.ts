@@ -460,7 +460,7 @@ describe("formatação por canal", () => {
       path.resolve(__dirname, "..", "copilot", "generate.server.ts"),
       "utf8",
     );
-    expect(src).toMatch(/text: formatForChannel\(outcome\.text, extra\.surface\)/);
+    expect(src).toMatch(/text: formatForChannel\(stripRoboticAck\(outcome\.text\), extra\.surface\)/);
   });
 });
 
