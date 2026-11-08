@@ -211,7 +211,6 @@ type PropRow = {
  *    avisada pelo hóspede). Antes do limite é só pendente: não avisa;
  *  · Check-In(s) de Hoje — a partir das 07h;
  *  · Check-Out(s) de Amanhã — a partir das 20h;
- *  · 🧹 Aguardando Limpeza — cards "Em Limpeza", a cada 2h, o dia todo.
  *
  * TIMING (pedido explícito, 07/11/2026: "precisa ter intervalo entre os
  * pushs"): no máximo UM aviso por rodada e por conta, escolhido por
@@ -245,7 +244,6 @@ export async function runOpsPushScan(admin: Admin, now = new Date()) {
   const hourKey = (h: number) => `${t.date}-${String(h).padStart(2, "0")}`;
   const slotHour = hourKey(t.hour);
   const prevHour = t.hour > 0 ? hourKey(t.hour - 1) : null;
-  const slot2h = `${t.date}-b${Math.floor(t.hour / 2)}`;
   const nowMs = now.getTime();
   const gapSince = new Date(nowMs - PUSH_GAP_MINUTES * 60_000).toISOString();
 
@@ -403,24 +401,10 @@ export async function runOpsPushScan(admin: Admin, now = new Date()) {
       });
     }
 
-    // Aguardando Limpeza — cards "Em Limpeza" (checkout já confirmado, faxina
-    // ainda sem "concluir"), a cada 2h, o dia todo: mesma lista do Kanban
-    // (checkoutToday.rows com status "done"; buildArrivalRows já exclui o
-    // que tem concluded_at, ou seja, já saiu de "Em Limpeza").
-    const cleaningPendingRows = checkoutToday.rows.filter((r) => r.status === "done" && !isMuted(r));
-    if (cleaningPendingRows.length > 0) {
-      const byCity = new Map<string, number>();
-      for (const r of cleaningPendingRows) tally(byCity, cityOf(r.propertyId, r.propertyName));
-      candidates.push({
-        kind: "cleaning-pending",
-        dedupeKey: `cleaning-pending:${ownerId}:${slot2h}`,
-        payload: {
-          title: opsTitles.cleaningPending(),
-          body: bodyByCity(byCity, { one: "imóvel", many: "imóveis" }),
-          data: { url: dashboardWindowUrl("limpeza"), tag: "ops-cleaning-pending" },
-        },
-      });
-    }
+    // "Aguardando Limpeza" NÃO repete mais na varredura (pedido explícito, 08/11/2026): o aviso sai uma vez,
+    // no momento em que o imóvel é liberado — no check-out confirmado (push "Check-Out Confirmado", que abre
+    // a Fila de Limpeza) ou, na baixa automática do horário oficial, num aviso em massa por conta
+    // (`notifyAutoCheckoutBatch`).
 
     // Um só por rodada: o primeiro da fila que ainda não saiu nesta janela.
     for (const c of rankScanCandidates(candidates)) {
@@ -440,6 +424,63 @@ export async function runOpsPushScan(admin: Admin, now = new Date()) {
     notifications,
     localTime: `${today} ${fmtTime(t.minutes)}`,
   };
+}
+
+/**
+ * Baixa AUTOMÁTICA do horário oficial (cron): UM aviso em massa "🧹 Aguardando Limpeza" por pessoa, com a
+ * contagem por cidade dos imóveis dela que acabaram de ser liberados — nunca um push por imóvel (pedido
+ * explícito, 08/11/2026). Destinatários: todos os vinculados a esses imóveis; cada um recebe só a contagem
+ * dos imóveis a que tem acesso. Um envio por grupo de pessoas com o mesmo conjunto de imóveis.
+ */
+export async function notifyAutoCheckoutBatch(
+  admin: Admin,
+  opts: { propertyIds: string[]; runKey: string },
+): Promise<{ notifications: number }> {
+  const ids = [...new Set(opts.propertyIds)];
+  if (ids.length === 0) return { notifications: 0 };
+  const { data } = await admin.from("properties").select("id, owner_id, name, city").in("id", ids);
+  const props = (data ?? []) as Array<{ id: string; owner_id: string; name: string | null; city: string | null }>;
+  const byOwner = new Map<string, typeof props>();
+  for (const p of props) byOwner.set(p.owner_id, [...(byOwner.get(p.owner_id) ?? []), p]);
+
+  let notifications = 0;
+  for (const [ownerId, list] of byOwner) {
+    // pessoa → imóveis liberados a que ela tem acesso
+    const perUser = new Map<string, string[]>();
+    for (const p of list) {
+      for (const u of await getPropertyLinkedUsers(admin, ownerId, p.id)) {
+        perUser.set(u, [...(perUser.get(u) ?? []), p.id]);
+      }
+    }
+    // agrupa pessoas com o mesmo conjunto de imóveis (um envio por grupo)
+    const groups = new Map<string, string[]>();
+    for (const [u, pids] of perUser) {
+      const key = [...pids].sort().join(",");
+      groups.set(key, [...(groups.get(key) ?? []), u]);
+    }
+    const propById = new Map(list.map((p) => [p.id, p]));
+    for (const [key, userIds] of groups) {
+      const byCity = new Map<string, number>();
+      for (const pid of key.split(",")) {
+        const p = propById.get(pid);
+        const city = (p?.city || p?.name || "Imóvel sem cidade").trim();
+        byCity.set(city, (byCity.get(city) ?? 0) + 1);
+      }
+      const r = await sendOpsPush(admin, {
+        ownerId,
+        kind: "auto-checkout-batch",
+        dedupeKey: `auto-checkout-batch:${ownerId}:${opts.runKey}:${key}`.slice(0, 400),
+        userIds,
+        payload: {
+          title: opsTitles.cleaningPending(),
+          body: bodyByCity(byCity, { one: "imóvel", many: "imóveis" }),
+          data: { url: dashboardWindowUrl("limpeza"), tag: "ops-auto-checkout" },
+        },
+      });
+      if (r.sent > 0) notifications++;
+    }
+  }
+  return { notifications };
 }
 
 /** Aviso de que um hóspede iniciou uma conversa com a IA. */
