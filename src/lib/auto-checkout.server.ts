@@ -186,6 +186,7 @@ export async function runAutoCheckoutScan(admin: Admin, now: Date = new Date()) 
   const due = dueNow(pending);
   if (due.length === 0) return { checked: pending.length, confirmed: 0, failed: 0 };
 
+  const released: string[] = [];
   for (const r of due) {
     const target = resolveTarget(r);
     if (!target.logId && !target.reservationId) continue;
@@ -193,9 +194,21 @@ export async function runAutoCheckoutScan(admin: Admin, now: Date = new Date()) 
     try {
       await runAdvanceArrival(admin, { ...target, from: "checkout" }, { origin: "system" });
       confirmed++;
+      released.push(r.propertyId);
     } catch (err) {
       failed++;
       console.error("[auto-checkout] falha ao confirmar checkout automático:", target, err);
+    }
+  }
+
+  // Aviso em massa à gestão (08/11/2026): um "🧹 Aguardando Limpeza" por pessoa para todos os imóveis
+  // liberados nesta rodada, nunca um push por imóvel. Falha no aviso nunca desfaz as baixas.
+  if (released.length > 0) {
+    try {
+      const { notifyAutoCheckoutBatch } = await import("@/lib/ops-push.server");
+      await notifyAutoCheckoutBatch(admin, { propertyIds: released, runKey: now.toISOString().slice(0, 16) });
+    } catch (err) {
+      console.error("[auto-checkout] falha no aviso em massa:", err);
     }
   }
 
