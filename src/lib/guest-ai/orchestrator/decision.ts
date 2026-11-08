@@ -12,6 +12,7 @@
  * `parseModelDecision` (B1) continua com o mesmo comportamento para seus consumidores.
  */
 import { CAPABILITY_IDS, isCapabilityId } from "./capabilities";
+import { VISUAL_DIAGNOSIS_SPEC, parseVisualDiagnosis, type VisualDiagnosis } from "../vision/analyzer";
 import {
   CASE_RELATIONS,
   COMMITMENT_KINDS,
@@ -55,7 +56,9 @@ const V3_KEYS = ["commitmentKinds"] as const;
 const V4_KEYS = ["promisedTimes"] as const;
 /** G2 (decisão v5): exige TODAS as chaves v4 + estas. */
 const V5_KEYS = ["guestEtas", "milestoneQuote"] as const;
-const KNOWN_KEYS: readonly string[] = [...TOP_KEYS, ...V2_KEYS, ...V3_KEYS, ...V4_KEYS, ...V5_KEYS];
+/** Visão de incidentes (decisão v6, 07/11/2026): exige TODAS as chaves v5 + esta. */
+const V6_KEYS = ["visualDiagnosis"] as const;
+const KNOWN_KEYS: readonly string[] = [...TOP_KEYS, ...V2_KEYS, ...V3_KEYS, ...V4_KEYS, ...V5_KEYS, ...V6_KEYS];
 const GUEST_ETA_KEYS = ["card", "date", "time", "evidence", "quote"] as const;
 const PROMISED_TIME_KEYS = ["kind", "date", "time", "timezone"] as const;
 const DATE_ISO = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/;
@@ -67,7 +70,7 @@ const HANDOFF_KEYS = ["needed", "question", "urgency"] as const;
 const NEED_KEYS = ["capability", "reason"] as const;
 
 /** Versão do parser (registrada na auditoria da cadeia). */
-export const DECISION_PARSER_VERSION = "decision-parser.2026-11-06.5";
+export const DECISION_PARSER_VERSION = "decision-parser.2026-11-07.6";
 /** Teto do texto bruto aceito em `parseDecisionText` (a saída do turno tem teto de 1.024 tokens). */
 export const DECISION_TEXT_MAX_CHARS = 32_000;
 
@@ -115,7 +118,14 @@ export const DECISION_PARSE_ERRORS = [
 export type DecisionParseErrorCode = (typeof DECISION_PARSE_ERRORS)[number];
 
 /** Campos do contrato (nome fixo, nunca vindo da saída). */
-export type DecisionField = (typeof TOP_KEYS)[number] | (typeof V2_KEYS)[number] | (typeof V3_KEYS)[number] | (typeof V4_KEYS)[number] | (typeof V5_KEYS)[number] | null;
+export type DecisionField =
+  | (typeof TOP_KEYS)[number]
+  | (typeof V2_KEYS)[number]
+  | (typeof V3_KEYS)[number]
+  | (typeof V4_KEYS)[number]
+  | (typeof V5_KEYS)[number]
+  | (typeof V6_KEYS)[number]
+  | null;
 
 export interface DecisionParseError {
   code: DecisionParseErrorCode;
@@ -256,18 +266,20 @@ export function parseDecision(raw: unknown, options: DecisionParseOptions = {}):
   const v3Present = V3_KEYS.filter((k) => has(raw, k)).length;
   const v4Present = V4_KEYS.filter((k) => has(raw, k)).length;
   const v5Present = V5_KEYS.filter((k) => has(raw, k)).length;
+  const v6Present = V6_KEYS.filter((k) => has(raw, k)).length;
   if (
     (v2Present > 0 && v2Present < V2_KEYS.length) ||
     (v3Present > 0 && v2Present !== V2_KEYS.length) ||
     (v4Present > 0 && (v4Present !== V4_KEYS.length || v3Present !== V3_KEYS.length || v2Present !== V2_KEYS.length)) ||
-    (v5Present > 0 && (v5Present !== V5_KEYS.length || v4Present !== V4_KEYS.length || v3Present !== V3_KEYS.length || v2Present !== V2_KEYS.length))
+    (v5Present > 0 && (v5Present !== V5_KEYS.length || v4Present !== V4_KEYS.length || v3Present !== V3_KEYS.length || v2Present !== V2_KEYS.length)) ||
+    (v6Present > 0 && v5Present !== V5_KEYS.length)
   ) {
     return fail(
       "mixed_version",
-      V2_KEYS.find((k) => !has(raw, k)) ?? V3_KEYS.find((k) => !has(raw, k)) ?? V4_KEYS.find((k) => !has(raw, k)) ?? V5_KEYS.find((k) => !has(raw, k)) ?? null,
+      V2_KEYS.find((k) => !has(raw, k)) ?? V3_KEYS.find((k) => !has(raw, k)) ?? V4_KEYS.find((k) => !has(raw, k)) ?? V5_KEYS.find((k) => !has(raw, k)) ?? V6_KEYS.find((k) => !has(raw, k)) ?? null,
     );
   }
-  const version: DecisionContractVersion = v5Present ? 5 : v4Present ? 4 : v3Present ? 3 : v2Present ? 2 : 1;
+  const version: DecisionContractVersion = v6Present ? 6 : v5Present ? 5 : v4Present ? 4 : v3Present ? 3 : v2Present ? 2 : 1;
   if (options.expectVersion !== undefined && options.expectVersion !== version) return fail("version_mismatch");
 
   // Coerência (ex.: `silence` numa v1, que sempre significa responder) é do Validator, não do parser.
@@ -315,7 +327,7 @@ export function parseDecision(raw: unknown, options: DecisionParseOptions = {}):
   }
   let guestEtas: GuestEta[] | undefined;
   let milestoneQuote: string | null | undefined;
-  if (version === 5) {
+  if (version >= 5) {
     guestEtas = parseGuestEtas(raw["guestEtas"]) ?? undefined;
     if (!guestEtas) return fail("invalid_guest_etas", "guestEtas");
     const mq = raw["milestoneQuote"];
@@ -323,6 +335,9 @@ export function parseDecision(raw: unknown, options: DecisionParseOptions = {}):
       return fail("invalid_milestone_quote", "milestoneQuote");
     milestoneQuote = typeof mq === "string" ? mq.trim() : null;
   }
+  // Visão é enriquecimento: diagnóstico malformado vira `null` (a resposta em texto segue normalmente).
+  let visualDiagnosis: VisualDiagnosis | null = null;
+  if (version === 6) visualDiagnosis = parseVisualDiagnosis(raw["visualDiagnosis"]) ?? null;
 
   const decision: ModelDecision = {
     strategy: raw["strategy"],
@@ -342,6 +357,7 @@ export function parseDecision(raw: unknown, options: DecisionParseOptions = {}):
     ...(commitmentKinds ? { commitmentKinds } : {}),
     ...(promisedTimes ? { promisedTimes } : {}),
     ...(guestEtas ? { guestEtas, milestoneQuote: milestoneQuote ?? null } : {}),
+    ...(version === 6 ? { visualDiagnosis } : {}),
   };
   return { ok: true, decision, version };
 }
@@ -415,5 +431,6 @@ export const DECISION_FORMAT_SPEC = `Responda APENAS com um objeto JSON com exat
  "commitmentKinds": [${q(COMMITMENT_KINDS)}] (os tipos dos compromissos listados em commitments, sem repetir; vazio se e somente se commitments estiver vazio),
  "promisedTimes": [{"kind": ${q(TEMPORAL_COMMITMENT_KINDS)}, "date": "AAAA-MM-DD", "time": "HH:MM", "timezone": fuso IANA do imóvel}] (todo horário que a resposta prometer para um compromisso temporal; vazio se nenhum),
  "guestEtas": [{"card": ${q(GUEST_ETA_CARDS)}, "date": "AAAA-MM-DD", "time": "HH:MM", "evidence": [ids das mensagens do hóspede com a previsão], "quote": trecho literal da mensagem do hóspede com a previsão, até ${DECISION_LIMITS.quoteMaxChars} caracteres}] (previsão de horário de chegada ou de saída que o PRÓPRIO hóspede informou; no máximo uma por card; vazio se nenhuma),
- "milestoneQuote": string|null (com hospitalityMilestone, o trecho literal da mensagem do hóspede que confirma a entrada ou a saída, até ${DECISION_LIMITS.quoteMaxChars} caracteres; null sem marco)}
+ "milestoneQuote": string|null (com hospitalityMilestone, o trecho literal da mensagem do hóspede que confirma a entrada ou a saída, até ${DECISION_LIMITS.quoteMaxChars} caracteres; null sem marco),
+ ${VISUAL_DIAGNOSIS_SPEC}}
 Listas com no máximo ${DECISION_LIMITS.listMaxItems} itens.`;

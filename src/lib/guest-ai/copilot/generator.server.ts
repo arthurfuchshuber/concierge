@@ -31,6 +31,18 @@ import type { GuestToolContext, MapsHttp } from "@/lib/guest-ai/tools/contracts"
 import { executeToolCalls, type ToolCallOutcome } from "@/lib/guest-ai/tools/executor";
 import { toolSpecsFor } from "@/lib/guest-ai/tools/registry";
 import { productionMapsHttp } from "@/lib/guest-ai/tools/google-maps.server";
+import { VISION_LOAD_TIMEOUT_MS } from "@/lib/guest-ai/vision/analyzer";
+
+/** Corrida contra o prazo (rejeita em `ms`); o timer é sempre limpo. */
+function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  return Promise.race([
+    p,
+    new Promise<never>((_, reject) => {
+      timer = setTimeout(() => reject(new Error("vision_timeout")), ms);
+    }),
+  ]).finally(() => clearTimeout(timer));
+}
 
 export type CopilotGeneratorStopCode =
   | "generator_reused"
@@ -289,7 +301,8 @@ export function createCopilotGenerator(deps: CopilotGeneratorDeps): CopilotGener
       let vision: CopilotVisionInput = NO_VISION;
       if (deps.loadVision) {
         try {
-          vision = await deps.loadVision();
+          // leitura das fotos com prazo próprio (8 s): estourou ⇒ segue só com texto e o aviso
+          vision = await withTimeout(deps.loadVision(), VISION_LOAD_TIMEOUT_MS);
         } catch {
           if (signal.aborted || deps.remainingMs() <= 0) block("deadline_expired");
           vision = { images: [], failed: [{ ref: null, at: null }] };

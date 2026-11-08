@@ -11,7 +11,7 @@ import {
 } from "@/lib/guest-ai/ops/late-checkout";
 import { evaluateOpsSignals, type OpsPolicyInput } from "@/lib/guest-ai/ops/policy";
 import { normalizeText } from "@/lib/guest-ai/ops/lexical";
-import { v5 } from "./helpers/b23-chain";
+import { v6 } from "./helpers/b23-chain";
 
 const NOW = new Date("2026-11-12T22:00:00Z"); // 19:00 em São Paulo, véspera da saída (13/11)
 const AT = "2026-11-12T21:00:00Z";
@@ -127,7 +127,7 @@ function input(
   staffText = "Combinado, pode sair às 13h!",
 ): OpsPolicyInput {
   return {
-    decision: { ...(v5() as unknown as ModelDecision) } as ModelDecision,
+    decision: { ...(v6() as unknown as ModelDecision) } as ModelDecision,
     history: [
       {
         ref: "hist:guest:h1",
@@ -285,7 +285,7 @@ describe("política · late_checkout", () => {
   });
 
   it("convive com os sinais do hóspede (avaliações independentes)", () => {
-    const d = { ...(v5() as unknown as ModelDecision), guestEtas: [] } as ModelDecision;
+    const d = { ...(v6() as unknown as ModelDecision), guestEtas: [] } as ModelDecision;
     expect(evaluateOpsSignals(input({ decision: d })).map((e) => e.action)).toEqual([
       "late_checkout",
     ]);

@@ -41,6 +41,7 @@ import { fetchPropertyOrigin, type PropertyOrigin } from "@/lib/guest-ai/data/pr
 import type { GuestToolContext, MapsHttp } from "@/lib/guest-ai/tools/contracts";
 import { hasNewerGuestMessage } from "@/lib/guest-ai/data/newer-guest-message.server";
 import { formatForChannel } from "./channel-format";
+import { diagnosisNeedsTeam, diagnosisUrgency, reconcileVisualDiagnosis, stripRoboticAck } from "@/lib/guest-ai/vision/analyzer";
 import type { HistoryResult } from "@/lib/guest-ai/history";
 import { fetchPropertyDossier } from "@/lib/guest-ai/data/property-dossier.server";
 import { primaryDossierTarget } from "@/lib/guest-ai/data/property-access.server";
@@ -227,7 +228,13 @@ export const GUIDE_TEMPLATE_SYNTAX = /\[\[\s*(info|tag)\s*:/i;
 /** Projeção do desfecho da cadeia para a linha do banco (só o texto final da sugestão é texto livre). */
 export function projectOutcome(
   outcome: ChainOutcome,
-  extra: { surface: string; humanInCommand: boolean | null; reservationLinked: boolean | null },
+  extra: {
+    surface: string;
+    humanInCommand: boolean | null;
+    reservationLinked: boolean | null;
+    /** Fotos do hóspede que foram ao modelo neste turno (diagnóstico visual só vale com foto). */
+    imagesSent?: number;
+  },
 ): Pick<
   CopilotResultInput,
   | "state"
@@ -253,7 +260,13 @@ export function projectOutcome(
   if (a.checks.sourceConflicts > 0) warnings.push("source_conflicts");
   if (a.decision?.credentialIntent === "would_deliver") warnings.push("credential_request_denied");
   if ((a.decision?.unauthorizedKinds.length ?? 0) > 0) warnings.push("unauthorized_commitment");
-  if (situation?.humanAction.needed || a.decision?.handoff.needed)
+  // visão (v6): incidente na foto que exige a equipe ⇒ sempre encaminhado, com urgência pela gravidade
+  const visual = reconcileVisualDiagnosis(
+    "decision" in outcome ? outcome.decision.visualDiagnosis : null,
+    extra.imagesSent ?? 0,
+  );
+  const visualHandoff = diagnosisNeedsTeam(visual);
+  if (situation?.humanAction.needed || a.decision?.handoff.needed || visualHandoff)
     warnings.push("handoff_recommended");
   if (situation?.emergency || intents.includes("emergency")) warnings.push("emergency");
   if (
@@ -267,7 +280,19 @@ export function projectOutcome(
   if (a.checks.dossierScope === "not_provided" || a.checks.dossierScope === "not_run")
     warnings.push("dossier_unavailable");
   if (intents.includes("formal_change_request")) warnings.push("formal_change_request");
-  const handoff = situation?.humanAction ?? a.decision?.handoff ?? { needed: false, urgency: null };
+  const declared = situation?.humanAction ?? a.decision?.handoff ?? { needed: false, urgency: null };
+  const rank = { low: 0, normal: 1, high: 2 } as const;
+  const visualUrgency = visual && visualHandoff ? diagnosisUrgency(visual) : null;
+  const handoff =
+    visualHandoff && visualUrgency
+      ? {
+          needed: true,
+          urgency:
+            declared.urgency && rank[declared.urgency as keyof typeof rank] >= rank[visualUrgency]
+              ? declared.urgency
+              : visualUrgency,
+        }
+      : declared;
   const base = {
     intents: [...intents],
     strategy: a.decision?.strategy ?? null,
@@ -294,8 +319,9 @@ export function projectOutcome(
       return {
         ...base,
         state: "available",
-        // Pilar 3: forma do canal (letras estilizadas, Markdown, links no Airbnb); conteúdo intacto
-        text: formatForChannel(outcome.text, extra.surface),
+        // Pilar 3: forma do canal (letras estilizadas, Markdown, links no Airbnb); conteúdo intacto.
+        // Visão: sem frase de recibo de anexo no início ("recebi sua foto"), rede de segurança do prompt.
+        text: formatForChannel(stripRoboticAck(outcome.text), extra.surface),
         strategy: outcome.strategy,
         outcomeKind: "reply",
         outcomeCode: null,
@@ -564,6 +590,7 @@ export async function generateCopilotSuggestion(
       surface: turn.surface,
       humanInCommand,
       reservationLinked,
+      imagesSent: g.imagesSent,
     });
     // bloqueio do gerador (orçamento do turno, substituída, prazo) ⇒ código fechado em vez do técnico genérico
     const outcomeCode =
