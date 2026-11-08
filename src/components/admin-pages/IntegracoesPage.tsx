@@ -106,18 +106,18 @@ const FILTERS: Array<{ key: FilterKey; label: string; icon: typeof Plug }> = [
 
 // Cache quente: navegar entre as abas do Administrativo reaproveita o resultado sem piscar nem refetch.
 const QUERY_STALE_MS = 5 * 60 * 1000;
-const QUERY_GC_MS = 10 * 60 * 1000;
+const QUERY_GC_MS = 30 * 60 * 1000;
 
 const STATUS_ORDER: Record<StatusKey, number> = { ativa: 0, inativa: 1, em_breve: 2 };
 
-export function IntegracoesPage() {
+/**
+ * Status das integrações (WhatsApp, ClickSign, Google Agenda, Channex), com cache quente.
+ * O Administrativo chama este hook ao abrir QUALQUER aba, então quando a pessoa toca em
+ * "Integrações" os dados já estão no cache e a aba abre instantânea (pedido 08/11/2026).
+ */
+export function useIntegrationStatusQueries() {
   const { impersonation } = useImpersonation();
   const accountOwnerId = impersonation?.userId ?? null;
-  const [q, setQ] = useState("");
-  const [filter, setFilter] = useState<FilterKey>("todas");
-  const [expanded, setExpanded] = useState<string | null>(null);
-  const [waOpen, setWaOpen] = useState(false);
-
   const waFn = useServerFn(getMyWhatsappConfig);
   const wa = useQuery({
     queryKey: ["whatsapp-config", accountOwnerId],
@@ -126,7 +126,6 @@ export function IntegracoesPage() {
     staleTime: QUERY_STALE_MS,
     gcTime: QUERY_GC_MS,
   });
-  const waActive = !!wa.data?.senderNumber;
 
   const csFn = useServerFn(getMyClicksignConfig);
   const cs = useQuery({
@@ -136,7 +135,6 @@ export function IntegracoesPage() {
     staleTime: QUERY_STALE_MS,
     gcTime: QUERY_GC_MS,
   });
-  const csActive = !!cs.data?.hasToken;
 
   const gcalFn = useServerFn(getMyGoogleCalendarStatus);
   const gcal = useQuery({
@@ -146,7 +144,6 @@ export function IntegracoesPage() {
     staleTime: QUERY_STALE_MS,
     gcTime: QUERY_GC_MS,
   });
-  const gcalActive = !!gcal.data?.connected;
 
   const channexFn = useServerFn(getChannexStatus);
   const channex = useQuery({
@@ -156,6 +153,21 @@ export function IntegracoesPage() {
     staleTime: QUERY_STALE_MS,
     gcTime: QUERY_GC_MS,
   });
+  return { wa, cs, gcal, channex };
+}
+
+export function IntegracoesPage() {
+  const { impersonation } = useImpersonation();
+  const accountOwnerId = impersonation?.userId ?? null;
+  const [q, setQ] = useState("");
+  const [filter, setFilter] = useState<FilterKey>("todas");
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const [waOpen, setWaOpen] = useState(false);
+
+  const { wa, cs, gcal, channex } = useIntegrationStatusQueries();
+  const waActive = !!wa.data?.senderNumber;
+  const csActive = !!cs.data?.hasToken;
+  const gcalActive = !!gcal.data?.connected;
   const channexActive = !!channex.data?.configured;
 
   // Primeira carga: até cada consulta responder não sabemos se a integração está ativa.

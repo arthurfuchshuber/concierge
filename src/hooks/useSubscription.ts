@@ -31,6 +31,11 @@ export type SubscriptionInfo = {
   billing: BillingSummary | null;
 };
 
+/* Último usuário conhecido (compartilhado entre montagens). Sem isso, toda montagem começava com
+   `userId = null`, a consulta ficava desligada por um quadro e a tela piscava o "carregando" mesmo
+   com a assinatura já em cache (pisca ao abrir Administrativo › Assinatura, 08/11/2026). */
+let lastKnownUserId: string | null = null;
+
 /**
  * Assinatura efetiva da CONTA ativa: a do titular para membros de equipe e para o admin SaaS que
  * impersona, senão a do próprio usuário. Atualiza sozinha quando a linha da assinatura muda.
@@ -39,7 +44,11 @@ export function useSubscription(opts?: { impersonateUserId?: string | null }) {
   const fetchBilling = useServerFn(getAccountBilling);
   const qc = useQueryClient();
   const channelId = useId().replace(/[^a-zA-Z0-9_-]/g, "");
-  const [userId, setUserId] = useState<string | null>(null);
+  const [userId, setUserIdState] = useState<string | null>(lastKnownUserId);
+  const setUserId = (id: string | null) => {
+    lastKnownUserId = id;
+    setUserIdState(id);
+  };
   const { impersonation } = useImpersonation();
   const activeOwnerId = opts?.impersonateUserId ?? impersonation?.userId ?? null;
 
