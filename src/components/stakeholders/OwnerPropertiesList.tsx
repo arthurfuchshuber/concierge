@@ -505,7 +505,7 @@ export function OwnerPropertiesList({
                   if (interactive && interactive !== e.currentTarget) return;
                   setMenuId(p.id);
                 }}
-                className={`${PANEL_SHELL} flex h-[112px] min-w-0 cursor-pointer overflow-hidden transition-all`}
+                className={`${PANEL_SHELL} flex h-[96px] min-w-0 cursor-pointer overflow-hidden transition-all`}
               >
                 <span className="relative w-24 shrink-0 overflow-hidden bg-foreground/[0.05] text-muted-foreground">
                   <CoverImage urls={[p.hero_image_url, ...(p.gallery_images ?? [])]} />
@@ -521,7 +521,7 @@ export function OwnerPropertiesList({
                     </span>
                   ) : null}
                 </span>
-                <span className="flex min-w-0 flex-1 flex-col justify-between gap-2 py-3 pl-3.5 pr-2.5">
+                <span className="flex min-w-0 flex-1 flex-col justify-between gap-1.5 py-2.5 pl-3.5 pr-2.5">
                   <span className="grid min-w-0 gap-1.5">
                     {/* Título + ícone do dossiê (pedido explícito, 21/10/2026): o título termina
                         ANTES do ícone, que fica alinhado à direita, na mesma coluna do ⋯ da linha

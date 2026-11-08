@@ -53,7 +53,7 @@ import { copyText, hasActiveGuide, mapsLinkOf, type PropertyListItem } from "./p
  * ABA "IMÓVEIS" DA FICHA DO PROPRIETÁRIO (mockups P2, P5, P6 e R1, 13/10/2026).
  *
  * Barra padrão (busca + ordenar + situação), faixa "Conta do Airbnb conectada"
- * com o botão "ReImportar", e o card de 112px dos Guias Digitais com a chavinha
+ * com o botão "ReImportar", e o card de 96px dos Guias Digitais com a chavinha
  * de ativar/desativar anúncio. Tudo que vem do Airbnb é somente leitura aqui.
  *
  * A chavinha e o ReImportar já têm a tela e as confirmações definitivas, mas a
@@ -340,9 +340,9 @@ export function OwnerPropertiesPanel({
                   if (interactive && interactive !== e.currentTarget) return;
                   onOpen(p.id);
                 }}
-                className={`${PANEL_SHELL} flex h-[112px] min-w-0 cursor-pointer overflow-hidden transition-all`}
+                className={`${PANEL_SHELL} flex h-[96px] min-w-0 cursor-pointer overflow-hidden transition-all`}
               >
-                <span className="relative w-[92px] shrink-0 overflow-hidden bg-foreground/[0.05] text-muted-foreground">
+                <span className="relative w-24 shrink-0 overflow-hidden bg-foreground/[0.05] text-muted-foreground">
                   <CoverImage urls={[p.hero_image_url, ...(p.gallery_images ?? [])]} />
                   <span
                     className={`absolute left-2 top-2 inline-flex h-[22px] items-center gap-1.5 rounded-full bg-background/70 px-[9px] text-[10.5px] font-extrabold shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_14%,transparent)] backdrop-blur-sm ${p.active ? "ds-ok" : "ds-atencao"}`}
@@ -357,11 +357,11 @@ export function OwnerPropertiesPanel({
                     </span>
                   ) : null}
                 </span>
-                <span className="flex min-w-0 flex-1 flex-col justify-between py-[11px] pl-3.5 pr-3">
+                <span className="flex min-w-0 flex-1 flex-col justify-between py-2.5 pl-3.5 pr-2.5">
                   <span className="block min-w-0">
                     <span className="flex min-w-0 items-center gap-1.5">
                       <span
-                        className="min-w-0 flex-1 truncate text-[14px] font-extrabold leading-[1.2]"
+                        className="min-w-0 flex-1 truncate text-[14.5px] font-extrabold leading-tight"
                         title={p.name}
                       >
                         {p.name}
