@@ -13,7 +13,14 @@
  *    defeituoso.
  */
 import { classifyHttpStatus, failure } from "../errors";
-import { llmMessageText, type LlmFinishReason, type LlmMessage, type LlmMessageContent } from "../contracts";
+import {
+  LIMITS,
+  llmMessageText,
+  type LlmFinishReason,
+  type LlmMessage,
+  type LlmMessageContent,
+  type LlmToolCall,
+} from "../contracts";
 import type { FetchLike, LlmProvider, ProviderOutcome, ProviderRequest, RawUsage } from "./types";
 
 export const LOVABLE_GATEWAY_BASE_URL = "https://ai.gateway.lovable.dev/v1";
@@ -66,10 +73,40 @@ function chatContent(content: LlmMessageContent): string | Json[] {
   );
 }
 
+/** Mensagem no formato de `/chat/completions`, incluindo chamadas e resultados de ferramenta. */
+function chatMessage(m: LlmMessage): Json {
+  if (m.role === "tool") return { role: "tool", tool_call_id: m.toolCallId, content: llmMessageText(m.content) };
+  if (m.role === "assistant" && m.toolCalls && m.toolCalls.length > 0) {
+    const text = llmMessageText(m.content);
+    return {
+      role: "assistant",
+      content: text ? text : null,
+      tool_calls: m.toolCalls.map((c) => ({ id: c.id, type: "function", function: { name: c.name, arguments: c.arguments } })),
+    };
+  }
+  return { role: m.role, content: chatContent(m.content) };
+}
+
+/** Lê as chamadas de ferramenta do modelo (descarta itens malformados; nunca lança). */
+function readToolCalls(list: unknown, pick: (it: Json) => { id: unknown; name: unknown; args: unknown }): LlmToolCall[] {
+  if (!Array.isArray(list)) return [];
+  const out: LlmToolCall[] = [];
+  for (const raw of list) {
+    const it = obj(raw);
+    if (!it) continue;
+    const { id, name, args } = pick(it);
+    if (typeof id !== "string" || !id || typeof name !== "string" || !name) continue;
+    const a = typeof args === "string" ? args : args && typeof args === "object" ? JSON.stringify(args) : "{}";
+    out.push({ id: id.slice(0, 128), name: name.slice(0, 64), arguments: a });
+    if (out.length >= LIMITS.maxToolCalls) break;
+  }
+  return out;
+}
+
 export function buildChatBody(req: ProviderRequest): Json {
   const body: Json = {
     model: req.spec.id,
-    messages: req.messages.map((m) => ({ role: m.role, content: chatContent(m.content) })),
+    messages: req.messages.map(chatMessage),
     max_tokens: req.maxOutputTokens,
     stream: false,
   };
@@ -77,11 +114,16 @@ export function buildChatBody(req: ProviderRequest): Json {
   if (req.reasoningEffort !== "none" && req.reasoningEffort !== "auto") body["reasoning_effort"] = req.reasoningEffort;
   if (req.temperature !== null && req.spec.supportsTemperature) body["temperature"] = req.temperature;
   if (req.responseFormat === "json") body["response_format"] = { type: "json_object" };
+  if (req.tools && req.tools.length > 0) {
+    body["tools"] = req.tools.map((t) => ({ type: "function", function: { name: t.name, description: t.description, parameters: t.parameters } }));
+    body["tool_choice"] = req.toolChoice ?? "auto";
+  }
   return body;
 }
 
 function chatFinish(v: unknown): LlmFinishReason {
   if (v === "stop" || v === "end_turn") return "stop";
+  if (v === "tool_calls" || v === "function_call") return "tool_calls";
   if (v === "length" || v === "max_tokens") return "length";
   if (v === "content_filter" || v === "safety") return "content_filter";
   return "other";
@@ -103,6 +145,10 @@ export function parseChatPayload(payload: unknown): Omit<Extract<ProviderOutcome
   if (!root || !choice || !message) return null;
   const text = chatText(message["content"]);
   if (text === null) return null;
+  const toolCalls = readToolCalls(message["tool_calls"], (it) => {
+    const fn = obj(it["function"]);
+    return { id: it["id"], name: fn?.["name"], args: fn?.["arguments"] };
+  });
   const u = obj(root["usage"]);
   const details = obj(u?.["completion_tokens_details"]);
   const usage: RawUsage | null = u
@@ -113,6 +159,7 @@ export function parseChatPayload(payload: unknown): Omit<Extract<ProviderOutcome
         totalTokens: num(u["total_tokens"]),
       }
     : null;
+  if (toolCalls.length > 0) return { kind: "ok", text, finishReason: "tool_calls", toolCalls, usage };
   return { kind: "ok", text, finishReason: chatFinish(choice["finish_reason"]), usage };
 }
 
@@ -127,16 +174,25 @@ function responsesContent(m: LlmMessage): Json[] {
   );
 }
 
+/** Itens de entrada de `/responses`: mensagens, chamadas de função e seus resultados. */
+function responsesItems(m: LlmMessage): Json[] {
+  if (m.role === "tool") return [{ type: "function_call_output", call_id: m.toolCallId, output: llmMessageText(m.content) }];
+  if (m.role === "assistant" && m.toolCalls && m.toolCalls.length > 0) {
+    const text = llmMessageText(m.content);
+    return [
+      ...(text ? [{ type: "message", role: "assistant", content: responsesContent(m) }] : []),
+      ...m.toolCalls.map((c) => ({ type: "function_call", call_id: c.id, name: c.name, arguments: c.arguments })),
+    ];
+  }
+  return [{ type: "message", role: m.role, content: responsesContent(m) }];
+}
+
 export function buildResponsesBody(req: ProviderRequest): Json {
   const system = req.messages.filter((m) => m.role === "system").map((m) => llmMessageText(m.content)).join("\n\n");
   const rest: LlmMessage[] = req.messages.filter((m) => m.role !== "system");
   const body: Json = {
     model: req.spec.id,
-    input: rest.map((m) => ({
-      type: "message",
-      role: m.role,
-      content: responsesContent(m),
-    })),
+    input: rest.flatMap(responsesItems),
     max_output_tokens: req.maxOutputTokens,
     stream: true,
     store: false,
@@ -145,7 +201,20 @@ export function buildResponsesBody(req: ProviderRequest): Json {
   if (req.reasoningEffort !== "none" && req.reasoningEffort !== "auto") body["reasoning"] = { effort: req.reasoningEffort };
   if (req.temperature !== null && req.spec.supportsTemperature) body["temperature"] = req.temperature;
   if (req.responseFormat === "json") body["text"] = { format: { type: "json_object" } };
+  if (req.tools && req.tools.length > 0) {
+    body["tools"] = req.tools.map((t) => ({ type: "function", name: t.name, description: t.description, parameters: t.parameters }));
+    body["tool_choice"] = req.toolChoice ?? "auto";
+  }
   return body;
+}
+
+/** Chamadas de função do resultado final (`output[]` com `type: "function_call"`). */
+function responsesToolCalls(response: Json): LlmToolCall[] {
+  const output = Array.isArray(response["output"]) ? (response["output"] as unknown[]) : [];
+  return readToolCalls(
+    output.filter((x) => obj(x)?.["type"] === "function_call"),
+    (it) => ({ id: it["call_id"], name: it["name"], args: it["arguments"] }),
+  );
 }
 
 function responsesUsage(response: Json | null): RawUsage | null {
@@ -209,6 +278,8 @@ export function parseResponsesStream(raw: string): ProviderOutcome {
     const finishReason: LlmFinishReason = reason === "content_filter" ? "content_filter" : reason === "max_output_tokens" ? "length" : "other";
     return { kind: "ok", text: responsesText(resp, deltas), finishReason, usage, requestId: null };
   }
+  const toolCalls = responsesToolCalls(resp);
+  if (toolCalls.length > 0) return { kind: "ok", text: responsesText(resp, deltas), finishReason: "tool_calls", toolCalls, usage, requestId: null };
   return { kind: "ok", text: responsesText(resp, deltas), finishReason: "stop", usage, requestId: null };
 }
 

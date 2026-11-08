@@ -28,7 +28,14 @@ import { Search, X } from "lucide-react";
  * e sombra próprios faziam a barra "saltar para frente". Ali ela vira um campo
  * rebaixado: sem `ds-3d`, sem sombra e sem contorno, fundo um tom abaixo do card
  * e divisórias CURTAS (18px) entre a busca e cada botão, em vez dos fios de
- * ponta a ponta. Mesma altura, mesmos botões, mesma posição. */
+ * ponta a ponta. Mesma altura, mesmos botões, mesma posição.
+ *
+ * VARIANTE "bleed" (teste visual, 07/11/2026): a barra vira uma FAIXA contínua de
+ * ponta a ponta do card, como a grade do calendário logo abaixo: fundo
+ * transparente (o do próprio card), cantos retos, sem sombra nem contorno
+ * (quem desenha os fios de cima e de baixo é o contêiner) e respiro de 16px
+ * à esquerda da lupa. Os botões encostam na extremidade direita e mantêm as
+ * divisórias curtas do "inset". */
 export function SearchActionRow({
   value,
   onChange,
@@ -46,27 +53,32 @@ export function SearchActionRow({
   className?: string;
   onInputFocus?: () => void;
   inputRef?: React.Ref<HTMLInputElement>;
-  /** "inset": campo rebaixado para quando a barra mora DENTRO de um card. */
-  variant?: "raised" | "inset";
+  /** "inset": campo rebaixado dentro de um card; "bleed": faixa de ponta a ponta do card. */
+  variant?: "raised" | "inset" | "bleed";
 }) {
-  const inset = variant === "inset";
+  const bleed = variant === "bleed";
+  const inset = variant === "inset" || bleed;
   return (
     <div
-      className={`flex min-w-0 items-stretch h-10 overflow-hidden rounded-[9px] lg:h-[var(--ds-action-h-lg)] lg:rounded-[13px] ${
-        inset
+      className={`flex min-w-0 items-stretch h-10 overflow-hidden lg:h-[var(--ds-action-h-lg)] ${
+        bleed ? "rounded-none bg-transparent" : "rounded-[9px] lg:rounded-[13px]"
+      } ${
+        bleed
+          ? ""
+          : inset
           ? "bg-[color-mix(in_oklab,var(--card),var(--background)_55%)]"
           : "ds-3d ds-3d-hover bg-card !shadow-[inset_0_1px_0_color-mix(in_oklab,var(--foreground)_7%,transparent),inset_0_0_0_1px_var(--border),0_8px_14px_-8px_rgb(0_0_0/0.55)]"
       } ${className}`}
     >
       <div className="relative min-w-0 flex-1">
-        <Search className="pointer-events-none absolute left-3 top-1/2 z-10 size-3.5 -translate-y-1/2 text-muted-foreground opacity-60" />
+        <Search className={`pointer-events-none absolute ${bleed ? "left-4" : "left-3"} top-1/2 z-10 size-3.5 -translate-y-1/2 text-muted-foreground opacity-60`} />
         <input
           ref={inputRef}
           onFocus={onInputFocus}
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
-          className="h-full w-full bg-transparent pl-9 pr-9 text-[12.5px] text-foreground placeholder:text-muted-foreground focus:outline-none"
+          className={`h-full w-full bg-transparent ${bleed ? "pl-10" : "pl-9"} pr-9 text-[12.5px] text-foreground placeholder:text-muted-foreground focus:outline-none`}
         />
         {value && (
           <button

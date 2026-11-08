@@ -53,28 +53,15 @@ export async function notifySaasAdminsTrialStarted(opts: {
 
     const email = userRes?.user?.email ?? null;
     const name = ((profile?.trade_name as string | null)?.trim() || (profile?.full_name as string | null)?.trim()) || email || "Novo cliente";
-    const planLabel = opts.productId.replace(/_plan$/, "").replace(/^\w/, (c) => c.toUpperCase());
-
-    let trialLabel = "";
-    if (opts.trialEndsAt) {
-      try {
-        const d = new Date(opts.trialEndsAt);
-        trialLabel = ` • trial até ${String(d.getUTCDate()).padStart(2, "0")}/${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
-      } catch {}
-    }
-
     const envLabel = opts.environment === "live" ? "" : ` [${opts.environment}]`;
-    const bodyParts = [
-      `Plano ${planLabel}${trialLabel}`,
-      email ?? undefined,
-      profile?.phone ? String(profile.phone) : undefined,
-    ].filter(Boolean);
+    // Mockup aprovado (07/11/2026): "🎉 Novo Trial: Cliente" + telefone.
+    const phone = profile?.phone ? String(profile.phone).trim() : "";
 
     await notifySaasAdmins({
-      title: `🎉 Novo trial: ${name}${envLabel}`,
-      body: bodyParts.join(" • ").slice(0, 220),
+      title: `🎉 Novo Trial: ${name}${envLabel}`,
+      body: phone || "Sem telefone cadastrado",
       data: {
-        url: `/admin/clientes`,
+        url: `/admin`,
         tag: `trial-${opts.userId}`,
       },
     });

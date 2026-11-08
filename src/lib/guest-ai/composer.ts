@@ -35,7 +35,7 @@
 import type { ComposedPrompt, ConversationContext } from "@/lib/guest-ai/orchestrator/contracts";
 import type { HistoryEntry, HistoryResult, HistoryUnavailableReason } from "./history";
 import { PERSONA_VERSION } from "./persona";
-import { CITY_EVENTS_TAG, CONTEXT_TAG, DOSSIER_TAG, GUEST_PROFILE_TAG, HISTORY_TAG, PLACES_TAG, SYSTEM_PROMPT_VERSION, buildSystemPrompt } from "./system-prompt";
+import { CITY_EVENTS_TAG, CONTEXT_TAG, DOSSIER_TAG, GUEST_PROFILE_TAG, HISTORY_TAG, SYSTEM_PROMPT_VERSION, buildSystemPrompt } from "./system-prompt";
 import type { GuestProfileContext } from "./context/guest-profile";
 import { defaultBudgetConfig, evaluateBudget, type BudgetConfig, type BudgetMetrics, type BudgetOverReason } from "./budget";
 import { assertAvailabilityFor, type PropertyDossier } from "./dossier/contracts";
@@ -444,11 +444,7 @@ function dossierItem(d: PropertyDossier, ref: string, guarded: Guarded, ids: Set
 }
 
 /**
- * Recomendações do Guia Digital (Google Maps) — FORA do Dossiê (Pilar 1, 06/11/2026). Distância só de trajeto
- * confirmado; tempos só como estimativa para quando o hóspede insistir. No Airbnb, sem link (o canal bloqueia).
- */
-/**
- * Seções OPCIONAIS (recomendações, eventos): um item cujo texto o guard não consegue sanear com segurança é
+ * Seções OPCIONAIS (eventos): um item cujo texto o guard não consegue sanear com segurança é
  * OMITIDO, nunca derruba a composição (07/11/2026: o Copiloto não pode emudecer por causa de um card de
  * restaurante ou de uma notícia). Nada do texto recusado entra; a falha técnica do próprio guard continua
  * recusando (é sinal de guard quebrado, não de conteúdo).
@@ -466,38 +462,6 @@ function optionalItems<T>(list: readonly T[], build: (x: T) => Record<string, un
   return out;
 }
 
-function placesItem(d: PropertyDossier, ref: string, guarded: Guarded, ids: Set<string>, withLinks: boolean): Record<string, unknown> {
-  const source = `places.${ref}`;
-  return {
-    ref,
-    itens: optionalItems(d.places, (pl) => {
-      const id = `gm:${ref}:${pl.id}`;
-      const out: Record<string, unknown> = {
-        id,
-        nome: guarded(pl.name, source),
-        escopo: pl.scope === "nearby" ? "aqui_pertinho" : "pela_cidade",
-        categoria: pl.category === null ? null : guarded(pl.category, source),
-        tipo: pl.type,
-        nota_google: pl.rating,
-        total_avaliacoes_google: pl.ratingsTotal,
-        horarios_vigentes: pl.openingHours ? pl.openingHours.map((h) => guarded(h, source)) : null,
-        observacao: pl.note === null ? null : guarded(pl.note, source),
-      };
-      if (withLinks) out["link_google_maps"] = pl.mapsUrl;
-      if (pl.route) {
-        out["distancia_trajeto_m"] = pl.route.meters;
-        out["tempo_estimado_somente_se_o_hospede_insistir"] = {
-          a_pe_min: pl.route.walkMinutes,
-          de_carro_min: pl.route.driveMinutes,
-        };
-      } else {
-        out["distancia_trajeto_m"] = null;
-      }
-      ids.add(id);
-      return out;
-    }),
-  };
-}
 
 /** Eventos da Home do guia ("O que rola na cidade"); indisponível é declarado, nunca omitido. */
 function eventsData(ev: CityEventsLoad, guarded: Guarded, ids: Set<string>): Record<string, unknown> {
@@ -594,7 +558,6 @@ export function composeTurnPrompt(input: ComposeInput, options: ComposeOptions =
   let dossierJson: string | null = null;
   let profileJson: string | null = null;
   const profileIds: string[] = [];
-  let placesJson: string | null = null;
   let eventsJson: string | null = null;
   const guideIds = new Set<string>();
   try {
@@ -644,9 +607,8 @@ export function composeTurnPrompt(input: ComposeInput, options: ComposeOptions =
         return dossierItem(d, ref, guarded, dossierIds);
       });
       dossierJson = encodeDataBlock(items);
-      const withLinks = it.surface !== "airbnb";
-      const places = all.map((d, i) => placesItem(d, i === 0 ? "principal" : `alt${i}`, guarded, guideIds, withLinks));
-      if (places.some((p) => (p["itens"] as unknown[]).length > 0)) placesJson = encodeDataBlock(places);
+      // O Explorar do anfitrião NÃO entra no prompt (07/11/2026): é navegação do hóspede, não base nem teto
+      // da IA. Lugares e distâncias reais vêm das ferramentas de consulta (Google Places / rotas).
     }
     if (input.cityEvents) eventsJson = encodeDataBlock(eventsData(input.cityEvents, guarded, guideIds));
   } catch (e) {
@@ -658,7 +620,6 @@ export function composeTurnPrompt(input: ComposeInput, options: ComposeOptions =
   const contextBlock = `<${CONTEXT_TAG}>\n${contextJson}\n</${CONTEXT_TAG}>`;
   const dossierBlock = dossierJson === null ? null : `<${DOSSIER_TAG} total="${dossierRefs.length}">\n${dossierJson}\n</${DOSSIER_TAG}>`;
   const profileBlock = profileJson === null ? null : `<${GUEST_PROFILE_TAG}>\n${profileJson}\n</${GUEST_PROFILE_TAG}>`;
-  const placesBlock = placesJson === null ? null : `<${PLACES_TAG}>\n${placesJson}\n</${PLACES_TAG}>`;
   const eventsBlock = eventsJson === null ? null : `<${CITY_EVENTS_TAG}>\n${eventsJson}\n</${CITY_EVENTS_TAG}>`;
   const historyBlock = `<${HISTORY_TAG} mensagem_atual="${last.ref}" total="${history.entries.length}">\n${historyJson}\n</${HISTORY_TAG}>`;
   const lotIds = new Set(input.batch ? input.batch.messages.map((m) => m.id) : (() => {
@@ -676,7 +637,6 @@ export function composeTurnPrompt(input: ComposeInput, options: ComposeOptions =
     contextBlock,
     ...(profileBlock ? [profileBlock] : []),
     ...(dossierBlock ? [dossierBlock] : []),
-    ...(placesBlock ? [placesBlock] : []),
     ...(eventsBlock ? [eventsBlock] : []),
     historyBlock,
     closing,
@@ -691,7 +651,6 @@ export function composeTurnPrompt(input: ComposeInput, options: ComposeOptions =
       { name: "context", chars: contextBlock.length },
       ...(profileBlock ? [{ name: "guest_profile", chars: profileBlock.length }] : []),
       ...(dossierBlock ? [{ name: "dossiers", chars: dossierBlock.length }] : []),
-      ...(placesBlock ? [{ name: "guide_places", chars: placesBlock.length }] : []),
       ...(eventsBlock ? [{ name: "city_events", chars: eventsBlock.length }] : []),
       { name: "history", chars: historyBlock.length },
       { name: "closing", chars: closing.length },

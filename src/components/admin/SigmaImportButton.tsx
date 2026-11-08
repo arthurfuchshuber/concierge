@@ -109,7 +109,7 @@ export function SigmaImportButton({ propertyId }: { propertyId: string }) {
         >
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Desativar Recomendação SigmaConcierge?</AlertDialogTitle>
+              <AlertDialogTitle>Desativar recomendação SigmaConcierge?</AlertDialogTitle>
               <AlertDialogDescription>
                 Você voltará a editar livremente os pontos da cidade e os links de reservas. Suas configurações
                 anteriores serão restauradas.
@@ -264,7 +264,7 @@ export function SaveAsSigmaPackButton({ propertyId }: { propertyId: string }) {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Salvar Como Recomendação SigmaConcierge?</AlertDialogTitle>
+            <AlertDialogTitle>Salvar como recomendação SigmaConcierge?</AlertDialogTitle>
             <AlertDialogDescription>
               Os pontos da cidade, links de marketplace e FAQs deste guia serão copiados como a recomendação oficial
               SigmaConcierge para a cidade. Se já existir uma recomendação para esta cidade, ela será{" "}

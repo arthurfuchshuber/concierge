@@ -2,6 +2,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { sendPushToSubscriptions, type PushPayload } from "@/lib/push.server";
+import { conversationBody, conversationTitle, truncateText } from "@/lib/push-format";
 
 type Admin = SupabaseClient<Database>;
 
@@ -15,6 +16,48 @@ export function formatStayRange(checkin: string, checkout: string | null): strin
   const [, m2, d2] = p(checkout);
   if (m1 === m2) return `${d1}–${d2} de ${MONTHS[m1 - 1]}`;
   return `${d1} de ${MONTHS[m1 - 1]} – ${d2} de ${MONTHS[m2 - 1]}`;
+}
+
+/**
+ * Período da estadia do hóspede (padrão Airbnb: "4–8 de nov."): reserva
+ * confirmada do imóvel cujo hóspede bate pelo primeiro nome (ou pela data de
+ * check-in, quando conhecida). Sem reserva → "" (o título fica só o nome).
+ */
+export async function resolveStayRange(
+  admin: Admin,
+  opts: { propertyId: string | null | undefined; guestName: string | null | undefined; checkinDate?: string | null },
+): Promise<string> {
+  if (!opts.propertyId) return "";
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    const { data: rows } = await admin
+      .from("property_reservations")
+      .select("checkin_date, checkout_date, guest_hint")
+      .eq("property_id", opts.propertyId)
+      .eq("status", "confirmed")
+      .gte("checkout_date", opts.checkinDate && opts.checkinDate < today ? opts.checkinDate : today)
+      .order("checkin_date", { ascending: true })
+      .limit(10);
+    const list = (rows ?? []) as Array<{ checkin_date: string; checkout_date: string; guest_hint: string | null }>;
+    if (list.length === 0) return "";
+    const norm = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+    const first = norm(opts.guestName ?? "").split(/\s+/)[0] ?? "";
+    const byDate = opts.checkinDate ? list.find((r) => r.checkin_date === opts.checkinDate) : undefined;
+    const byName = first ? list.find((r) => r.guest_hint && norm(r.guest_hint).startsWith(first)) : undefined;
+    const res = byDate ?? byName;
+    return res ? formatStayRange(res.checkin_date, res.checkout_date) : "";
+  } catch {
+    return "";
+  }
+}
+
+async function conversationProperty(admin: Admin, conversationId: string): Promise<string | null> {
+  const { data: conv } = await admin
+    .from("property_chat_conversations")
+    .select("property_id")
+    .eq("id", conversationId)
+    .maybeSingle();
+  return (conv as { property_id?: string } | null)?.property_id ?? null;
 }
 
 /**
@@ -46,7 +89,18 @@ export async function getPropertyNotifiableUsers(admin: Admin, propertyId: strin
 
 export async function sendHandoffPush(
   admin: Admin,
-  opts: { userIds: string[]; conversationId: string; propertyName: string | null; guestName: string | null; guestMessage: string | null; checkinDate: string | null; reason: string | null; urgency: string | null },
+  opts: {
+    userIds: string[];
+    conversationId: string;
+    propertyName: string | null;
+    guestName: string | null;
+    guestMessage: string | null;
+    checkinDate: string | null;
+    reason: string | null;
+    urgency: string | null;
+    /** Texto fixo no lugar da mensagem (ex.: falha de envio). */
+    bodyText?: string | null;
+  },
 ) {
   if (opts.userIds.length === 0) return { sent: 0, failed: 0 };
   const { data: subs } = await admin
@@ -56,23 +110,19 @@ export async function sendHandoffPush(
     .eq("enabled", true);
   if (!subs || subs.length === 0) return { sent: 0, failed: 0 };
 
+  // Padrão Airbnb (mockup 07/11/2026): "Nome • 4–8 de nov." / imóvel / mensagem.
   const guest = opts.guestName?.trim() || "Hóspede";
-  let checkinLabel = "";
-  if (opts.checkinDate) {
-    try {
-      const [y, m, d] = opts.checkinDate.split("-").map(Number);
-      if (y && m && d) checkinLabel = ` • check-in ${String(d).padStart(2, "0")}/${String(m).padStart(2, "0")}`;
-    } catch {
-      // ignore
-    }
-  }
-  // Corpo do push: a mensagem do hóspede (o que a equipe precisa ler); cai
-  // para o motivo do encaminhamento quando não há mensagem.
-  const rawBody = opts.guestMessage?.trim() || opts.reason?.trim() || `${guest} precisa de suporte.`;
-  const bodyText = rawBody.replace(/\s+/g, " ").slice(0, 220);
+  const propertyId = await conversationProperty(admin, opts.conversationId);
+  const range = await resolveStayRange(admin, { propertyId, guestName: opts.guestName, checkinDate: opts.checkinDate });
+  // Corpo: a mensagem do hóspede (o que a equipe precisa ler); cai para o
+  // motivo do encaminhamento quando não há mensagem. Falha de envio usa o
+  // texto aprovado (`bodyText`).
+  const message =
+    opts.bodyText?.trim() ||
+    truncateText(opts.guestMessage || opts.reason || `${guest} precisa de suporte.`, 220);
   const payload: PushPayload = {
-    title: `${guest}${checkinLabel}`,
-    body: bodyText,
+    title: conversationTitle(guest, range),
+    body: conversationBody(opts.propertyName, message),
     data: {
       url: `/admin/atendimento?conv=${opts.conversationId}`,
       conversationId: opts.conversationId,
@@ -118,41 +168,14 @@ export async function sendGuestReplyPush(
     .eq("enabled", true);
   if (!subs || subs.length === 0) return { sent: 0, failed: 0 };
 
+  // Padrão Airbnb (mockup 07/11/2026): "Nome • 4–8 de nov." / imóvel / mensagem.
   const guest = opts.guestName?.trim() || "Hóspede";
-  // Padrão Airbnb: título = nome; 1ª linha = "5–14 de out. • Anúncio"; depois a mensagem.
-  let contextLine = "";
-  try {
-    const { data: conv } = await admin
-      .from("property_chat_conversations")
-      .select("property_id")
-      .eq("id", opts.conversationId)
-      .maybeSingle();
-    const propertyId = (conv as { property_id?: string } | null)?.property_id;
-    if (propertyId) {
-      const today = new Date().toISOString().slice(0, 10);
-      const { data: rows } = await admin
-        .from("property_reservations")
-        .select("checkin_date, checkout_date, guest_hint")
-        .eq("property_id", propertyId)
-        .eq("status", "confirmed")
-        .gte("checkout_date", today)
-        .order("checkin_date", { ascending: true })
-        .limit(10);
-      const norm = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-      const first = norm(guest).split(/\s+/)[0] ?? "";
-      const list = (rows ?? []) as Array<{ checkin_date: string; checkout_date: string; guest_hint: string | null }>;
-      const res = list.find((r) => first && r.guest_hint && norm(r.guest_hint).startsWith(first)) ?? list[0];
-      if (res) contextLine = formatStayRange(res.checkin_date, res.checkout_date);
-    }
-  } catch {
-    // contexto é opcional
-  }
-  const listing = opts.propertyName?.trim();
-  const header = [contextLine, listing].filter(Boolean).join(" • ");
-  const msg = opts.guestMessage.trim() || "Nova mensagem na conversa.";
+  const propertyId = await conversationProperty(admin, opts.conversationId).catch(() => null);
+  const range = await resolveStayRange(admin, { propertyId, guestName: opts.guestName });
+  const msg = truncateText(opts.guestMessage, 220) || "Nova mensagem na conversa.";
   const payload: PushPayload = {
-    title: guest,
-    body: (header ? `${header}\n${msg}` : msg).slice(0, 300),
+    title: conversationTitle(guest, range),
+    body: conversationBody(opts.propertyName, msg),
     data: {
       url: `/admin/atendimento?conv=${opts.conversationId}`,
       conversationId: opts.conversationId,
@@ -208,8 +231,8 @@ export async function sendOpenConversationReminders(admin: Admin, now = new Date
     if (!subs || subs.length === 0) continue;
     const guest = (c.guest_name as string | null)?.trim() || "Hóspede";
     const payload: PushPayload = {
-      title: "Conversa ainda em aberto",
-      body: `${guest}${prop?.name ? ` — ${prop.name}` : ""} continua aguardando resposta.`,
+      title: "Conversa ainda em aberto!",
+      body: conversationBody(prop?.name ?? null, `${guest} continua aguardando resposta.`),
       data: {
         url: `/admin/atendimento?conv=${c.id}`,
         conversationId: c.id as string,

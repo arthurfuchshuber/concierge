@@ -384,7 +384,9 @@ describe("F2-A · isolamento no repositório", () => {
       // Copiloto (05/11/2026): registro de modelos (contratos), tipos do transporte (geração) e o gerador — lista nominal
       /guest-ai[\\/]copilot[\\/](contracts\.ts|generate\.server\.ts|generator\.server\.ts)$/,
       // Memória do hóspede (06/11/2026): processo pós-checkout — prompt (registro de modelos/tipos) e worker (Gateway)
-      /lib[\\/]guest-memory[\\/](prompt\.ts|worker\.server\.ts)$/]; // B3.3: Shadow (tipos + gerador emitido)
+      /lib[\\/]guest-memory[\\/](prompt\.ts|worker\.server\.ts)$/,
+      // Tool calling (07/11/2026): só os TIPOS do gateway (declaração de ferramenta e chamada) — lista nominal
+      /guest-ai[\\/]tools[\\/](contracts\.ts|executor\.ts|registry\.ts)$/]; // B3.3: Shadow (tipos + gerador emitido)
     expect(offenders.filter((f) => !allowed.some((re) => re.test(f))).map((f) => path.relative(SRC, f))).toEqual([]);
   });
   it("o gateway convencional do SaaS (src/lib/llm) não importa o do Guest AI", () => {

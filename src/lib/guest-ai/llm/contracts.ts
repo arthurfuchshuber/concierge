@@ -9,8 +9,11 @@
  * Independente de `src/lib/llm/` (gateway das funcionalidades convencionais do SaaS).
  */
 
-/** Papéis aceitos. Não há papel "tool": F2-A não executa nem registra ferramentas. */
-export type LlmRole = "system" | "user" | "assistant";
+/**
+ * Papéis aceitos. `tool` (07/11/2026) carrega o RESULTADO de uma ferramenta de consulta executada fora do
+ * gateway (`guest-ai/tools/`); o gateway só transporta: não executa nem escolhe ferramentas.
+ */
+export type LlmRole = "system" | "user" | "assistant" | "tool";
 
 /** Parte de texto de uma mensagem multimodal. */
 export interface LlmContentPartText {
@@ -36,7 +39,31 @@ export type LlmMessageContent = string | readonly LlmContentPart[];
 export interface LlmMessage {
   role: LlmRole;
   content: LlmMessageContent;
+  /** Só em `assistant`: chamadas de ferramenta que o modelo pediu no turno anterior. */
+  toolCalls?: readonly LlmToolCall[];
+  /** Só em `tool`: id da chamada a que este resultado responde. */
+  toolCallId?: string;
 }
+
+/**
+ * Declaração de uma ferramenta de CONSULTA para o modelo (formato neutro; cada transporte converte).
+ * `parameters` é um JSON Schema de objeto. Nome: letras minúsculas, dígitos e `_`.
+ */
+export interface LlmToolSpec {
+  name: string;
+  description: string;
+  parameters: Readonly<Record<string, unknown>>;
+}
+
+/** Chamada de ferramenta pedida pelo modelo. `arguments` é o JSON cru (validado por quem executa). */
+export interface LlmToolCall {
+  id: string;
+  name: string;
+  arguments: string;
+}
+
+/** `auto` = o modelo decide; `none` = proibido chamar (força a resposta final). */
+export type LlmToolChoice = "auto" | "none";
 
 /** Prefixos aceitos para imagem (Data URL base64). */
 export const LLM_IMAGE_DATA_URL_PREFIXES = [
@@ -94,6 +121,10 @@ export interface LlmRequest {
   forbiddenValues?: readonly string[];
   /** Correlação opaca para logs (ex.: id do turno). Não deve conter dado pessoal. */
   traceId?: string;
+  /** Ferramentas de consulta oferecidas ao modelo (07/11/2026). Ausente = nenhuma. */
+  tools?: readonly LlmToolSpec[];
+  /** Só com `tools`. Padrão `auto`. */
+  toolChoice?: LlmToolChoice;
 }
 
 /** Limites rígidos do gateway (independentes do modelo). */
@@ -108,6 +139,12 @@ export const LIMITS = {
   maxImageParts: 3,
   /** Soma dos tamanhos (caracteres) de todas as Data URLs de imagem da requisição (~7,5 MB de imagem). */
   maxImageDataUrlChars: 10_000_000,
+  /** Ferramentas declaradas por requisição. */
+  maxTools: 8,
+  /** Chamadas de ferramenta aceitas numa resposta do modelo (as demais são descartadas pelo chamador). */
+  maxToolCalls: 6,
+  /** Tamanho máximo do JSON de argumentos de uma chamada. */
+  maxToolArgumentsChars: 2_000,
 } as const;
 
 /**
@@ -129,7 +166,7 @@ export interface LlmUsage {
 
 export const ZERO_USAGE: LlmUsage = Object.freeze({ inputTokens: 0, outputTokens: 0, reasoningTokens: 0, totalTokens: 0, source: "none" });
 
-export type LlmFinishReason = "stop" | "length" | "content_filter" | "other";
+export type LlmFinishReason = "stop" | "tool_calls" | "length" | "content_filter" | "other";
 
 export interface LlmTelemetry {
   provider: string;
@@ -150,7 +187,12 @@ export interface LlmSuccess {
   text: string;
   /** Presente quando `responseFormat: "json"` (já validado com JSON.parse). */
   json?: unknown;
-  finishReason: "stop";
+  /**
+   * `tool_calls` (só quando a requisição ofereceu ferramentas): o modelo pediu consultas em vez de
+   * responder; `toolCalls` traz os pedidos e `text`/`json` não são a resposta final.
+   */
+  finishReason: "stop" | "tool_calls";
+  toolCalls?: readonly LlmToolCall[];
   telemetry: LlmTelemetry;
 }
 

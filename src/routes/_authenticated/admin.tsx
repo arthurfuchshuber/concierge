@@ -1,7 +1,7 @@
 import { SituationOutboxRunner } from "@/components/dashboard/SituationOutboxRunner";
 import { StageOutboxRunner } from "@/components/dashboard/StageOutboxRunner";
 import { createFileRoute, Outlet, Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { LogOut, LayoutDashboard, Settings2, Menu, Users, Shield, ShieldCheck, Activity, Star, Headphones, Wrench, Home, Contact, Cpu, ChevronsLeft, ChevronsRight, Plus, Minus } from "lucide-react";
+import { LogOut, LayoutDashboard, Settings2, Menu, Users, Shield, Activity, Star, Headphones, Wrench, Home, Contact, Cpu, ChevronsLeft, ChevronsRight, Plus, Minus } from "lucide-react";
 import conciergeLogo from "@/assets/concierge-logo.png";
 import { LiveSync, useFallbackInterval } from "@/components/LiveSync";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -16,6 +16,7 @@ import { OnboardingCheckout } from "@/components/OnboardingCheckout";
 import { ClientSwitcher } from "@/components/admin/ClientSwitcher";
 import { AccountSwitcher } from "@/components/admin/AccountSwitcher";
 import { FloatingHandoffDock } from "@/components/handoff/FloatingHandoffDock";
+import { usePushNavigation } from "@/hooks/usePushNavigation";
 import { FloatingDock } from "@/components/FloatingDock";
 import { PushNotificationBanner } from "@/components/PushNotificationBanner";
 import { countPendingHandoffs } from "@/lib/handoff.functions";
@@ -95,11 +96,8 @@ const SIDEBAR_ORDER = ["group:dashboard", "group:stakeholders", "/admin/guias", 
 
 const adminOnlyNav = [
   { to: "/admin/engajamento", label: "Engajamento", icon: Activity, exact: false },
-  { to: "/admin/clientes", label: "Clientes", icon: Users, exact: false },
   { to: "/admin/recomendacoes-sigma", label: "Recomendações", icon: Star, exact: false },
   { to: "/admin/ia", label: "Telemetria IA", icon: Cpu, exact: false },
-
-  { to: "/admin/admins", label: "Administradores", icon: ShieldCheck, exact: false },
 ] as const;
 
 
@@ -120,6 +118,8 @@ const BOTTOM_NAV_SHORT_LABEL: Record<string, string> = {
 
 function AdminLayout() {
   const navigate = useNavigate();
+  // Clique no push com o app aberto → vai direto ao destino (07/11/2026).
+  usePushNavigation();
   const qc = useQueryClient();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const { isAdmin, isLoading: adminLoading } = useIsAdmin();
@@ -334,11 +334,8 @@ function AdminLayout() {
     pathname.startsWith("/admin/stakeholders") ||
     pathname.startsWith("/admin/proprietarios") ||
     pathname.startsWith("/admin/prestadores") ||
-    pathname.startsWith("/admin/clientes") ||
     pathname.startsWith("/admin/taxonomia") ||
-    pathname.startsWith("/admin/recomendacoes-sigma") ||
-
-    pathname.startsWith("/admin/admins");
+    pathname.startsWith("/admin/recomendacoes-sigma");
   // Rule: without an invite in play AND without being a team member, the user
   // can only see the panel after completing the account creation + validation
   // (CPF/CNPJ + plan) flow inside OnboardingCheckout. Só decide com respostas

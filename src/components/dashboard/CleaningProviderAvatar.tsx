@@ -1,10 +1,11 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Check, RotateCcw, Search, Pencil } from "lucide-react";
+import { Check, RotateCcw, Search } from "lucide-react";
 import { toast } from "sonner";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { getCleaningProviderBoard, setCleaningAssignment } from "@/lib/cleaning-assign.functions";
+import { EDIT_BTN } from "@/components/dashboard/edit-frame";
 import { useImpersonation } from "@/hooks/useImpersonation";
 
 function initials(name: string) {
@@ -35,30 +36,23 @@ function Face({
   url: string | null;
   size?: number;
   /**
-   * "default": como sempre foi. "raised": botão com relevo (janela "Limpezas
-   * Realizadas", quem pode editar). "plain": só a letra, sem fundo (quem não
-   * pode editar). Nos dois últimos a letra, no tema claro, usa o azul-escuro
-   * do sistema (`--cleaning-soft-foreground`); no escuro nada muda.
+   * "default": como sempre foi. "plain": só a letra, sem fundo (janela
+   * "Limpezas Realizadas"; ali a moldura editável é do botão, não da letra).
    */
-  look?: "default" | "raised" | "plain";
+  look?: "default" | "plain";
 }) {
   // 09/10/2026: o azul-bebê sumia no tema claro (letras "EV" quase invisíveis
   // sobre o quadradinho). Agora TODO modo usa o azul-escuro do sistema no
   // claro; no escuro nada muda.
   const ink = "text-[var(--cleaning-soft-foreground)] dark:text-[var(--cleaning-soft)]";
-  const box =
-    look === "raised"
-      ? "ds-3d ds-3d-hover border border-border/70 bg-card shadow-sm"
-      : look === "plain"
-        ? ""
-        : "border-0 bg-[var(--action-sq-bg)]";
+  const box = look === "plain" ? "" : "border-0 bg-[var(--action-sq-bg)]";
   return url ? (
     <img src={url} alt={name ?? ""} className="rounded-[0.3rem] object-cover" style={{ width: size, height: size }} />
   ) : (
     <span
       title={name ?? undefined}
       className={`inline-flex shrink-0 items-center justify-center ${look === "default" ? "rounded-[7px]" : "rounded-[0.3rem]"} ${box}`}
-      style={{ minWidth: size, height: size, paddingInline: name ? 5 : 0 }}
+      style={look === "plain" ? { height: size } : { minWidth: size, height: size, paddingInline: name ? 5 : 0 }}
     >
       {/* Pedido explícito (09/10/2026): SEMPRE as letras do prestador, nunca a
           vassoura. Sem prestador definido ainda, um "?" no mesmo traço. */}
@@ -70,30 +64,59 @@ function Face({
 }
 void initials;
 
+type CleaningBoard = NonNullable<ReturnType<typeof useCleaningBoard>["data"]>;
+
+/**
+ * Quem é o prestador desta limpeza: o atribuído pontualmente (limpeza manual,
+ * reserva ou registro) ou, sem isso, o padrão do imóvel.
+ */
+function resolveCleaningProvider(
+  b: CleaningBoard | undefined,
+  propertyId: string,
+  logId: string,
+  reservationId: string | null,
+) {
+  const realLog = /^[0-9a-f-]{36}$/i.test(logId) ? logId : null;
+  const resId = reservationId ?? (logId.startsWith("ical:") ? logId.slice(5) : null);
+  // Limpeza criada manualmente (02/10/2026): o card vem como "manual:<id>".
+  const manualId = logId.startsWith("manual:") ? logId.slice(7) : null;
+  const assignedId =
+    (manualId && b?.assigned[`s:${manualId}`]) ||
+    (resId && b?.assigned[`r:${resId}`]) ||
+    (realLog && b?.assigned[`l:${realLog}`]) ||
+    null;
+  const defaultId = b?.defaults[propertyId] ?? null;
+  const currentId = assignedId ?? defaultId;
+  const current = b?.providers.find((p) => p.id === currentId) ?? null;
+  return { realLog, resId, manualId, assignedId, defaultId, currentId, current };
+}
+
+/**
+ * Nome do prestador atribuído a esta limpeza (null = ainda "?"). Usado na
+ * janela de limpezas para não repetir o nome quando quem concluiu é o próprio
+ * prestador (07/11/2026).
+ */
+export function useCleaningProviderName(propertyId: string, logId: string, reservationId: string | null) {
+  const board = useCleaningBoard();
+  return resolveCleaningProvider(board.data, propertyId, logId, reservationId).current?.name ?? null;
+}
+
 /** Bolinha do responsável pela limpeza + troca pontual (só esta limpeza). */
 export function CleaningProviderAvatar({
   propertyId,
   logId,
   reservationId,
-  showName,
-  nameOnly,
   rowStyle,
   look,
 }: {
   propertyId: string;
   logId: string;
   reservationId: string | null;
-  /** Mostra o nome ao lado da bolinha (janela de detalhes). */
-  showName?: boolean;
   /**
-   * Só o NOME do prestador, clicável para trocar, com o lápis à direita — sem
-   * quadrado de iniciais (pedido explícito, 16/10/2026, mockup "Limpeza"
-   * aprovado: "tirar o ícone do prestador e manter somente o nome, clicável
-   * para editar, exatamente como o valor da limpeza"). Usado na janela de
-   * detalhes da limpeza.
+   * Linha "Prestador" do cartão do Kanban (CleaningInlineEditor): o NOME do
+   * prestador dentro da moldura editável padrão (07/11/2026), justa ao texto e
+   * com reticências quando não couber.
    */
-  nameOnly?: boolean;
-  /** Linha do cartão do Histórico da Reserva (mockup 31/10/2026): quadrado "EV" de 22 px + nome em 12 px semibold. */
   rowStyle?: boolean;
   /**
    * Só a janela "Limpezas Realizadas" passa isto (08/10/2026):
@@ -108,20 +131,13 @@ export function CleaningProviderAvatar({
   const setFn = useServerFn(setCleaningAssignment);
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
-  const realLog = /^[0-9a-f-]{36}$/i.test(logId) ? logId : null;
-  const resId = reservationId ?? (logId.startsWith("ical:") ? logId.slice(5) : null);
-  // Limpeza criada manualmente (02/10/2026): o card vem como "manual:<id>".
-  const manualId = logId.startsWith("manual:") ? logId.slice(7) : null;
-
   const b = board.data;
-  const assignedId =
-    (manualId && b?.assigned[`s:${manualId}`]) ||
-    (resId && b?.assigned[`r:${resId}`]) ||
-    (realLog && b?.assigned[`l:${realLog}`]) ||
-    null;
-  const defaultId = b?.defaults[propertyId] ?? null;
-  const currentId = assignedId ?? defaultId;
-  const current = b?.providers.find((p) => p.id === currentId) ?? null;
+  const { realLog, resId, manualId, assignedId, defaultId, currentId, current } = resolveCleaningProvider(
+    b,
+    propertyId,
+    logId,
+    reservationId,
+  );
 
   const filtered = useMemo(() => {
     const norm = (s: string) => s.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
@@ -155,39 +171,30 @@ export function CleaningProviderAvatar({
           aria-label={current ? `Responsável: ${current.name}. Trocar` : "Atribuir prestador"}
           title={current ? `Responsável: ${current.name}` : "Atribuir prestador"}
           className={
-            rowStyle
-              ? "flex min-w-0 items-center gap-[7px] text-left transition-opacity hover:opacity-80"
-              : nameOnly
-              ? "flex min-w-0 items-center gap-1.5 text-left transition-opacity hover:opacity-80"
-              : showName
-                ? "inline-flex min-w-0 items-center gap-2 rounded-[0.3rem] py-0.5 pl-0.5 pr-2 transition hover:bg-secondary/60"
+            look === "raised"
+              ? EDIT_BTN
+              : rowStyle
+                ? `${EDIT_BTN} min-w-0 max-w-full`
                 : "relative shrink-0 rounded-[0.3rem] transition hover:opacity-85"
           }
         >
           {rowStyle ? (
             <>
-              <Face name={current?.name ?? null} url={current?.avatarUrl ?? null} size={22} look="default" />
-              <span className="min-w-0 truncate text-xs font-semibold text-[#f4efea]">{current ? current.name : "Atribuir prestador"}</span>
+              <span className="min-w-0 truncate">{current ? current.name : "Atribuir prestador"}</span>
             </>
-          ) : nameOnly ? (
+          ) : look === "raised" ? (
             <>
-              <span className="min-w-0 truncate text-[13px] font-bold">{current ? current.name : "Atribuir prestador"}</span>
-              <Pencil className="size-[13px] shrink-0 text-foreground" />
+              {/* Janela "Limpezas Realizadas" (07/11/2026): o prestador é um dado
+                  editável como tipo e valor — só a moldura de botão, sem lápis. */}
+              <Face name={current?.name ?? null} url={current?.avatarUrl ?? null} size={14} look="plain" />
             </>
           ) : (
-          <>
-          <span className="relative shrink-0">
-          <Face name={current?.name ?? null} url={current?.avatarUrl ?? null} size={showName ? 26 : look ? 18 : 28} look={look ?? "default"} />
-          {assignedId && (
-            <span className="absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full border-2 border-card bg-primary" />
-          )}
-          </span>
-          {showName && (
-            <span className="min-w-0 break-words text-[12.5px] font-semibold">
-              {current ? current.name : "Atribuir prestador"}
+            <span className="relative shrink-0">
+              <Face name={current?.name ?? null} url={current?.avatarUrl ?? null} size={28} look="default" />
+              {assignedId && (
+                <span className="absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full border-2 border-card bg-primary" />
+              )}
             </span>
-          )}
-          </>
           )}
         </button>
       </PopoverTrigger>

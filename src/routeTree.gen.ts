@@ -33,10 +33,8 @@ import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin.index'
 import { Route as AuthenticatedAdminAdministrativoRouteImport } from './routes/_authenticated/admin.administrativo'
-import { Route as AuthenticatedAdminAdminsRouteImport } from './routes/_authenticated/admin.admins'
 import { Route as AuthenticatedAdminAssinaturaRouteImport } from './routes/_authenticated/admin.assinatura'
 import { Route as AuthenticatedAdminAtendimentoRouteImport } from './routes/_authenticated/admin.atendimento'
-import { Route as AuthenticatedAdminClientesRouteImport } from './routes/_authenticated/admin.clientes'
 import { Route as AuthenticatedAdminDashboardRouteImport } from './routes/_authenticated/admin.dashboard'
 import { Route as AuthenticatedAdminEngajamentoRouteImport } from './routes/_authenticated/admin.engajamento'
 import { Route as AuthenticatedAdminEquipeRouteImport } from './routes/_authenticated/admin.equipe'
@@ -217,12 +215,6 @@ const AuthenticatedAdminAdministrativoRoute =
     path: '/administrativo',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
-const AuthenticatedAdminAdminsRoute =
-  AuthenticatedAdminAdminsRouteImport.update({
-    id: '/admins',
-    path: '/admins',
-    getParentRoute: () => AuthenticatedAdminRoute,
-  } as any)
 const AuthenticatedAdminAssinaturaRoute =
   AuthenticatedAdminAssinaturaRouteImport.update({
     id: '/assinatura',
@@ -233,12 +225,6 @@ const AuthenticatedAdminAtendimentoRoute =
   AuthenticatedAdminAtendimentoRouteImport.update({
     id: '/atendimento',
     path: '/atendimento',
-    getParentRoute: () => AuthenticatedAdminRoute,
-  } as any)
-const AuthenticatedAdminClientesRoute =
-  AuthenticatedAdminClientesRouteImport.update({
-    id: '/clientes',
-    path: '/clientes',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
 const AuthenticatedAdminDashboardRoute =
@@ -577,10 +563,8 @@ export interface FileRoutesByFullPath {
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/admin/administrativo': typeof AuthenticatedAdminAdministrativoRoute
-  '/admin/admins': typeof AuthenticatedAdminAdminsRoute
   '/admin/assinatura': typeof AuthenticatedAdminAssinaturaRoute
   '/admin/atendimento': typeof AuthenticatedAdminAtendimentoRoute
-  '/admin/clientes': typeof AuthenticatedAdminClientesRoute
   '/admin/dashboard': typeof AuthenticatedAdminDashboardRouteWithChildren
   '/admin/engajamento': typeof AuthenticatedAdminEngajamentoRoute
   '/admin/equipe': typeof AuthenticatedAdminEquipeRoute
@@ -659,10 +643,8 @@ export interface FileRoutesByTo {
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/admin/administrativo': typeof AuthenticatedAdminAdministrativoRoute
-  '/admin/admins': typeof AuthenticatedAdminAdminsRoute
   '/admin/assinatura': typeof AuthenticatedAdminAssinaturaRoute
   '/admin/atendimento': typeof AuthenticatedAdminAtendimentoRoute
-  '/admin/clientes': typeof AuthenticatedAdminClientesRoute
   '/admin/engajamento': typeof AuthenticatedAdminEngajamentoRoute
   '/admin/equipe': typeof AuthenticatedAdminEquipeRoute
   '/admin/guias': typeof AuthenticatedAdminGuiasRoute
@@ -744,10 +726,8 @@ export interface FileRoutesById {
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/_authenticated/admin/administrativo': typeof AuthenticatedAdminAdministrativoRoute
-  '/_authenticated/admin/admins': typeof AuthenticatedAdminAdminsRoute
   '/_authenticated/admin/assinatura': typeof AuthenticatedAdminAssinaturaRoute
   '/_authenticated/admin/atendimento': typeof AuthenticatedAdminAtendimentoRoute
-  '/_authenticated/admin/clientes': typeof AuthenticatedAdminClientesRoute
   '/_authenticated/admin/dashboard': typeof AuthenticatedAdminDashboardRouteWithChildren
   '/_authenticated/admin/engajamento': typeof AuthenticatedAdminEngajamentoRoute
   '/_authenticated/admin/equipe': typeof AuthenticatedAdminEquipeRoute
@@ -830,10 +810,8 @@ export interface FileRouteTypes {
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/admin/administrativo'
-    | '/admin/admins'
     | '/admin/assinatura'
     | '/admin/atendimento'
-    | '/admin/clientes'
     | '/admin/dashboard'
     | '/admin/engajamento'
     | '/admin/equipe'
@@ -912,10 +890,8 @@ export interface FileRouteTypes {
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/admin/administrativo'
-    | '/admin/admins'
     | '/admin/assinatura'
     | '/admin/atendimento'
-    | '/admin/clientes'
     | '/admin/engajamento'
     | '/admin/equipe'
     | '/admin/guias'
@@ -996,10 +972,8 @@ export interface FileRouteTypes {
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/_authenticated/admin/administrativo'
-    | '/_authenticated/admin/admins'
     | '/_authenticated/admin/assinatura'
     | '/_authenticated/admin/atendimento'
-    | '/_authenticated/admin/clientes'
     | '/_authenticated/admin/dashboard'
     | '/_authenticated/admin/engajamento'
     | '/_authenticated/admin/equipe'
@@ -1282,13 +1256,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminAdministrativoRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
-    '/_authenticated/admin/admins': {
-      id: '/_authenticated/admin/admins'
-      path: '/admins'
-      fullPath: '/admin/admins'
-      preLoaderRoute: typeof AuthenticatedAdminAdminsRouteImport
-      parentRoute: typeof AuthenticatedAdminRoute
-    }
     '/_authenticated/admin/assinatura': {
       id: '/_authenticated/admin/assinatura'
       path: '/assinatura'
@@ -1301,13 +1268,6 @@ declare module '@tanstack/react-router' {
       path: '/atendimento'
       fullPath: '/admin/atendimento'
       preLoaderRoute: typeof AuthenticatedAdminAtendimentoRouteImport
-      parentRoute: typeof AuthenticatedAdminRoute
-    }
-    '/_authenticated/admin/clientes': {
-      id: '/_authenticated/admin/clientes'
-      path: '/clientes'
-      fullPath: '/admin/clientes'
-      preLoaderRoute: typeof AuthenticatedAdminClientesRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
     '/_authenticated/admin/dashboard': {
@@ -1730,10 +1690,8 @@ const AuthenticatedAdminDashboardRouteWithChildren =
 
 interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminAdministrativoRoute: typeof AuthenticatedAdminAdministrativoRoute
-  AuthenticatedAdminAdminsRoute: typeof AuthenticatedAdminAdminsRoute
   AuthenticatedAdminAssinaturaRoute: typeof AuthenticatedAdminAssinaturaRoute
   AuthenticatedAdminAtendimentoRoute: typeof AuthenticatedAdminAtendimentoRoute
-  AuthenticatedAdminClientesRoute: typeof AuthenticatedAdminClientesRoute
   AuthenticatedAdminDashboardRoute: typeof AuthenticatedAdminDashboardRouteWithChildren
   AuthenticatedAdminEngajamentoRoute: typeof AuthenticatedAdminEngajamentoRoute
   AuthenticatedAdminEquipeRoute: typeof AuthenticatedAdminEquipeRoute
@@ -1754,10 +1712,8 @@ interface AuthenticatedAdminRouteChildren {
 
 const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
   AuthenticatedAdminAdministrativoRoute: AuthenticatedAdminAdministrativoRoute,
-  AuthenticatedAdminAdminsRoute: AuthenticatedAdminAdminsRoute,
   AuthenticatedAdminAssinaturaRoute: AuthenticatedAdminAssinaturaRoute,
   AuthenticatedAdminAtendimentoRoute: AuthenticatedAdminAtendimentoRoute,
-  AuthenticatedAdminClientesRoute: AuthenticatedAdminClientesRoute,
   AuthenticatedAdminDashboardRoute:
     AuthenticatedAdminDashboardRouteWithChildren,
   AuthenticatedAdminEngajamentoRoute: AuthenticatedAdminEngajamentoRoute,

@@ -14,7 +14,6 @@ import {
   CITY_EVENTS_TAG,
   DOSSIER_TAG,
   HISTORY_TAG,
-  PLACES_TAG,
   buildSystemPrompt,
 } from "@/lib/guest-ai/system-prompt";
 import { GUEST_PERSONA, renderPersona } from "@/lib/guest-ai/persona";
@@ -220,48 +219,19 @@ const EVENTS: CityEventsLoad = {
 };
 
 describe("composição: recomendações fora do Dossiê, distância por trajeto, eventos", () => {
-  it("recomendações do Google Maps em bloco próprio; Dossiê sem catálogo de lugares", async () => {
-    const r = composeTurnPrompt(
-      { context: ctx(), history: history(), dossiers: await dossier(), cityEvents: EVENTS },
-      { guard: SECRET_SCRUBBER },
-    );
-    if (r.kind !== "prompt") throw new Error(r.kind);
-    const user = r.prompt.messages[0]!.content;
-    expect(JSON.stringify(block(user, DOSSIER_TAG))).not.toMatch(/Padaria P1|Mirante P1|entorno/);
-    const places = block(user, PLACES_TAG);
-    expect(places[0].ref).toBe("principal");
-    const [padaria, farmacia, mirante] = places[0].itens;
-    expect(padaria).toEqual({
-      id: "gm:principal:rec:rec-1",
-      nome: "Padaria P1",
-      escopo: "aqui_pertinho",
-      categoria: "padaria",
-      tipo: "bakery",
-      nota_google: 4.7,
-      total_avaliacoes_google: 120,
-      horarios_vigentes: ["seg–sáb 6h–20h"],
-      observacao: "Ótimo pão",
-      link_google_maps: "https://maps.google.com/?cid=1",
-      distancia_trajeto_m: 350,
-      tempo_estimado_somente_se_o_hospede_insistir: { a_pe_min: 4, de_carro_min: 1 },
-    });
-    // linha reta (não confirmada) ⇒ sem distância nem tempo; link de outro host ⇒ fora
-    expect(farmacia.distancia_trajeto_m).toBeNull();
-    expect(farmacia).not.toHaveProperty("tempo_estimado_somente_se_o_hospede_insistir");
-    expect(farmacia.link_google_maps).toBeNull();
-    expect(mirante).toMatchObject({ escopo: "pela_cidade", distancia_trajeto_m: null });
-    for (const id of ["gm:principal:rec:rec-1", "gm:principal:cref:cref-1"])
-      expect(r.prompt.sourceIds!.has(id)).toBe(true);
-  });
-
-  it("Airbnb: nenhum link no bloco de recomendações (o canal bloqueia links)", async () => {
-    const r = composeTurnPrompt(
-      { context: ctx("airbnb"), history: history(), dossiers: await dossier() },
-      { guard: SECRET_SCRUBBER },
-    );
-    if (r.kind !== "prompt") throw new Error(r.kind);
-    const places = block(r.prompt.messages[0]!.content, PLACES_TAG);
-    expect(JSON.stringify(places)).not.toMatch(/link_google_maps|https?:\/\//);
+  it("o Explorar do anfitrião não entra no prompt (07/11/2026): nem no Dossiê nem em bloco próprio", async () => {
+    for (const surface of ["guide_chat", "airbnb", "whatsapp"] as const) {
+      const r = composeTurnPrompt(
+        { context: ctx(surface), history: history(), dossiers: await dossier(), cityEvents: EVENTS },
+        { guard: SECRET_SCRUBBER },
+      );
+      if (r.kind !== "prompt") throw new Error(r.kind);
+      const user = r.prompt.messages[0]!.content;
+      expect(JSON.stringify(block(user, DOSSIER_TAG))).not.toMatch(/Padaria P1|Mirante P1|entorno/);
+      expect(user).not.toMatch(/recomendacoes_google_maps|Padaria P1|Mirante P1|distancia_trajeto_m|link_google_maps/);
+      expect([...r.prompt.sourceIds!].filter((x) => x.startsWith("gm:"))).toEqual([]);
+      expect(r.manifest.unavailableSections).not.toContain("guide_places");
+    }
   });
 
   it("eventos: título, datas, local e descrição; ids citáveis; indisponível é declarado", async () => {
@@ -498,19 +468,20 @@ describe("formatação por canal", () => {
 
 describe("System Prompt e persona: Google Maps, distância, eventos, formatação e hospitalidade", () => {
   const sys = buildSystemPrompt("guide_chat");
-  it("recomendações da mesma fonte do guia, refletindo nota, avaliações e horário", () => {
-    expect(sys).toContain(`<${PLACES_TAG}>`);
+  it("lugares: conhecimento amplo + consultas em tempo real, refletindo a fonte; Explorar fora", () => {
+    expect(sys).not.toContain("recomendacoes_google_maps");
     expect(sys).toMatch(/Google Maps \/ Google Meu Negócio/);
-    expect(sys).toMatch(/nota no Google com o total de avaliações e o horário vigente/);
+    expect(sys).toMatch(/nota no Google com o total de avaliações quando constar e se está aberto agora/);
     expect(sys).toMatch(/O dossiê descreve só o imóvel/);
   });
-  it("distância sempre em metros/km; tempo só sob insistência e como estimativa", () => {
+  it("distância só do trajeto real consultado; tempo nunca escrito", () => {
     expect(sys).toMatch(/informe sempre a distância física do trajeto/);
-    expect(sys).toMatch(/Quando distancia_trajeto_m for null, não informe distância nenhuma/);
+    expect(sys).toMatch(/usando somente distancia_m \(ou distancia_texto\) devolvida pelas consultas/);
+    expect(sys).toMatch(/Quando a consulta não trouxer distância .* não informe distância nenhuma/);
+    expect(sys).toMatch(/Nunca calcule nem estime distância por conta própria/);
     expect(sys).toMatch(/Tempo de deslocamento: não ofereça por iniciativa própria/);
-    expect(sys).toMatch(
-      /apenas uma estimativa que pode variar com o ritmo da caminhada ou o trânsito/,
-    );
+    expect(sys).toMatch(/varia com o trânsito, os semáforos, o horário e o ritmo da caminhada/);
+    expect(sys).toMatch(/Nunca escreva minutos ou horas de deslocamento/);
   });
   it("eventos só do bloco; desconhecido ⇒ admite que não sabe", () => {
     expect(sys).toContain(`<${CITY_EVENTS_TAG}>`);
