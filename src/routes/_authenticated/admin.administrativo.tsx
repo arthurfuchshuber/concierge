@@ -37,7 +37,7 @@ function AdministrativoPage() {
 
   const headers: Record<Tab, { title: string; subtitle: string }> = {
     perfil: { title: "Meu perfil", subtitle: "Seus dados pessoais e preferências nesta conta." },
-    assinatura: { title: "Assinatura", subtitle: "Plano, cobrança e pagamentos da sua conta." },
+    assinatura: { title: "Assinatura", subtitle: "Cobrança por imóvel, cartão e pagamentos." },
     integracoes: { title: "Integrações", subtitle: "Conexões externas e canais da sua conta." },
   };
 
@@ -137,7 +137,7 @@ function AdministrativoPage() {
           </TabsContent>
           {canSeeBilling && (
             <TabsContent value="assinatura" className="mt-0">
-              <AssinaturaPage />
+              <AssinaturaPage embedded />
             </TabsContent>
           )}
           <TabsContent value="integracoes" className="mt-0">

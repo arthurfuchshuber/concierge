@@ -66,12 +66,29 @@ describe("AssinaturaPage — sem flash de 'Sem Assinatura Ativa'", () => {
     expect(screen.queryByText("Sem Assinatura Ativa")).toBeNull();
     cleanup();
     show({ info: { ...baseInfo, isManual: true, isActive: true } });
-    expect(screen.getByText("Acesso liberado pela ConciergeIA")).toBeTruthy();
+    expect(screen.getByText("Isento de pagamento pelo ConciergeIA.")).toBeTruthy();
   });
 
   it("em erro não declara 'sem assinatura': oferece tentar novamente", () => {
     show({ isError: true });
     expect(screen.getByText("Tentar novamente")).toBeTruthy();
     expect(screen.queryByText("Sem Assinatura Ativa")).toBeNull();
+  });
+
+  it("dentro do Administrativo não repete o título 'Assinatura'", () => {
+    sub.current = { refetch: vi.fn(), isPending: false, isError: false, info: { ...baseInfo, isManual: true, isActive: true } };
+    const { container } = render(
+      <QueryClientProvider client={new QueryClient()}>
+        <AssinaturaPage embedded />
+      </QueryClientProvider>,
+    );
+    expect(container.querySelector("h1")).toBeNull();
+    cleanup();
+    const solo = render(
+      <QueryClientProvider client={new QueryClient()}>
+        <AssinaturaPage />
+      </QueryClientProvider>,
+    );
+    expect(solo.container.querySelector("h1")?.textContent).toBe("Assinatura");
   });
 });

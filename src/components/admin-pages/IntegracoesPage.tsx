@@ -241,15 +241,12 @@ export function IntegracoesPage() {
           return (
             <div
               key={cfg.key}
-              className="relative h-full min-w-0 overflow-hidden rounded-[12px] border border-border/70 bg-card py-3.5 pl-[17px] pr-3.5 shadow-sm"
+              className="relative h-full min-h-[108px] min-w-0 overflow-hidden rounded-[12px] border border-border/70 bg-card py-3.5 pl-[17px] pr-3.5 shadow-sm"
             >
               {act && <span aria-hidden className="absolute inset-y-0 left-0 w-[3px] bg-emerald-500" />}
               <div className="flex h-full flex-col">
                 <div className="min-w-0">
                   <div className="truncate font-display text-[12.5px] font-bold leading-[1.3] tracking-[-0.01em] text-foreground">{cfg.nome}</div>
-                  <div className="mt-0.5 text-[9px] font-bold uppercase leading-[1.2] tracking-[0.1em] text-muted-foreground">
-                    {cfg.categoria}
-                  </div>
                   <div className="mt-[3px] h-[14px]" />
                 </div>
                 <div className="mt-auto flex items-center gap-1.5 pt-2.5">
@@ -378,7 +375,6 @@ export function IntegracoesPage() {
                   <div className="min-w-0 flex-1">
                     <p className="ds-card-title truncate leading-tight">{cfg.nome}</p>
                     <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                      <span className="ds-meta">{cfg.categoria}</span>
                       <StatusBadge status={statusKey} />
                     </div>
                   </div>

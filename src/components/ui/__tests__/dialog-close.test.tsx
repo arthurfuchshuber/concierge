@@ -25,8 +25,8 @@ describe("DialogContent — X oficial", () => {
     for (const c of [
       "absolute", "right-0", "top-0", "z-[10]", "size-8", "rounded-bl-[12px]",
       "rounded-tr-[calc(var(--win-radius,12px)-1px)]",
-      "bg-black/35", "text-white",
-      "hover:bg-black/55", "hover:text-white",
+      "bg-[color-mix(in_oklab,var(--foreground)_9%,transparent)]", "text-foreground/70",
+      "hover:bg-[color-mix(in_oklab,var(--foreground)_16%,transparent)]", "hover:text-foreground",
       "focus:outline-none", "focus-visible:ring-2",
     ]) {
       expect(x.className).toContain(c);
