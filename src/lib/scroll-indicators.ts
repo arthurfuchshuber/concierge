@@ -18,7 +18,7 @@
 const CANDIDATES =
   '[class*="overflow-y-"], [class*="overflow-auto"], [class*="sg-elegant-scroll"], [role="dialog"], [data-radix-scroll-area-viewport]';
 const TRACK_MARGIN = 14; // mesma folga da barra global (cantos arredondados)
-const THUMB_W = 3;
+const THUMB_W = 5;
 const MIN_THUMB = 28;
 
 function hasOverlayScrollbars(): boolean {
@@ -33,7 +33,7 @@ function hasOverlayScrollbars(): boolean {
 
 export function installScrollIndicators(): () => void {
   if (typeof document === "undefined") return () => {};
-  // A barra global só tem 3px, então a sonda mede a barra nativa padrão.
+  // A sonda mede a barra nativa padrão (a global do styles.css é fina).
   const forced = document.documentElement.dataset.scrollIndicators === "on";
   if (!forced && !hasOverlayScrollbars()) return () => {};
 
@@ -89,7 +89,7 @@ export function installScrollIndicators(): () => void {
       }
       if (!thumb) {
         thumb = document.createElement("div");
-        thumb.style.cssText = `position:absolute;width:${THUMB_W}px;border-radius:9999px;background:color-mix(in oklab, oklch(0.58 0.2 300) 45%, transparent)`;
+        thumb.style.cssText = `position:absolute;width:${THUMB_W}px;border-radius:9999px;background:color-mix(in oklab, oklch(0.68 0.22 300) 85%, transparent)`;
         layer.appendChild(thumb);
         thumbs.set(el, thumb);
       }

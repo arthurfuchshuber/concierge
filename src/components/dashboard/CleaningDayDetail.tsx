@@ -257,7 +257,7 @@ function ConfirmChange({
         <AlertDialogCancel
           aria-label="Fechar"
           disabled={busy}
-          className="absolute right-4 top-3.5 z-[5] grid size-6 place-items-center rounded-md border-0 p-0 text-muted-foreground after:absolute after:-inset-2 after:content-[''] hover:bg-foreground/10 hover:text-foreground"
+          className="absolute right-4 top-3.5 z-10 grid size-7 place-items-center rounded-lg border border-border/40 bg-foreground/5 p-0 text-foreground/80 after:absolute after:-inset-1.5 after:content-[''] hover:bg-foreground/10 hover:text-foreground"
         >
           <X className="size-4" strokeWidth={2} />
         </AlertDialogCancel>
@@ -595,7 +595,7 @@ export function CleaningDayDetailContent({
       {/* CABEÇALHO UNIVERSAL DE JANELA AMPLA (07/11/2026, referência: "Check-ins
           amanhã"): sem ícone, título 14px negrito em 1 linha e subtítulo 12px;
           o `pr-14` deixa o "X" oficial (canto superior direito) livre. */}
-      <DialogHeader className="shrink-0 px-4 pt-3.5 pb-0 pr-14 text-left">
+      <DialogHeader className="shrink-0 border-b border-border/40 px-4 pb-2.5 pt-3.5 pr-14 text-left">
         <DialogTitle className="truncate text-sm font-bold leading-6 text-foreground" title={heading}>
           {windowTitle(heading)}
         </DialogTitle>

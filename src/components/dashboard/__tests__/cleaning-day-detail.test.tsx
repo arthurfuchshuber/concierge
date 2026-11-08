@@ -387,7 +387,7 @@ describe("cabeçalho universal de janela ampla", () => {
     expect(text(h2).trim()).toBe("Custo total limpeza");
     for (const c of ["truncate", "text-sm", "font-bold", "leading-6", "text-foreground"]) expect(h2).toContain(c);
     const header = html.match(/<div class="[^"]*pr-14[^"]*">/)?.[0] ?? "";
-    for (const c of ["px-4", "pt-3.5", "pb-0", "pr-14", "text-left"]) expect(header).toContain(c);
+    for (const c of ["px-4", "pt-3.5", "pb-2.5", "pr-14", "text-left", "border-b", "border-border/40"]) expect(header).toContain(c);
     expect(html).toContain('class="text-xs leading-5 text-muted-foreground"');
     expect(html).not.toContain("Fechar detalhe");
     expect(html).not.toContain("size-10");
@@ -408,7 +408,7 @@ describe("cabeçalho universal de janela ampla", () => {
     );
     const fechar = screen.getAllByRole("button", { name: "Fechar" });
     expect(fechar).toHaveLength(1);
-    for (const c of ["right-4", "top-3.5", "size-6", "text-muted-foreground", "hover:text-foreground", "focus-visible:ring-2"]) {
+    for (const c of ["right-4", "top-3.5", "size-7", "rounded-lg", "border-border/40", "bg-foreground/5", "hover:text-foreground", "focus-visible:ring-2"]) {
       expect(fechar[0].className).toContain(c);
     }
     expect(screen.queryByLabelText("Fechar detalhe")).toBeNull();

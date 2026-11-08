@@ -4624,7 +4624,7 @@ function KpiCard({
       >
         {/* JANELA PADRÃO (29/10/2026): sem ícone no cabeçalho, título 14px
             negrito e subtítulo 12px em caixa normal, recuo de 16px. */}
-        <DialogHeader className="px-4 pt-3.5 pb-0 pr-14 text-left">
+        <DialogHeader className="shrink-0 border-b border-border/40 px-4 pb-2.5 pt-3.5 pr-14 text-left">
           <DialogTitle className="truncate text-sm font-bold leading-6 text-foreground">{windowTitle(label)}</DialogTitle>
           <div className="text-xs leading-5 text-muted-foreground">
             {rangeLabel} · {displayRows.length} {displayRows.length === 1 ? "hóspede" : "hóspedes"}
@@ -4649,10 +4649,11 @@ function KpiCard({
             list.ref(el);
             screenshotRef.current = el;
           }}
-          // A altura calculada termina sempre no fim de um card inteiro;
-          // sem ela a janela (90% da tela) cortava o último card e a barra.
+          // A altura calculada (teto real de 90dvh menos o cabeçalho) termina sempre no fim de um card inteiro;
+          // `data-whole-cards-list` impede o anticorte global de travar um `height` fixo por cima dela.
+          data-whole-cards-list
           style={list.maxHeight !== undefined ? { maxHeight: list.maxHeight } : undefined}
-          className="sg-elegant-scroll max-h-[80dvh] overflow-y-auto px-4 pt-2.5"
+          className="sg-elegant-scroll min-h-0 flex-1 snap-y snap-proximity scroll-pt-2.5 overflow-y-auto px-4 pt-2.5"
         >
           {loading ? (
             <div className="py-14 grid place-items-center text-muted-foreground">
@@ -4843,7 +4844,7 @@ function FreePropertiesCard({
       <DialogContent className={WIDE_WINDOW_CLASS}>
         {/* JANELA PADRÃO (29/10/2026): título 14px negrito com iniciais
             maiúsculas, subtítulo 12px com singular/plural, recuo de 16px. */}
-        <DialogHeader className="shrink-0 px-4 pt-3.5 pb-0 pr-14 text-left">
+        <DialogHeader className="shrink-0 border-b border-border/40 px-4 pb-2.5 pt-3.5 pr-14 text-left">
           <DialogTitle className="truncate text-sm font-bold leading-6 text-foreground">
             {windowTitle(`Imóveis livres ${isToday ? "hoje" : dayLabel}`)}
           </DialogTitle>
@@ -5045,7 +5046,7 @@ function StatDisplayCard({
         <DialogContent aria-describedby={undefined} className={WIDE_WINDOW_CLASS}>
           {/* Cabeçalho universal de janela ampla (07/11/2026): sem ícone, título
               14px e subtítulo 12px; o "X" oficial fica no canto. */}
-          <DialogHeader className="shrink-0 px-4 pt-3.5 pb-0 pr-14 text-left">
+          <DialogHeader className="shrink-0 border-b border-border/40 px-4 pb-2.5 pt-3.5 pr-14 text-left">
             <DialogTitle className="truncate text-sm font-bold leading-6 text-foreground">{windowTitle(label)}</DialogTitle>
             <div className="text-xs leading-5 text-muted-foreground">
               {value} · {breakdown!.length} {breakdown!.length === 1 ? "imóvel" : "imóveis"}
@@ -8989,7 +8990,7 @@ function GuestMarkGroup({ group, tone }: { group: GuestMark[]; tone: "ok" | "off
   return (
     <li
       data-whole-card
-      className="relative overflow-hidden rounded-[12px] border border-border bg-[var(--card-surface)] py-2.5 pl-4 pr-4"
+      className="relative snap-start overflow-hidden rounded-[12px] border border-border bg-[var(--card-surface)] py-2.5 pl-4 pr-4"
     >
       <span
         aria-hidden
@@ -9119,7 +9120,7 @@ function EngagementBreakdownDialog({
             maiúsculas ("Instruções Check-In" / "Senhas de Acesso" — sem a
             palavra "Viram"), subtítulo 12px em caixa normal concordando em
             singular/plural, recuo de 16px nas laterais. */}
-        <DialogHeader className="px-4 pt-3.5 pb-0 pr-14 text-left">
+        <DialogHeader className="border-b border-border/40 px-4 pb-2.5 pt-3.5 pr-14 text-left">
           {/* pr-14 no header: reserva espaço pro botão "X" de fechar do Dialog. */}
           <div className="flex items-center justify-between gap-3">
             <DialogTitle className="min-w-0 truncate text-sm font-bold leading-6 text-foreground">{windowTitle(engagementWindowTitle(label))}</DialogTitle>
@@ -9163,8 +9164,9 @@ function EngagementBreakdownDialog({
 
         <div
           ref={list.ref}
+          data-whole-cards-list
           style={list.maxHeight !== undefined ? { maxHeight: list.maxHeight } : undefined}
-          className="sg-elegant-scroll overflow-y-auto px-4 pb-4 pt-2.5"
+          className="sg-elegant-scroll min-h-0 flex-1 snap-y snap-proximity scroll-pt-2.5 overflow-y-auto px-4 pb-4 pt-2.5"
         >
           <GuestMarkList items={activeItems} tone={tab === "viewed" ? "ok" : "off"} />
         </div>
