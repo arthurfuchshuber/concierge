@@ -48,8 +48,9 @@ function parseHm(value: string | null): [number, number] | null {
  *     só pelo trigger `guard_stay_authorizations`, que confere a permissão de quem autorizou). Aí o corte é o
  *     horário autorizado.
  * O antigo "gatilho 1" (confirmar ao alcançar o horário PREVISTO, `arrival_time_override`) foi descontinuado:
- * a previsão — da equipe, do hóspede no guia ou captada pela IA (`guest_ai`) — é 100% informativa para a
- * operação e a limpeza e NUNCA dá baixa. Uma data prevista diferente (`arrival_date_override`) também não
+ * a previsão NUNCA antecipa a baixa. Única influência: horário definido pela EQUIPE (`arrival_time_source =
+ * 'staff'`) MAIOR que o oficial estende o corte até esse horário (08/11/2026); o do hóspede (`guest`) ou da IA
+ * (`guest_ai`) é só informativo. Uma data prevista diferente (`arrival_date_override`) também não
  * antecipa nada: saída antes do dia confirmado só com confirmação factual (hóspede no chat/guia ou equipe).
  * Pedido de hóspede ou da IA nunca estende o corte: só a equipe concede late checkout.
  *
@@ -72,10 +73,19 @@ export interface FormalLateCheckout {
 export function autoCheckoutTriggerTime(r: {
   standardTime?: string | null;
   lateCheckout?: FormalLateCheckout | null;
+  /** Horário definido no card (previsão). Só a EQUIPE (`arrivalTimeSource === "staff"`) estende o corte. */
+  arrivalTimeOverride?: string | null;
+  arrivalTimeSource?: string | null;
 }): [number, number] | null {
   const late = r.lateCheckout;
   const formal = late && late.time && late.approvedAt && late.by ? parseHm(late.time) : null;
-  return formal ?? parseHm(r.standardTime ?? null);
+  if (formal) return formal; // late checkout formal (R6) manda
+  const standard = parseHm(r.standardTime ?? null);
+  // Horário definido pela EQUIPE MAIOR que o oficial estende o corte; menor nunca antecipa.
+  // Hóspede (`guest`) e IA (`guest_ai`) continuam só informativos.
+  const staff = r.arrivalTimeSource === "staff" ? parseHm(r.arrivalTimeOverride ?? null) : null;
+  if (staff && standard && staff[0] * 60 + staff[1] > standard[0] * 60 + standard[1]) return staff;
+  return standard;
 }
 
 /** Dia em que o corte vale: a saída CONFIRMADA da reserva (nunca a data prevista do card). */
@@ -160,7 +170,12 @@ export async function runAutoCheckoutScan(admin: Admin, now: Date = new Date()) 
         (target.reservationId ? lateByKey.get(`r:${target.reservationId}`) : undefined) ??
         (target.logId ? lateByKey.get(`l:${target.logId}`) : undefined) ??
         null;
-      const hm = autoCheckoutTriggerTime({ standardTime: r.standardTime, lateCheckout });
+      const hm = autoCheckoutTriggerTime({
+        standardTime: r.standardTime,
+        lateCheckout,
+        arrivalTimeOverride: r.arrivalTimeOverride,
+        arrivalTimeSource: r.arrivalTimeSource,
+      });
       if (!hm) continue; // imóvel sem horário oficial de checkout: confirmação continua manual
 
       const day = autoCheckoutDay(r);

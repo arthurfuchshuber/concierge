@@ -94,15 +94,28 @@ describe("autoCheckoutTriggerTime / autoCheckoutDay (puras)", () => {
     expect(autoCheckoutTriggerTime({ standardTime: null })).toBeNull();
   });
 
-  it("previsão nunca entra no cálculo (nem campo existe na assinatura)", () => {
-    const src = readFileSync(
-      path.resolve(__dirname, "..", "auto-checkout.server.ts"),
-      "utf8",
-    ).replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, "");
-    expect(src).not.toMatch(
-      /arrivalTimeOverride|arrivalDateOverride|arrivalTimeSource|guestArrivalTime/,
-    );
-    expect(src).not.toMatch(/from:\s*"checkin"/);
+  it("horário da EQUIPE maior que o oficial estende o corte; menor nunca antecipa", () => {
+    const base = { standardTime: "11:00" };
+    expect(autoCheckoutTriggerTime({ ...base, arrivalTimeOverride: "13:00", arrivalTimeSource: "staff" })).toEqual([13, 0]);
+    expect(autoCheckoutTriggerTime({ ...base, arrivalTimeOverride: "09:00", arrivalTimeSource: "staff" })).toEqual([11, 0]);
+    expect(autoCheckoutTriggerTime({ ...base, arrivalTimeOverride: "11:00", arrivalTimeSource: "staff" })).toEqual([11, 0]);
+  });
+
+  it("hóspede e IA continuam informativos; late checkout formal manda sobre a equipe", () => {
+    for (const src of ["guest", "guest_ai", null]) {
+      expect(
+        autoCheckoutTriggerTime({ standardTime: "11:00", arrivalTimeOverride: "14:00", arrivalTimeSource: src }),
+      ).toEqual([11, 0]);
+    }
+    expect(
+      autoCheckoutTriggerTime({
+        standardTime: "11:00",
+        arrivalTimeOverride: "14:00",
+        arrivalTimeSource: "staff",
+        lateCheckout: { time: "12:30", approvedAt: "2026-11-09T10:00:00Z", by: STAFF },
+      }),
+    ).toEqual([12, 30]);
+    expect(autoCheckoutTriggerTime({ standardTime: null, arrivalTimeOverride: "14:00", arrivalTimeSource: "staff" })).toBeNull();
   });
 
   it("dia do corte = saída CONFIRMADA da reserva, nunca a data prevista do card", () => {
@@ -127,9 +140,20 @@ describe("runAutoCheckoutScan", () => {
     );
   });
 
-  it("previsão DEPOIS do oficial não segura o corte (só late checkout formal estende)", async () => {
-    rowsRef.rows = [row({ arrivalTimeOverride: "15:00", arrivalTimeSource: "guest" })];
-    expect((await runAutoCheckoutScan(fakeAdmin(), at("11:05"))).confirmed).toBe(1);
+  it("previsão de HÓSPEDE/IA depois do oficial não segura o corte", async () => {
+    for (const src of ["guest", "guest_ai"]) {
+      advance.mockClear();
+      rowsRef.rows = [row({ arrivalTimeOverride: "15:00", arrivalTimeSource: src })];
+      expect((await runAutoCheckoutScan(fakeAdmin(), at("11:05"))).confirmed, src).toBe(1);
+    }
+  });
+
+  it("saída estendida pela EQUIPE para 13:00: sem baixa às 11:00/12:00; baixa às 13:00", async () => {
+    rowsRef.rows = [row({ arrivalTimeOverride: "13:00", arrivalTimeSource: "staff" })];
+    expect((await runAutoCheckoutScan(fakeAdmin(), at("11:00"))).confirmed).toBe(0);
+    expect((await runAutoCheckoutScan(fakeAdmin(), at("12:55"))).confirmed).toBe(0);
+    expect(advance).not.toHaveBeenCalled();
+    expect((await runAutoCheckoutScan(fakeAdmin(), at("13:00"))).confirmed).toBe(1);
   });
 
   it("late checkout formal: corte no horário autorizado; incompleto não estende", async () => {

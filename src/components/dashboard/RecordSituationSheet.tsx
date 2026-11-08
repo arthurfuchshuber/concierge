@@ -690,7 +690,7 @@ export function RecordSituationSheet({
         className="flex w-[calc(100vw-2rem)] flex-col gap-0 overflow-hidden p-0 sm:w-full sm:max-w-sm"
         aria-describedby={undefined}
       >
-        <DialogHeader className="shrink-0 space-y-0 border-b border-border/50 px-3.5 pb-2.5 pr-11 pt-3.5 text-left">
+        <DialogHeader className="shrink-0 space-y-0 border-b border-border/50 px-3.5 pb-2.5 pr-12 pt-3.5 text-left">
           <div className="flex items-center gap-2">
             <DialogTitle className="ds-card-title min-w-0 flex-1 truncate">
               Nova situação

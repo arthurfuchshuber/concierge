@@ -192,7 +192,7 @@ export function StakeholderStatusControl({
           className="gap-3.5 p-[18px] sm:max-w-sm sm:p-[18px]"
           onClick={(e) => e.stopPropagation()}
         >
-          <DialogHeader className="gap-1.5 space-y-0 pr-9">
+          <DialogHeader className="gap-1.5 space-y-0 pr-12">
             <DialogTitle className="font-display text-lg font-extrabold leading-[1.2] tracking-[-0.01em]">
               {statusDraft?.status === "canceled" ? "Data final do contrato" : "Marcar como Ativo"}
             </DialogTitle>
