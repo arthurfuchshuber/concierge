@@ -20,6 +20,11 @@ export type LinkTarget = {
   title: string;
   /** E-mail/domínio sugerido, quando o convite tem participantes externos. */
   suggested: { kind: "email" | "domain"; value: string } | null;
+  /**
+   * Vínculo em lote (seleção múltipla da janela do Google Agenda): todos os eventos vão para o
+   * mesmo cadastro, cada um pelo próprio evento.
+   */
+  events?: Array<{ eventId: string; title: string }>;
 };
 
 type Scope = "event" | "keyword" | "suggested";
@@ -78,9 +83,12 @@ function suggestKeywords(title: string): string[] {
 export function LinkEventDialog({
   target,
   onOpenChange,
+  onLinked,
 }: {
   target: LinkTarget | null;
   onOpenChange: (open: boolean) => void;
+  /** Chamado depois de vincular (a janela de origem vai para "Vinculados"). */
+  onLinked?: () => void;
 }) {
   const optionsFn = useServerFn(listStakeholderOptions);
   const aliasFn = useServerFn(saveStakeholderAlias);
@@ -90,6 +98,7 @@ export function LinkEventDialog({
   const [scope, setScope] = useState<Scope>("event");
   const [keywords, setKeywords] = useState("");
 
+  const bulk = (target?.events?.length ?? 0) > 1;
   const suggestions = useMemo(() => suggestKeywords(target?.title ?? ""), [target?.title]);
 
   useEffect(() => {
@@ -125,6 +134,19 @@ export function LinkEventDialog({
   const save = useMutation({
     mutationFn: async (vars: { type: "owner" | "provider"; id: string }) => {
       if (!target) return;
+      if (bulk) {
+        for (const ev of target.events!) {
+          await aliasFn({
+            data: {
+              aliasKind: "event",
+              aliasValue: ev.eventId,
+              stakeholderType: vars.type,
+              stakeholderId: vars.id,
+            },
+          });
+        }
+        return;
+      }
       if (scope === "keyword" && !cleanKeywords) {
         throw new Error("Informe ao menos uma palavra-chave com 3+ letras.");
       }
@@ -144,10 +166,15 @@ export function LinkEventDialog({
       });
     },
     onSuccess: () => {
-      toast.success("Evento vinculado. Ele já aparece na ficha do cadastro.");
+      toast.success(
+        bulk
+          ? `${target!.events!.length} eventos vinculados. Eles já aparecem na ficha do cadastro.`
+          : "Evento vinculado. Ele já aparece na ficha do cadastro.",
+      );
       qc.invalidateQueries({ queryKey: ["gcal-events"] });
       qc.invalidateQueries({ queryKey: ["stakeholder-feed"] });
       onOpenChange(false);
+      onLinked?.();
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -177,35 +204,42 @@ export function LinkEventDialog({
     <Dialog open={!!target} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-base">Vincular Evento a um Cadastro</DialogTitle>
+          <DialogTitle className="text-base">
+            {bulk
+              ? `Vincular ${target!.events!.length} Eventos a um Cadastro`
+              : "Vincular Evento a um Cadastro"}
+          </DialogTitle>
           <DialogDescription className="text-xs">
-            {target?.title}
-            {target?.suggested ? ` · ${target.suggested.value}` : " · sem participantes com e-mail"}
+            {bulk
+              ? target!.events!.map((e) => e.title).join(" · ")
+              : `${target?.title ?? ""}${target?.suggested ? ` · ${target.suggested.value}` : " · sem participantes com e-mail"}`}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-3">
-          <div className="flex flex-wrap gap-1.5">
-            {scopes
-              .filter((s) => s.enabled)
-              .map((s) => (
-                <button
-                  key={s.value}
-                  type="button"
-                  title={s.hint}
-                  onClick={() => setScope(s.value)}
-                  className={`rounded-full border px-2.5 py-1 text-[11px] transition-colors ${
-                    scope === s.value
-                      ? "border-primary bg-primary text-primary-foreground"
-                      : "border-border bg-card text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  {s.label}
-                </button>
-              ))}
-          </div>
+          {!bulk && (
+            <div className="flex flex-wrap gap-1.5">
+              {scopes
+                .filter((s) => s.enabled)
+                .map((s) => (
+                  <button
+                    key={s.value}
+                    type="button"
+                    title={s.hint}
+                    onClick={() => setScope(s.value)}
+                    className={`rounded-full border px-2.5 py-1 text-[11px] transition-colors ${
+                      scope === s.value
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-border bg-card text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {s.label}
+                  </button>
+                ))}
+            </div>
+          )}
 
-          {scope === "keyword" ? (
+          {!bulk && scope === "keyword" ? (
             <div className="space-y-2 rounded-xl border border-border bg-muted/30 p-2.5">
               <Input
                 value={keywords}
@@ -287,13 +321,14 @@ export function LinkEventDialog({
             )}
           </div>
 
+          {/* "Voltar": fecha só esta janela e devolve para a janela de origem (Google Agenda). */}
           <Button
             variant="ghost"
             size="sm"
             className="h-8 rounded-full text-xs"
             onClick={() => onOpenChange(false)}
           >
-            Cancelar
+            Voltar
           </Button>
         </div>
       </DialogContent>

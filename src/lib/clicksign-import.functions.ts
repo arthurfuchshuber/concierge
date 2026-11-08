@@ -13,7 +13,7 @@ export const previewClicksignStakeholders = createServerFn({ method: "GET" })
     const [{ data: docs }, { data: owners }, { data: providers }] = await Promise.all([
       supabase
         .from("clicksign_documents")
-        .select("name, signers")
+        .select("id, name, signers")
         .eq("account_owner_id", userId)
         .limit(2000),
       supabase.from("property_owners").select("id, name, trade_name, email, doc").eq("account_owner_id", userId),
