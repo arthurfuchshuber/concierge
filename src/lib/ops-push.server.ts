@@ -56,6 +56,9 @@ function localNow(now = new Date()): LocalNow {
 }
 
 /** "15:00" | "15:00:00" -> minutos. Retorna fallback se inválido. */
+/** Fim do dia (23:59): limite de quem não tem horário limite de check-in cadastrado. */
+const END_OF_DAY_MINUTES = 23 * 60 + 59;
+
 function timeToMinutes(value: string | null | undefined, fallback: number): number {
   if (!value) return fallback;
   const m = /^(\d{1,2}):(\d{2})/.exec(value.trim());
@@ -72,7 +75,6 @@ function fmtTime(minutes: number): string {
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
-const DEFAULT_CHECKIN = 15 * 60; // 15:00
 const DEFAULT_CHECKOUT = 11 * 60; // 11:00
 
 /** Usuários que devem receber avisos operacionais de uma conta (owner + membros ativos owner/agent). */
@@ -331,11 +333,23 @@ export async function runOpsPushScan(admin: Admin, now = new Date()) {
     // ----- atrasos (com base nos cards pendentes da esteira) -----
     const lateCheckoutsByCity = new Map<string, number>();
     let lateCheckouts = 0;
-    for (const r of pendingCheckouts) {
+    // MESMO corte da baixa automática (08/11/2026): late checkout formal (R6) ou horário definido pela
+    // EQUIPE maior que o oficial. Antes o aviso olhava só o oficial e disparava "Check-Out Atrasado" no
+    // mesmo instante em que a baixa automática fechava o card no horário combinado pela equipe.
+    // Sem a leitura das autorizações não há como saber o corte: nenhum aviso de saída atrasada na rodada.
+    const { autoCheckoutTriggerTime, loadFormalLateCheckouts } = await import("@/lib/auto-checkout.server");
+    const lateOf = pendingCheckouts.length > 0 ? await loadFormalLateCheckouts(admin, propIds) : null;
+    for (const r of lateOf ? pendingCheckouts : []) {
       if (r.date > today) continue;
       if (isMuted(r)) continue;
       const p = propById.get(r.propertyId);
-      const limit = timeToMinutes(r.standardTime ?? p?.checkout_time ?? null, DEFAULT_CHECKOUT);
+      const cut = autoCheckoutTriggerTime({
+        standardTime: r.standardTime ?? p?.checkout_time ?? null,
+        lateCheckout: lateOf!(r),
+        arrivalTimeOverride: r.arrivalTimeOverride,
+        arrivalTimeSource: r.arrivalTimeSource,
+      });
+      const limit = cut ? cut[0] * 60 + cut[1] : timeToMinutes(null, DEFAULT_CHECKOUT);
       const lateBy = r.date < today ? 24 * 60 : t.minutes - limit;
       if (lateBy <= 0) continue;
       lateCheckouts++;
@@ -354,10 +368,10 @@ export async function runOpsPushScan(admin: Admin, now = new Date()) {
       // check-in só é ATRASADO depois do HORÁRIO LIMITE configurado para o
       // imóvel — antes disso é só pendente e não gera aviso. Se o hóspede
       // avisou uma chegada ainda mais tarde, ela prevalece.
-      const configuredLimit = timeToMinutes(
-        r.standardTimeMax ?? p?.checkin_time_max ?? r.standardTime ?? p?.checkin_time ?? null,
-        DEFAULT_CHECKIN,
-      );
+      // NUNCA o horário INICIAL (08/11/2026: "Check-In Atrasado" saía às 15:30 num imóvel sem limite
+      // cadastrado, porque o código caía no início da janela). Sem horário limite, o check-in só fica
+      // atrasado depois do dia previsto (fim do dia).
+      const configuredLimit = timeToMinutes(r.standardTimeMax ?? p?.checkin_time_max ?? null, END_OF_DAY_MINUTES);
       const predicted = r.arrivalTimeOverride ?? r.guestArrivalTime ?? null;
       const predictedLimit = predicted ? timeToMinutes(predicted, configuredLimit) : configuredLimit;
       const limit = Math.max(configuredLimit, predictedLimit);
@@ -443,33 +457,64 @@ export async function notifyAutoCheckoutBatch(
   const byOwner = new Map<string, typeof props>();
   for (const p of props) byOwner.set(p.owner_id, [...(byOwner.get(p.owner_id) ?? []), p]);
 
+  const cityOf = (p: { name: string | null; city: string | null } | undefined) =>
+    (p?.city || p?.name || "Imóvel sem cidade").trim();
+
   let notifications = 0;
   for (const [ownerId, list] of byOwner) {
-    // pessoa → imóveis liberados a que ela tem acesso
+    // TOTAL REAL (mesmo número da Fila de Limpeza): imóveis da conta com saída confirmada e limpeza em aberto,
+    // não só os liberados nesta rodada. Se a leitura falhar, cai para os liberados da rodada.
+    const releasedIds = new Set(list.map((p) => p.id));
+    const infoById = new Map(list.map((p) => [p.id, p]));
+    let awaiting = new Set<string>(releasedIds);
+    try {
+      const { data: all } = await admin.from("properties").select("id, name, city").eq("owner_id", ownerId);
+      const allProps = (all ?? []) as Array<{ id: string; name: string | null; city: string | null }>;
+      for (const p of allProps) if (!infoById.has(p.id)) infoById.set(p.id, { ...p, owner_id: ownerId });
+      const { buildArrivalRows } = await import("@/lib/arrival-board.server");
+      const { rows } = await buildArrivalRows(admin as never, {
+        kind: "checkout",
+        range: "today",
+        propIds: allProps.map((p) => p.id),
+      });
+      awaiting = new Set<string>(rows.filter((r) => r.status === "done").map((r) => r.propertyId));
+      for (const id of releasedIds) awaiting.add(id);
+    } catch (err) {
+      console.error("[ops-push] falha ao ler o total da Fila de Limpeza; usando a rodada:", err);
+    }
+
+    // pessoa → imóveis aguardando limpeza a que ela tem acesso (destinatária só se vê algum liberado agora)
     const perUser = new Map<string, string[]>();
-    for (const p of list) {
-      for (const u of await getPropertyLinkedUsers(admin, ownerId, p.id)) {
-        perUser.set(u, [...(perUser.get(u) ?? []), p.id]);
+    const notifyUsers = new Set<string>();
+    for (const pid of awaiting) {
+      for (const u of await getPropertyLinkedUsers(admin, ownerId, pid)) {
+        perUser.set(u, [...(perUser.get(u) ?? []), pid]);
+        if (releasedIds.has(pid)) notifyUsers.add(u);
       }
     }
     // agrupa pessoas com o mesmo conjunto de imóveis (um envio por grupo)
     const groups = new Map<string, string[]>();
     for (const [u, pids] of perUser) {
+      if (!notifyUsers.has(u)) continue;
       const key = [...pids].sort().join(",");
       groups.set(key, [...(groups.get(key) ?? []), u]);
     }
-    const propById = new Map(list.map((p) => [p.id, p]));
+    const day = opts.runKey.slice(0, 10);
     for (const [key, userIds] of groups) {
       const byCity = new Map<string, number>();
       for (const pid of key.split(",")) {
-        const p = propById.get(pid);
-        const city = (p?.city || p?.name || "Imóvel sem cidade").trim();
+        const city = cityOf(infoById.get(pid));
         byCity.set(city, (byCity.get(city) ?? 0) + 1);
       }
+      // Chave pelo TOTAL por cidade: mesmo total já avisado (no dia) nunca repete.
+      const sig = [...byCity.entries()]
+        .sort(([x], [y]) => x.localeCompare(y))
+        .map(([c, n]) => `${c}:${n}`)
+        .join("|");
       const r = await sendOpsPush(admin, {
         ownerId,
         kind: "auto-checkout-batch",
-        dedupeKey: `auto-checkout-batch:${ownerId}:${opts.runKey}:${key}`.slice(0, 400),
+        dedupeKey: `cleaning-pending:${ownerId}:${sig}:${day}:${userIds.slice().sort().join(",")}`.slice(0, 400),
         userIds,
         payload: {
           title: opsTitles.cleaningPending(),

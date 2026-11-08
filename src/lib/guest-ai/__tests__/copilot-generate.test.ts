@@ -413,6 +413,16 @@ describe("Copiloto · geração com a cadeia real e o Gateway real (transporte f
       "rate_limited",
     ],
     [
+      "400 de formato JSON (Titular e Reserva recusam)",
+      {
+        kind: "error",
+        error: { code: "json_format_rejected", retryable: false, httpStatus: 400 },
+        usage: null,
+        requestId: null,
+      } as ProviderOutcome,
+      "json_format_rejected",
+    ],
+    [
       "erro de autenticação do provedor",
       {
         kind: "error",

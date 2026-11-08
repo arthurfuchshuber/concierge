@@ -7,6 +7,8 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { CORNER_CLOSE_CLASS } from "@/components/ui/corner-close";
+import { splitWindowChildren, WindowBody } from "@/components/ui/window-body";
 
 const Sheet = SheetPrimitive.Root;
 
@@ -69,12 +71,16 @@ const SheetContent = React.forwardRef<
   SheetContentProps
 >(({ side = "right", className, closeClassName, children, ...props }, ref) => {
   const [layerRef, layerNodeRef] = useOverlayLayer("window", ref);
+  // ROLAGEM SÓ NO CONTEÚDO (08/11/2026): painel que rola (`overflow-y-auto` do chamador) vira casca fixa,
+  // com cabeçalho/rodapé fora e a barra só na área do conteúdo.
+  const wrapBody = /(^|\s)overflow-y-auto(\s|$)/.test(String(className ?? ""));
+  const split = splitWindowChildren(children);
   return (
     <SheetPortal>
       <SheetOverlay />
       <SheetPrimitive.Content
         ref={layerNodeRef}
-        className={cn(sheetVariants({ side }), className)}
+        className={cn(sheetVariants({ side }), className, wrapBody && "flex flex-col !overflow-hidden")}
         {...props}
         onPointerDownOutside={guardNestedOutside(layerRef, props.onPointerDownOutside)}
         onInteractOutside={guardNestedOutside(layerRef, props.onInteractOutside)}
@@ -85,13 +91,21 @@ const SheetContent = React.forwardRef<
             closeClassName ??
             // MESMO X DE CANTO DAS JANELAS (pedido explícito, 21/10/2026): aba delicada de 32px
             // colada no canto superior direito. Painéis que passam `closeClassName` seguem com o seu.
-            "absolute right-0 top-0 z-[5] grid size-8 cursor-pointer place-items-center rounded-bl-[12px] bg-[color-mix(in_oklab,var(--card)_100%,var(--foreground)_8%)] text-muted-foreground transition-colors hover:bg-[color-mix(in_oklab,var(--card)_100%,var(--foreground)_14%)] hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none"
+            CORNER_CLOSE_CLASS
           }
         >
           <X className="size-[13px]" strokeWidth={1.8} />
-          <span className="sr-only">Close</span>
+          <span className="sr-only">Fechar</span>
         </SheetPrimitive.Close>
-        {children}
+        {wrapBody ? (
+          <>
+            {split.head}
+            {split.body.length > 0 ? <WindowBody>{split.body}</WindowBody> : null}
+            {split.foot}
+          </>
+        ) : (
+          children
+        )}
       </SheetPrimitive.Content>
     </SheetPortal>
   );
@@ -99,7 +113,7 @@ const SheetContent = React.forwardRef<
 SheetContent.displayName = SheetPrimitive.Content.displayName;
 
 const SheetHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
-  <div className={cn("flex flex-col space-y-2 text-center sm:text-left", className)} {...props} />
+  <div className={cn("flex flex-col space-y-2 pr-12 text-center sm:text-left", className)} {...props} />
 );
 SheetHeader.displayName = "SheetHeader";
 
@@ -121,7 +135,7 @@ const SheetTitle = React.forwardRef<
     {...props}
   />
 ));
-SheetTitle.displayName = SheetPrimitive.Title.displayName;
+SheetTitle.displayName = "SheetTitle";
 
 const SheetDescription = React.forwardRef<
   React.ElementRef<typeof SheetPrimitive.Description>,
@@ -133,7 +147,7 @@ const SheetDescription = React.forwardRef<
     {...props}
   />
 ));
-SheetDescription.displayName = SheetPrimitive.Description.displayName;
+SheetDescription.displayName = "SheetDescription";
 
 export {
   Sheet,

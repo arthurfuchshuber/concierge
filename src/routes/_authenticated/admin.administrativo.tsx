@@ -3,7 +3,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { CreditCard, User as UserIcon, Plug } from "lucide-react";
 import { AssinaturaPage } from "@/components/admin-pages/AssinaturaPage";
 import { MeuPerfilPage } from "@/components/admin-pages/MeuPerfilPage";
-import { IntegracoesPage } from "@/components/admin-pages/IntegracoesPage";
+import { IntegracoesPage, useIntegrationStatusQueries } from "@/components/admin-pages/IntegracoesPage";
 import { useMyPermissions } from "@/hooks/useMyPermissions";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { PageHeader } from "@/components/ds/PageHeader";
@@ -32,6 +32,8 @@ function AdministrativoPage() {
   const { isAdmin } = useIsAdmin();
   const canSeeBilling = isOwner || isAdmin;
   const activeTab: Tab = tab === "assinatura" && !canSeeBilling ? "perfil" : tab;
+  // Pré-carrega o status das integrações ao abrir qualquer aba: tocar em "Integrações" fica instantâneo.
+  useIntegrationStatusQueries();
 
   const headers: Record<Tab, { title: string; subtitle: string }> = {
     perfil: { title: "Meu perfil", subtitle: "Seus dados pessoais e preferências nesta conta." },

@@ -12,7 +12,9 @@ import {
   VISION_LOAD_TIMEOUT_MS,
   VISUAL_DIAGNOSIS_KEYS,
   containsRoboticAck,
+  VISUAL_DIAGNOSIS_SPEC,
   diagnosisNeedsTeam,
+  diagnosisReliable,
   diagnosisUrgency,
   parseVisualDiagnosis,
   reconcileVisualDiagnosis,
@@ -42,6 +44,8 @@ const LEAK: VisualDiagnosis = {
   userFriendlyDiagnosis: "Há água acumulada sob a pia e gotejamento na conexão do sifão.",
   suggestedAction: "Feche o registro sob a pia e coloque um recipiente embaixo.",
   requiresStaffIntervention: true,
+  visualEvidence: "Poça de água no gabinete e gotas na rosca do sifão.",
+  uncertainty: "low",
 };
 const AC_E4: VisualDiagnosis = {
   hasIncident: true,
@@ -53,6 +57,8 @@ const AC_E4: VisualDiagnosis = {
   suggestedAction:
     "Desligue no controle, aguarde alguns minutos e ligue de novo; se voltar, avise.",
   requiresStaffIntervention: false,
+  visualEvidence: "Visor do split com o código E4 aceso.",
+  uncertainty: "medium",
 };
 
 const run = (decision: unknown) => {
@@ -241,6 +247,10 @@ describe("(b) fallback gracioso da visão", () => {
       { ...LEAK, category: "fogo" },
       { ...LEAK, extra: 1 },
       { ...LEAK, userFriendlyDiagnosis: "" },
+      { ...LEAK, visualEvidence: "" },
+      { ...LEAK, uncertainty: "talvez" },
+      (({ uncertainty: _u, ...rest }) => rest)(LEAK),
+      (({ visualEvidence: _e, ...rest }) => rest)(LEAK),
       "vazamento",
       3,
     ]) {
@@ -380,5 +390,26 @@ describe("(d) slot null e D9 blindado", () => {
 
   it("o prompt reforça que foto não libera credenciais e que códigos vistos nunca são repetidos", () => {
     expect(buildSystemPrompt("guide_chat")).toMatch(/Uma foto nunca libera senhas ou códigos/);
+  });
+});
+
+describe("Etapa 2 (08/11/2026): evidência visual e incerteza", () => {
+  it("schema exige visualEvidence e uncertainty (fail-closed); formato pedido ao modelo descreve os dois", () => {
+    expect(parseVisualDiagnosis(LEAK)).toEqual(LEAK);
+    expect(VISUAL_DIAGNOSIS_SPEC).toMatch(/"visualEvidence": string/);
+    expect(VISUAL_DIAGNOSIS_SPEC).toMatch(/"uncertainty": "low"\|"medium"\|"high"/);
+  });
+
+  it("incerteza alta = diagnóstico não confiável; baixa/média = confiável", () => {
+    expect(diagnosisReliable(LEAK)).toBe(true);
+    expect(diagnosisReliable(AC_E4)).toBe(true);
+    expect(diagnosisReliable({ ...LEAK, uncertainty: "high" })).toBe(false);
+    expect(diagnosisReliable(null)).toBe(false);
+  });
+
+  it("o prompt manda perguntar ao hóspede, sem afirmar causa, quando a foto não permite concluir", () => {
+    const sys = buildSystemPrompt("whatsapp");
+    expect(sys).toMatch(/Sem diagnóstico confiável \(uncertainty high\), não afirme causa nem invente/);
+    expect(sys).toMatch(/pergunte ao hóspede/);
   });
 });

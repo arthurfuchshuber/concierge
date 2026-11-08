@@ -1,3 +1,4 @@
+import { splitWindowChildren } from "@/components/ui/window-body";
 import * as React from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import {
@@ -67,7 +68,7 @@ export function ResponsiveDialogContent({
   if (isMobile) {
     return (
       <DrawerContent className={cn("max-h-[90dvh] px-4 pb-[max(1rem,env(safe-area-inset-bottom))]", className)}>
-        {scrollable ? <div className="sg-elegant-scroll min-h-0 overflow-y-auto">{children}</div> : children}
+        {scrollable ? <DrawerScrollBody>{children}</DrawerScrollBody> : children}
       </DrawerContent>
     );
   }
@@ -112,4 +113,16 @@ export function ResponsiveDialogFooter({
   const isMobile = useIsMobile();
   const Comp = isMobile ? DrawerFooter : DialogFooter;
   return <Comp className={cn(isMobile && "px-0", className)}>{children}</Comp>;
+}
+
+/** Gaveta do celular: cabeçalho/rodapé fixos e a barra só na área do conteúdo (regra de 08/11/2026). */
+function DrawerScrollBody({ children }: { children: React.ReactNode }) {
+  const { head, body, foot } = splitWindowChildren(children);
+  return (
+    <>
+      {head}
+      <div className="sg-elegant-scroll min-h-0 overflow-y-auto">{body}</div>
+      {foot}
+    </>
+  );
 }

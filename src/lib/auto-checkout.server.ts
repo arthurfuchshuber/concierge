@@ -48,8 +48,9 @@ function parseHm(value: string | null): [number, number] | null {
  *     só pelo trigger `guard_stay_authorizations`, que confere a permissão de quem autorizou). Aí o corte é o
  *     horário autorizado.
  * O antigo "gatilho 1" (confirmar ao alcançar o horário PREVISTO, `arrival_time_override`) foi descontinuado:
- * a previsão — da equipe, do hóspede no guia ou captada pela IA (`guest_ai`) — é 100% informativa para a
- * operação e a limpeza e NUNCA dá baixa. Uma data prevista diferente (`arrival_date_override`) também não
+ * a previsão NUNCA antecipa a baixa. Única influência: horário definido pela EQUIPE (`arrival_time_source =
+ * 'staff'`) MAIOR que o oficial estende o corte até esse horário (08/11/2026); o do hóspede (`guest`) ou da IA
+ * (`guest_ai`) é só informativo. Uma data prevista diferente (`arrival_date_override`) também não
  * antecipa nada: saída antes do dia confirmado só com confirmação factual (hóspede no chat/guia ou equipe).
  * Pedido de hóspede ou da IA nunca estende o corte: só a equipe concede late checkout.
  *
@@ -72,10 +73,58 @@ export interface FormalLateCheckout {
 export function autoCheckoutTriggerTime(r: {
   standardTime?: string | null;
   lateCheckout?: FormalLateCheckout | null;
+  /** Horário definido no card (previsão). Só a EQUIPE (`arrivalTimeSource === "staff"`) estende o corte. */
+  arrivalTimeOverride?: string | null;
+  arrivalTimeSource?: string | null;
 }): [number, number] | null {
   const late = r.lateCheckout;
   const formal = late && late.time && late.approvedAt && late.by ? parseHm(late.time) : null;
-  return formal ?? parseHm(r.standardTime ?? null);
+  if (formal) return formal; // late checkout formal (R6) manda
+  const standard = parseHm(r.standardTime ?? null);
+  // Horário definido pela EQUIPE MAIOR que o oficial estende o corte; menor nunca antecipa.
+  // Hóspede (`guest`) e IA (`guest_ai`) continuam só informativos.
+  const staff = r.arrivalTimeSource === "staff" ? parseHm(r.arrivalTimeOverride ?? null) : null;
+  if (staff && standard && staff[0] * 60 + staff[1] > standard[0] * 60 + standard[1]) return staff;
+  return standard;
+}
+
+/**
+ * Lê de uma vez as autorizações formais de late checkout (R6) dos imóveis e devolve a busca por card;
+ * `null` = a leitura falhou (quem chama não deve agir às cegas). Usado pela baixa automática e pelo aviso
+ * de "Check-Out Atrasado", para os dois enxergarem o MESMO corte.
+ */
+export async function loadFormalLateCheckouts(
+  admin: Admin,
+  propIds: string[],
+): Promise<((row: { logId: string; reservationId: string | null }) => FormalLateCheckout | null) | null> {
+  const byKey = new Map<string, FormalLateCheckout>();
+  if (propIds.length === 0) return () => null;
+  const { data, error } = await admin
+    .from("guest_arrival_status")
+    .select("reservation_id, log_id, late_checkout_time, late_checkout_approved_at, late_checkout_by")
+    .eq("kind", "checkout")
+    .not("late_checkout_time", "is", null)
+    .in("property_id", propIds);
+  if (error) return null;
+  for (const l of (data ?? []) as Array<{
+    reservation_id: string | null;
+    log_id: string | null;
+    late_checkout_time: string | null;
+    late_checkout_approved_at: string | null;
+    late_checkout_by: string | null;
+  }>) {
+    const v = { time: l.late_checkout_time, approvedAt: l.late_checkout_approved_at, by: l.late_checkout_by };
+    if (l.reservation_id) byKey.set(`r:${l.reservation_id}`, v);
+    if (l.log_id) byKey.set(`l:${l.log_id}`, v);
+  }
+  return (row) => {
+    const t = resolveTarget(row);
+    return (
+      (t.reservationId ? byKey.get(`r:${t.reservationId}`) : undefined) ??
+      (t.logId ? byKey.get(`l:${t.logId}`) : undefined) ??
+      null
+    );
+  };
 }
 
 /** Dia em que o corte vale: a saída CONFIRMADA da reserva (nunca a data prevista do card). */
@@ -123,44 +172,22 @@ export async function runAutoCheckoutScan(admin: Admin, now: Date = new Date()) 
   let failed = 0;
 
   // Late checkout formal (R6) dos cards de saída: poucos, lidos de uma vez (por reserva e por log).
-  const lateByKey = new Map<string, FormalLateCheckout>();
-  const { data: lateRaw, error: lateErr } = await admin
-    .from("guest_arrival_status")
-    .select(
-      "reservation_id, log_id, late_checkout_time, late_checkout_approved_at, late_checkout_by",
-    )
-    .eq("kind", "checkout")
-    .not("late_checkout_time", "is", null)
-    .in("property_id", propIds);
+  const late = await loadFormalLateCheckouts(admin, propIds);
   // sem a leitura das autorizações não há como saber o corte certo: nada é confirmado nesta rodada
-  if (lateErr) return { checked: pending.length, confirmed: 0, failed: 0 };
-  for (const l of (lateRaw ?? []) as Array<{
-    reservation_id: string | null;
-    log_id: string | null;
-    late_checkout_time: string | null;
-    late_checkout_approved_at: string | null;
-    late_checkout_by: string | null;
-  }>) {
-    const v = {
-      time: l.late_checkout_time,
-      approvedAt: l.late_checkout_approved_at,
-      by: l.late_checkout_by,
-    };
-    if (l.reservation_id) lateByKey.set(`r:${l.reservation_id}`, v);
-    if (l.log_id) lateByKey.set(`l:${l.log_id}`, v);
-  }
+  if (!late) return { checked: pending.length, confirmed: 0, failed: 0 };
 
   /** Quais cards pendentes já passaram do corte oficial (ou do late checkout formal) no dia da saída. */
   const dueNow = (list: typeof rows) => {
     const due: typeof rows = [];
     for (const r of list) {
       if (r.status !== "pending") continue;
-      const target = resolveTarget(r);
-      const lateCheckout =
-        (target.reservationId ? lateByKey.get(`r:${target.reservationId}`) : undefined) ??
-        (target.logId ? lateByKey.get(`l:${target.logId}`) : undefined) ??
-        null;
-      const hm = autoCheckoutTriggerTime({ standardTime: r.standardTime, lateCheckout });
+      const lateCheckout = late(r);
+      const hm = autoCheckoutTriggerTime({
+        standardTime: r.standardTime,
+        lateCheckout,
+        arrivalTimeOverride: r.arrivalTimeOverride,
+        arrivalTimeSource: r.arrivalTimeSource,
+      });
       if (!hm) continue; // imóvel sem horário oficial de checkout: confirmação continua manual
 
       const day = autoCheckoutDay(r);

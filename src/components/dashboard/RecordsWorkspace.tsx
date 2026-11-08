@@ -1019,11 +1019,11 @@ function CategoryPendingDialog({
         aria-describedby={undefined}
         className="flex max-h-[min(90dvh,calc(100dvh_-_var(--kb-inset,0px)_-_3rem))] w-[calc(100vw-2rem)] flex-col gap-0 overflow-hidden p-0 sm:w-full sm:max-w-md"
       >
-        <DialogHeader className="shrink-0 px-4 pb-2 pr-14 pt-3.5 text-left">
-          <DialogTitle className="truncate text-sm font-bold leading-6">
+        <DialogHeader className="shrink-0 px-4 pb-2.5 pr-12 pt-3 text-left">
+          <DialogTitle className="truncate text-sm font-bold leading-5">
             {meta?.short ?? "Pendências"}
           </DialogTitle>
-          <div className="!mt-0 text-xs leading-5 text-muted-foreground">
+          <div className="!mt-0 text-xs leading-4 text-muted-foreground">
             {q.isLoading
               ? "Carregando…"
               : `${total} ${total === 1 ? "pendência" : "pendências"} · ${ownerCount} ${

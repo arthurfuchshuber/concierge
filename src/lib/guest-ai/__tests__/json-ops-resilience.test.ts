@@ -4,7 +4,7 @@
  * e, sem decisão, a baixa de check-out ("Check out feito" / "Saímos e deixamos chave conforme instruções") não rodou.
  * (a) o prompt montado sempre traz "JSON" na mensagem do usuário;
  * (b) o transporte garante "json" na entrada quando o formato é JSON (nos dois fios);
- * (c) recusa da chamada pelo Titular (400/422) aciona o Reserva antes de desistir;
+ * (c) failover para o Reserva só em erro recuperável (5xx, rede, 429, 400 de formato JSON); outros 4xx fecham;
  * (d) as mensagens reais de saída da hóspede viram `checkout_done` aplicado.
  */
 import { readFileSync } from "node:fs";
@@ -24,7 +24,10 @@ import {
   JSON_WORD_GUARD,
   buildChatBody,
   buildResponsesBody,
+  createLovableGatewayProvider,
   ensureJsonWord,
+  isJsonFormatRejection,
+  readErrorSnippet,
 } from "@/lib/guest-ai/llm/providers/lovable-gateway.server";
 import { evaluateOpsSignals, type OpsPolicyInput } from "@/lib/guest-ai/ops/policy";
 import { runOps, type OpsRunInput } from "@/lib/guest-ai/ops/executor.server";
@@ -168,40 +171,78 @@ const instant = {
   },
 };
 
-describe("(c) recusa da chamada pelo Titular aciona o Reserva", () => {
+describe("(c) failover para o Reserva só em erro recuperável do provedor (Etapa 0)", () => {
   it.each([
-    ["400 (validação do provedor)", "bad_request", 400],
-    ["422", "bad_request", 422],
-    ["outro 4xx", "invalid_response", 409],
+    ["5xx", "provider_unavailable", 503],
+    ["rede", "network", null],
+    ["429", "rate_limited", 429],
+    ["400 específico de formato JSON", "json_format_rejected", 400],
   ] as const)("%s ⇒ 2ª tentativa no Reserva e o turno segue", async (_l, code, status) => {
-    const { seen, provider } = scripted([err(code, status), ok()]);
+    const { seen, provider } = scripted([err(code, status as number), ok()]);
     const r = await generateGuestLlm(req(), { provider, log: () => {}, ...instant });
     expect(r.ok).toBe(true);
     expect(seen.map((s) => s.spec.id)).toEqual(["openai/gpt-6-astra", "google/gemini-3.8-flash"]);
     expect(r.telemetry.model).toBe("google/gemini-3.8-flash");
   });
 
-  it("401/403, 402 e 429 valem para a conta inteira do gateway ⇒ não troca (o Reserva cairia igual)", async () => {
+  it("outros 4xx ⇒ falha fechada no Titular, sem nova tentativa às cegas", async () => {
     for (const [code, status] of [
+      ["bad_request", 400],
+      ["bad_request", 422],
       ["auth", 401],
+      ["auth", 403],
       ["billing", 402],
-      ["rate_limited", 429],
+      ["model_unavailable", 404],
+      ["invalid_response", 409],
     ] as const) {
       const { seen, provider } = scripted([err(code, status), ok()]);
-      await generateGuestLlm(req(), { provider, log: () => {}, ...instant });
-      expect(
-        seen.every((s) => s.spec.id === "openai/gpt-6-astra"),
-        code,
-      ).toBe(true);
+      const r = await generateGuestLlm(req(), { provider, log: () => {}, ...instant });
+      expect(r.ok, code).toBe(false);
+      expect(!r.ok && r.error.code, code).toBe(code);
+      expect(seen.map((s) => s.spec.id), code).toEqual(["openai/gpt-6-astra"]);
     }
   });
 
-  it("o Reserva também falha ⇒ falha fechada com código, sem exceção", async () => {
-    const { seen, provider } = scripted([err("bad_request", 400), err("bad_request", 400)]);
-    const r = await generateGuestLlm(req(), { provider, log: () => {}, ...instant });
+  it("o Reserva também falha ⇒ falha fechada com código fixo, logada, sem exceção", async () => {
+    const logs: Array<{ outcome: string; code: string | null }> = [];
+    const { seen, provider } = scripted([err("json_format_rejected", 400), err("json_format_rejected", 400)]);
+    const r = await generateGuestLlm(req(), { provider, log: (e) => logs.push(e), ...instant });
     expect(r.ok).toBe(false);
-    expect(!r.ok && r.error.code).toBe("bad_request");
+    expect(!r.ok && r.error.code).toBe("json_format_rejected");
     expect(seen).toHaveLength(2);
+    expect(logs.at(-1)).toMatchObject({ outcome: "error", code: "json_format_rejected" });
+  });
+});
+
+describe("(c2) o provedor reconhece SÓ o 400 de formato JSON (corpo lido limitado, nunca logado)", () => {
+  const body400 = (text: string) => new Response(text, { status: 400 });
+  it("mensagem real da OpenAI ⇒ json_format_rejected", async () => {
+    const real =
+      "Response input messages must contain the word 'json' in some form to use 'text.format' of type 'json_object'.";
+    expect(isJsonFormatRejection(await readErrorSnippet(body400(JSON.stringify({ error: { message: real } }))))).toBe(true);
+  });
+  it("400 genérico ⇒ não é a recusa de formato", async () => {
+    expect(isJsonFormatRejection(await readErrorSnippet(body400('{"error":{"message":"max_tokens too large"}}')))).toBe(false);
+    expect(isJsonFormatRejection("")).toBe(false);
+  });
+  it("leitura limitada a 4 KB", async () => {
+    expect((await readErrorSnippet(body400("x".repeat(50_000)))).length).toBeLessThanOrEqual(4096);
+  });
+  it("fio completo: 400 de formato num pedido JSON vira json_format_rejected; em pedido texto, bad_request", async () => {
+    const mk = () =>
+      createLovableGatewayProvider({
+        getApiKey: () => "k",
+        fetch: async () =>
+          new Response('{"error":{"message":"messages must contain the word json to use response_format json_object"}}', {
+            status: 400,
+          }),
+      });
+    const spec = modelSpec("openai/gpt-6-astra")!;
+    const base = { spec, messages: [{ role: "user", content: "oi" }], maxOutputTokens: 100 } as unknown as ProviderRequest;
+    const json = await mk().complete({ ...base, responseFormat: "json" } as ProviderRequest, new AbortController().signal);
+    expect(json.kind === "error" && json.error.code).toBe("json_format_rejected");
+    const text = await mk().complete({ ...base, responseFormat: "text" } as ProviderRequest, new AbortController().signal);
+    expect(text.kind === "error" && text.error.code).toBe("bad_request");
   });
 });
 
@@ -366,5 +407,35 @@ describe("(d) confirmação de saída da hóspede ⇒ checkout_done aplicado", (
     expect(apply).toHaveBeenCalledTimes(1);
     expect((apply.mock.calls as unknown as Array<[unknown]>)[0]![0]).toMatchObject({ action: "checkout_done" });
     expect(r.calls).toEqual(["guest_ai_ops_claim", "guest_ai_ops_finish"]);
+  });
+
+  it.each(MSGS)("executor shadow: '%s' ⇒ só registro, nenhuma escrita no card", async (text) => {
+    const r = fakeRpc();
+    const apply = vi.fn();
+    const out = await runOps(runInput(text), {
+      env: { GUEST_AI_OPS_MODE: "shadow" },
+      rpc: r.rpc,
+      loadState: async () => STATE,
+      now: () => CHECKOUT_DAY,
+      apply: apply as never,
+    });
+    expect(out).toMatchObject({ mode: "shadow" });
+    expect(apply).not.toHaveBeenCalled();
+    expect(r.calls).toContain("guest_ai_ops_record");
+    expect(r.calls).not.toContain("guest_ai_ops_claim");
+  });
+
+  it("live com falha na escrita do card ⇒ contabilizada e finalizada, nunca silenciosa", async () => {
+    const r = fakeRpc();
+    const apply = vi.fn(async () => ({ ok: false as const, code: "apply_failed" }));
+    const out = await runOps(runInput(MSGS[0]!), {
+      env: { GUEST_AI_OPS_MODE: "live" },
+      rpc: r.rpc,
+      loadState: async () => STATE,
+      now: () => CHECKOUT_DAY,
+      apply: apply as never,
+    });
+    expect(out).toMatchObject({ mode: "live", applied: 0, refused: 1 });
+    expect(r.calls).toEqual(["guest_ai_ops_claim", "guest_ai_ops_finish"]); // auditado como "refused" + código
   });
 });

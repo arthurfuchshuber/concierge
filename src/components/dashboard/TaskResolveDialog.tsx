@@ -682,16 +682,16 @@ export function TaskResolveDialog({
           {/* Cabeçalho universal de janela ampla (07/11/2026): título 14px em 1
               linha + imóvel e proprietário (com o ícone de mensagem) em 12px;
               o "X" oficial fica no canto (pr-14). */}
-          <DialogHeader className="space-y-0 px-4 pt-3.5 pb-0 pr-14 text-left">
-            <DialogTitle className="truncate text-sm font-bold leading-6 text-foreground">Concluir pendência</DialogTitle>
+          <DialogHeader className="space-y-0 px-4 pt-3 pb-2.5 pr-12 text-left">
+            <DialogTitle className="truncate text-sm font-bold leading-5 text-foreground">Concluir pendência</DialogTitle>
             {task?.propertyName && (
-              <div className="flex min-w-0 items-center gap-[5px] text-xs leading-5 text-muted-foreground">
+              <div className="flex min-w-0 items-center gap-[5px] text-xs leading-4 text-muted-foreground">
                 <Home className="size-3 shrink-0 text-muted-foreground" />
                 <span className="truncate">{task.propertyName}</span>
               </div>
             )}
             {task?.ownerName && (
-              <div className="flex min-w-0 items-center gap-[5px] text-xs leading-5">
+              <div className="flex min-w-0 items-center gap-[5px] text-xs leading-4">
                 <User className="size-3 shrink-0 text-muted-foreground" />
                 <span className="min-w-0 truncate font-semibold text-foreground">{task.ownerName}</span>
                 <PhoneActionButton

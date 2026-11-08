@@ -7,8 +7,8 @@
  *    segue o fallback humano).
  *  - Prazo total rígido (padrão e máximo 15 s) com AbortSignal; vale também para provedor que
  *    ignore o sinal (corrida contra o prazo).
- *  - Nova tentativa só para falha transitória (5xx/rede), uma vez, e só se ainda houver prazo.
- *    429 e 402 nunca são repetidos.
+ *  - Nova tentativa só para falha recuperável do provedor (5xx/rede no mesmo modelo; 5xx/rede/429/400 de
+ *    formato JSON trocando para o Reserva), uma vez, e só se ainda houver prazo. Outros 4xx: falha fechada.
  *  - Contrato validado ANTES da rede: modelo registrado, limites, esforço de raciocínio
  *    suportado, `forbiddenValues` ausentes das mensagens.
  *  - Resposta truncada, filtrada, vazia ou com JSON inválido = falha (nada parcial sai daqui).
@@ -57,7 +57,13 @@ export interface GatewayDeps {
 
 const ROLES = new Set(["system", "user", "assistant", "tool"]);
 /** Falhas do Titular (não transitórias) que acionam o Reserva. */
-export const FALLBACK_ON: ReadonlySet<LlmErrorCode> = new Set<LlmErrorCode>(["model_unavailable", "bad_request", "invalid_response"]);
+export const FALLBACK_ON: ReadonlySet<LlmErrorCode> = new Set<LlmErrorCode>([
+  "provider_unavailable", // 5xx
+  "network", // sem resposta HTTP (queda/timeout de conexão)
+  "timeout",
+  "rate_limited", // 429
+  "json_format_rejected", // o 400 específico de formato JSON
+]);
 const TOOL_NAME = /^[a-z][a-z0-9_]{0,63}$/;
 const TOOL_CALL_ID = /^[\w.:-]{1,128}$/;
 const TOOL_CHOICES = new Set<LlmToolChoice>(["auto", "none"]);
@@ -368,10 +374,10 @@ export async function generateGuestLlm(request: LlmRequest, deps: GatewayDeps = 
     let attempts = 0;
     let requestId: string | null = null;
     let lastError: ClassifiedError = failure("internal_error");
-    // Reserva automática do Titular (ver `GUEST_AI_FALLBACK_MODELS`): a 2ª tentativa vai para o Reserva
-    // quando a 1ª falhou por rede, 5xx, modelo indisponível ou recusa da chamada pelo provedor (400/422 e
-    // outros 4xx de validação — incidente de 08/11/2026). Mesmo prazo, mesmas travas. Não troca em 401/403
-    // (credencial), 402 (créditos) e 429 (limite): valem para a conta inteira do gateway, o Reserva cairia igual.
+    // Reserva automática do Titular (ver `GUEST_AI_FALLBACK_MODELS`), Etapa 0 de 08/11/2026: a 2ª tentativa vai
+    // para o Reserva SÓ em erro recuperável do provedor — 5xx, rede/timeout, 429 e o 400 específico de formato
+    // JSON (`json_format_rejected`). Qualquer outro 4xx (400/422 genérico, 401/403, 402, 404, …) é falha FECHADA,
+    // sem nova tentativa às cegas. Mesmo prazo, mesmas travas.
     const fallbackId = guestFallbackModel(v.spec.id);
     const vFallback = fallbackId ? validateLlmRequest({ ...request, model: fallbackId }) : null;
     let cur: ValidatedRequest = v;

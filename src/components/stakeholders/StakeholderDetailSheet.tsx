@@ -2442,7 +2442,7 @@ function DocPreviewDialog({ doc, onClose }: { doc: PreviewTarget; onClose: () =>
       {/* Mockup aprovado: janela pequena (com "X"), cabeçalho com ícone, nome em 1 linha e a
           situação do documento; o leitor ocupa a largura toda, com cantos do sistema. */}
       <DialogContent className="max-w-4xl gap-3.5 overflow-hidden p-[18px]">
-        <DialogHeader className="flex-row items-center gap-3 space-y-0 pr-9">
+        <DialogHeader className="flex-row items-center gap-3 space-y-0 pr-12">
           <span className="grid size-10 shrink-0 place-items-center rounded-sm bg-foreground/[0.06] text-muted-foreground">
             <FileText className="size-[18px]" />
           </span>

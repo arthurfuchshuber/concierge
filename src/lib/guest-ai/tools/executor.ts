@@ -13,8 +13,10 @@
  */
 import type { LlmToolCall } from "@/lib/guest-ai/llm/contracts";
 import {
+  TOOL_MAX_CALLS_PER_TURN,
   TOOL_RESULT_MAX_CHARS,
   TOOL_TIMEOUT_MS,
+  type ExternalHttp,
   type GuestToolContext,
   type MapsHttp,
   type ToolErrorCode,
@@ -34,6 +36,8 @@ export interface ToolCallOutcome {
 
 export interface ExecuteDeps {
   http: MapsHttp;
+  /** Clima e voos (Etapa 3). Ausente ⇒ essas ferramentas respondem `indisponivel`. */
+  external?: ExternalHttp;
   /** Sinal do turno (cancelamento externo). */
   signal: AbortSignal;
   /** Prazo que resta do turno (ms). Cada ferramenta usa min(6 s, restante). */
@@ -109,7 +113,7 @@ async function runOne(
   }, budget);
   try {
     const result = await Promise.race([
-      tool.execute(args, ctx, { http: deps.http, signal: controller.signal }),
+      tool.execute(args, ctx, { http: deps.http, external: deps.external, signal: controller.signal }),
       new Promise<never>((_, reject) =>
         controller.signal.addEventListener("abort", () => reject(new Error("aborted")), {
           once: true,
@@ -127,22 +131,38 @@ async function runOne(
   }
 }
 
-/** Executa todas as chamadas (em paralelo). Nunca lança; a ordem do resultado é a das chamadas. */
+/**
+ * Executa todas as chamadas (em paralelo). Nunca lança; a ordem do resultado é a das chamadas. Teto de
+ * custo do turno: no máximo `TOOL_MAX_CALLS_PER_TURN` chamadas da mesma ferramenta; o excedente nem sai
+ * para a rede e volta como `limite_atingido`.
+ */
 export async function executeToolCalls(
   calls: readonly LlmToolCall[],
   ctx: GuestToolContext,
   deps: ExecuteDeps,
 ): Promise<ToolCallOutcome[]> {
+  const seen = new Map<string, number>();
   return Promise.all(
-    calls.map((c) =>
-      runOne(c, ctx, deps).catch((): ToolCallOutcome => ({
+    calls.map((c) => {
+      const n = (seen.get(c.name) ?? 0) + 1;
+      seen.set(c.name, n);
+      if (n > TOOL_MAX_CALLS_PER_TURN)
+        return Promise.resolve<ToolCallOutcome>({
+          callId: c.id,
+          name: c.name,
+          ok: false,
+          error: "limite_atingido",
+          content: JSON.stringify(errorResult("limite_atingido")),
+          latencyMs: 0,
+        });
+      return runOne(c, ctx, deps).catch((): ToolCallOutcome => ({
         callId: c.id,
         name: c.name,
         ok: false,
         error: "indisponivel",
         content: JSON.stringify(errorResult("indisponivel")),
         latencyMs: 0,
-      })),
-    ),
+      }));
+    }),
   );
 }

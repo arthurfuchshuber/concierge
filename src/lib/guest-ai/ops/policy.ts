@@ -110,7 +110,7 @@ export function withinBounds(time: string, min: string | null, max: string | nul
   return true;
 }
 
-/** Horário de madrugada (00:00 até antes das 05:00). */
+/** Horário de madrugada (00:00 até 04:59). */
 export function isMadrugada(time: string): boolean {
   const t = minutes(time);
   return t !== null && t < MADRUGADA_END_MINUTES;
@@ -262,6 +262,9 @@ function evaluateDone(input: OpsPolicyInput, kind: "checkin" | "checkout"): OpsE
   }
   const cb = cardBlock(card, input.now);
   if (cb) return fail(cb);
+  // A CONFIRMAÇÃO FINAL DO HÓSPEDE VALE (pedido explícito do titular, 08/11/2026): saída consumada
+  // ("já saí", "check out feito") dá baixa na hora, mesmo com horário da equipe ou late checkout no card —
+  // esses horários só seguram a baixa AUTOMÁTICA (sem confirmação de ninguém), nunca o fato dito pelo hóspede.
   const team = teamOrNegotiationBlock(input);
   if (team) return fail(team);
   return evaluation(action, null, ev.messageId, card, { date: proposedDate, time: null });

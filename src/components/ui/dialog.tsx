@@ -7,6 +7,8 @@ import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { CORNER_CLOSE_CLASS } from "@/components/ui/corner-close";
+import { ownsScroll, splitWindowChildren, WindowBody } from "@/components/ui/window-body";
 
 const Dialog = DialogPrimitive.Root;
 
@@ -55,6 +57,8 @@ const DialogContent = React.forwardRef<
   }
 >(({ className, children, hideClose, pageLike, overlayClassName, ...props }, ref) => {
   const [layerRef, layerNodeRef] = useOverlayLayer("window", useAntiClipWindow(ref));
+  const wrapBody = !ownsScroll(className);
+  const split = splitWindowChildren(children);
   return (
     <DialogPortal>
       <DialogOverlay className={overlayClassName} />
@@ -65,30 +69,38 @@ const DialogContent = React.forwardRef<
           // ainda descontando o teclado (`--kb-inset`) e a margem de 3rem —
           // `min(...)` garante o menor dos dois. `sg-elegant-scroll`: barra de
           // rolagem fina e visível, igual aos demais tooltips/popovers.
-          "sg-elegant-scroll fixed left-[50%] top-[50%] z-50 grid grid-cols-[minmax(0,1fr)] w-[calc(100%_-_2rem)] max-w-lg translate-x-[-50%] translate-y-[calc(-50%_-_var(--kb-inset,0px)_/_2)] gap-4 rounded-[var(--win-radius)] border border-[var(--panel-border)] bg-[var(--panel)] text-foreground p-5 sm:p-6 shadow-[0_30px_80px_rgba(0,0,0,0.55),0_2px_8px_rgba(0,0,0,0.25),inset_0_1px_0_rgba(255,255,255,0.05)] before:pointer-events-none before:absolute before:inset-x-8 before:top-0 before:h-px before:content-[''] before:bg-[image:var(--panel-hair)] duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 max-h-[min(90dvh,calc(100dvh_-_var(--kb-inset,0px)_-_3rem))] overflow-y-auto overscroll-contain touch-pan-y",
+          "fixed left-[50%] top-[50%] z-50 grid grid-cols-[minmax(0,1fr)] w-[calc(100%_-_2rem)] max-w-lg translate-x-[-50%] translate-y-[calc(-50%_-_var(--kb-inset,0px)_/_2)] gap-4 rounded-[var(--win-radius)] border border-[var(--panel-border)] bg-[var(--panel)] text-foreground p-5 sm:p-6 shadow-[0_30px_80px_rgba(0,0,0,0.55),0_2px_8px_rgba(0,0,0,0.25),inset_0_1px_0_rgba(255,255,255,0.05)] before:pointer-events-none before:absolute before:inset-x-8 before:top-0 before:h-px before:content-[''] before:bg-[image:var(--panel-hair)] duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 max-h-[min(90dvh,calc(100dvh_-_var(--kb-inset,0px)_-_3rem))]",
           pageLike &&
             "max-lg:!left-[10px] max-lg:!top-[80px] max-lg:!h-[calc(100dvh_-_80px)] max-lg:!max-h-none max-lg:!w-[calc(100vw_-_20px)] max-lg:!max-w-none max-lg:!translate-x-0 max-lg:!translate-y-0 max-lg:!rounded-b-none max-lg:!border-b-0",
           className,
+          // ROLAGEM SÓ NO CONTEÚDO (08/11/2026): a casca nunca rola; quem rola é o `WindowBody`.
+          wrapBody ? "flex flex-col !overflow-hidden" : "overflow-hidden",
         )}
         {...props}
         onPointerDownOutside={guardNestedOutside(layerRef, props.onPointerDownOutside)}
         onInteractOutside={guardNestedOutside(layerRef, props.onInteractOutside)}
       >
-        {children}
+        {wrapBody ? (
+          <>
+            {split.head}
+            {split.body.length > 0 ? <WindowBody>{split.body}</WindowBody> : null}
+            {split.foot}
+          </>
+        ) : (
+          children
+        )}
         {hideClose ? null : (
           <DialogPrimitive.Close
             data-window-close
-            // X OFICIAL (08/11/2026): BOTÃO estruturado, não ícone solto — 28px, cantos `rounded-lg`, fundo sutil
-            // e borda suave, alinhado à linha do título (`top-3.5 right-4`; o cabeçalho reserva `pr-14`). Ícone
-            // nítido de 16px, hover/foco visíveis e área de toque ampliada pelo `after` (sem mudar o desenho).
-            // Mora AQUI para valer em todas as janelas; abaixo de `lg`, em janela "como página" (`pageLike`),
-            // ele some e o "Voltar" (`DialogDateRow`) assume.
-            className={cn(
-              "absolute right-4 top-3.5 z-10 grid size-7 cursor-pointer place-items-center rounded-lg border border-border/40 bg-foreground/5 text-foreground/80 transition-colors after:absolute after:-inset-1.5 after:content-[''] hover:bg-foreground/10 hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none",
-              pageLike && "max-lg:hidden",
-            )}
+            // X OFICIAL INTEGRADO DE QUINA (08/11/2026): aba colada no canto superior direito, sem borda, com o
+            // canto inferior esquerdo arredondado (12px) e o superior direito acompanhando o raio da janela.
+            // Mora AQUI para valer em todas as janelas; o cabeçalho reserva `pr-12`. Abaixo de `lg`, em janela
+            // "como página" (`pageLike`), ele também aparece (visível em 100% das telas).
+            className={
+              CORNER_CLOSE_CLASS
+            }
           >
-            <X className="size-4" strokeWidth={2} />
+            <X className="size-[13px]" strokeWidth={1.8} />
             <span className="sr-only">Fechar</span>
           </DialogPrimitive.Close>
         )}
@@ -100,8 +112,8 @@ DialogContent.displayName = DialogPrimitive.Content.displayName;
 
 /**
  * Linha de topo das janelas "como página" (mockup aprovado, 22/10/2026): data dourada igual à das
- * páginas (`PageShell`) e, abaixo de `lg`, o "Voltar" alinhado à direita NA MESMA linha. No
- * computador o "Voltar" some (fecha pelo "X" de canto) e a linha reserva 40px para ele.
+ * páginas (`PageShell`). O fechamento é só o "X" de canto (visível em todos os tamanhos de tela); a linha
+ * reserva 40px à direita para nunca ficar embaixo dele.
  */
 const DialogDateRow = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => {
   const hoje = new Date()
@@ -113,26 +125,17 @@ const DialogDateRow = ({ className, ...props }: React.HTMLAttributes<HTMLDivElem
     })
     .replace(/^\w/, (c) => c.toUpperCase());
   return (
-    <div
-      className={cn("flex min-w-0 items-center justify-between gap-3 lg:pr-10", className)}
-      {...props}
-    >
+    <div className={cn("flex min-w-0 items-center justify-between gap-3 pr-10", className)} {...props}>
       <p className="ds-eyebrow ds-data truncate text-[10.5px] leading-[22px] tracking-[0.2em]">
         {hoje}
       </p>
-      <DialogPrimitive.Close
-        data-window-close
-        className="inline-flex h-[22px] shrink-0 cursor-pointer items-center gap-1 rounded-md text-[12px] font-medium text-muted-foreground transition-colors hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:hidden"
-      >
-        Voltar
-      </DialogPrimitive.Close>
     </div>
   );
 };
 DialogDateRow.displayName = "DialogDateRow";
 
 const DialogHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
-  <div className={cn("flex flex-col space-y-1.5 text-left pr-12", className)} {...props} />
+  <div className={cn("flex flex-col space-y-0.5 text-left pr-12", className)} {...props} />
 );
 
 DialogHeader.displayName = "DialogHeader";
@@ -159,7 +162,7 @@ const DialogTitle = React.forwardRef<
     {...props}
   />
 ));
-DialogTitle.displayName = DialogPrimitive.Title.displayName;
+DialogTitle.displayName = "DialogTitle";
 
 const DialogDescription = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Description>,
@@ -171,7 +174,7 @@ const DialogDescription = React.forwardRef<
     {...props}
   />
 ));
-DialogDescription.displayName = DialogPrimitive.Description.displayName;
+DialogDescription.displayName = "DialogDescription";
 
 export {
   Dialog,

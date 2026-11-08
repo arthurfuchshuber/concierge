@@ -357,7 +357,7 @@ export function ReservationJourneyDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       {/* Sem `left/top` próprios: o DialogContent já é CENTRALIZADO na tela. */}
       <DialogContent
-        className="flex max-h-[90dvh] w-[min(420px,calc(100vw-2rem))] flex-col gap-0 overflow-hidden p-0 [&_[data-window-close]]:z-10 [&_[data-window-close]]:bg-black/35 [&_[data-window-close]]:text-white [&_[data-window-close]:hover]:bg-black/55"
+        className="flex max-h-[90dvh] w-[min(420px,calc(100vw-2rem))] flex-col gap-0 overflow-hidden p-0"
         aria-describedby={undefined}
       >
         <div className="relative h-[140px] shrink-0 overflow-hidden bg-secondary/60">

@@ -15,6 +15,14 @@ vi.mock("@/lib/push.server", () => ({
   }),
 }));
 
+const doneRows = vi.hoisted(() => ({ ids: [] as string[], fail: false }));
+vi.mock("@/lib/arrival-board.server", () => ({
+  buildArrivalRows: vi.fn(async () => {
+    if (doneRows.fail) throw new Error("x");
+    return { rows: doneRows.ids.map((id) => ({ propertyId: id, status: "done" })) };
+  }),
+}));
+
 const { notifyAutoCheckoutBatch } = await import("@/lib/ops-push.server");
 
 const OWNER = "a1000000-0000-4000-8000-000000000001";
@@ -36,7 +44,10 @@ function fakeAdmin() {
       const q: Record<string, unknown> = {};
       const resolve = () => {
         if (table === "properties")
-          return { data: props.filter((p) => (filters.in as string[]).includes(p.id)), error: null };
+          return {
+            data: filters.in ? props.filter((p) => (filters.in as string[]).includes(p.id)) : props,
+            error: null,
+          };
         if (table === "account_members") return { data: [{ member_user_id: MEMBER }], error: null };
         if (table === "property_assignments") return { data: [], error: null };
         if (table === "push_subscriptions")
@@ -69,6 +80,8 @@ function fakeAdmin() {
 
 beforeEach(() => {
   sent.length = 0;
+  doneRows.ids = ["p1", "p2", "p3"];
+  doneRows.fail = false;
 });
 
 describe("notifyAutoCheckoutBatch", () => {
@@ -98,6 +111,26 @@ describe("notifyAutoCheckoutBatch", () => {
     await notifyAutoCheckoutBatch(admin, { propertyIds: ["p1"], runKey: "k" });
     expect(sent.length).toBe(n);
     expect((await notifyAutoCheckoutBatch(admin, { propertyIds: [], runKey: "k2" })).notifications).toBe(0);
+  });
+
+  it("a contagem é o TOTAL real da fila (inclui liberados em rodadas anteriores)", async () => {
+    doneRows.ids = ["p1", "p2", "p3"]; // p2/p3 já aguardavam; só p1 foi liberado agora
+    await notifyAutoCheckoutBatch(fakeAdmin(), { propertyIds: ["p1"], runKey: "2026-11-10T14:00" });
+    const owner = sent.find((s) => s.endpoints.includes(`ep:${OWNER}`))!;
+    expect(owner.payload.body).toContain("2 imóveis"); // Gramado: p1+p2
+    expect(owner.payload.body).toContain("Canela");
+  });
+
+  it("mesmo total já avisado não repete, mesmo em rodada diferente; total novo avisa", async () => {
+    const admin = fakeAdmin();
+    doneRows.ids = ["p1", "p2"];
+    await notifyAutoCheckoutBatch(admin, { propertyIds: ["p1"], runKey: "2026-11-10T14:00" });
+    const n = sent.length;
+    await notifyAutoCheckoutBatch(admin, { propertyIds: ["p1"], runKey: "2026-11-10T15:00" });
+    expect(sent.length).toBe(n);
+    doneRows.ids = ["p1", "p2", "p3"];
+    await notifyAutoCheckoutBatch(admin, { propertyIds: ["p3"], runKey: "2026-11-10T16:00" });
+    expect(sent.length).toBeGreaterThan(n);
   });
 
   it("a varredura de 30 min não emite mais 'Aguardando Limpeza'", () => {

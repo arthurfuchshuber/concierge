@@ -288,14 +288,14 @@ describe("reserva automática no gateway da Guest AI", () => {
     expect(models).toEqual([TITULAR, RESERVA]);
   });
 
-  it("modelo indisponível (404) no Titular ⇒ Reserva", async () => {
-    const { models } = await run(err("model_unavailable", 404));
+  it("429 no Titular ⇒ Reserva (Etapa 0: erro recuperável do provedor)", async () => {
+    const { models } = await run(err("rate_limited", 429));
     expect(models).toEqual([TITULAR, RESERVA]);
   });
 
-  it("429 e 402 NÃO trocam de modelo (trocar não resolve e mascararia o problema)", async () => {
+  it("outros 4xx (404, 402, 401) NÃO trocam de modelo: falha fechada (Etapa 0)", async () => {
     for (const [code, status] of [
-      ["rate_limited", 429],
+      ["model_unavailable", 404],
       ["billing", 402],
       ["auth", 401],
     ] as const) {

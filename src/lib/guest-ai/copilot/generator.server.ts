@@ -27,10 +27,11 @@ import type { LlmProvider } from "@/lib/guest-ai/llm/providers/types";
 import type { LlmLogger } from "@/lib/guest-ai/llm/telemetry";
 import { estimateCostUsd, modelSpec } from "@/lib/guest-ai/llm/models";
 import { COPILOT_MAX_TURN_COST_USD } from "./contracts";
-import type { GuestToolContext, MapsHttp } from "@/lib/guest-ai/tools/contracts";
+import type { ExternalHttp, GuestToolContext, MapsHttp, ToolAvailability } from "@/lib/guest-ai/tools/contracts";
 import { executeToolCalls, type ToolCallOutcome } from "@/lib/guest-ai/tools/executor";
 import { toolSpecsFor } from "@/lib/guest-ai/tools/registry";
 import { productionMapsHttp } from "@/lib/guest-ai/tools/google-maps.server";
+import { externalToolAvailability, productionExternalHttp } from "@/lib/guest-ai/tools/external-http.server";
 import { VISION_LOAD_TIMEOUT_MS } from "@/lib/guest-ai/vision/analyzer";
 
 /** Corrida contra o prazo (rejeita em `ms`); o timer é sempre limpo. */
@@ -153,6 +154,10 @@ export interface CopilotGeneratorDeps {
   loadToolContext?: () => Promise<GuestToolContext | null>;
   /** Transporte do Google Maps (testes injetam um falso; produção usa o conector do Maps). */
   toolHttp?: MapsHttp;
+  /** Clima/voos (testes injetam um falso; produção usa `external-http.server.ts`). */
+  toolExternal?: ExternalHttp;
+  /** Quais ferramentas externas estão configuradas (padrão: lido do ambiente). */
+  toolAvailability?: ToolAvailability;
 }
 
 /**
@@ -331,7 +336,7 @@ export function createCopilotGenerator(deps: CopilotGeneratorDeps): CopilotGener
           toolCtx = null;
         }
       }
-      let tools: LlmToolSpec[] = toolSpecsFor(toolCtx);
+      let tools: LlmToolSpec[] = toolSpecsFor(toolCtx, deps.toolAvailability ?? externalToolAvailability());
       if (tools.length > 0) {
         const twoCalls = (out: number) =>
           estimateCostUsd(spec!, bound, out) + estimateCostUsd(spec!, bound + COPILOT_TOOL_ROUND_RESERVE_TOKENS, out) <= ceiling;
@@ -418,6 +423,7 @@ export function createCopilotGenerator(deps: CopilotGeneratorDeps): CopilotGener
       // as ferramentas nunca comem o tempo da resposta final: sobra sempre `COPILOT_FINAL_CALL_RESERVE_MS`
       const outcomes: ToolCallOutcome[] = await executeToolCalls(first.toolCalls, toolCtx!, {
         http: deps.toolHttp ?? productionMapsHttp,
+        external: deps.toolExternal ?? productionExternalHttp,
         signal,
         remainingMs: () => deps.remainingMs() - COPILOT_FINAL_CALL_RESERVE_MS,
       });

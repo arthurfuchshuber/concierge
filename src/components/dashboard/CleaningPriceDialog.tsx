@@ -100,9 +100,9 @@ export function CleaningPriceDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-[calc(100vw-2rem)] gap-0 p-0 sm:w-full sm:max-w-sm">
-        <DialogHeader className="border-b border-border/40 px-4 pb-2.5 pt-3.5 pr-14 text-left">
-          <DialogTitle className="truncate text-sm font-bold leading-6 text-foreground">Ajustar valor da limpeza</DialogTitle>
-          <p className="truncate text-xs leading-5 text-muted-foreground" title={title}>{title}</p>
+        <DialogHeader className="border-b border-border/40 px-4 pb-2.5 pt-3 pr-12 text-left">
+          <DialogTitle className="truncate text-sm font-bold leading-5 text-foreground">Ajustar valor da limpeza</DialogTitle>
+          <p className="truncate text-xs leading-4 text-muted-foreground" title={title}>{title}</p>
         </DialogHeader>
         <div className="flex flex-col gap-4 px-4 pb-4 pt-2.5">
         <div className="flex items-center justify-between rounded-[0.5rem] border border-border/60 bg-muted/30 px-3 py-2 text-[12.5px]">

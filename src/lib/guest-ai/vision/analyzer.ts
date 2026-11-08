@@ -31,15 +31,21 @@ export const VISUAL_CATEGORIES = [
 export type VisualCategory = (typeof VISUAL_CATEGORIES)[number];
 export const VISUAL_SEVERITIES = ["low", "medium", "high"] as const;
 export type VisualSeverity = (typeof VISUAL_SEVERITIES)[number];
+/** Incerteza do próprio diagnóstico (Etapa 2, 08/11/2026): "high" = a foto não permite concluir. */
+export const VISUAL_UNCERTAINTIES = ["low", "medium", "high"] as const;
+export type VisualUncertainty = (typeof VISUAL_UNCERTAINTIES)[number];
 
 export interface VisualDiagnosis {
   hasIncident: boolean;
   category: VisualCategory;
   severity: VisualSeverity;
   detectedApplianceOrFixture: string | null;
+  /** O que está CLARAMENTE visível na foto e sustenta o diagnóstico (evidência visual). */
+  visualEvidence: string;
   userFriendlyDiagnosis: string;
   suggestedAction: string;
   requiresStaffIntervention: boolean;
+  uncertainty: VisualUncertainty;
 }
 
 export const VISUAL_DIAGNOSIS_KEYS = [
@@ -47,13 +53,16 @@ export const VISUAL_DIAGNOSIS_KEYS = [
   "category",
   "severity",
   "detectedApplianceOrFixture",
+  "visualEvidence",
   "userFriendlyDiagnosis",
   "suggestedAction",
   "requiresStaffIntervention",
+  "uncertainty",
 ] as const;
 
 export const VISUAL_LIMITS = {
   fixtureMaxChars: 120,
+  evidenceMaxChars: 300,
   diagnosisMaxChars: 500,
   actionMaxChars: 500,
 } as const;
@@ -90,22 +99,29 @@ export function parseVisualDiagnosis(raw: unknown): VisualDiagnosis | null | und
     typeof raw["requiresStaffIntervention"] !== "boolean"
   )
     return undefined;
-  if (!inEnum(raw["category"], VISUAL_CATEGORIES) || !inEnum(raw["severity"], VISUAL_SEVERITIES))
+  if (
+    !inEnum(raw["category"], VISUAL_CATEGORIES) ||
+    !inEnum(raw["severity"], VISUAL_SEVERITIES) ||
+    !inEnum(raw["uncertainty"], VISUAL_UNCERTAINTIES)
+  )
     return undefined;
   const fixtureRaw = raw["detectedApplianceOrFixture"];
   const fixture = fixtureRaw === null ? null : text(fixtureRaw, VISUAL_LIMITS.fixtureMaxChars);
   if (fixtureRaw !== null && fixture === null) return undefined;
+  const evidence = text(raw["visualEvidence"], VISUAL_LIMITS.evidenceMaxChars);
   const diagnosis = text(raw["userFriendlyDiagnosis"], VISUAL_LIMITS.diagnosisMaxChars);
   const action = text(raw["suggestedAction"], VISUAL_LIMITS.actionMaxChars);
-  if (!diagnosis || !action) return undefined;
+  if (!evidence || !diagnosis || !action) return undefined;
   return {
     hasIncident: raw["hasIncident"],
     category: raw["category"],
     severity: raw["severity"],
     detectedApplianceOrFixture: fixture,
+    visualEvidence: evidence,
     userFriendlyDiagnosis: diagnosis,
     suggestedAction: action,
     requiresStaffIntervention: raw["requiresStaffIntervention"],
+    uncertainty: raw["uncertainty"],
   };
 }
 
@@ -116,6 +132,14 @@ export function reconcileVisualDiagnosis(
 ): VisualDiagnosis | null {
   if (!d || imagesSent <= 0) return null;
   return d;
+}
+
+/**
+ * Diagnóstico CONFIÁVEL: incerteza baixa ou média. Com incerteza alta a foto não permite concluir — a
+ * resposta deve perguntar ao hóspede (detalhe, outro ângulo) e nunca afirmar causa (regra do prompt).
+ */
+export function diagnosisReliable(d: VisualDiagnosis | null | undefined): boolean {
+  return !!d && d.uncertainty !== "high";
 }
 
 /** O incidente visto exige a equipe? (exigência declarada ou gravidade alta com incidente). */
@@ -166,4 +190,4 @@ export function stripRoboticAck(reply: string): string {
 
 /** Texto do formato, para o contrato da decisão (gerado das mesmas constantes do parser). */
 const q = (xs: readonly string[]) => xs.map((x) => `"${x}"`).join("|");
-export const VISUAL_DIAGNOSIS_SPEC = `"visualDiagnosis": null | {"hasIncident": boolean, "category": ${q(VISUAL_CATEGORIES)}, "severity": ${q(VISUAL_SEVERITIES)}, "detectedApplianceOrFixture": string|null (aparelho, peça ou instalação que aparece na foto, até ${VISUAL_LIMITS.fixtureMaxChars} caracteres), "userFriendlyDiagnosis": string (o que a foto mostra e a hipótese mais provável, até ${VISUAL_LIMITS.diagnosisMaxChars} caracteres), "suggestedAction": string (o que o hóspede pode fazer com segurança, até ${VISUAL_LIMITS.actionMaxChars} caracteres), "requiresStaffIntervention": boolean} (preencha só quando houver foto do hóspede anexada neste turno; sem foto, null)`;
+export const VISUAL_DIAGNOSIS_SPEC = `"visualDiagnosis": null | {"hasIncident": boolean, "category": ${q(VISUAL_CATEGORIES)}, "severity": ${q(VISUAL_SEVERITIES)}, "detectedApplianceOrFixture": string|null (aparelho, peça ou instalação que aparece na foto, até ${VISUAL_LIMITS.fixtureMaxChars} caracteres), "visualEvidence": string (o que está claramente visível e sustenta o diagnóstico, até ${VISUAL_LIMITS.evidenceMaxChars} caracteres), "userFriendlyDiagnosis": string (o que a foto mostra e a hipótese mais provável, até ${VISUAL_LIMITS.diagnosisMaxChars} caracteres), "suggestedAction": string (o que o hóspede pode fazer com segurança, até ${VISUAL_LIMITS.actionMaxChars} caracteres), "requiresStaffIntervention": boolean, "uncertainty": ${q(VISUAL_UNCERTAINTIES)} (high = a foto não permite concluir)} (preencha só quando houver foto do hóspede anexada neste turno; sem foto, null)`;

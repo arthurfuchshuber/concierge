@@ -703,7 +703,7 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
           após cadastrar o proprietário, só oferece abrir a ficha. */}
       <Dialog open={!!createdOwner} onOpenChange={(o) => !o && setCreatedOwner(null)}>
         <DialogContent className="max-w-md gap-3.5 p-[18px] sm:p-[18px]">
-          <DialogHeader className="gap-1.5 space-y-0 pr-9">
+          <DialogHeader className="gap-1.5 space-y-0 pr-12">
             <DialogTitle className="font-display text-lg font-extrabold leading-[1.2] tracking-[-0.01em]">
               Proprietário criado
             </DialogTitle>

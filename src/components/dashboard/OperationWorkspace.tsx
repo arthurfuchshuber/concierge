@@ -4427,6 +4427,13 @@ function KpiCard({
   cardProps: Omit<React.ComponentProps<typeof ArrivalGroup>, "title">;
 }) {
   const [open, setOpen] = useState(false);
+  // Card expandido DENTRO desta janela: estado só dela (pedido explícito, 08/11/2026: "saiu da tela já tem
+  // que recolher"). Antes a janela reaproveitava o estado da coluna do Kanban, que nunca era zerado — um card
+  // aberto continuava aberto ao reabrir a janela, horas depois. Fechar a janela recolhe tudo.
+  const [windowExpandedId, setWindowExpandedId] = useState<string | null>(null);
+  useEffect(() => {
+    if (!open) setWindowExpandedId(null);
+  }, [open]);
   // Destino do clique no push: abre a janela (e atualiza a lista) a cada sinal.
   const onRefreshRef = useRef(onRefresh);
   onRefreshRef.current = onRefresh;
@@ -4624,9 +4631,9 @@ function KpiCard({
       >
         {/* JANELA PADRÃO (29/10/2026): sem ícone no cabeçalho, título 14px
             negrito e subtítulo 12px em caixa normal, recuo de 16px. */}
-        <DialogHeader className="shrink-0 border-b border-border/40 px-4 pb-2.5 pt-3.5 pr-14 text-left">
-          <DialogTitle className="truncate text-sm font-bold leading-6 text-foreground">{windowTitle(label)}</DialogTitle>
-          <div className="text-xs leading-5 text-muted-foreground">
+        <DialogHeader className="shrink-0 border-b border-border/40 px-4 pb-2.5 pt-3 pr-12 text-left">
+          <DialogTitle className="truncate text-sm font-bold leading-5 text-foreground">{windowTitle(label)}</DialogTitle>
+          <div className="text-xs leading-4 text-muted-foreground">
             {rangeLabel} · {displayRows.length} {displayRows.length === 1 ? "hóspede" : "hóspedes"}
           </div>
           {/* Botão de print (câmera) removido POR ENQUANTO (pedido explícito,
@@ -4666,7 +4673,15 @@ function KpiCard({
               {/* `restLabel`: quando há atrasados, o segundo grupo se chama
                   como o período do card ("Hoje", "Amanhã") em vez de "No
                   prazo" — é o mesmo texto que já aparece no cabeçalho. */}
-              <ArrivalGroup title="" {...cardProps} rows={displayRows} compact restLabel={rangeLabel} />
+              <ArrivalGroup
+                title=""
+                {...cardProps}
+                expandedId={windowExpandedId}
+                onExpandedChange={setWindowExpandedId}
+                rows={displayRows}
+                compact
+                restLabel={rangeLabel}
+              />
             </div>
           )}
         </div>
@@ -4844,11 +4859,11 @@ function FreePropertiesCard({
       <DialogContent className={WIDE_WINDOW_CLASS}>
         {/* JANELA PADRÃO (29/10/2026): título 14px negrito com iniciais
             maiúsculas, subtítulo 12px com singular/plural, recuo de 16px. */}
-        <DialogHeader className="shrink-0 border-b border-border/40 px-4 pb-2.5 pt-3.5 pr-14 text-left">
-          <DialogTitle className="truncate text-sm font-bold leading-6 text-foreground">
+        <DialogHeader className="shrink-0 border-b border-border/40 px-4 pb-2.5 pt-3 pr-12 text-left">
+          <DialogTitle className="truncate text-sm font-bold leading-5 text-foreground">
             {windowTitle(`Imóveis livres ${isToday ? "hoje" : dayLabel}`)}
           </DialogTitle>
-          <div className="text-xs leading-5 text-muted-foreground">
+          <div className="text-xs leading-4 text-muted-foreground">
             {isToday ? "Hoje" : dayLabel} · {properties.length} {properties.length === 1 ? "imóvel" : "imóveis"}
           </div>
         </DialogHeader>
@@ -5046,9 +5061,9 @@ function StatDisplayCard({
         <DialogContent aria-describedby={undefined} className={WIDE_WINDOW_CLASS}>
           {/* Cabeçalho universal de janela ampla (07/11/2026): sem ícone, título
               14px e subtítulo 12px; o "X" oficial fica no canto. */}
-          <DialogHeader className="shrink-0 border-b border-border/40 px-4 pb-2.5 pt-3.5 pr-14 text-left">
-            <DialogTitle className="truncate text-sm font-bold leading-6 text-foreground">{windowTitle(label)}</DialogTitle>
-            <div className="text-xs leading-5 text-muted-foreground">
+          <DialogHeader className="shrink-0 border-b border-border/40 px-4 pb-2.5 pt-3 pr-12 text-left">
+            <DialogTitle className="truncate text-sm font-bold leading-5 text-foreground">{windowTitle(label)}</DialogTitle>
+            <div className="text-xs leading-4 text-muted-foreground">
               {value} · {breakdown!.length} {breakdown!.length === 1 ? "imóvel" : "imóveis"}
             </div>
           </DialogHeader>
@@ -7891,12 +7906,12 @@ function OccupancyPanel({
     return { res, rows: shownProperties.length };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shownProperties, byProperty, textTokens]);
-  /* BUSCA ABERTA (mockup 31/10/2026): campo com foco ou texto digitado. "Cancelar"/fundo fecham e limpam. */
-  const [searchFocus, setSearchFocus] = useState(false);
+  /* BUSCA (08/11/2026, pedido explícito): sem botão "Cancelar". Limpar é pelo X dentro do campo; tocar no fundo
+     desfocado ou Esc fecha o painel. Período e Filtros só se escondem enquanto houver texto digitado. */
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   /* RESULTADOS ABERTOS x FILTRO ATIVO (correção 31/10/2026): o painel flutuante e o fundo desfocado dependem de
      `resultsOpen`, NÃO de haver texto na busca. Tocar num resultado fecha o painel mas mantém o texto (o calendário
-     segue filtrado); só "Cancelar"/fundo limpam. O botão "Cancelar" fica enquanto houver texto ou foco. */
+     segue filtrado); o X do campo ou o fundo limpam. */
   const [resultsOpen, setResultsOpen] = useState(false);
   /* Fundo desfocado só monta com texto digitado e painel aberto — foco sem texto nunca trava a tela. */
   const searchOpen = resultsOpen && query.trim().length > 0;
@@ -7911,10 +7926,9 @@ function OccupancyPanel({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [searchOpen]);
-  const searchActive = searchFocus || query.length > 0;
+  const searchActive = query.length > 0;
   const closeSearch = (clear = true) => {
     setResultsOpen(false);
-    setSearchFocus(false);
     if (clear) setQuery("");
     searchInputRef.current?.blur();
   };
@@ -8146,8 +8160,8 @@ function OccupancyPanel({
             mais a setinha por último. Clicar no título OU na setinha
             expande/recolhe; clicar no botão de filtros não. */}
       {/* CABEÇALHO (mockup 31/10/2026, "Dashboard — Calendário/Busca"): título 14 px negrito centralizado e UMA barra
-          (busca + Período + Filtros, mesmo padrão da tela Registros). Com a busca aberta, a barra encolhe, aparece
-          "Cancelar" e os resultados ficam num painel flutuante sobre o fundo desfocado. TESTE VISUAL (07/11/2026):
+          (busca + Período + Filtros, mesmo padrão da tela Registros). Com texto digitado, Período/Filtros saem
+          (sem "Cancelar" desde 08/11/2026) e os resultados ficam num painel flutuante sobre o fundo desfocado. TESTE VISUAL (07/11/2026):
           a barra deixa de ser um campo flutuante (`inset`) e vira uma FAIXA de ponta a ponta do card
           (`variant="bleed"`), no mesmo racional da grade logo abaixo: mesmo fundo do card, cantos retos e fios
           `border-y` em cima e embaixo — a de baixo é a divisória da grade. */}
@@ -8176,10 +8190,7 @@ function OccupancyPanel({
               if (v.trim()) setResultsOpen(true);
             }}
             placeholder="Buscar hóspede, imóvel, mês, valor…"
-            onInputFocus={() => {
-              setSearchFocus(true);
-              setResultsOpen(true);
-            }}
+            onInputFocus={() => setResultsOpen(true)}
             inputRef={searchInputRef}
             actions={
               searchActive ? undefined : (
@@ -8209,15 +8220,6 @@ function OccupancyPanel({
               )
             }
           />
-          {searchActive && (
-            <button
-              type="button"
-              onClick={() => closeSearch()}
-              className="shrink-0 self-stretch px-4 text-xs font-bold text-foreground/90 transition-colors hover:text-foreground"
-            >
-              Cancelar
-            </button>
-          )}
         </div>
         {searchOpen && searching && (
           <div className="absolute inset-x-4 top-full mt-1.5 overflow-hidden rounded-[14px] border border-border bg-[var(--panel)] shadow-[0_18px_40px_rgba(0,0,0,0.6)]">
@@ -9120,15 +9122,15 @@ function EngagementBreakdownDialog({
             maiúsculas ("Instruções Check-In" / "Senhas de Acesso" — sem a
             palavra "Viram"), subtítulo 12px em caixa normal concordando em
             singular/plural, recuo de 16px nas laterais. */}
-        <DialogHeader className="border-b border-border/40 px-4 pb-2.5 pt-3.5 pr-14 text-left">
-          {/* pr-14 no header: reserva espaço pro botão "X" de fechar do Dialog. */}
+        <DialogHeader className="border-b border-border/40 px-4 pb-2.5 pt-3 pr-12 text-left">
+          {/* pr-12 no header: reserva espaço pro botão "X" de fechar do Dialog. */}
           <div className="flex items-center justify-between gap-3">
-            <DialogTitle className="min-w-0 truncate text-sm font-bold leading-6 text-foreground">{windowTitle(engagementWindowTitle(label))}</DialogTitle>
+            <DialogTitle className="min-w-0 truncate text-sm font-bold leading-5 text-foreground">{windowTitle(engagementWindowTitle(label))}</DialogTitle>
             <span className="shrink-0 rounded-full bg-emerald-500/15 px-2.5 py-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
               {pct}%
             </span>
           </div>
-          <div className="text-xs leading-5 text-muted-foreground">
+          <div className="text-xs leading-4 text-muted-foreground">
             {value} de {total} {total === 1 ? "check-in" : "check-ins"}
           </div>
           {todayOnly && (
@@ -9353,6 +9355,14 @@ function ArrivalGroup({
   const [localOpenId, setLocalOpenId] = useState<string | null>(null);
   const openId = onExpandedChange ? (expandedIdProp ?? null) : localOpenId;
   const setOpenId = onExpandedChange ?? setLocalOpenId;
+  // Card que SAIU desta lista (concluído, revertido, mudou de etapa) não deixa a expansão guardada
+  // (pedido explícito, 08/11/2026): antes o id ficava salvo e, quando o card voltava (ex.: "Retornar ao
+  // status anterior"), ele reaparecia expandido sem ninguém tocar na seta.
+  const rowsKey = rows.map((r) => r.logId).join("|");
+  useEffect(() => {
+    if (openId && !rows.some((r) => r.logId === openId)) setOpenId(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openId, rowsKey]);
   // Antes esta lista ocupava a largura inteira da seção (fazia sentido um
   // grid responsivo de 2-3 colunas). Agora ArrivalGroup só é usado dentro de
   // colunas estreitas do Kanban (desktop) ou das abas (mobile) — nunca mais
@@ -9830,8 +9840,14 @@ function ArrivalCard({
   // Pedido explícito (07/09/2026): rótulo único e curto, sem o detalhe da
   // lista de destino entre parênteses.
   const revertTitle = "Retornar ao status anterior";
+  const suppressToggleUntil = useRef(0);
+  const suppressToggle = () => {
+    suppressToggleUntil.current = Date.now() + 700;
+  };
   const handleRevertClick = () => {
-    if (window.confirm(revertConfirmLabel)) onRevert?.(row);
+    const ok = window.confirm(revertConfirmLabel);
+    suppressToggle();
+    if (ok) onRevert?.(row);
   };
 
   // "Não Compareceu" — só faz sentido num card de Check-ins ainda pendente
@@ -9955,6 +9971,9 @@ function ArrivalCard({
          (Este guarda é o mesmo que existia para o Histórico da reserva, que
          hoje continua no item do menu "⋮".) */
       onClick={(e) => {
+        // Toque "fantasma" logo depois de fechar o menu "⋮" ou a confirmação (ex.: "Retornar ao status
+        // anterior") não expande o card (08/11/2026).
+        if (Date.now() < suppressToggleUntil.current) return;
         const el = e.target as HTMLElement | null;
         const interactive = el?.closest(
           "button, a, input, select, textarea, label, [role='button'], [role='checkbox'], [data-radix-popper-content-wrapper]",
@@ -10665,7 +10684,11 @@ function ArrivalCard({
                 "Adicionar nota" e "Silenciar notificações" — e as 24 opções
                 de período ficam escondidas num submenu, só aparecendo ao
                 passar/tocar em "Silenciar notificações". */}
-          <DropdownMenu>
+          <DropdownMenu
+            onOpenChange={(o) => {
+              if (!o) suppressToggle();
+            }}
+          >
             <DropdownMenuTrigger asChild>
               <button
                 type="button"

@@ -20,7 +20,7 @@ vi.mock("@/components/admin-pages/ClicksignPanel", () => ({ ClicksignPanel: () =
 vi.mock("@/components/admin-pages/GoogleCalendarPanel", () => ({ GoogleCalendarPanel: () => null }));
 vi.mock("@/components/admin-pages/ChannexPanel", () => ({ ChannexPanel: () => null }));
 
-import { IntegracoesPage } from "../IntegracoesPage";
+import { IntegracoesPage, useIntegrationStatusQueries } from "../IntegracoesPage";
 
 function renderPage() {
   const qc = new QueryClient();
@@ -56,5 +56,24 @@ describe("IntegracoesPage — sem flash de cards desconectados", () => {
     expect(screen.getAllByText("Gerenciar").length).toBeGreaterThan(0);
     expect(container.querySelector(".bg-emerald-500.w-\\[3px\\]")).not.toBeNull();
     expect(screen.getAllByText("Conectar").length).toBeGreaterThan(0);
+  });
+
+  it("pré-carregada pelo Administrativo: ao abrir a aba já mostra os cards, sem skeleton", async () => {
+    const qc = new QueryClient();
+    function Prefetch() {
+      useIntegrationStatusQueries();
+      return null;
+    }
+    render(<QueryClientProvider client={qc}><Prefetch /></QueryClientProvider>);
+    await waitFor(() => expect(resolvers.channex).toBeDefined());
+    resolvers.cs({ hasToken: true });
+    resolvers.gcal({ connected: false });
+    resolvers.wa({ senderNumber: null });
+    resolvers.channex({ configured: false });
+    await waitFor(() => expect(qc.getQueryData(["channex-status"])).toBeDefined());
+    cleanup();
+    render(<QueryClientProvider client={qc}><IntegracoesPage /></QueryClientProvider>);
+    expect(screen.queryAllByTestId("integration-skeleton")).toHaveLength(0);
+    expect(screen.getAllByText("Gerenciar").length).toBeGreaterThan(0);
   });
 });
