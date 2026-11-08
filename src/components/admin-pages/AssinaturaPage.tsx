@@ -60,11 +60,15 @@ function AssinaturaPage() {
   const hasStripe = info.hasStripeBilling;
   const payments = useQuery({
     queryKey: ["my-payments", ownerId],
+    // Reabrir a aba reaproveita o cache: sem quadro vazio antes do cartão/pagamentos reais.
+    staleTime: 5 * 60 * 1000,
     queryFn: () => paymentsFn({ data: { ownerId } }),
     enabled: hasStripe,
   });
   const paymentMethod = useQuery({
     queryKey: ["account-payment-method", ownerId],
+    // Reabrir a aba reaproveita o cache: sem quadro vazio antes do cartão/pagamentos reais.
+    staleTime: 5 * 60 * 1000,
     queryFn: () => pmFn({ data: { ownerId } }),
     enabled: hasStripe,
   });
