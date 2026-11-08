@@ -89,8 +89,10 @@ describe("F0 · fronteira de dados (varredura estática do módulo guest-ai/)", 
     const runtime = files.filter((f) => /guest-ai\/llm\/gateway\.server|generateGuestLlm/.test(code(f)) && !rel(f).startsWith("llm/"));
     // Copiloto (05/11/2026): o gerador do Copiloto é o ÚNICO chamador do Gateway (uma chamada por sugestão, custo por turno limitado).
     expect(runtime.map(rel).sort()).toEqual(["copilot/generator.server.ts"]);
-    // fora de llm/, nada de rede direta nem de outro provedor — exceto o transporte do Google Maps das ferramentas
-    expect(files.filter((f) => !rel(f).startsWith("llm/") && /\bfetch\(|ai\.gateway|openai\.com|anthropic\.com/.test(code(f))).map(rel)).toEqual([
+    // fora de llm/, nada de rede direta nem de outro provedor — exceto os transportes das ferramentas
+    // (Google Maps; clima/voos desde a Etapa 3, 08/11/2026)
+    expect(files.filter((f) => !rel(f).startsWith("llm/") && /\bfetch\(|ai\.gateway|openai\.com|anthropic\.com/.test(code(f))).map(rel).sort()).toEqual([
+      "tools/external-http.server.ts",
       "tools/google-maps.server.ts",
     ]);
   });
@@ -146,10 +148,13 @@ describe("F0 · fronteira de dados (varredura estática do módulo guest-ai/)", 
     expect(tools.map(rel).sort()).toEqual([
       "tools/contracts.ts",
       "tools/executor.ts",
+      "tools/external-http.server.ts",
+      "tools/flights.ts",
       "tools/google-maps.server.ts",
       "tools/google-places.ts",
       "tools/google-routes.ts",
       "tools/registry.ts",
+      "tools/weather.ts",
     ]);
     for (const f of tools) {
       const c = code(f);
@@ -159,7 +164,10 @@ describe("F0 · fronteira de dados (varredura estática do módulo guest-ai/)", 
       expect(c, rel(f)).not.toMatch(/\.(insert|update|upsert|delete|rpc)\(/);
       expect(c, rel(f)).not.toMatch(/generateGuestLlm|gateway\.server/);
     }
-    expect(tools.filter((f) => /\bfetch\(/.test(code(f))).map(rel)).toEqual(["tools/google-maps.server.ts"]);
+    expect(tools.filter((f) => /\bfetch\(/.test(code(f))).map(rel).sort()).toEqual([
+      "tools/external-http.server.ts",
+      "tools/google-maps.server.ts",
+    ]);
   });
 
   it("F2-A · o slot continua desligado: não importa o gateway e devolve fallback humano (null)", async () => {
