@@ -7906,12 +7906,12 @@ function OccupancyPanel({
     return { res, rows: shownProperties.length };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shownProperties, byProperty, textTokens]);
-  /* BUSCA ABERTA (mockup 31/10/2026): campo com foco ou texto digitado. "Cancelar"/fundo fecham e limpam. */
-  const [searchFocus, setSearchFocus] = useState(false);
+  /* BUSCA (08/11/2026, pedido explícito): sem botão "Cancelar". Limpar é pelo X dentro do campo; tocar no fundo
+     desfocado ou Esc fecha o painel. Período e Filtros só se escondem enquanto houver texto digitado. */
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   /* RESULTADOS ABERTOS x FILTRO ATIVO (correção 31/10/2026): o painel flutuante e o fundo desfocado dependem de
      `resultsOpen`, NÃO de haver texto na busca. Tocar num resultado fecha o painel mas mantém o texto (o calendário
-     segue filtrado); só "Cancelar"/fundo limpam. O botão "Cancelar" fica enquanto houver texto ou foco. */
+     segue filtrado); o X do campo ou o fundo limpam. */
   const [resultsOpen, setResultsOpen] = useState(false);
   /* Fundo desfocado só monta com texto digitado e painel aberto — foco sem texto nunca trava a tela. */
   const searchOpen = resultsOpen && query.trim().length > 0;
@@ -7926,10 +7926,9 @@ function OccupancyPanel({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [searchOpen]);
-  const searchActive = searchFocus || query.length > 0;
+  const searchActive = query.length > 0;
   const closeSearch = (clear = true) => {
     setResultsOpen(false);
-    setSearchFocus(false);
     if (clear) setQuery("");
     searchInputRef.current?.blur();
   };
@@ -8161,8 +8160,8 @@ function OccupancyPanel({
             mais a setinha por último. Clicar no título OU na setinha
             expande/recolhe; clicar no botão de filtros não. */}
       {/* CABEÇALHO (mockup 31/10/2026, "Dashboard — Calendário/Busca"): título 14 px negrito centralizado e UMA barra
-          (busca + Período + Filtros, mesmo padrão da tela Registros). Com a busca aberta, a barra encolhe, aparece
-          "Cancelar" e os resultados ficam num painel flutuante sobre o fundo desfocado. TESTE VISUAL (07/11/2026):
+          (busca + Período + Filtros, mesmo padrão da tela Registros). Com texto digitado, Período/Filtros saem
+          (sem "Cancelar" desde 08/11/2026) e os resultados ficam num painel flutuante sobre o fundo desfocado. TESTE VISUAL (07/11/2026):
           a barra deixa de ser um campo flutuante (`inset`) e vira uma FAIXA de ponta a ponta do card
           (`variant="bleed"`), no mesmo racional da grade logo abaixo: mesmo fundo do card, cantos retos e fios
           `border-y` em cima e embaixo — a de baixo é a divisória da grade. */}
@@ -8191,10 +8190,7 @@ function OccupancyPanel({
               if (v.trim()) setResultsOpen(true);
             }}
             placeholder="Buscar hóspede, imóvel, mês, valor…"
-            onInputFocus={() => {
-              setSearchFocus(true);
-              setResultsOpen(true);
-            }}
+            onInputFocus={() => setResultsOpen(true)}
             inputRef={searchInputRef}
             actions={
               searchActive ? undefined : (
@@ -8224,15 +8220,6 @@ function OccupancyPanel({
               )
             }
           />
-          {searchActive && (
-            <button
-              type="button"
-              onClick={() => closeSearch()}
-              className="shrink-0 self-stretch px-4 text-xs font-bold text-foreground/90 transition-colors hover:text-foreground"
-            >
-              Cancelar
-            </button>
-          )}
         </div>
         {searchOpen && searching && (
           <div className="absolute inset-x-4 top-full mt-1.5 overflow-hidden rounded-[14px] border border-border bg-[var(--panel)] shadow-[0_18px_40px_rgba(0,0,0,0.6)]">
