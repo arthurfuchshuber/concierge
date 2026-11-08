@@ -1098,7 +1098,7 @@ function Dashboard() {
       <AlertDialog open={!!deleteTarget} onOpenChange={(o) => !o && setDeleteTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Excluir Guia?</AlertDialogTitle>
+            <AlertDialogTitle>Excluir guia?</AlertDialogTitle>
             <AlertDialogDescription>
               Isso removerá permanentemente "{deleteTarget?.name}" e não poderá ser desfeito.
             </AlertDialogDescription>

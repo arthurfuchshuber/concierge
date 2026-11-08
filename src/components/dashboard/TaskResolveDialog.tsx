@@ -51,6 +51,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -674,22 +675,23 @@ export function TaskResolveDialog({
     <>
       <Dialog open={!!state && !askDiff} onOpenChange={onOpenChange}>
         <DialogContent className="w-[calc(100vw-2rem)] gap-0 overflow-hidden p-0 sm:max-w-[480px]">
-          <DialogTitle className="sr-only">Concluir pendência</DialogTitle>
           <DialogDescription className="sr-only">
             Registre quem resolveu, quanto custou, quem deve pagar e a comprovação.
           </DialogDescription>
 
-          {/* Cabeçalho: título + imóvel + proprietário (com o ícone de mensagem). */}
-          <div className="border-b border-border/60 px-4 pb-3 pt-4">
-            <h2 className="ds-page-title truncate pr-9">Concluir pendência</h2>
+          {/* Cabeçalho universal de janela ampla (07/11/2026): título 14px em 1
+              linha + imóvel e proprietário (com o ícone de mensagem) em 12px;
+              o "X" oficial fica no canto (pr-14). */}
+          <DialogHeader className="space-y-0 px-4 pt-3.5 pb-0 pr-14 text-left">
+            <DialogTitle className="truncate text-sm font-bold leading-6 text-foreground">Concluir pendência</DialogTitle>
             {task?.propertyName && (
-              <div className="mt-1.5 flex min-w-0 items-center gap-[5px] text-[11px] font-medium text-foreground/70">
+              <div className="flex min-w-0 items-center gap-[5px] text-xs leading-5 text-muted-foreground">
                 <Home className="size-3 shrink-0 text-muted-foreground" />
                 <span className="truncate">{task.propertyName}</span>
               </div>
             )}
             {task?.ownerName && (
-              <div className="mt-[3px] flex min-w-0 items-center gap-[5px] text-[11px]">
+              <div className="flex min-w-0 items-center gap-[5px] text-xs leading-5">
                 <User className="size-3 shrink-0 text-muted-foreground" />
                 <span className="min-w-0 truncate font-semibold text-foreground">{task.ownerName}</span>
                 <PhoneActionButton
@@ -701,9 +703,9 @@ export function TaskResolveDialog({
                 />
               </div>
             )}
-          </div>
+          </DialogHeader>
 
-          <div className="sg-elegant-scroll flex max-h-[62vh] flex-col gap-2 overflow-y-auto px-4 py-3.5">
+          <div className="sg-elegant-scroll flex max-h-[62vh] flex-col gap-2 overflow-y-auto px-4 pb-3.5 pt-2.5">
             {/* A situação (somente leitura) — deixa claro DO QUE se trata. */}
             <div className="rounded-lg border border-border/60 bg-foreground/[0.04] px-2.5 py-[7px]">
               <div className="text-[9px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">

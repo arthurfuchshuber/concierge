@@ -1,11 +1,12 @@
 import { useRef, useState } from "react";
-import { ArrowRight, CalendarDays, X } from "lucide-react";
+import { ArrowRight, X } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { centsToReaisInput, parseReaisInputToCents } from "@/components/ui/money-input";
 import { CleaningProviderAvatar, useCleaningProviderName } from "@/components/dashboard/CleaningProviderAvatar";
 import { EDIT_BTN, EDIT_INPUT } from "@/components/dashboard/edit-frame";
+import { WIDE_WINDOW_CLASS } from "@/components/dashboard/wide-window";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -15,7 +16,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { setCleaningPriceOverride, setCleaningType } from "@/lib/cleaning-price.functions";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { OwnerLine } from "@/components/dashboard/OwnerLine";
 import { ClampName } from "@/components/ui/clamp-name";
 import { useAreaAccess } from "@/lib/permissions/useAreaAccess";
@@ -229,7 +230,7 @@ function TypeLabel({ type, pending }: { type: "normal" | "completa" | null; pend
 }
 
 /**
- * Janela "Confirmar Alteração?" (mockup aprovado): só o nome da propriedade e
+ * Janela "Confirmar alteração?" (mockup aprovado): só o nome da propriedade e
  * dois blocos — De (valor antigo riscado) → Para (valor novo).
  */
 function ConfirmChange({
@@ -262,7 +263,7 @@ function ConfirmChange({
           <X className="size-3.5" strokeWidth={2.2} />
         </AlertDialogCancel>
         <AlertDialogTitle className="pr-8 font-display text-[14px] font-bold leading-tight text-white">
-          Confirmar Alteração?
+          Confirmar alteração?
         </AlertDialogTitle>
         <AlertDialogDescription asChild>
           <div className="min-w-0 space-y-2">
@@ -311,14 +312,13 @@ function ConfirmChange({
   );
 }
 
-export function CleaningDayDetail(props: Parameters<typeof CleaningDayDetailContent>[0]) {
+export function CleaningDayDetail({
+  onClose,
+  ...props
+}: Parameters<typeof CleaningDayDetailContent>[0] & { onClose: () => void }) {
   return (
-    <Dialog open onOpenChange={(v) => { if (!v) props.onClose(); }}>
-      <DialogContent
-        aria-label="Detalhe do dia"
-        className="flex max-h-[90dvh] w-[calc(100vw-2rem)] flex-col sm:max-w-md gap-0 p-0 overflow-hidden rounded-[var(--win-radius)] border-[var(--panel-border)] bg-[var(--panel)] shadow-[0_30px_80px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.05)] [&>button.absolute]:hidden"
-      >
-        <DialogTitle className="sr-only">Detalhe do dia</DialogTitle>
+    <Dialog open onOpenChange={(v) => { if (!v) onClose(); }}>
+      <DialogContent aria-describedby={undefined} className={WIDE_WINDOW_CLASS}>
         <CleaningDayDetailContent {...props} />
       </DialogContent>
     </Dialog>
@@ -329,18 +329,14 @@ export function CleaningDayDetailContent({
   date,
   source,
   caretX,
-  onClose,
   title,
-  icon: HeaderIcon = CalendarDays,
 }: {
   /** "all" = todas as limpezas do período (janela dos cards do topo). */
   date: string;
   title?: string;
-  icon?: React.ElementType;
   source: DayDetailSource;
   /** Posição da seta, em px a partir da borda esquerda do cartão. */
   caretX: number | null;
-  onClose: () => void;
 }) {
   void caretX;
   // Quem pode alterar tipo, valor e prestador (08/10/2026). Enquanto a decisão
@@ -597,34 +593,26 @@ export function CleaningDayDetailContent({
 
   return (
     <div aria-label={`Detalhe de ${title ?? dayTitle(date)}`} className="flex min-h-0 flex-1 flex-col overflow-hidden">
-      <div className="flex shrink-0 items-center justify-between gap-3 px-5 pb-3 pt-5">
-        <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-foreground/[0.06] text-muted-foreground">
-          <HeaderIcon className="size-5" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="font-display text-base font-bold leading-tight break-words">{heading}</p>
-          <p className="ds-meta mt-0.5">{subtitle}</p>
-        </div>
-        <button
-          type="button"
-          aria-label="Fechar detalhe"
-          onClick={onClose}
-          className="grid size-[30px] shrink-0 place-items-center rounded-md bg-secondary/60 text-muted-foreground transition-colors hover:text-foreground"
-        >
-          <X className="size-3.5" strokeWidth={2.2} />
-        </button>
-      </div>
+      {/* CABEÇALHO UNIVERSAL DE JANELA AMPLA (07/11/2026, referência: "Check-ins
+          amanhã"): sem ícone, título 14px negrito em 1 linha e subtítulo 12px;
+          o `pr-14` deixa o "X" oficial (32px, canto superior direito) livre. */}
+      <DialogHeader className="shrink-0 px-4 pt-3.5 pb-0 pr-14 text-left">
+        <DialogTitle className="truncate text-sm font-bold leading-6 text-foreground" title={heading}>
+          {heading}
+        </DialogTitle>
+        <p className="text-xs leading-5 text-muted-foreground">{subtitle}</p>
+      </DialogHeader>
       {/* O rodapé reserva a mesma calha da barra de rolagem da lista, para o
           "Valor Total" cair exatamente na coluna dos valores dos cards. */}
       {/* Rolagem NATIVA (sem JS mexendo na altura): o iOS não congela e o rodapé nunca sai da tela.
           Anti-corte: `snap-start` nas linhas faz a lista parar numa linha inteira. */}
       {body && (
-        <div className="sg-elegant-scroll min-h-0 flex-1 snap-y snap-proximity overflow-y-auto overscroll-contain touch-pan-y px-5 pb-1 pt-1 [scrollbar-gutter:stable]">
+        <div className="sg-elegant-scroll min-h-0 flex-1 snap-y snap-proximity overflow-y-auto overscroll-contain touch-pan-y px-4 pb-1 pt-2.5 [scrollbar-gutter:stable]">
           {body}
         </div>
       )}
       {footer && (
-        <div className="flex shrink-0 items-baseline justify-between gap-3 overflow-hidden border-t border-border bg-foreground/[0.03] px-5 py-3.5 [scrollbar-gutter:stable]">
+        <div className="flex shrink-0 items-baseline justify-between gap-3 overflow-hidden border-t border-border bg-foreground/[0.03] px-4 py-3.5 [scrollbar-gutter:stable]">
           {footer}
         </div>
       )}
@@ -713,7 +701,7 @@ function TypeToggle({
  * Valor clicável (07/11/2026): ao tocar, vira um campo na MESMA posição e
  * altura, já com foco — sem botões "Cancelar"/"OK", que espremiam a data no
  * celular. Enter ou sair do campo grava: valor alterado abre o "Confirmar
- * Alteração?" (De → Para); valor igual ou Escape descarta sem perguntar.
+ * alteração?" (De → Para); valor igual ou Escape descarta sem perguntar.
  */
 function EditablePrice({
   statusId,

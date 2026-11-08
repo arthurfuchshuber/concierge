@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { ptBR } from "date-fns/locale";
-import { CalendarCheck2, CalendarX2, Loader2, X } from "lucide-react";
+import { Loader2, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Calendar } from "@/components/ui/calendar";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
@@ -286,7 +286,6 @@ export function CalendarBlockDialog({
   const occupied = useMemo(() => occupiedNightSet(occupiedStays ?? []), [occupiedStays]);
   const win = bookingWindowBounds(todayISO, bookingWindow);
   const n = blockNights(from, to);
-  const HeadIcon = release ? CalendarCheck2 : CalendarX2;
   const nights = `${n} ${n === 1 ? "noite" : "noites"}`;
 
   const canPick = (iso: string, which: Picking) => {
@@ -344,20 +343,17 @@ export function CalendarBlockDialog({
             "w-[calc(100vw-2rem)] sm:w-full sm:max-w-md p-0 overflow-hidden rounded-[var(--win-radius)] border-[var(--panel-border)] bg-[var(--panel)] shadow-[0_30px_80px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.05)] before:pointer-events-none before:absolute before:inset-x-8 before:top-0 before:h-px before:content-[''] before:bg-[image:var(--panel-hair)]",
         )}
       >
-        <ResponsiveDialogHeader className={cn(!isMobile && "px-5 pt-5 pb-0")}>
-          <div className="flex items-center gap-3">
-            <div className="grid size-10 place-items-center rounded-xl bg-accent/10 text-accent">
-              <HeadIcon className="size-5" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <ResponsiveDialogTitle className="text-base font-display leading-tight truncate">{release ? "Liberar datas" : edit ? "Alterar bloqueio" : "Bloquear datas"}</ResponsiveDialogTitle>
-              <ResponsiveDialogDescription className="ds-meta mt-0.5">
-                {ddmmISO(from)} a {ddmmISO(to)} · {n} {n === 1 ? "noite" : "noites"}
-              </ResponsiveDialogDescription>
-            </div>
-          </div>
+        {/* Cabeçalho universal de janela ampla (07/11/2026): sem ícone, título
+            14px em 1 linha, subtítulo 12px e "X" oficial no canto. */}
+        <ResponsiveDialogHeader className={cn("text-left", !isMobile && "px-4 pt-3.5 pb-0 pr-14")}>
+          <ResponsiveDialogTitle className="truncate text-sm font-bold leading-6 text-foreground">
+            {release ? "Liberar datas" : edit ? "Alterar bloqueio" : "Bloquear datas"}
+          </ResponsiveDialogTitle>
+          <ResponsiveDialogDescription className="text-xs leading-5 text-muted-foreground">
+            {ddmmISO(from)} a {ddmmISO(to)} · {n} {n === 1 ? "noite" : "noites"}
+          </ResponsiveDialogDescription>
         </ResponsiveDialogHeader>
-        <div className={cn("space-y-3 pt-3", isMobile ? "pb-1" : "px-5")}>
+        <div className={cn("space-y-3 pt-2.5", isMobile ? "pb-1" : "px-4")}>
           <div className="rounded-[14px] border border-border bg-muted/20 px-3.5 py-3">
             {/* Regra global (29/10/2026): título do imóvel primeiro, proprietário + chat logo abaixo; título em 1 linha. */}
             <ClampName text={ctx.propertyName} className="text-[13px] font-bold leading-snug" />
@@ -403,7 +399,7 @@ export function CalendarBlockDialog({
         <ResponsiveDialogFooter
           className={cn(
             "gap-2 border-t border-border/60 pt-3",
-            isMobile ? "flex-col-reverse [&>button]:w-full" : "mx-5 mb-5 mt-4 flex-row items-center justify-end sm:space-x-0",
+            isMobile ? "flex-col-reverse [&>button]:w-full" : "mx-4 mb-4 mt-4 flex-row items-center justify-end sm:space-x-0",
           )}
         >
           <button type="button" className={cn(BTN_CANCEL, isMobile && "w-full")} disabled={busy} onClick={onClose}>

@@ -508,32 +508,44 @@
    janelas. Firefox usa `scrollbar-*`; Chrome/Safari usam `::-webkit-*` (se
    `scrollbar-color` for definido lá, o Chrome ignora o `::-webkit-*` e
    desenha uma barra grossa — por isso fica só no @supports). */
+/* DESTAQUE (07/11/2026): a barra passou a ser NÍTIDA sobre o grafite quente
+   (`--panel`) — acento da marca `oklch(0.70 0.22 325)` mais opaco e com um
+   leve brilho, para a pessoa ver de imediato que a lista rola. Traço visível
+   de 4px; a calha segue reservada por `scrollbar-gutter: stable`. */
+:root {
+  --scroll-thumb: color-mix(in oklab, oklch(0.7 0.22 325) 72%, transparent);
+  --scroll-thumb-hover: color-mix(in oklab, oklch(0.7 0.22 325) 92%, transparent);
+  --scroll-thumb-glow: color-mix(in oklab, oklch(0.7 0.22 325) 45%, transparent);
+}
 @supports not selector(::-webkit-scrollbar) {
   * {
     scrollbar-width: thin;
-    scrollbar-color: color-mix(in oklab, oklch(0.58 0.2 300) 35%, transparent) transparent;
+    scrollbar-color: var(--scroll-thumb) transparent;
   }
 }
 ::-webkit-scrollbar {
-  /* 6px de área útil: com 3px era impossível arrastar com o mouse. */
-  width: 6px;
-  height: 6px;
+  /* 7px de área útil (traço visível de 4px + borda transparente de agarrar). */
+  width: 7px;
+  height: 7px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
   margin: 14px;
 }
 ::-webkit-scrollbar-thumb {
-  /* Lilás da marca, translúcido/sutil (pedido 26/09/2026). Mais fina ainda
-     (17/10/2026): o traço visível tem 3px, mas a área de agarrar segue com
-     6px — a borda transparente + `background-clip` faz isso. */
-  background: color-mix(in oklab, oklch(0.58 0.2 300) 35%, transparent);
+  /* Acento da marca, nítido (07/11/2026; antes lilás a 35%, apagado demais no
+     grafite). Traço visível de 4px; a área de agarrar tem 7px — a borda
+     transparente + `background-clip` faz isso. O brilho é interno, para não
+     invadir o padding do conteúdo. */
+  background: var(--scroll-thumb);
   background-clip: padding-box;
   border: 1.5px solid transparent;
   border-radius: 9999px;
+  box-shadow: inset 0 0 4px var(--scroll-thumb-glow);
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: color-mix(in oklab, oklch(0.58 0.2 300) 60%, transparent);
+  background: var(--scroll-thumb-hover);
+  background-clip: padding-box;
 }
 /* Página do sistema sem barra de rolagem — só dentro dos quadrantes. */
 html,

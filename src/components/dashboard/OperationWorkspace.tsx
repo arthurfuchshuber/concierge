@@ -50,6 +50,8 @@ import {
   type CleaningForecastItem,
   type DayDetailSource,
 } from "@/components/dashboard/CleaningDayDetail";
+import { WIDE_WINDOW_CLASS } from "@/components/dashboard/wide-window";
+import { cleaningAdvanceDecision } from "@/lib/cleaning-advance";
 import { CleaningProviderAvatar, useCleaningBoard } from "@/components/dashboard/CleaningProviderAvatar";
 import { PropertyAccessButton } from "@/components/dashboard/PropertyAccessButton";
 import {
@@ -1570,11 +1572,14 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
    * confirmar, o card segue para o status correto (Em Limpeza).
    */
   function handleAdvance(row: ArrivalRow, from: "checkin" | "stay" | "checkout" | "cleaning") {
-    // Concluir uma limpeza sempre pergunta qual tipo foi realizado (normal ou
-    // completa) — a escolha é feita NESTE momento, nunca antes, e alimenta o
+    // Concluir uma limpeza (07/11/2026): só pergunta o tipo quando o imóvel
+    // tem normal E completa; com um tipo só conclui direto nele, sem nenhum
+    // conclui sem tipo (`cleaningAdvanceDecision`). A escolha alimenta o
     // snapshot de preço gravado no servidor.
     if (from === "cleaning") {
-      setCleaningTypePrompt({ row });
+      const decision = cleaningAdvanceDecision(row);
+      if (decision.ask) setCleaningTypePrompt({ row });
+      else runAdvance(row, "cleaning", decision.cleaningType);
       return;
     }
     // O card já pede confirmação de antecipação de check-out; aqui só o
@@ -4238,7 +4243,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       >
         <DialogContent className="w-[calc(100vw-2rem)] sm:w-full sm:max-w-sm">
           <DialogHeader>
-            <DialogTitle className="text-base font-display">Qual Limpeza Foi Feita?</DialogTitle>
+            <DialogTitle className="text-base font-display">Qual limpeza foi feita?</DialogTitle>
             {cleaningTypePrompt ? (
               <p className="text-[12.5px] text-muted-foreground break-words">
                 {cleaningTypePrompt.row.propertyName ?? titleCaseName(cleaningTypePrompt.row.guestName)}
@@ -5386,8 +5391,8 @@ function CleaningBreakdownContent({ label, breakdown }: { label: string; breakdo
   const count = breakdown.reduce((n, i) => n + i.count, 0);
   const sorted = [...breakdown].sort((x, y) => y.totalCents - x.totalCents);
   return (
-    <div className="pt-3">
-      <div ref={screenshotRef} className="sg-elegant-scroll max-h-[60dvh] overflow-y-auto bg-[var(--panel)] px-5">
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div ref={screenshotRef} className="sg-elegant-scroll min-h-0 flex-1 overflow-y-auto bg-[var(--panel)] px-4 pt-2.5">
         <ul>
           {sorted.map((item) => {
             return (
@@ -5411,7 +5416,7 @@ function CleaningBreakdownContent({ label, breakdown }: { label: string; breakdo
           })}
         </ul>
       </div>
-      <div className="flex items-center justify-between gap-3 border-t border-border px-5 py-3">
+      <div className="flex shrink-0 items-center justify-between gap-3 border-t border-border px-4 py-3">
         <span className="text-[10.5px] font-extrabold uppercase tracking-[0.1em] text-muted-foreground">
           Total · {count} {count === 1 ? "limpeza" : "limpezas"}
         </span>
@@ -5501,32 +5506,26 @@ function StatDisplayCard({
     {clickable && (
       (detailItems && detailItems.length > 0) || (extraItems && extraItems.length > 0) ? (
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sg-vv-center flex flex-col w-[calc(100vw-2rem)] sm:max-w-md gap-0 p-0 overflow-hidden rounded-[var(--win-radius)] border-[var(--panel-border)] bg-[var(--panel)] shadow-[0_30px_80px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.05)] [&>button.absolute]:hidden">
-          <DialogTitle className="sr-only">{label}</DialogTitle>
+        {/* Janela ampla padrão (07/11/2026): "X" oficial do DialogContent e
+            cabeçalho sem ícone, vindos do próprio CleaningDayDetailContent. */}
+        <DialogContent aria-describedby={undefined} className={WIDE_WINDOW_CLASS}>
           <CleaningDayDetailContent
             date="all"
             title={label}
-            icon={Icon}
             source={{ mode: "done", items: detailItems ?? [], extras: extraItems }}
             caretX={null}
-            onClose={() => setOpen(false)}
           />
         </DialogContent>
       </Dialog>
       ) : (
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="w-[calc(100vw-2rem)] sm:w-full sm:max-w-md p-0 overflow-hidden rounded-[var(--win-radius)] border-[var(--panel-border)] bg-[var(--panel)] shadow-[0_30px_80px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.05)]">
-          <DialogHeader className="px-5 pt-5 pb-0">
-            <div className="flex items-center gap-3">
-              <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-foreground/[0.06] text-muted-foreground">
-                <Icon className="size-5" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <DialogTitle className="font-display text-base leading-tight break-words">{label}</DialogTitle>
-                <div className="ds-meta mt-0.5">
-                  {value} · {breakdown!.length} {breakdown!.length === 1 ? "imóvel" : "imóveis"}
-                </div>
-              </div>
+        <DialogContent aria-describedby={undefined} className={WIDE_WINDOW_CLASS}>
+          {/* Cabeçalho universal de janela ampla (07/11/2026): sem ícone, título
+              14px e subtítulo 12px; o "X" oficial fica no canto. */}
+          <DialogHeader className="shrink-0 px-4 pt-3.5 pb-0 pr-14 text-left">
+            <DialogTitle className="truncate text-sm font-bold leading-6 text-foreground">{label}</DialogTitle>
+            <div className="text-xs leading-5 text-muted-foreground">
+              {value} · {breakdown!.length} {breakdown!.length === 1 ? "imóvel" : "imóveis"}
             </div>
           </DialogHeader>
           <CleaningBreakdownContent label={label} breakdown={breakdown!} />
@@ -12159,14 +12158,8 @@ function CleaningTypeChooser({
 }) {
   const hasNormal = (row.cleaningPriceNormalCents ?? 0) > 0;
   const hasCompleta = (row.cleaningPriceFullCents ?? 0) > 0;
+  // Só abre com os dois tipos cadastrados (ver `cleaningAdvanceDecision`).
   const [choice, setChoice] = useState<"normal" | "completa">(hasNormal ? "normal" : "completa");
-  if (!hasNormal && !hasCompleta) {
-    return (
-      <Button type="button" className="w-full" onClick={() => onConfirm(undefined)}>
-        Concluir limpeza
-      </Button>
-    );
-  }
   const opts: Array<{ key: "normal" | "completa"; label: string; cents: number; note?: string }> = [];
   if (hasNormal) opts.push({ key: "normal", label: "Limpeza normal", cents: row.cleaningPriceNormalCents ?? 0 });
   if (hasCompleta)

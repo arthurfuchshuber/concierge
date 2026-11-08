@@ -547,7 +547,7 @@ export function PermissionTreeManager({ context = "account" as "account" | "saas
       <AlertDialog open={!!cascade} onOpenChange={(o) => !o && setCascade(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remover Acesso em Cascata?</AlertDialogTitle>
+            <AlertDialogTitle>Remover acesso em cascata?</AlertDialogTitle>
             <AlertDialogDescription>
               Ao remover o acesso de "{cascade?.label}", {cascade?.count} permissão(ões) de itens
               internos também serão removidas. Deseja continuar?
