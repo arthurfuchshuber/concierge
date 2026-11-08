@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
-import type { GcalStatus, GcalCalendar, GcalEvent } from "@/lib/google-calendar.types";
+import type { GcalStatus, GcalEvent } from "@/lib/google-calendar.types";
 
 export type { GcalStatus, GcalCalendar, GcalEvent, GcalAttachment } from "@/lib/google-calendar.types";
 
@@ -109,17 +109,6 @@ export const disconnectMyGoogleCalendar = createServerFn({ method: "POST" })
       severity: "notice",
     });
     return { ok: true };
-  });
-
-/** Todas as agendas da conta conectada. */
-export const listMyGoogleCalendars = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((raw) => z.object({ ownerId: z.string().uuid().nullish() }).parse(raw ?? {}))
-  .handler(async ({ data, context }): Promise<GcalCalendar[]> => {
-    const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
-    const ownerId = await resolveAuthorizedAccountOwnerId(context.supabase, context.userId, data.ownerId);
-    const { fetchCalendars } = await import("@/lib/google-calendar.server");
-    return fetchCalendars(ownerId);
   });
 
 /**

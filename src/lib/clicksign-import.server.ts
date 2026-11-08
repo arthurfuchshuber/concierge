@@ -22,6 +22,8 @@ type SignerCandidate = {
   documents: number;
   /** Nome de um dos contratos, para contexto na tela. */
   sampleDocument: string;
+  /** Id desse contrato (abre no leitor de documentos da janela Novos Cadastros). */
+  sampleDocumentId: string | null;
 };
 
 export type DuplicateMatch = {
@@ -49,7 +51,7 @@ type StakeRow = {
   doc: string | null;
 };
 
-type DocRow = { name: string | null; signers: unknown };
+type DocRow = { id?: string | null; name: string | null; signers: unknown };
 
 function fingerprintOf(s: Record<string, unknown>): string | null {
   const doc = signerDoc(s);
@@ -76,6 +78,7 @@ export function buildCandidates(
   providers: StakeRow[],
 ): ImportCandidate[] {
   const parsed = documents.map((d) => ({
+    id: d.id ?? null,
     name: d.name ?? "Documento",
     signers: (Array.isArray(d.signers) ? d.signers : []) as Array<Record<string, unknown>>,
   }));
@@ -104,6 +107,7 @@ export function buildCandidates(
       phone: String(signer["phone_number"] ?? signer["phone"] ?? "").trim(),
       documents: 1,
       sampleDocument: doc.name,
+      sampleDocumentId: doc.id,
     });
   }
 

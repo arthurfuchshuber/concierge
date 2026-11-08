@@ -1,37 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import {
-  Loader2,
-  RefreshCw,
-  Trash2,
-  FileSignature,
-  ExternalLink,
-  UserPlus,
-  Copy,
-  Eye,
-  EyeOff,
-  MoreHorizontal,
-  Save,
-  DatabaseZap,
-} from "lucide-react";
+import { Copy, DatabaseZap, Eye, EyeOff, Loader2, Lock, Plug, Save } from "lucide-react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
   getMyClicksignConfig,
   saveMyClicksignConfig,
@@ -41,12 +12,26 @@ import {
   rotateMyClicksignWebhookSecret,
   refreshClicksignStakeholderData,
 } from "@/lib/clicksign.functions";
+import { previewClicksignStakeholders } from "@/lib/clicksign-import.functions";
 import { ClicksignImportDialog } from "@/components/admin-pages/ClicksignImportDialog";
 import { ClicksignDisconnectDialog } from "@/components/admin-pages/ClicksignDisconnectDialog";
 import {
   ClicksignContractStartConflictDialog,
   type ClicksignContractStartConflict,
 } from "@/components/admin-pages/ClicksignContractStartConflictDialog";
+import { DocPreviewDialog, type PreviewTarget } from "@/components/stakeholders/DocPreviewDialog";
+import { CLICKSIGN_STATUS as STATUS, sortClicksignDocs } from "@/lib/clicksign-doc-order";
+import {
+  ActionSquare,
+  DisconnectMenu,
+  FieldAction,
+  IntegrationShell,
+  MergedField,
+  PrimaryAction,
+  SoftToggles,
+  StatusTag,
+  Step,
+} from "@/components/admin-pages/integration-window";
 
 const VINCULO: Record<string, string> = {
   owner: "Proprietário",
@@ -54,25 +39,62 @@ const VINCULO: Record<string, string> = {
   guest: "Hóspede",
 };
 
-export function ClicksignPanel({ accountOwnerId = null, readOnly = false }: { accountOwnerId?: string | null; readOnly?: boolean }) {
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+
+type Doc = {
+  id: string;
+  document_key: string | null;
+  name: string | null;
+  status: string | null;
+  url_signed: string | null;
+  url_original: string | null;
+  finished_at: string | null;
+  synced_at: string | null;
+  stakeholder_type: string | null;
+};
+
+type View = "webhook" | "contratos";
+
+/**
+ * Janela do ClickSign (mockups aprovados, 08/11/2026): Webhook | Contratos (N) em botões suaves;
+ * "Atualizar Dados" faz tudo de uma vez (importa os contratos, vincula aos cadastros, completa os
+ * dados e, se houver contratante sem cadastro, abre a janela "Novos Cadastros"); o "⋯" guarda só
+ * o Desconectar.
+ */
+export function ClicksignPanel({
+  accountOwnerId = null,
+  readOnly = false,
+  inWindow = false,
+}: {
+  accountOwnerId?: string | null;
+  readOnly?: boolean;
+  /** Dentro da janela (celular): cabeçalho e recuos da janela. */
+  inWindow?: boolean;
+}) {
   const getFn = useServerFn(getMyClicksignConfig);
   const saveFn = useServerFn(saveMyClicksignConfig);
+  const saveSecretFn = useServerFn(rotateMyClicksignWebhookSecret);
   const discFn = useServerFn(disconnectMyClicksign);
   const syncFn = useServerFn(syncMyClicksignDocuments);
   const listFn = useServerFn(listMyClicksignDocuments);
   const refreshDataFn = useServerFn(refreshClicksignStakeholderData);
+  const previewFn = useServerFn(previewClicksignStakeholders);
   const qc = useQueryClient();
 
+  const [view, setView] = useState<View>("webhook");
   const [token, setToken] = useState("");
+  const [showToken, setShowToken] = useState(false);
+  const [secret, setSecret] = useState("");
+  const [showSecret, setShowSecret] = useState(false);
+  const [updating, setUpdating] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [disconnectOpen, setDisconnectOpen] = useState(false);
-  const [contractStartConflicts, setContractStartConflicts] = useState<ClicksignContractStartConflict[]>([]);
-  // De qual ação vieram os conflitos — decide o que reexecutar com overwrite=true.
-  const [contractStartConflictSource, setContractStartConflictSource] = useState<"sync" | "refresh" | null>(null);
-  const [showSecret, setShowSecret] = useState(false);
-  const [secret, setSecret] = useState("");
-  // Apenas um quadrante aberto por vez; todos recolhidos ao abrir.
-  const [section, setSection] = useState<string>("");
+  const [preview, setPreview] = useState<PreviewTarget>(null);
+  const [contractStartConflicts, setContractStartConflicts] = useState<
+    ClicksignContractStartConflict[]
+  >([]);
+  /** Resumo da atualização que ficou esperando a decisão dos conflitos de vigência. */
+  const pendingSummary = useRef<{ total: number; filled: number } | null>(null);
 
   const cfg = useQuery({
     queryKey: ["clicksign-config", accountOwnerId],
@@ -81,55 +103,21 @@ export function ClicksignPanel({ accountOwnerId = null, readOnly = false }: { ac
   });
   const connected = !!cfg.data?.hasToken;
 
-  const refreshData = useMutation({
-    mutationFn: (overwriteContractStart: boolean) => refreshDataFn({ data: { overwriteContractStart } }),
-    onSuccess: (r) => {
-      const extras: string[] = [];
-      if (r.contractStartFilled > 0) {
-        extras.push(`${r.contractStartFilled} com início de vigência preenchido pela assinatura do ClickSign`);
-      }
-      if (r.contractStartOverwritten > 0) {
-        extras.push(`${r.contractStartOverwritten} com início de vigência atualizado`);
-      }
-      if (r.updated > 0 || extras.length > 0) {
-        const parts = [r.updated > 0 ? `${r.updated} cadastro(s) atualizado(s) com dados dos contratos` : null, ...extras].filter(
-          Boolean,
-        );
-        toast.success(parts.join(" · "));
-      } else if (r.scanned === 0) {
-        // Diagnóstico: nenhum cadastro tem sequer um contrato vinculado —
-        // o problema está em "Importar contratos" (vínculo), não aqui.
-        toast.info(
-          "Nenhum cadastro está vinculado a um contrato do ClickSign ainda. Rode \"Importar contratos\" primeiro.",
-        );
-      } else if (r.withAnySignedDoc === 0) {
-        // Diagnóstico: há vínculo, mas nenhum documento vinculado tem
-        // assinatura marcada como concluída no ClickSign (finished_at vazio).
-        toast.info(
-          `${r.scanned} cadastro(s) vinculados, mas nenhum documento deles está com assinatura concluída no ClickSign ainda (ou o campo de conclusão não veio preenchido da API).`,
-        );
-      } else {
-        toast.info(`${r.scanned} cadastro(s) vinculados verificados — nenhum tinha dado novo para preencher.`);
-      }
-      if (r.failed > 0) toast.warning(`${r.failed} contrato(s) não puderam ser lidos.`);
-      if (r.contractStartConflicts.length > 0) {
-        setContractStartConflicts(r.contractStartConflicts);
-        setContractStartConflictSource("refresh");
-      }
-      qc.invalidateQueries({ queryKey: ["stakeholders"] });
-    },
-    onError: (e: unknown) =>
-      toast.error(e instanceof Error ? e.message : "Erro ao atualizar dados"),
+  const docs = useQuery({
+    queryKey: ["clicksign-docs", accountOwnerId],
+    queryFn: () => listFn({ data: { ownerId: accountOwnerId } }),
+    enabled: connected,
   });
+  const sortedDocs = useMemo(
+    () => sortClicksignDocs((docs.data?.documents ?? []) as Doc[]),
+    [docs.data],
+  );
 
   // O segredo nunca chega em texto puro do servidor — o campo começa vazio e
   // só é enviado quando alguém digita um novo valor.
   useEffect(() => {
     setSecret("");
   }, [cfg.data?.webhookSecretMasked]);
-
-  const saveSecretFn = useServerFn(rotateMyClicksignWebhookSecret);
-
 
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   const webhookUrl = cfg.data?.ownerId
@@ -141,50 +129,17 @@ export function ClicksignPanel({ accountOwnerId = null, readOnly = false }: { ac
     void navigator.clipboard.writeText(value).then(() => toast.success(msg));
   };
 
-  const docs = useQuery({
-    queryKey: ["clicksign-docs", accountOwnerId],
-    queryFn: () => listFn({ data: { ownerId: accountOwnerId } }),
-    enabled: connected,
-  });
-
-  // Um único "Salvar": grava a chave de API (revalidando a conexão) e o
-  // segredo do webhook na mesma ação.
+  // Um único "Salvar": grava a chave de API (revalidando a conexão) e o segredo do webhook.
   const save = useMutation({
     mutationFn: async () => {
       await saveFn({ data: { apiToken: token || undefined, environment: "production" } });
       const s = secret.trim();
-      if (s.length >= 8) {
-        await saveSecretFn({ data: { secret: s } });
-      }
+      if (s.length >= 8) await saveSecretFn({ data: { secret: s } });
     },
     onSuccess: () => {
-      toast.success("Integração salva e reconectada.");
+      toast.success(connected ? "Integração salva." : "ClickSign conectado.");
       setToken("");
       qc.invalidateQueries({ queryKey: ["clicksign-config"] });
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
-
-  const sync = useMutation({
-    mutationFn: (overwriteContractStart: boolean) => syncFn({ data: { overwriteContractStart } }),
-    onSuccess: (r) => {
-      const extras: string[] = [];
-      if (r.dataFilled > 0) extras.push(`${r.dataFilled} cadastro(s) com dados do contrato preenchidos`);
-      if (r.contractStartFilled > 0) {
-        extras.push(`${r.contractStartFilled} com início de vigência preenchido pela assinatura do ClickSign`);
-      }
-      if (r.contractStartOverwritten > 0) extras.push(`${r.contractStartOverwritten} com início de vigência atualizado`);
-      toast.success(
-        [`${r.total} contratos importados — ${r.linked} vinculados a cadastros`, ...extras].join(" · "),
-      );
-      if (r.contractStartConflicts.length > 0) {
-        setContractStartConflicts(r.contractStartConflicts);
-        setContractStartConflictSource("sync");
-      }
-      qc.invalidateQueries({ queryKey: ["clicksign-docs"] });
-      qc.invalidateQueries({ queryKey: ["clicksign-config"] });
-      qc.invalidateQueries({ queryKey: ["stakeholders"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -205,276 +160,329 @@ export function ClicksignPanel({ accountOwnerId = null, readOnly = false }: { ac
     onError: (e: Error) => toast.error(e.message),
   });
 
+  /** Fim da atualização: contratantes sem cadastro abrem "Novos Cadastros"; senão, aviso claro. */
+  async function finishUpdate(summary: { total: number; filled: number }) {
+    const res = await qc.fetchQuery({
+      queryKey: ["clicksign-import-preview"],
+      queryFn: () => previewFn(),
+      staleTime: 0,
+    });
+    const pending = res.candidates.filter((c) => c.status !== "linked").length;
+    const linked = res.candidates.length - pending;
+    if (pending > 0) {
+      setImportOpen(true);
+      return;
+    }
+    const dataLine =
+      summary.filled > 0
+        ? `${plural(summary.filled, "cadastro foi completado", "cadastros foram completados")} com os dados dos contratos.`
+        : linked > 0
+          ? linked === 1
+            ? "O cadastro vinculado já está com os dados em dia."
+            : `Os ${linked} cadastros vinculados já estão com os dados em dia.`
+          : "Nenhum contrato está vinculado a um cadastro ainda.";
+    toast.success("ClickSign Atualizado", {
+      // Aviso de várias linhas: cantos de janela (16px), não a pílula das notificações curtas.
+      className: "!rounded-[16px]",
+      description: `${plural(summary.total, "contrato conferido", "contratos conferidos")}. ${dataLine} Nenhum cadastro novo para criar.`,
+    });
+  }
+
+  /**
+   * "Atualizar Dados" (tudo de uma vez): importa os contratos e vincula aos cadastros, relê os
+   * contratos dos cadastros vinculados para completar o que falta e, por fim, confere se algum
+   * contratante ainda não tem cadastro.
+   */
+  async function runUpdate(overwriteContractStart: boolean) {
+    setUpdating(true);
+    try {
+      const s = await syncFn({ data: { overwriteContractStart } });
+      const r = await refreshDataFn({ data: { overwriteContractStart } });
+      qc.invalidateQueries({ queryKey: ["clicksign-docs"] });
+      qc.invalidateQueries({ queryKey: ["clicksign-config"] });
+      qc.invalidateQueries({ queryKey: ["stakeholders"] });
+      if (r.failed > 0)
+        toast.warning(
+          `${plural(r.failed, "contrato não pôde", "contratos não puderam")} ser lido(s).`,
+        );
+      const summary = { total: s.total, filled: s.dataFilled + r.updated };
+      const seen = new Set<string>();
+      const conflicts = [...s.contractStartConflicts, ...r.contractStartConflicts].filter((c) => {
+        const k = `${c.kind}:${c.id}`;
+        if (seen.has(k)) return false;
+        seen.add(k);
+        return true;
+      });
+      if (conflicts.length > 0) {
+        pendingSummary.current = summary;
+        setContractStartConflicts(conflicts);
+        return;
+      }
+      await finishUpdate(summary);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao atualizar dados");
+    } finally {
+      setUpdating(false);
+    }
+  }
+
+  const openDoc = (d: Doc) => {
+    const url = d.url_signed ?? d.url_original;
+    if (!url) return;
+    // Visão de outra conta (admin): o leitor busca pelo dono logado, então abre o link direto.
+    if (accountOwnerId) {
+      window.open(url, "_blank", "noopener");
+      return;
+    }
+    setPreview({ name: d.name ?? d.document_key ?? "Contrato", docId: d.id });
+  };
+
   if (cfg.isLoading) {
     return (
-      <div className="flex items-center gap-2 py-4 text-xs text-muted-foreground">
+      <div
+        className={
+          inWindow
+            ? "flex items-center gap-2 px-4 py-6 text-xs text-muted-foreground"
+            : "flex items-center gap-2 py-4 text-xs text-muted-foreground"
+        }
+      >
         <Loader2 className="size-4 animate-spin" /> Carregando…
       </div>
     );
   }
 
-  return (
-    <div className="space-y-3">
-      <Accordion
-        type="single"
-        collapsible
-        value={section}
-        onValueChange={setSection}
-        className="space-y-2"
+  const docCount = cfg.data?.documentsCount ?? sortedDocs.length;
+  const errorLine = cfg.data?.lastError ? (
+    <p className="rounded-[10px] border border-[#c98c8c]/30 bg-[#c98c8c]/[0.06] px-3 py-2 text-[11.5px] text-[#c98c8c]">
+      {cfg.data.lastError}
+    </p>
+  ) : null;
+
+  // ── Ainda não conectado: chave de API + passo a passo + "Conectar". ──
+  if (!connected) {
+    return (
+      <IntegrationShell
+        inWindow={inWindow}
+        title="ClickSign"
+        subtitle="Documentos · Não Conectado"
+        bodyDeps={[connected]}
+        footer={
+          readOnly ? null : (
+            <PrimaryAction
+              icon={save.isPending ? <Loader2 className="animate-spin" /> : <Plug />}
+              onClick={() => save.mutate()}
+              disabled={save.isPending || !token.trim()}
+            >
+              Conectar
+            </PrimaryAction>
+          )
+        }
       >
-        {!readOnly && <AccordionItem
-          value="api"
-          className="rounded-xl border border-border bg-secondary/30 px-3"
-        >
-          <AccordionTrigger className="py-2.5 text-xs font-medium hover:no-underline">
-            <span className="truncate">Chave de API</span>
-          </AccordionTrigger>
-          <AccordionContent className="space-y-2 pb-3">
-            <Input
-              type="password"
-              placeholder={connected ? "•••••••• (salva)" : "access_token do ClickSign"}
-              value={token}
-              onChange={(e) => setToken(e.target.value)}
-              autoComplete="off"
-            />
-            <p className="text-[11px] text-muted-foreground">
-              Gere a chave em Configurações → API no painel do ClickSign.{" "}
-              <a
-                href="https://app.clicksign.com"
-                target="_blank"
-                rel="noreferrer"
-                className="text-primary underline inline-flex items-center gap-0.5"
-              >
-                Abrir ClickSign <ExternalLink className="size-3" />
-              </a>
-            </p>
-          </AccordionContent>
-        </AccordionItem>}
-
-        {connected && (
-          <AccordionItem
-            value="webhook"
-            className="rounded-xl border border-border bg-secondary/30 px-3"
-          >
-            <AccordionTrigger className="py-2.5 text-xs font-medium hover:no-underline">
-              <span className="flex min-w-0 flex-1 items-center justify-between gap-2 pr-2">
-                <span className="truncate">Webhook</span>
-                <span className="shrink-0 whitespace-nowrap text-[10px] font-normal text-muted-foreground">
-                  {cfg.data?.webhookLastEventAt
-                    ? `último evento ${new Date(cfg.data.webhookLastEventAt).toLocaleString("pt-BR")}`
-                    : "nenhum evento recebido"}
-                </span>
-              </span>
-            </AccordionTrigger>
-            <AccordionContent className="space-y-2 pb-3">
-              <p className="text-[11px] text-muted-foreground">
-                Em Configurações → API → Webhooks no ClickSign, adicione a URL abaixo e cole aqui o
-                segredo HMAC gerado por lá.
-              </p>
-              <div>
-                <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                  URL
-                </Label>
-                <div className="flex items-center gap-1.5">
-                  <Input readOnly value={webhookUrl} className="h-8 font-mono text-[11px]" />
-                  <Button
-                    type="button"
-                    aria-label="Copiar URL do webhook"
-                    size="sm"
-                    variant="outline"
-                    className="h-8 shrink-0 rounded-full px-2"
-                    onClick={() => copy(webhookUrl, "URL copiada.")}
-                  >
-                    <Copy className="size-3.5" />
-                  </Button>
-                </div>
-              </div>
-              <div>
-                <Label className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                  Segredo (HMAC-SHA256)
-                </Label>
-                <div className="flex items-center gap-1.5">
-                  <Input
-                    value={secret}
-                    onChange={(e) => setSecret(e.target.value)}
-                    placeholder={
-                      cfg.data?.hasWebhookSecret
-                        ? `salvo: ${cfg.data.webhookSecretMasked} — digite um novo para substituir`
-                        : "cole aqui o segredo do ClickSign"
-                    }
-                    type={showSecret ? "text" : "password"}
-                    autoComplete="off"
-                    className="h-8 font-mono text-[11px]"
-                  />
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    className="h-8 shrink-0 rounded-full px-2"
-                    onClick={() => setShowSecret((v) => !v)}
-                  >
-                    {showSecret ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
-                  </Button>
-                </div>
-              </div>
-              <p className="text-[10px] text-muted-foreground">
-                Por segurança, o segredo salvo nunca é exibido de volta — informe um novo valor
-                para substituí-lo. Ele é salvo junto com a chave de API ao clicar em “Salvar”.
-              </p>
-
-
-            </AccordionContent>
-          </AccordionItem>
-        )}
-
-        {connected && (
-          <AccordionItem
-            value="docs"
-            className="rounded-xl border border-border bg-secondary/30 px-3"
-          >
-            <AccordionTrigger className="py-2.5 text-xs font-medium hover:no-underline">
-              <span className="flex min-w-0 flex-1 items-center justify-between gap-2 pr-2">
-                <span className="truncate whitespace-nowrap">
-                  Contratos importados{" "}
-                  <span className="text-muted-foreground">({cfg.data?.documentsCount ?? 0})</span>
-                </span>
-                {cfg.data?.lastSyncAt && (
-                  <span className="shrink-0 whitespace-nowrap text-[10px] font-normal text-muted-foreground">
-                    {new Date(cfg.data.lastSyncAt).toLocaleString("pt-BR")}
-                  </span>
-                )}
-              </span>
-            </AccordionTrigger>
-            <AccordionContent className="pb-3">
-              {docs.isLoading ? (
-                <p className="py-3 text-center text-[11px] text-muted-foreground">
-                  Carregando contratos…
-                </p>
-              ) : (docs.data?.documents.length ?? 0) === 0 ? (
-                <p className="py-3 text-center text-[11px] text-muted-foreground">
-                  Nenhum contrato importado ainda.
-                </p>
-              ) : (
-                <ul className="max-h-64 space-y-1.5 overflow-y-auto">
-                  {docs.data!.documents.map((d) => (
-                    <li
-                      key={d.id}
-                      className="flex items-center gap-2 rounded-lg bg-card px-2.5 py-2 text-[11px]"
-                    >
-                      <FileSignature className="size-3.5 shrink-0 text-muted-foreground" />
-                      <span className="min-w-0 flex-1 truncate">{d.name ?? d.document_key}</span>
-                      {d.stakeholder_type && (
-                        <Badge variant="secondary" className="shrink-0 px-1.5 py-0 text-[10px]">
-                          {VINCULO[d.stakeholder_type] ?? d.stakeholder_type}
-                        </Badge>
-                      )}
-                      <Badge variant="outline" className="shrink-0 px-1.5 py-0 text-[10px] capitalize">
-                        {d.status ?? "—"}
-                      </Badge>
-                      {(d.url_signed || d.url_original) && (
-                        <a
-                          href={(d.url_signed ?? d.url_original) as string}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="shrink-0 text-primary"
-                          aria-label="Abrir contrato"
-                        >
-                          <ExternalLink className="size-3.5" />
-                        </a>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </AccordionContent>
-          </AccordionItem>
-        )}
-      </Accordion>
-
-      {cfg.data?.lastError && (
-        <p className="rounded-lg border border-red-500/30 bg-red-500/5 px-3 py-2 text-[11px] text-red-600 dark:text-red-400">
-          {cfg.data.lastError}
-        </p>
-      )}
-
-      <div className="flex flex-nowrap items-center gap-2">
-        <Button
-          size="sm"
-          className="h-8 shrink-0 rounded-full text-xs"
-          onClick={() => save.mutate()}
-          disabled={save.isPending}
-        >
-          {save.isPending ? (
-            <Loader2 className="mr-1 size-3.5 animate-spin" />
-          ) : (
-            <Save className="mr-1 size-3.5" />
+        <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-2.5">
+          {!readOnly && (
+            <MergedField
+              label="Chave de API"
+              action={
+                <FieldAction
+                  label={showToken ? "Ocultar Chave" : "Mostrar Chave"}
+                  onClick={() => setShowToken((v) => !v)}
+                >
+                  {showToken ? <EyeOff strokeWidth={1.8} /> : <Eye strokeWidth={1.8} />}
+                </FieldAction>
+              }
+            >
+              <input
+                value={token}
+                onChange={(e) => setToken(e.target.value)}
+                type={showToken ? "text" : "password"}
+                autoComplete="off"
+                placeholder="Cole aqui a chave do ClickSign"
+                className="w-full min-w-0 bg-transparent font-mono text-[11.5px] outline-none placeholder:font-sans placeholder:text-muted-foreground"
+              />
+            </MergedField>
           )}
-          {connected ? "Salvar" : "Conectar"}
-        </Button>
+          <div className="overflow-hidden rounded-[12px] border border-border bg-[var(--card-surface)]">
+            <div className="px-3 pb-2 pt-2.5 text-[12px] font-bold">
+              Vá ao ClickSign e siga o passo a passo:
+            </div>
+            <div className="grid gap-2 px-3 pb-3">
+              <Step n={1}>
+                Abra <b className="font-semibold text-foreground">Configurações → API</b>.
+              </Step>
+              <Step n={2}>
+                Gere uma chave de acesso, cole no campo{" "}
+                <b className="font-semibold text-foreground">Chave de API</b> acima e toque em
+                Conectar.
+              </Step>
+            </div>
+          </div>
+          {errorLine}
+        </div>
+      </IntegrationShell>
+    );
+  }
 
-        {connected && (
-          <Button
-            size="sm"
-            variant="outline"
-            className="h-8 shrink-0 rounded-full text-xs"
-            onClick={() => refreshData.mutate(false)}
-            disabled={refreshData.isPending}
-          >
-            {refreshData.isPending ? (
-              <Loader2 className="mr-1 size-3.5 animate-spin" />
-            ) : (
-              <DatabaseZap className="mr-1 size-3.5" />
-            )}
-            Atualizar Dados
-          </Button>
+  return (
+    <>
+      <IntegrationShell
+        inWindow={inWindow}
+        title="ClickSign"
+        subtitle="Documentos · Conectado"
+        bodyDeps={[view, sortedDocs.length, docs.isLoading]}
+        toggles={
+          <SoftToggles
+            items={[
+              { key: "webhook", label: "Webhook" },
+              { key: "contratos", label: `Contratos (${docCount})` },
+            ]}
+            value={view}
+            onChange={setView}
+          />
+        }
+        footer={
+          <>
+            <PrimaryAction
+              icon={updating ? <Loader2 className="animate-spin" /> : <DatabaseZap />}
+              onClick={() => void runUpdate(false)}
+              disabled={updating}
+            >
+              Atualizar Dados
+            </PrimaryAction>
+            <ActionSquare label="Salvar" onClick={() => save.mutate()} disabled={save.isPending}>
+              {save.isPending ? <Loader2 className="animate-spin" /> : <Save strokeWidth={1.8} />}
+            </ActionSquare>
+            <DisconnectMenu
+              onDisconnect={() => setDisconnectOpen(true)}
+              disabled={disconnect.isPending}
+            />
+          </>
+        }
+      >
+        {view === "webhook" ? (
+          <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-2.5">
+            <MergedField
+              label="URL do Webhook"
+              action={
+                <FieldAction label="Copiar URL" onClick={() => copy(webhookUrl, "URL copiada.")}>
+                  <Copy strokeWidth={1.8} />
+                </FieldAction>
+              }
+            >
+              <span className="block truncate font-mono text-[11.5px]">
+                {webhookUrl.replace(/^https?:\/\//, "")}
+              </span>
+            </MergedField>
+            <MergedField
+              label="Segredo (HMAC-SHA256)"
+              action={
+                <FieldAction
+                  label={showSecret ? "Ocultar Segredo" : "Mostrar Segredo"}
+                  onClick={() => setShowSecret((v) => !v)}
+                >
+                  {showSecret ? <EyeOff strokeWidth={1.8} /> : <Eye strokeWidth={1.8} />}
+                </FieldAction>
+              }
+            >
+              <input
+                value={secret}
+                onChange={(e) => setSecret(e.target.value)}
+                type={showSecret ? "text" : "password"}
+                autoComplete="off"
+                placeholder={
+                  cfg.data?.hasWebhookSecret
+                    ? `Salvo: ${cfg.data.webhookSecretMasked}`
+                    : "Cole aqui o segredo do ClickSign"
+                }
+                className="w-full min-w-0 bg-transparent font-mono text-[11.5px] outline-none placeholder:text-muted-foreground"
+              />
+            </MergedField>
+            <div className="overflow-hidden rounded-[12px] border border-border bg-[var(--card-surface)]">
+              <div className="px-3 pb-2 pt-2.5 text-[12px] font-bold">
+                Vá ao ClickSign e siga o passo a passo:
+              </div>
+              <div className="grid gap-2 px-3 pb-3">
+                <Step n={1}>
+                  Abra{" "}
+                  <b className="font-semibold text-foreground">Configurações → API → Webhooks</b>.
+                </Step>
+                <Step n={2}>
+                  Adicione a <b className="font-semibold text-foreground">URL do Webhook</b> acima.
+                </Step>
+                <Step n={3}>
+                  Copie o segredo gerado pelo ClickSign, cole no campo{" "}
+                  <b className="font-semibold text-foreground">Segredo</b> acima e salve.
+                </Step>
+              </div>
+              <div className="flex items-center gap-2 border-t border-[var(--panel-div)] px-3 py-2.5 text-[11.5px] leading-snug text-muted-foreground">
+                <Lock className="size-[13px] shrink-0" strokeWidth={1.8} />
+                <span>
+                  O segredo salvo fica oculto por segurança. Para trocar, digite um novo e salve.
+                </span>
+              </div>
+            </div>
+            {errorLine}
+          </div>
+        ) : docs.isLoading ? (
+          <p className="py-6 text-center text-[12px] text-muted-foreground">
+            Carregando contratos…
+          </p>
+        ) : sortedDocs.length === 0 ? (
+          <p className="py-6 text-center text-[12px] text-muted-foreground">
+            Nenhum contrato importado ainda.
+          </p>
+        ) : (
+          <div className="grid min-w-0 grid-cols-[minmax(0,1fr)]">
+            {sortedDocs.map((d, i) => {
+              const st = STATUS[d.status ?? ""];
+              const hasFile = !!(d.url_signed || d.url_original);
+              return (
+                <button
+                  key={d.id}
+                  type="button"
+                  data-clip-row
+                  disabled={!hasFile}
+                  onClick={() => openDoc(d)}
+                  className={`flex min-h-[42px] min-w-0 items-center gap-2 text-left disabled:cursor-default ${
+                    i ? "border-t border-[var(--panel-div)]" : ""
+                  }`}
+                >
+                  <span
+                    className="min-w-0 flex-1 truncate text-[12.5px] font-semibold"
+                    title={d.name ?? undefined}
+                  >
+                    {d.name ?? d.document_key}
+                  </span>
+                  {d.stakeholder_type ? (
+                    <StatusTag tone="neutral">
+                      {VINCULO[d.stakeholder_type] ?? d.stakeholder_type}
+                    </StatusTag>
+                  ) : null}
+                  <StatusTag tone={st?.tone ?? "neutral"}>{st?.label ?? d.status ?? "—"}</StatusTag>
+                </button>
+              );
+            })}
+          </div>
         )}
-
-        {connected && (
-          <DropdownMenu modal={false}>
-
-            <DropdownMenuTrigger asChild>
-              <Button size="sm" variant="outline" className="h-8 shrink-0 rounded-full text-xs">
-                <MoreHorizontal className="mr-1 size-3.5" /> Ações
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-52">
-              <DropdownMenuItem onSelect={() => sync.mutate(false)} disabled={sync.isPending}>
-                {sync.isPending ? (
-                  <Loader2 className="mr-2 size-3.5 animate-spin" />
-                ) : (
-                  <RefreshCw className="mr-2 size-3.5" />
-                )}
-                Importar contratos
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => setImportOpen(true)}>
-                <UserPlus className="mr-2 size-3.5" /> Importar cadastros
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onSelect={() => setDisconnectOpen(true)}
-                disabled={disconnect.isPending}
-                className="text-red-600 focus:text-red-600"
-              >
-                <Trash2 className="mr-2 size-3.5" /> Desconectar
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
-      </div>
+      </IntegrationShell>
 
       <ClicksignContractStartConflictDialog
         open={contractStartConflicts.length > 0}
         onOpenChange={(next) => {
-          if (!next) setContractStartConflicts([]);
+          if (next) return;
+          setContractStartConflicts([]);
+          // Decidiu manter as datas atuais: segue o fim da atualização (Novos Cadastros ou aviso).
+          const summary = pendingSummary.current;
+          pendingSummary.current = null;
+          if (summary) void finishUpdate(summary).catch((e: Error) => toast.error(e.message));
         }}
         conflicts={contractStartConflicts}
-        pending={contractStartConflictSource === "sync" ? sync.isPending : refreshData.isPending}
+        pending={updating}
         onConfirm={() => {
+          pendingSummary.current = null;
           setContractStartConflicts([]);
-          if (contractStartConflictSource === "sync") sync.mutate(true);
-          else refreshData.mutate(true);
+          void runUpdate(true);
         }}
       />
-
       <ClicksignImportDialog open={importOpen} onOpenChange={setImportOpen} />
       <ClicksignDisconnectDialog
         open={disconnectOpen}
@@ -482,6 +490,7 @@ export function ClicksignPanel({ accountOwnerId = null, readOnly = false }: { ac
         pending={disconnect.isPending}
         onConfirm={(purge) => disconnect.mutate(purge)}
       />
-    </div>
+      <DocPreviewDialog doc={preview} onClose={() => setPreview(null)} />
+    </>
   );
 }

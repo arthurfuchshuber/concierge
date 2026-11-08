@@ -1,16 +1,22 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Loader2, AlertTriangle, Check } from "lucide-react";
+import { Check, Eye, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import {
   previewClicksignStakeholders,
   importClicksignStakeholders,
   type ImportCandidate,
 } from "@/lib/clicksign-import.functions";
+import { DocPreviewDialog, type PreviewTarget } from "@/components/stakeholders/DocPreviewDialog";
+import {
+  INTEGRATION_WINDOW_CLASS,
+  IntegrationShell,
+  PrimaryAction,
+  StatusTag,
+} from "@/components/admin-pages/integration-window";
+import { cn } from "@/lib/utils";
 
 type Decision = {
   action: "create" | "link" | "skip";
@@ -25,10 +31,13 @@ const REASON: Record<string, string> = {
   name: "nome parecido",
 };
 
+const KIND: Record<"owner" | "provider", string> = { owner: "Proprietário", provider: "Prestador" };
+
 /**
- * Importação automática de cadastros a partir dos contratos do ClickSign.
- * Novos entram marcados para criação; possíveis duplicados exigem decisão
- * explícita do usuário (vincular ao existente, criar mesmo assim ou ignorar).
+ * NOVOS CADASTROS (mockup aprovado, 08/11/2026): aberta pelo "Atualizar Dados" do ClickSign quando
+ * algum contratante dos contratos ainda não tem cadastro. Um cartão por contratante (só o
+ * contratante do documento, nunca sócios/testemunhas): nome + olho (abre o contrato no leitor) e
+ * etiqueta Novo / Possível Duplicata; possíveis duplicatas sugerem o vínculo ao cadastro existente.
  */
 export function ClicksignImportDialog({
   open,
@@ -42,6 +51,7 @@ export function ClicksignImportDialog({
   const qc = useQueryClient();
 
   const [decisions, setDecisions] = useState<Record<string, Decision>>({});
+  const [doc, setDoc] = useState<PreviewTarget>(null);
 
   const preview = useQuery({
     queryKey: ["clicksign-import-preview"],
@@ -65,7 +75,12 @@ export function ClicksignImportDialog({
         next[c.key] =
           c.status === "new"
             ? { action: "create", type: c.suggestedType }
-            : { action: "link", type: c.suggestedType, targetType: c.matches[0]?.type, targetId: c.matches[0]?.id };
+            : {
+                action: "link",
+                type: c.suggestedType,
+                targetType: c.matches[0]?.type,
+                targetId: c.matches[0]?.id,
+              };
       }
       return next;
     });
@@ -90,7 +105,12 @@ export function ClicksignImportDialog({
       return importFn({ data: { decisions: payload } });
     },
     onSuccess: (r) => {
-      toast.success(`${r.created} cadastro(s) criado(s) · ${r.linked} vinculado(s).`);
+      toast.success("Cadastros Atualizados", {
+        className: "!rounded-[16px]",
+        description: `${r.created} ${r.created === 1 ? "cadastro criado" : "cadastros criados"} · ${r.linked} ${
+          r.linked === 1 ? "vinculado" : "vinculados"
+        }.`,
+      });
       qc.invalidateQueries({ queryKey: ["stakeholders"] });
       qc.invalidateQueries({ queryKey: ["clicksign-docs"] });
       qc.invalidateQueries({ queryKey: ["clicksign-import-preview"] });
@@ -102,137 +122,174 @@ export function ClicksignImportDialog({
   const set = (key: string, patch: Partial<Decision>) =>
     setDecisions((prev) => ({ ...prev, [key]: { ...(prev[key] as Decision), ...patch } }));
 
-  const toCreate = candidates.filter((c) => decisions[c.key]?.action === "create").length;
-  const toLink = candidates.filter((c) => decisions[c.key]?.action === "link").length;
+  const n = candidates.length;
+  const subtitle = preview.isLoading
+    ? "ClickSign · Analisando Contratos…"
+    : `ClickSign · ${n} ${n === 1 ? "Contratante Sem Cadastro" : "Contratantes Sem Cadastro"}`;
+
+  const pill = (active: boolean) =>
+    cn(
+      "h-7 min-w-0 flex-1 truncate rounded-[7px] border px-1.5 text-[11.5px] transition-colors",
+      active
+        ? "border-foreground/[0.12] bg-foreground/10 font-bold text-foreground"
+        : "border-foreground/5 bg-foreground/[0.04] font-semibold text-muted-foreground hover:text-foreground",
+    );
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
-          <DialogTitle className="text-base">Importar Cadastros do ClickSign</DialogTitle>
-          <DialogDescription className="text-xs">
-            Identificamos os signatários dos contratos. Confirme o que deve virar cadastro — possíveis duplicados
-            precisam da sua decisão.
-          </DialogDescription>
-        </DialogHeader>
-
-        {preview.isLoading ? (
-          <div className="flex items-center gap-2 py-8 text-xs text-muted-foreground">
-            <Loader2 className="size-4 animate-spin" /> Analisando contratos…
-          </div>
-        ) : candidates.length === 0 ? (
-          <p className="py-8 text-center text-xs text-muted-foreground">
-            Nada novo para importar
-            {alreadyLinked > 0 ? ` — ${alreadyLinked} signatário(s) já têm cadastro.` : "."}
-          </p>
-        ) : (
-          <>
-            <div className="max-h-[55vh] space-y-2 overflow-y-auto pr-1">
-              {candidates.map((c) => {
-                const d = decisions[c.key];
-                return (
-                  <div key={c.key} className="rounded-xl border border-border bg-card p-3">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-medium">{c.name}</p>
-                        <p className="truncate text-[11px] text-muted-foreground">
-                          {[c.doc, c.email, `${c.documents} contrato(s)`].filter(Boolean).join(" · ")}
-                        </p>
-                      </div>
-                      {c.status === "duplicate" ? (
-                        <Badge variant="outline" className="shrink-0 gap-1 text-[10px]">
-                          <AlertTriangle className="size-3" /> Possível duplicado
-                        </Badge>
-                      ) : null}
-
-                    </div>
-
-                    {c.matches.length > 0 ? (
-                      <div className="mt-2 space-y-1">
-                        {c.matches.slice(0, 3).map((m) => (
-                          <button
-                            key={`${m.type}:${m.id}`}
-                            type="button"
-                            onClick={() => set(c.key, { action: "link", targetType: m.type, targetId: m.id })}
-                            className={`flex w-full items-center justify-between gap-2 rounded-lg border px-2.5 py-1.5 text-left text-[11px] transition-colors ${
-                              d?.action === "link" && d.targetId === m.id
-                                ? "border-primary bg-primary/10"
-                                : "border-border hover:bg-muted/60"
-                            }`}
-                          >
-                            <span className="min-w-0 truncate">
-                              Vincular a <strong>{m.label}</strong>{" "}
-                              <span className="text-muted-foreground">
-                                ({m.type === "owner" ? "proprietário" : "prestador"} · {REASON[m.reason]})
-                              </span>
-                            </span>
-                            {d?.action === "link" && d.targetId === m.id ? (
-                              <Check className="size-3.5 shrink-0 text-primary" />
-                            ) : null}
-                          </button>
-                        ))}
-                      </div>
-                    ) : null}
-
-                    <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => set(c.key, { action: "create", type: "owner" })}
-                        className={`rounded-full border px-2.5 py-1 text-[11px] ${
-                          d?.action === "create" && d.type === "owner"
-                            ? "border-primary bg-primary text-primary-foreground"
-                            : "border-border text-muted-foreground hover:text-foreground"
-                        }`}
-                      >
-                        Criar como proprietário
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => set(c.key, { action: "create", type: "provider" })}
-                        className={`rounded-full border px-2.5 py-1 text-[11px] ${
-                          d?.action === "create" && d.type === "provider"
-                            ? "border-primary bg-primary text-primary-foreground"
-                            : "border-border text-muted-foreground hover:text-foreground"
-                        }`}
-                      >
-                        Criar como prestador
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => set(c.key, { action: "skip" })}
-                        className={`rounded-full border px-2.5 py-1 text-[11px] ${
-                          d?.action === "skip"
-                            ? "border-primary bg-primary text-primary-foreground"
-                            : "border-border text-muted-foreground hover:text-foreground"
-                        }`}
-                      >
-                        Ignorar
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            <div className="flex items-center justify-between gap-3 border-t border-border pt-3">
-              <p className="text-[11px] text-muted-foreground">
-                {toCreate} para criar · {toLink} para vincular
-                {alreadyLinked > 0 ? ` · ${alreadyLinked} já cadastrados` : ""}
-              </p>
-              <div className="flex gap-2">
-                <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => onOpenChange(false)}>
-                  Cancelar
-                </Button>
-                <Button size="sm" className="h-8 text-xs" disabled={run.isPending} onClick={() => run.mutate()}>
-                  {run.isPending ? <Loader2 className="mr-1.5 size-3.5 animate-spin" /> : null}
-                  Confirmar importação
-                </Button>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent
+          aria-describedby={undefined}
+          className={INTEGRATION_WINDOW_CLASS}
+          onOpenAutoFocus={(e) => e.preventDefault()}
+        >
+          <IntegrationShell
+            inWindow
+            title="Novos Cadastros"
+            subtitle={subtitle}
+            bodyDeps={[n, preview.isLoading, decisions]}
+            footer={
+              n > 0 ? (
+                <PrimaryAction
+                  icon={
+                    run.isPending ? (
+                      <Loader2 className="animate-spin" />
+                    ) : (
+                      <Check strokeWidth={2.2} />
+                    )
+                  }
+                  onClick={() => run.mutate()}
+                  disabled={run.isPending}
+                >
+                  Confirmar
+                </PrimaryAction>
+              ) : null
+            }
+          >
+            {preview.isLoading ? (
+              <div className="flex items-center justify-center gap-2 py-10 text-[12px] text-muted-foreground">
+                <Loader2 className="size-4 animate-spin" /> Analisando contratos…
               </div>
-            </div>
-          </>
-        )}
-      </DialogContent>
-    </Dialog>
+            ) : n === 0 ? (
+              <p className="py-8 text-center text-[12px] text-muted-foreground">
+                Nada novo para cadastrar
+                {alreadyLinked > 0
+                  ? ` — ${alreadyLinked} ${alreadyLinked === 1 ? "contratante já tem" : "contratantes já têm"} cadastro.`
+                  : "."}
+              </p>
+            ) : (
+              <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-2.5">
+                <div className="rounded-[12px] bg-foreground/[0.04] px-3 py-2.5 text-[12px] leading-[1.45] text-foreground/85">
+                  Encontramos{" "}
+                  <b className="font-semibold text-foreground">
+                    {n} {n === 1 ? "contratante" : "contratantes"}
+                  </b>{" "}
+                  nos contratos do ClickSign que ainda não {n === 1 ? "tem" : "têm"} cadastro.
+                  Escolha o que fazer com {n === 1 ? "ele" : "cada um"}.
+                </div>
+                {candidates.map((c: ImportCandidate) => {
+                  const d = decisions[c.key];
+                  const dup = c.status === "duplicate";
+                  return (
+                    <div
+                      key={c.key}
+                      data-clip-row
+                      className="overflow-hidden rounded-[12px] border border-border bg-[var(--card-surface)]"
+                    >
+                      <div className="flex min-w-0 items-center gap-2 px-3 pt-2.5">
+                        <span className="min-w-0 truncate text-[13px] font-bold" title={c.name}>
+                          {c.name}
+                        </span>
+                        {c.sampleDocumentId ? (
+                          <button
+                            type="button"
+                            aria-label="Ver Contrato"
+                            title="Ver Contrato"
+                            onClick={() =>
+                              setDoc({ name: c.sampleDocument, docId: c.sampleDocumentId! })
+                            }
+                            className="grid size-6 shrink-0 place-items-center rounded-[6px] bg-[var(--action-sq-bg)] text-foreground/80 transition-colors hover:text-foreground"
+                          >
+                            <Eye className="size-[13px]" strokeWidth={1.8} />
+                          </button>
+                        ) : null}
+                        <span className="flex-1" />
+                        <StatusTag tone={dup ? "warn" : "ok"}>
+                          {dup ? "Possível Duplicata" : "Novo"}
+                        </StatusTag>
+                      </div>
+                      {c.matches.length > 0 ? (
+                        <div className="grid gap-1.5 px-3 pt-2.5">
+                          {c.matches.slice(0, 3).map((m) => {
+                            const on = d?.action === "link" && d.targetId === m.id;
+                            return (
+                              <button
+                                key={`${m.type}:${m.id}`}
+                                type="button"
+                                onClick={() =>
+                                  set(c.key, { action: "link", targetType: m.type, targetId: m.id })
+                                }
+                                className={cn(
+                                  "flex h-[34px] min-w-0 items-center gap-2 rounded-[9px] border px-2.5 text-left text-[11.5px] transition-colors",
+                                  on
+                                    ? "border-[#7fb79a]/30 bg-[#7fb79a]/10"
+                                    : "border-foreground/[0.07] hover:bg-foreground/[0.04]",
+                                )}
+                              >
+                                <span
+                                  className={cn(
+                                    "grid size-4 shrink-0 place-items-center rounded-[4px]",
+                                    on
+                                      ? "bg-[#7fb79a] text-[#14110f]"
+                                      : "border border-foreground/25",
+                                  )}
+                                >
+                                  {on ? <Check className="size-2.5" strokeWidth={3} /> : null}
+                                </span>
+                                <span className="min-w-0 flex-1 truncate">
+                                  Vincular a <b className="font-semibold">{m.label}</b>{" "}
+                                  <span className="text-muted-foreground">
+                                    · {KIND[m.type]} · {REASON[m.reason]}
+                                  </span>
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      ) : null}
+                      <div className="flex gap-1.5 px-3 pb-3 pt-2.5">
+                        <button
+                          type="button"
+                          onClick={() => set(c.key, { action: "create", type: "owner" })}
+                          className={pill(d?.action === "create" && d.type === "owner")}
+                        >
+                          Proprietário
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => set(c.key, { action: "create", type: "provider" })}
+                          className={pill(d?.action === "create" && d.type === "provider")}
+                        >
+                          Prestador
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => set(c.key, { action: "skip" })}
+                          className={pill(d?.action === "skip")}
+                        >
+                          Ignorar
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </IntegrationShell>
+        </DialogContent>
+      </Dialog>
+      <DocPreviewDialog doc={doc} onClose={() => setDoc(null)} />
+    </>
   );
 }
 

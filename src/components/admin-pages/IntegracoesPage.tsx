@@ -25,6 +25,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { WhatsappBusinessPage } from "@/components/admin-pages/WhatsappBusinessPage";
 import { ClicksignPanel } from "@/components/admin-pages/ClicksignPanel";
 import { GoogleCalendarPanel } from "@/components/admin-pages/GoogleCalendarPanel";
+import { INTEGRATION_WINDOW_CLASS } from "@/components/admin-pages/integration-window";
 import { ChannexPanel } from "@/components/admin-pages/ChannexPanel";
 import { getMyGoogleCalendarStatus } from "@/lib/google-calendar.functions";
 import { getMyWhatsappConfig } from "@/lib/whatsapp.functions";
@@ -276,17 +277,14 @@ export function IntegracoesPage() {
           );
         })}
       </div>
+      {/* Janelas das integrações (mockups aprovados, 08/11/2026): o próprio painel monta cabeçalho,
+          botões suaves, lista com anticorte e rodapé. */}
       <Dialog open={!!panelCfg} onOpenChange={(v) => !v && setPanel(null)}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="font-display text-xl">
-              {panelCfg?.nome}
-            </DialogTitle>
-          </DialogHeader>
+        <DialogContent aria-describedby={undefined} className={INTEGRATION_WINDOW_CLASS}>
           {panelCfg?.key === "gcal" ? (
-            <GoogleCalendarPanel accountOwnerId={accountOwnerId} readOnly={!!accountOwnerId} />
+            <GoogleCalendarPanel accountOwnerId={accountOwnerId} readOnly={!!accountOwnerId} inWindow />
           ) : panelCfg?.key === "clicksign" ? (
-            <ClicksignPanel accountOwnerId={accountOwnerId} readOnly={!!accountOwnerId} />
+            <ClicksignPanel accountOwnerId={accountOwnerId} readOnly={!!accountOwnerId} inWindow />
           ) : null}
         </DialogContent>
       </Dialog>
