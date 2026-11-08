@@ -513,20 +513,14 @@
    leve brilho, para a pessoa ver de imediato que a lista rola. Traço visível
    de 4px; a calha segue reservada por `scrollbar-gutter: stable`. */
 :root {
-  --scroll-thumb: color-mix(in oklab, oklch(0.68 0.22 300) 80%, transparent);
-  --scroll-thumb-hover: color-mix(in oklab, oklch(0.68 0.22 300) 95%, transparent);
-  --scroll-thumb-glow: color-mix(in oklab, oklch(0.68 0.22 300) 45%, transparent);
+  --scroll-thumb: color-mix(in oklab, oklch(0.7 0.22 325) 72%, transparent);
+  --scroll-thumb-hover: color-mix(in oklab, oklch(0.7 0.22 325) 92%, transparent);
+  --scroll-thumb-glow: color-mix(in oklab, oklch(0.7 0.22 325) 45%, transparent);
 }
 @supports not selector(::-webkit-scrollbar) {
   * {
     scrollbar-width: thin;
     scrollbar-color: var(--scroll-thumb) transparent;
-  }
-  /* Firefox: o mesmo lilás nítido nas áreas rolantes elegantes. No Chrome/Safari isto NÃO entra
-     (definir `scrollbar-color` lá desligaria o `::-webkit-scrollbar` e traria a barra grossa). */
-  .sg-elegant-scroll {
-    scrollbar-width: thin;
-    scrollbar-color: oklch(0.68 0.22 300 / 0.8) transparent;
   }
 }
 ::-webkit-scrollbar {

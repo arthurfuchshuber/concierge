@@ -17,7 +17,7 @@ describe("scroll-indicators — barra nítida e fixa", () => {
     delete document.documentElement.dataset.scrollIndicators;
   });
 
-  it("desenha um traço de 5px, lilás nítido (85%), sempre que a lista rola", async () => {
+  it("desenha o traço da barra global (4px, mesmos tokens), sempre que a lista rola", async () => {
     document.documentElement.dataset.scrollIndicators = "on";
     const box = document.createElement("div");
     box.className = "overflow-y-auto";
@@ -31,8 +31,9 @@ describe("scroll-indicators — barra nítida e fixa", () => {
     const layer = document.body.lastElementChild as HTMLElement;
     const thumb = layer.firstElementChild as HTMLElement;
     expect(thumb).toBeTruthy();
-    expect(thumb.style.width).toBe("5px");
-    expect(thumb.style.cssText).toContain("oklch(0.68 0.22 300) 85%");
+    expect(thumb.style.width).toBe("4px");
+    expect(thumb.style.cssText).toContain("var(--scroll-thumb)");
+    expect(thumb.style.cssText).toContain("var(--scroll-thumb-glow)");
     expect(thumb.style.display).toBe("block");
   });
 });

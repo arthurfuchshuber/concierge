@@ -6,7 +6,8 @@
  * nativa é "overlay" — o `::-webkit-scrollbar` do styles.css é ignorado e a
  * barra some, então a pessoa não percebe que há mais conteúdo abaixo. Nesses
  * ambientes desenhamos uma barra fina, no mesmo estilo da global (lilás da
- * marca, translúcida), sobreposta ao elemento que rola.
+ * marca), sobreposta ao elemento que rola. Usa os MESMOS tokens da barra global
+ * (`--scroll-thumb`, `--scroll-thumb-glow`), então os dois nunca divergem.
  *
  * Em desktop com barra clássica (largura > 0) este módulo não faz nada: vale a
  * barra global do styles.css.
@@ -18,7 +19,7 @@
 const CANDIDATES =
   '[class*="overflow-y-"], [class*="overflow-auto"], [class*="sg-elegant-scroll"], [role="dialog"], [data-radix-scroll-area-viewport]';
 const TRACK_MARGIN = 14; // mesma folga da barra global (cantos arredondados)
-const THUMB_W = 5;
+const THUMB_W = 4; // mesmo traço visível da barra global (styles.css: 7px de área, 4px de traço)
 const MIN_THUMB = 28;
 
 function hasOverlayScrollbars(): boolean {
@@ -89,7 +90,7 @@ export function installScrollIndicators(): () => void {
       }
       if (!thumb) {
         thumb = document.createElement("div");
-        thumb.style.cssText = `position:absolute;width:${THUMB_W}px;border-radius:9999px;background:color-mix(in oklab, oklch(0.68 0.22 300) 85%, transparent)`;
+        thumb.style.cssText = `position:absolute;width:${THUMB_W}px;border-radius:9999px;background:var(--scroll-thumb);box-shadow:inset 0 0 4px var(--scroll-thumb-glow)`;
         layer.appendChild(thumb);
         thumbs.set(el, thumb);
       }
