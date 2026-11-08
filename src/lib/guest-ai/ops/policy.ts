@@ -110,39 +110,6 @@ export function withinBounds(time: string, min: string | null, max: string | nul
   return true;
 }
 
-/** Minutos desde a meia-noite de um instante no fuso dado; `null` se o fuso for inválido. */
-export function localMinutes(instant: Date, timezone: string): number | null {
-  try {
-    const parts = new Intl.DateTimeFormat("en-GB", {
-      timeZone: timezone,
-      hour: "2-digit",
-      minute: "2-digit",
-      hourCycle: "h23",
-    }).formatToParts(instant);
-    const h = Number(parts.find((p) => p.type === "hour")?.value);
-    const m = Number(parts.find((p) => p.type === "minute")?.value);
-    return Number.isFinite(h) && Number.isFinite(m) ? h * 60 + m : null;
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Corte de saída definido por pessoas no card de checkout (Etapa 1, 08/11/2026), em minutos do dia da saída:
- * late checkout FORMAL (R6: horário + aprovação) ou horário definido pela EQUIPE (`staff`) MAIOR que o oficial.
- * `null` = não há corte humano (vale a regra comum). Previsão do hóspede/IA nunca vira corte.
- */
-export function staffCheckoutCutMinutes(card: OpsCardState | null, officialCheckout: string | null): number | null {
-  if (!card) return null;
-  const late = card.lateCheckoutTime && card.lateCheckoutApprovedAt ? minutes(card.lateCheckoutTime) : null;
-  if (late !== null) return late;
-  if (card.arrivalTimeSource !== "staff") return null;
-  const staff = minutes(card.arrivalTimeOverride);
-  const official = minutes(officialCheckout);
-  if (staff === null || official === null || staff <= official) return null;
-  return staff;
-}
-
 /** Horário de madrugada (00:00 até 04:59). */
 export function isMadrugada(time: string): boolean {
   const t = minutes(time);
@@ -295,17 +262,9 @@ function evaluateDone(input: OpsPolicyInput, kind: "checkin" | "checkout"): OpsE
   }
   const cb = cardBlock(card, input.now);
   if (cb) return fail(cb);
-  // Etapa 1 (08/11/2026): a IA nunca dá baixa de saída ANTES do horário definido pela equipe (maior que o
-  // oficial) nem antes do late checkout autorizado. Saída antecipada (dia anterior) com corte humano também
-  // espera: quem fecha é a equipe ou a baixa automática no corte.
-  if (kind === "checkout") {
-    const cut = staffCheckoutCutMinutes(card, input.property?.checkoutTime ?? null);
-    if (cut !== null) {
-      if (action === "early_departure") return fail("before_staff_cut");
-      const nowMin = input.timezone ? localMinutes(input.now, input.timezone) : null;
-      if (nowMin === null || nowMin < cut) return fail("before_staff_cut");
-    }
-  }
+  // A CONFIRMAÇÃO FINAL DO HÓSPEDE VALE (pedido explícito do titular, 08/11/2026): saída consumada
+  // ("já saí", "check out feito") dá baixa na hora, mesmo com horário da equipe ou late checkout no card —
+  // esses horários só seguram a baixa AUTOMÁTICA (sem confirmação de ninguém), nunca o fato dito pelo hóspede.
   const team = teamOrNegotiationBlock(input);
   if (team) return fail(team);
   return evaluation(action, null, ev.messageId, card, { date: proposedDate, time: null });

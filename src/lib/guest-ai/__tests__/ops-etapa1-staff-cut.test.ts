@@ -1,6 +1,7 @@
 /**
  * Etapa 1 (08/11/2026) — ações operacionais da IA respeitam o horário humano:
- *  1. checkout da IA nunca antes do horário da EQUIPE (maior que o oficial) nem do late checkout autorizado;
+ *  1. a confirmação FINAL do hóspede vale: saída consumada dá baixa na hora, mesmo com horário da equipe
+ *     ou late checkout no card (esses horários só seguram a baixa automática do cron) — titular, 08/11/2026;
  *  2. previsão dita pelo hóspede grava só previsão (origem guest_ai), nunca conclusão;
  *  3. 00:00–04:59 no fuso do imóvel = madrugada da noite de entrada ("nesta madrugada"), nunca "amanhã";
  *  4. late checkout depois do oficial só com autorização humana expressa da equipe no chat (G2c).
@@ -9,7 +10,6 @@ import { describe, expect, it } from "vitest";
 import {
   evaluateOpsSignals,
   isMadrugada,
-  staffCheckoutCutMinutes,
   type OpsPolicyInput,
 } from "@/lib/guest-ai/ops/policy";
 import { detectStaffLateCheckout } from "@/lib/guest-ai/ops/late-checkout";
@@ -69,55 +69,35 @@ const only = (i: OpsPolicyInput) => {
   return r[0]!;
 };
 
-describe("1. checkout da IA respeita o corte humano", () => {
+describe("1. a confirmação final do hóspede vale", () => {
   const msg = "Check out feito, deixamos a chave";
 
-  it("sem corte humano: fato consumado no dia da saída ⇒ checkout_done (regra comum preservada)", () => {
+  it("sem horário humano no card: saída consumada no dia ⇒ checkout_done", () => {
     expect(only(input({ text: msg, now: at("2026-11-08", "09:00"), checkout: card() }))).toMatchObject({
       action: "checkout_done",
       outcome: "would_apply",
     });
   });
 
-  it("horário da EQUIPE 13:00 > oficial: às 12:59 recusa; às 13:00 aplica", () => {
+  it("horário da EQUIPE 13:00 no card: o hóspede confirmou às 09:00 ⇒ baixa na hora", () => {
     const c = card({ arrivalTimeOverride: "13:00", arrivalTimeSource: "staff" });
-    expect(only(input({ text: msg, now: at("2026-11-08", "12:59"), checkout: c }))).toMatchObject({
-      outcome: "refused",
-      code: "before_staff_cut",
-    });
-    expect(only(input({ text: msg, now: at("2026-11-08", "13:00"), checkout: c }))).toMatchObject({
+    expect(only(input({ text: msg, now: at("2026-11-08", "09:00"), checkout: c }))).toMatchObject({
       action: "checkout_done",
       outcome: "would_apply",
+      code: null,
     });
   });
 
-  it("horário da equipe MENOR ou igual ao oficial não vira corte (não antecipa nem trava)", () => {
-    const c = card({ arrivalTimeOverride: "10:00", arrivalTimeSource: "staff" });
-    expect(only(input({ text: msg, now: at("2026-11-08", "09:00"), checkout: c })).outcome).toBe("would_apply");
-  });
-
-  it("late checkout autorizado (R6) 14:00: recusa antes, aplica a partir dele", () => {
+  it("late checkout autorizado 14:00: o hóspede confirmou às 10:00 ⇒ baixa na hora", () => {
     const c = card({ lateCheckoutTime: "14:00", lateCheckoutApprovedAt: "2026-11-07T20:00:00Z" });
-    expect(only(input({ text: msg, now: at("2026-11-08", "13:30"), checkout: c })).code).toBe("before_staff_cut");
-    expect(only(input({ text: msg, now: at("2026-11-08", "14:00"), checkout: c })).outcome).toBe("would_apply");
+    expect(only(input({ text: msg, now: at("2026-11-08", "10:00"), checkout: c })).outcome).toBe("would_apply");
   });
 
-  it("late checkout sem aprovação não é corte", () => {
-    expect(staffCheckoutCutMinutes(card({ lateCheckoutTime: "14:00" }), "11:00")).toBeNull();
-  });
-
-  it("previsão do hóspede/IA nunca vira corte humano", () => {
-    for (const src of ["guest", GUEST_AI_ARRIVAL_SOURCE]) {
-      expect(staffCheckoutCutMinutes(card({ arrivalTimeOverride: "13:00", arrivalTimeSource: src }), "11:00")).toBeNull();
-    }
-  });
-
-  it("saída antecipada (dia anterior) com corte humano espera a equipe/baixa automática", () => {
+  it("saída antecipada consumada (dia anterior) com horário da equipe ⇒ card puxado para hoje e baixa", () => {
     const c = card({ arrivalTimeOverride: "13:00", arrivalTimeSource: "staff" });
     expect(only(input({ text: "Já saí, deixei as chaves", now: at("2026-11-07", "18:00"), checkout: c }))).toMatchObject({
       action: "early_departure",
-      outcome: "refused",
-      code: "before_staff_cut",
+      outcome: "would_apply",
     });
   });
 });
