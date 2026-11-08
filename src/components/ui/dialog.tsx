@@ -7,6 +7,7 @@ import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { CORNER_CLOSE_CLASS } from "@/components/ui/corner-close";
 
 const Dialog = DialogPrimitive.Root;
 
@@ -83,7 +84,7 @@ const DialogContent = React.forwardRef<
             // Mora AQUI para valer em todas as janelas; o cabeçalho reserva `pr-12`. Abaixo de `lg`, em janela
             // "como página" (`pageLike`), ele também aparece (visível em 100% das telas).
             className={
-              "absolute right-0 top-0 z-[10] grid size-8 cursor-pointer place-items-center rounded-bl-[12px] rounded-tr-[calc(var(--win-radius,12px)-1px)] bg-[color-mix(in_oklab,var(--card)_100%,var(--foreground)_8%)] text-muted-foreground transition-colors hover:bg-[color-mix(in_oklab,var(--card)_100%,var(--foreground)_14%)] hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none"
+              CORNER_CLOSE_CLASS
             }
           >
             <X className="size-[13px]" strokeWidth={1.8} />

@@ -4427,6 +4427,13 @@ function KpiCard({
   cardProps: Omit<React.ComponentProps<typeof ArrivalGroup>, "title">;
 }) {
   const [open, setOpen] = useState(false);
+  // Card expandido DENTRO desta janela: estado só dela (pedido explícito, 08/11/2026: "saiu da tela já tem
+  // que recolher"). Antes a janela reaproveitava o estado da coluna do Kanban, que nunca era zerado — um card
+  // aberto continuava aberto ao reabrir a janela, horas depois. Fechar a janela recolhe tudo.
+  const [windowExpandedId, setWindowExpandedId] = useState<string | null>(null);
+  useEffect(() => {
+    if (!open) setWindowExpandedId(null);
+  }, [open]);
   // Destino do clique no push: abre a janela (e atualiza a lista) a cada sinal.
   const onRefreshRef = useRef(onRefresh);
   onRefreshRef.current = onRefresh;
@@ -4666,7 +4673,15 @@ function KpiCard({
               {/* `restLabel`: quando há atrasados, o segundo grupo se chama
                   como o período do card ("Hoje", "Amanhã") em vez de "No
                   prazo" — é o mesmo texto que já aparece no cabeçalho. */}
-              <ArrivalGroup title="" {...cardProps} rows={displayRows} compact restLabel={rangeLabel} />
+              <ArrivalGroup
+                title=""
+                {...cardProps}
+                expandedId={windowExpandedId}
+                onExpandedChange={setWindowExpandedId}
+                rows={displayRows}
+                compact
+                restLabel={rangeLabel}
+              />
             </div>
           )}
         </div>
@@ -9353,6 +9368,14 @@ function ArrivalGroup({
   const [localOpenId, setLocalOpenId] = useState<string | null>(null);
   const openId = onExpandedChange ? (expandedIdProp ?? null) : localOpenId;
   const setOpenId = onExpandedChange ?? setLocalOpenId;
+  // Card que SAIU desta lista (concluído, revertido, mudou de etapa) não deixa a expansão guardada
+  // (pedido explícito, 08/11/2026): antes o id ficava salvo e, quando o card voltava (ex.: "Retornar ao
+  // status anterior"), ele reaparecia expandido sem ninguém tocar na seta.
+  const rowsKey = rows.map((r) => r.logId).join("|");
+  useEffect(() => {
+    if (openId && !rows.some((r) => r.logId === openId)) setOpenId(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openId, rowsKey]);
   // Antes esta lista ocupava a largura inteira da seção (fazia sentido um
   // grid responsivo de 2-3 colunas). Agora ArrivalGroup só é usado dentro de
   // colunas estreitas do Kanban (desktop) ou das abas (mobile) — nunca mais
@@ -9830,8 +9853,14 @@ function ArrivalCard({
   // Pedido explícito (07/09/2026): rótulo único e curto, sem o detalhe da
   // lista de destino entre parênteses.
   const revertTitle = "Retornar ao status anterior";
+  const suppressToggleUntil = useRef(0);
+  const suppressToggle = () => {
+    suppressToggleUntil.current = Date.now() + 700;
+  };
   const handleRevertClick = () => {
-    if (window.confirm(revertConfirmLabel)) onRevert?.(row);
+    const ok = window.confirm(revertConfirmLabel);
+    suppressToggle();
+    if (ok) onRevert?.(row);
   };
 
   // "Não Compareceu" — só faz sentido num card de Check-ins ainda pendente
@@ -9955,6 +9984,9 @@ function ArrivalCard({
          (Este guarda é o mesmo que existia para o Histórico da reserva, que
          hoje continua no item do menu "⋮".) */
       onClick={(e) => {
+        // Toque "fantasma" logo depois de fechar o menu "⋮" ou a confirmação (ex.: "Retornar ao status
+        // anterior") não expande o card (08/11/2026).
+        if (Date.now() < suppressToggleUntil.current) return;
         const el = e.target as HTMLElement | null;
         const interactive = el?.closest(
           "button, a, input, select, textarea, label, [role='button'], [role='checkbox'], [data-radix-popper-content-wrapper]",
@@ -10665,7 +10697,11 @@ function ArrivalCard({
                 "Adicionar nota" e "Silenciar notificações" — e as 24 opções
                 de período ficam escondidas num submenu, só aparecendo ao
                 passar/tocar em "Silenciar notificações". */}
-          <DropdownMenu>
+          <DropdownMenu
+            onOpenChange={(o) => {
+              if (!o) suppressToggle();
+            }}
+          >
             <DropdownMenuTrigger asChild>
               <button
                 type="button"

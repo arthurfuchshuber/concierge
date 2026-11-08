@@ -1,5 +1,7 @@
 import { useRef, useState } from "react";
 import { ArrowRight, X } from "lucide-react";
+import { CORNER_CLOSE_CLASS } from "@/components/ui/corner-close";
+import { cn } from "@/lib/utils";
 import { useServerFn } from "@tanstack/react-start";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -257,7 +259,7 @@ function ConfirmChange({
         <AlertDialogCancel
           aria-label="Fechar"
           disabled={busy}
-          className="absolute right-0 top-0 z-[10] grid size-8 place-items-center rounded-none rounded-bl-[12px] rounded-tr-[calc(var(--win-radius,12px)-1px)] border-0 bg-[color-mix(in_oklab,var(--card)_100%,var(--foreground)_8%)] p-0 text-muted-foreground transition-colors hover:bg-[color-mix(in_oklab,var(--card)_100%,var(--foreground)_14%)] hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className={cn(CORNER_CLOSE_CLASS, "rounded-none rounded-bl-[12px] rounded-tr-[calc(var(--win-radius,12px)-1px)] border-0 p-0")}
         >
           <X className="size-[13px]" strokeWidth={1.8} />
         </AlertDialogCancel>

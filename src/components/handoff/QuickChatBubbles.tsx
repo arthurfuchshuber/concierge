@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ChevronDown, Expand, X } from "lucide-react";
+import { CORNER_CLOSE_CLASS } from "@/components/ui/corner-close";
 import { ConversationView } from "@/components/handoff/ConversationView";
 import { ChannelLogo, channelOf, type ChatChannel } from "@/components/handoff/ChannelLogo";
 import { PhoneActionButton } from "@/components/PhoneActionButton";
@@ -65,8 +66,8 @@ const FAN_AVATARS = 3;
 const CHANNEL_DOT: Record<ChatChannel, string> = { airbnb: "#e0485f", whatsapp: "#25d366", guide: "#8b5cf6" };
 const CHANNEL_NAME: Record<ChatChannel, string> = { airbnb: "Airbnb", whatsapp: "WhatsApp", guide: "Guia digital" };
 
-const CLOSE_X =
-  "absolute right-0 top-0 z-[5] grid size-8 cursor-pointer place-items-center rounded-bl-[12px] rounded-tr-[calc(var(--win-radius,12px)-1px)] bg-[color-mix(in_oklab,var(--foreground)_5%,transparent)] text-muted-foreground shadow-[inset_1px_-1px_0_color-mix(in_oklab,var(--foreground)_9%,transparent)] transition-colors hover:bg-[color-mix(in_oklab,var(--foreground)_10%,transparent)] hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+// X de canto oficial (mesma classe de todas as janelas), abaixo das camadas da bolha.
+const CLOSE_X = `${CORNER_CLOSE_CLASS} !z-[5]`;
 
 export function QuickChatBubbles({
   items,

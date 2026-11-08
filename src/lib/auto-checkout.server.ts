@@ -88,6 +88,45 @@ export function autoCheckoutTriggerTime(r: {
   return standard;
 }
 
+/**
+ * Lê de uma vez as autorizações formais de late checkout (R6) dos imóveis e devolve a busca por card;
+ * `null` = a leitura falhou (quem chama não deve agir às cegas). Usado pela baixa automática e pelo aviso
+ * de "Check-Out Atrasado", para os dois enxergarem o MESMO corte.
+ */
+export async function loadFormalLateCheckouts(
+  admin: Admin,
+  propIds: string[],
+): Promise<((row: { logId: string; reservationId: string | null }) => FormalLateCheckout | null) | null> {
+  const byKey = new Map<string, FormalLateCheckout>();
+  if (propIds.length === 0) return () => null;
+  const { data, error } = await admin
+    .from("guest_arrival_status")
+    .select("reservation_id, log_id, late_checkout_time, late_checkout_approved_at, late_checkout_by")
+    .eq("kind", "checkout")
+    .not("late_checkout_time", "is", null)
+    .in("property_id", propIds);
+  if (error) return null;
+  for (const l of (data ?? []) as Array<{
+    reservation_id: string | null;
+    log_id: string | null;
+    late_checkout_time: string | null;
+    late_checkout_approved_at: string | null;
+    late_checkout_by: string | null;
+  }>) {
+    const v = { time: l.late_checkout_time, approvedAt: l.late_checkout_approved_at, by: l.late_checkout_by };
+    if (l.reservation_id) byKey.set(`r:${l.reservation_id}`, v);
+    if (l.log_id) byKey.set(`l:${l.log_id}`, v);
+  }
+  return (row) => {
+    const t = resolveTarget(row);
+    return (
+      (t.reservationId ? byKey.get(`r:${t.reservationId}`) : undefined) ??
+      (t.logId ? byKey.get(`l:${t.logId}`) : undefined) ??
+      null
+    );
+  };
+}
+
 /** Dia em que o corte vale: a saída CONFIRMADA da reserva (nunca a data prevista do card). */
 export function autoCheckoutDay(r: { guestCheckout?: string | null; date: string }): string {
   return r.guestCheckout ?? r.date;
@@ -133,43 +172,16 @@ export async function runAutoCheckoutScan(admin: Admin, now: Date = new Date()) 
   let failed = 0;
 
   // Late checkout formal (R6) dos cards de saída: poucos, lidos de uma vez (por reserva e por log).
-  const lateByKey = new Map<string, FormalLateCheckout>();
-  const { data: lateRaw, error: lateErr } = await admin
-    .from("guest_arrival_status")
-    .select(
-      "reservation_id, log_id, late_checkout_time, late_checkout_approved_at, late_checkout_by",
-    )
-    .eq("kind", "checkout")
-    .not("late_checkout_time", "is", null)
-    .in("property_id", propIds);
+  const late = await loadFormalLateCheckouts(admin, propIds);
   // sem a leitura das autorizações não há como saber o corte certo: nada é confirmado nesta rodada
-  if (lateErr) return { checked: pending.length, confirmed: 0, failed: 0 };
-  for (const l of (lateRaw ?? []) as Array<{
-    reservation_id: string | null;
-    log_id: string | null;
-    late_checkout_time: string | null;
-    late_checkout_approved_at: string | null;
-    late_checkout_by: string | null;
-  }>) {
-    const v = {
-      time: l.late_checkout_time,
-      approvedAt: l.late_checkout_approved_at,
-      by: l.late_checkout_by,
-    };
-    if (l.reservation_id) lateByKey.set(`r:${l.reservation_id}`, v);
-    if (l.log_id) lateByKey.set(`l:${l.log_id}`, v);
-  }
+  if (!late) return { checked: pending.length, confirmed: 0, failed: 0 };
 
   /** Quais cards pendentes já passaram do corte oficial (ou do late checkout formal) no dia da saída. */
   const dueNow = (list: typeof rows) => {
     const due: typeof rows = [];
     for (const r of list) {
       if (r.status !== "pending") continue;
-      const target = resolveTarget(r);
-      const lateCheckout =
-        (target.reservationId ? lateByKey.get(`r:${target.reservationId}`) : undefined) ??
-        (target.logId ? lateByKey.get(`l:${target.logId}`) : undefined) ??
-        null;
+      const lateCheckout = late(r);
       const hm = autoCheckoutTriggerTime({
         standardTime: r.standardTime,
         lateCheckout,

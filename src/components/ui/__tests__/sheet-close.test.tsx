@@ -20,8 +20,8 @@ describe("SheetContent — X oficial de canto (igual ao das janelas)", () => {
     for (const c of [
       "absolute", "right-0", "top-0", "z-[10]", "size-8", "rounded-bl-[12px]",
       "rounded-tr-[calc(var(--win-radius,12px)-1px)]",
-      "bg-[color-mix(in_oklab,var(--card)_100%,var(--foreground)_8%)]", "text-muted-foreground",
-      "hover:bg-[color-mix(in_oklab,var(--card)_100%,var(--foreground)_14%)]", "hover:text-foreground",
+      "bg-black/35", "text-white",
+      "hover:bg-black/55", "hover:text-white",
     ]) {
       expect(x.className).toContain(c);
     }
