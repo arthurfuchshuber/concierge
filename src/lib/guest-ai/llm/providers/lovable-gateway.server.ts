@@ -312,6 +312,40 @@ export function parseResponsesStream(raw: string): ProviderOutcome {
 
 // ───────────────────────── provedor ─────────────────────────
 
+/** Lê no máximo `max` bytes do corpo de erro e cancela o resto; qualquer falha devolve "". */
+export async function readErrorSnippet(res: Response, max = 4096): Promise<string> {
+  try {
+    const reader = res.body?.getReader();
+    if (!reader) return "";
+    const chunks: Uint8Array[] = [];
+    let total = 0;
+    while (total < max) {
+      const { done, value } = await reader.read();
+      if (done || !value) break;
+      chunks.push(value);
+      total += value.byteLength;
+    }
+    await reader.cancel().catch(() => undefined);
+    const buf = new Uint8Array(Math.min(total, max));
+    let off = 0;
+    for (const c of chunks) {
+      const take = Math.min(c.byteLength, buf.byteLength - off);
+      if (take <= 0) break;
+      buf.set(c.subarray(0, take), off);
+      off += take;
+    }
+    return new TextDecoder().decode(buf);
+  } catch {
+    return "";
+  }
+}
+
+/** A recusa de 400 é a da exigência de "json" no formato estruturado (OpenAI `json_object`)? */
+export function isJsonFormatRejection(snippet: string): boolean {
+  if (!/json/i.test(snippet)) return false;
+  return /must contain the word|text\.format|response_format|json_object/i.test(snippet);
+}
+
 export function createLovableGatewayProvider(opts: LovableGatewayOptions): LlmProvider {
   const doFetch: FetchLike = opts.fetch ?? ((input, init) => fetch(input, init));
   const base = opts.baseUrl ?? LOVABLE_GATEWAY_BASE_URL;
@@ -335,7 +369,17 @@ export function createLovableGatewayProvider(opts: LovableGatewayOptions): LlmPr
       }
       const requestId = requestIdOf(res);
       if (!res.ok) {
-        // Corpo de erro descartado sem leitura (pode conter eco do prompt).
+        // Corpo de erro: só no 400 de um pedido JSON é lido — no máximo 4 KB, em memória, só para reconhecer a
+        // recusa específica de formato ("must contain the word 'json'…", Etapa 0 de 08/11/2026) — e descartado
+        // em seguida. Nunca vai para log, telemetria nem resposta (pode conter eco do prompt). Demais status:
+        // descartado sem leitura.
+        if (res.status === 400 && req.responseFormat === "json") {
+          const snippet = await readErrorSnippet(res);
+          if (isJsonFormatRejection(snippet)) {
+            return { kind: "error", error: failure("json_format_rejected", 400), usage: null, requestId };
+          }
+          return { kind: "error", error: classifyHttpStatus(res.status), usage: null, requestId };
+        }
         await res.body?.cancel().catch(() => undefined);
         return { kind: "error", error: classifyHttpStatus(res.status), usage: null, requestId };
       }
