@@ -1,7 +1,7 @@
 /**
  * TOOL CALLING da ConciergeIA Guest — contrato comum das ferramentas de CONSULTA (07/11/2026).
  *
- * Esteira extensível: toda ferramenta (lugares, rotas e, no futuro, clima, voos, visão) segue o mesmo
+ * Esteira extensível: toda ferramenta (lugares, rotas, clima, voos) segue o mesmo
  * contrato — schema JSON para o modelo, validação dos argumentos, execução com prazo e resultado em JSON.
  *
  * Invariantes (iguais para qualquer ferramenta nova):
@@ -37,8 +37,29 @@ export type MapsHttp = (
   },
 ) => Promise<{ ok: boolean; status: number; json: () => Promise<unknown> }>;
 
+/** Provedores externos além do Google Maps (Etapa 3, 08/11/2026). */
+export type ExternalProvider = "open_meteo" | "aviationstack";
+
+/**
+ * Transporte HTTP injetável dos provedores externos (produção: `external-http.server.ts`, com cache curto,
+ * disjuntor e chave fora do log; testes: falso, sem rede). `path` já inclui a consulta, SEM chave.
+ */
+export type ExternalHttp = (
+  provider: ExternalProvider,
+  path: string,
+  init: { signal: AbortSignal },
+) => Promise<{ ok: boolean; status: number; json: () => Promise<unknown> }>;
+
+/** Ferramentas cujo provedor está configurado no ambiente (sem segredo ⇒ não é oferecida). */
+export interface ToolAvailability {
+  weather: boolean;
+  flights: boolean;
+}
+
 export interface ToolExecDeps {
   http: MapsHttp;
+  /** Clima/voos. Ausente ⇒ essas ferramentas respondem `indisponivel`. */
+  external?: ExternalHttp;
   signal: AbortSignal;
 }
 
@@ -53,6 +74,7 @@ export const TOOL_ERROR_CODES = [
   "sem_rota",
   "indisponivel",
   "tempo_esgotado",
+  "limite_atingido",
 ] as const;
 export type ToolErrorCode = (typeof TOOL_ERROR_CODES)[number];
 
@@ -65,5 +87,7 @@ export interface GuestTool<A> {
 
 /** Prazo máximo de cada ferramenta (diretriz: 6 s). */
 export const TOOL_TIMEOUT_MS = 6_000;
+/** Teto de chamadas da MESMA ferramenta num turno (custo de provedor previsível; excedente = `limite_atingido`). */
+export const TOOL_MAX_CALLS_PER_TURN = 3;
 /** Teto do JSON de cada resultado levado de volta ao modelo (protege o orçamento do turno). */
 export const TOOL_RESULT_MAX_CHARS = 3_000;

@@ -47,9 +47,11 @@ const noTime = (s: string) =>
 // ───────────── (a) schemas ─────────────
 
 describe("(a) schemas das ferramentas", () => {
-  it("registro tem exatamente as duas ferramentas, com schema de objeto e nomes válidos", () => {
+  it("registro tem exatamente as quatro ferramentas, com schema de objeto e nomes válidos", () => {
     expect([...GUEST_TOOLS.keys()].sort()).toEqual([
       "calculate_property_distance",
+      "get_flight_status",
+      "get_weather_forecast",
       "search_city_places",
     ]);
     for (const t of GUEST_TOOLS.values()) {

@@ -111,6 +111,7 @@ describe("gerador do Copiloto com ferramentas", () => {
     expect(seen[0]!.tools!.map((t) => t.name)).toEqual([
       "search_city_places",
       "calculate_property_distance",
+      "get_weather_forecast", // clima entra com as coordenadas do imóvel (Etapa 3); voos só com o segredo
     ]);
     expect(seen[0]!.toolChoice).toBe("auto");
     // 2ª: chamada do modelo + resultado real; ferramentas proibidas (força a resposta final), JSON exigido
