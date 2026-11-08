@@ -62,6 +62,14 @@ function collectUnits(root: HTMLElement, avail: number): HTMLElement[] {
 }
 
 function fitScroller(el: HTMLElement) {
+  // Listas que já têm dono da altura (`useWholeCardsMaxHeight` → `max-height` inline que termina num card
+  // inteiro) NÃO recebem `height` fixo daqui: medido nos primeiros frames da animação de abertura
+  // (`zoom-in-95`), ele travava a janela em ~2 cards (iPhone, "Fila de limpeza") e impedia de chegar aos 90dvh.
+  if (el.hasAttribute("data-whole-cards-list")) {
+    el.style.flex = "";
+    el.style.height = "";
+    return;
+  }
   // Posição de rolagem de quem está usando: medir exige voltar ao tamanho natural (mais alto), e isso
   // faz o navegador "apertar" o scrollTop para o novo máximo. Sem restaurar, qualquer remedição
   // (barra de endereço do celular encolhendo, teclado, redimensionar) jogava a janela de volta.

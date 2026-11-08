@@ -85,7 +85,7 @@ export function ImoveisCobradosDialog({ open, onOpenChange }: { open: boolean; o
       <DialogContent className="max-w-lg gap-0 p-0 sm:p-0" onOpenAutoFocus={(e) => e.preventDefault()}>
         {/* Cabeçalho universal de janela ampla (07/11/2026): título 14px em 1
             linha, subtítulo 12px e "X" oficial no canto (pr-14). */}
-        <DialogHeader className="px-4 pt-3.5 pb-0 pr-14 text-left">
+        <DialogHeader className="border-b border-border/40 px-4 pb-2.5 pt-3.5 pr-14 text-left">
           <DialogTitle className="truncate text-sm font-bold leading-6 text-foreground">Imóveis cobrados</DialogTitle>
           <DialogDescription className="text-xs leading-5 text-muted-foreground">{subtitle || " "}</DialogDescription>
         </DialogHeader>
