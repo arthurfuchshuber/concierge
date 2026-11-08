@@ -628,10 +628,12 @@ export function composeTurnPrompt(input: ComposeInput, options: ComposeOptions =
     return t.length > 1 ? t : [];
   })());
   const batchRefs = history.entries.filter((e) => lotIds.has(e.messageId)).map((e) => e.ref);
+  // A palavra "JSON" na mensagem do usuário é exigida pela OpenAI quando o formato de resposta é
+  // json_object (incidente de 08/11/2026: erro 400 "must contain the word 'json'" travou o Copiloto).
   const closing =
     batchRefs.length > 1
-      ? `As mensagens ${batchRefs.join(", ")} (lote_atual: true) foram enviadas em sequência pelo mesmo hóspede e formam um único turno. Considere-as em conjunto e produza uma única decisão para todas, no formato exigido pelas instruções de sistema.`
-      : `Responda à mensagem ${last.ref} (atual: true) no formato exigido pelas instruções de sistema.`;
+      ? `As mensagens ${batchRefs.join(", ")} (lote_atual: true) foram enviadas em sequência pelo mesmo hóspede e formam um único turno. Considere-as em conjunto e produza uma única decisão para todas, estritamente no formato JSON exigido pelas instruções de sistema.`
+      : `Responda à mensagem ${last.ref} (atual: true) estritamente no formato JSON exigido pelas instruções de sistema.`;
   const user = [
     preamble,
     contextBlock,

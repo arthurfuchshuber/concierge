@@ -14,6 +14,8 @@ vi.mock("@/lib/arrival-board.server", () => ({
   buildArrivalRows: vi.fn(async () => ({ rows: rowsRef.rows })),
 }));
 vi.mock("@/lib/dashboard.functions", () => ({ runAdvanceArrival: advance }));
+const batch = vi.fn(async (..._a: unknown[]) => ({ notifications: 1 }));
+vi.mock("@/lib/ops-push.server", () => ({ notifyAutoCheckoutBatch: batch }));
 
 const { autoCheckoutTriggerTime, autoCheckoutDay, runAutoCheckoutScan } =
   await import("@/lib/auto-checkout.server");
@@ -62,6 +64,8 @@ const at = (hm: string, day = "2026-11-10") => new Date(`${day}T${hm}:00-03:00`)
 
 beforeEach(() => {
   advance.mockClear();
+  batch.mockReset();
+  batch.mockImplementation(async () => ({ notifications: 1 }));
   rowsRef.rows = [];
 });
 
@@ -157,5 +161,46 @@ describe("runAutoCheckoutScan", () => {
     expect((await runAutoCheckoutScan(fakeAdmin(), at("12:00", "2026-11-11"))).confirmed).toBe(0);
     expect((await runAutoCheckoutScan(fakeAdmin([], true), at("12:00"))).confirmed).toBe(0);
     expect(advance).not.toHaveBeenCalled();
+  });
+});
+
+describe("aviso em massa da baixa automática (08/11/2026)", () => {
+  const P2 = "b1000000-0000-4000-8000-000000000002";
+  const R2 = "f1000000-0000-4000-8000-000000000002";
+
+  it("um único aviso por rodada com todos os imóveis liberados — nunca um por imóvel", async () => {
+    rowsRef.rows = [row(), row({ logId: `ical:${R2}`, reservationId: R2, propertyId: P2 })];
+    const r = await runAutoCheckoutScan(fakeAdmin(), at("11:00"));
+    expect(r.confirmed).toBe(2);
+    expect(batch).toHaveBeenCalledTimes(1);
+    const [, opts] = batch.mock.calls[0] as [unknown, { propertyIds: string[]; runKey: string }];
+    expect(opts.propertyIds.sort()).toEqual([P, P2].sort());
+    expect(opts.runKey).toBe(at("11:00").toISOString().slice(0, 16));
+  });
+
+  it("sem baixa na rodada → nenhum aviso", async () => {
+    rowsRef.rows = [row()];
+    await runAutoCheckoutScan(fakeAdmin(), at("09:00"));
+    expect(batch).not.toHaveBeenCalled();
+  });
+
+  it("baixa que falhou não entra no aviso", async () => {
+    rowsRef.rows = [row(), row({ logId: `ical:${R2}`, reservationId: R2, propertyId: P2 })];
+    advance.mockImplementationOnce(async () => {
+      throw new Error("boom");
+    });
+    const r = await runAutoCheckoutScan(fakeAdmin(), at("11:00"));
+    expect(r.confirmed).toBe(1);
+    const [, opts] = batch.mock.calls[0] as [unknown, { propertyIds: string[] }];
+    expect(opts.propertyIds).toEqual([P2]);
+  });
+
+  it("falha no aviso nunca desfaz nem quebra as baixas", async () => {
+    rowsRef.rows = [row()];
+    batch.mockImplementation(async () => {
+      throw new Error("push fora");
+    });
+    const r = await runAutoCheckoutScan(fakeAdmin(), at("11:00"));
+    expect(r.confirmed).toBe(1);
   });
 });

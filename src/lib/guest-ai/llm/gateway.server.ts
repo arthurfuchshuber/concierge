@@ -27,6 +27,7 @@ import {
   type LlmMessage,
   type LlmRequest,
   type LlmResult,
+  type LlmErrorCode,
   type LlmTelemetry,
   type LlmToolCall,
   type LlmToolChoice,
@@ -55,6 +56,8 @@ export interface GatewayDeps {
 }
 
 const ROLES = new Set(["system", "user", "assistant", "tool"]);
+/** Falhas do Titular (não transitórias) que acionam o Reserva. */
+export const FALLBACK_ON: ReadonlySet<LlmErrorCode> = new Set<LlmErrorCode>(["model_unavailable", "bad_request", "invalid_response"]);
 const TOOL_NAME = /^[a-z][a-z0-9_]{0,63}$/;
 const TOOL_CALL_ID = /^[\w.:-]{1,128}$/;
 const TOOL_CHOICES = new Set<LlmToolChoice>(["auto", "none"]);
@@ -366,7 +369,9 @@ export async function generateGuestLlm(request: LlmRequest, deps: GatewayDeps = 
     let requestId: string | null = null;
     let lastError: ClassifiedError = failure("internal_error");
     // Reserva automática do Titular (ver `GUEST_AI_FALLBACK_MODELS`): a 2ª tentativa vai para o Reserva
-    // quando a 1ª falhou por rede, 5xx ou modelo indisponível. Mesmo prazo, mesmas travas.
+    // quando a 1ª falhou por rede, 5xx, modelo indisponível ou recusa da chamada pelo provedor (400/422 e
+    // outros 4xx de validação — incidente de 08/11/2026). Mesmo prazo, mesmas travas. Não troca em 401/403
+    // (credencial), 402 (créditos) e 429 (limite): valem para a conta inteira do gateway, o Reserva cairia igual.
     const fallbackId = guestFallbackModel(v.spec.id);
     const vFallback = fallbackId ? validateLlmRequest({ ...request, model: fallbackId }) : null;
     let cur: ValidatedRequest = v;
@@ -416,7 +421,7 @@ export async function generateGuestLlm(request: LlmRequest, deps: GatewayDeps = 
         if (outcome.usage) usage = addUsage(usage, normalizeUsage(outcome.usage, cur.inputChars, 0, cur.imageCount));
         lastError = outcome.error;
         const remaining = v.timeoutMs - (now() - started);
-        const canSwitch = cur === v && vFallback !== null && (isTransient(outcome.error.code) || outcome.error.code === "model_unavailable");
+        const canSwitch = cur === v && vFallback !== null && (isTransient(outcome.error.code) || FALLBACK_ON.has(outcome.error.code));
         if ((!isTransient(outcome.error.code) && !canSwitch) || attempts >= MAX_ATTEMPTS || remaining < MIN_RETRY_BUDGET_MS) break;
         if (canSwitch) cur = vFallback;
         try {

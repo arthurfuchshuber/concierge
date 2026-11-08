@@ -129,8 +129,7 @@ export type ScanCandidate = {
     | "checkouts-late"
     | "checkins-late"
     | "checkins-today"
-    | "checkouts-tomorrow"
-    | "cleaning-pending";
+    | "checkouts-tomorrow";
   /** Atraso que já foi avisado na hora anterior (repetição). */
   repeat?: boolean;
 };
@@ -140,7 +139,6 @@ const BASE_PRIORITY: Record<ScanCandidate["kind"], number> = {
   "checkins-late": 1,
   "checkins-today": 2,
   "checkouts-tomorrow": 2,
-  "cleaning-pending": 3,
 };
 
 /** Ordena do mais importante para o menos: primeiro aviso → avisos do dia → limpeza → repetição de atraso. */

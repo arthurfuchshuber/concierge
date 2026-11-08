@@ -78,12 +78,13 @@ const DialogContent = React.forwardRef<
         {hideClose ? null : (
           <DialogPrimitive.Close
             data-window-close
-            // X OFICIAL (07/11/2026): alinhado à linha do título (`top-3.5 right-4`, o cabeçalho reserva `pr-14`),
-            // ícone 16px, cinza que clareia no hover, foco visível e área de toque de 40px (o `after` amplia o
-            // alvo sem aumentar o desenho). Mora AQUI para valer em todas as janelas; abaixo de `lg`, em janela
-            // "como página" (`pageLike`), ele some e o "Voltar" (`DialogDateRow`) assume.
+            // X OFICIAL (08/11/2026): BOTÃO estruturado, não ícone solto — 28px, cantos `rounded-lg`, fundo sutil
+            // e borda suave, alinhado à linha do título (`top-3.5 right-4`; o cabeçalho reserva `pr-14`). Ícone
+            // nítido de 16px, hover/foco visíveis e área de toque ampliada pelo `after` (sem mudar o desenho).
+            // Mora AQUI para valer em todas as janelas; abaixo de `lg`, em janela "como página" (`pageLike`),
+            // ele some e o "Voltar" (`DialogDateRow`) assume.
             className={cn(
-              "absolute right-4 top-3.5 z-[5] grid size-6 cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors after:absolute after:-inset-2 after:content-[''] hover:bg-foreground/10 hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none",
+              "absolute right-4 top-3.5 z-10 grid size-7 cursor-pointer place-items-center rounded-lg border border-border/40 bg-foreground/5 text-foreground/80 transition-colors after:absolute after:-inset-1.5 after:content-[''] hover:bg-foreground/10 hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none",
               pageLike && "max-lg:hidden",
             )}
           >

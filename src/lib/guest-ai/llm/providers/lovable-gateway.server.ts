@@ -103,10 +103,37 @@ function readToolCalls(list: unknown, pick: (it: Json) => { id: unknown; name: u
   return out;
 }
 
+/** Instrução anexada quando nenhuma mensagem de entrada cita "json" (contrato da OpenAI para json_object). */
+export const JSON_WORD_GUARD = "\n\nResponda estritamente em formato JSON válido.";
+
+/**
+ * Blindagem do formato JSON (incidente de 08/11/2026, erro 400 da OpenAI: "Response input messages must contain
+ * the word 'json' in some form to use 'text.format' of type json_object"). Com `responseFormat: "json"`, se
+ * nenhuma mensagem de ENTRADA (fora do system/instructions) contiver "json" (sem diferenciar maiúsculas), a
+ * instrução `JSON_WORD_GUARD` é anexada à última mensagem do usuário. Não altera nada quando a palavra já está lá.
+ */
+export function ensureJsonWord(messages: readonly LlmMessage[], format: string): readonly LlmMessage[] {
+  if (format !== "json") return messages;
+  if (messages.some((m) => m.role !== "system" && /json/i.test(llmMessageText(m.content)))) return messages;
+  let idx = -1;
+  for (let i = messages.length - 1; i >= 0; i -= 1) {
+    if (messages[i]!.role === "user") {
+      idx = i;
+      break;
+    }
+  }
+  if (idx < 0) return [...messages, { role: "user", content: JSON_WORD_GUARD.trim() }];
+  return messages.map((m, i) => {
+    if (i !== idx) return m;
+    if (typeof m.content === "string") return { ...m, content: `${m.content}${JSON_WORD_GUARD}` };
+    return { ...m, content: [...m.content, { type: "text" as const, text: JSON_WORD_GUARD.trim() }] };
+  });
+}
+
 export function buildChatBody(req: ProviderRequest): Json {
   const body: Json = {
     model: req.spec.id,
-    messages: req.messages.map(chatMessage),
+    messages: ensureJsonWord(req.messages, req.responseFormat).map(chatMessage),
     max_tokens: req.maxOutputTokens,
     stream: false,
   };
@@ -189,7 +216,7 @@ function responsesItems(m: LlmMessage): Json[] {
 
 export function buildResponsesBody(req: ProviderRequest): Json {
   const system = req.messages.filter((m) => m.role === "system").map((m) => llmMessageText(m.content)).join("\n\n");
-  const rest: LlmMessage[] = req.messages.filter((m) => m.role !== "system");
+  const rest: LlmMessage[] = ensureJsonWord(req.messages, req.responseFormat).filter((m) => m.role !== "system");
   const body: Json = {
     model: req.spec.id,
     input: rest.flatMap(responsesItems),

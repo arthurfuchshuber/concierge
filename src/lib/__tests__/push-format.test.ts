@@ -121,16 +121,14 @@ describe("destinos do clique", () => {
 });
 
 describe("timing: 1 por rodada, por prioridade", () => {
-  it("primeiro aviso de atraso vence; avisos do dia e limpeza vencem repetição", () => {
+  it("primeiro aviso de atraso vence; avisos do dia vencem repetição", () => {
     const order = rankScanCandidates([
-      { kind: "cleaning-pending" as const },
       { kind: "checkins-late" as const, repeat: true },
       { kind: "checkins-today" as const },
       { kind: "checkouts-late" as const, repeat: true },
     ]).map((c) => c.kind);
     expect(order).toEqual([
       "checkins-today",
-      "cleaning-pending",
       "checkouts-late",
       "checkins-late",
     ]);

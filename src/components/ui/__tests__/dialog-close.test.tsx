@@ -23,12 +23,14 @@ describe("DialogContent — X oficial", () => {
     janela();
     const x = screen.getByRole("button", { name: "Fechar" });
     for (const c of [
-      "absolute", "right-4", "top-3.5", "size-6", "text-muted-foreground",
-      "hover:text-foreground", "hover:bg-foreground/10", "focus-visible:ring-2", "after:-inset-2",
+      "absolute", "right-4", "top-3.5", "z-10", "size-7", "rounded-lg", "border", "border-border/40",
+      "bg-foreground/5", "text-foreground/80", "hover:text-foreground", "hover:bg-foreground/10",
+      "focus-visible:ring-2", "after:-inset-1.5",
     ]) {
       expect(x.className).toContain(c);
     }
     expect(x.querySelector("svg")?.getAttribute("class")).toContain("size-4");
+    expect(x.querySelector("svg")?.getAttribute("stroke-width")).toBe("2");
   });
 
   it("é único e continua sumindo no celular em janela pageLike; hideClose o omite", () => {
