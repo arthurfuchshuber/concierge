@@ -66,3 +66,14 @@ describe("windowTitle — sentence case", () => {
     expect(windowTitle("  Imóveis livres hoje ")).toBe("Imóveis livres hoje");
   });
 });
+
+describe("auditoria do X de canto", () => {
+  it("nenhum botão de fechar solto em top-3.5/right-4 no código", async () => {
+    const { execSync } = await import("node:child_process");
+    const out = execSync(
+      `grep -rnE "absolute right-4 top-3\\.5|absolute top-3\\.5 right-4" src --include=*.tsx | grep -v __tests__ || true`,
+      { cwd: process.cwd(), encoding: "utf8" },
+    );
+    expect(out.trim()).toBe("");
+  });
+});

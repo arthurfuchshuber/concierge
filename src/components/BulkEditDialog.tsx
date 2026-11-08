@@ -629,7 +629,7 @@ export function BulkEditDialog({
         <>
         {/* Cabeçalho fixo — não rola junto com o conteúdo. */}
         <div className="shrink-0 border-b border-border/60 px-5 py-4">
-        <DialogHeader className="pr-8">
+        <DialogHeader className="pr-12">
           <DialogTitle className="font-display text-[15px] font-bold text-foreground">Editar {targetIds.length || ids.length} {(targetIds.length || ids.length) === 1 ? "guia" : "guias"}</DialogTitle>
           <DialogDescription className="text-[11.5px] text-muted-foreground">
             {loading

@@ -443,33 +443,64 @@ export async function notifyAutoCheckoutBatch(
   const byOwner = new Map<string, typeof props>();
   for (const p of props) byOwner.set(p.owner_id, [...(byOwner.get(p.owner_id) ?? []), p]);
 
+  const cityOf = (p: { name: string | null; city: string | null } | undefined) =>
+    (p?.city || p?.name || "Imóvel sem cidade").trim();
+
   let notifications = 0;
   for (const [ownerId, list] of byOwner) {
-    // pessoa → imóveis liberados a que ela tem acesso
+    // TOTAL REAL (mesmo número da Fila de Limpeza): imóveis da conta com saída confirmada e limpeza em aberto,
+    // não só os liberados nesta rodada. Se a leitura falhar, cai para os liberados da rodada.
+    const releasedIds = new Set(list.map((p) => p.id));
+    const infoById = new Map(list.map((p) => [p.id, p]));
+    let awaiting = new Set<string>(releasedIds);
+    try {
+      const { data: all } = await admin.from("properties").select("id, name, city").eq("owner_id", ownerId);
+      const allProps = (all ?? []) as Array<{ id: string; name: string | null; city: string | null }>;
+      for (const p of allProps) if (!infoById.has(p.id)) infoById.set(p.id, { ...p, owner_id: ownerId });
+      const { buildArrivalRows } = await import("@/lib/arrival-board.server");
+      const { rows } = await buildArrivalRows(admin as never, {
+        kind: "checkout",
+        range: "today",
+        propIds: allProps.map((p) => p.id),
+      });
+      awaiting = new Set<string>(rows.filter((r) => r.status === "done").map((r) => r.propertyId));
+      for (const id of releasedIds) awaiting.add(id);
+    } catch (err) {
+      console.error("[ops-push] falha ao ler o total da Fila de Limpeza; usando a rodada:", err);
+    }
+
+    // pessoa → imóveis aguardando limpeza a que ela tem acesso (destinatária só se vê algum liberado agora)
     const perUser = new Map<string, string[]>();
-    for (const p of list) {
-      for (const u of await getPropertyLinkedUsers(admin, ownerId, p.id)) {
-        perUser.set(u, [...(perUser.get(u) ?? []), p.id]);
+    const notifyUsers = new Set<string>();
+    for (const pid of awaiting) {
+      for (const u of await getPropertyLinkedUsers(admin, ownerId, pid)) {
+        perUser.set(u, [...(perUser.get(u) ?? []), pid]);
+        if (releasedIds.has(pid)) notifyUsers.add(u);
       }
     }
     // agrupa pessoas com o mesmo conjunto de imóveis (um envio por grupo)
     const groups = new Map<string, string[]>();
     for (const [u, pids] of perUser) {
+      if (!notifyUsers.has(u)) continue;
       const key = [...pids].sort().join(",");
       groups.set(key, [...(groups.get(key) ?? []), u]);
     }
-    const propById = new Map(list.map((p) => [p.id, p]));
+    const day = opts.runKey.slice(0, 10);
     for (const [key, userIds] of groups) {
       const byCity = new Map<string, number>();
       for (const pid of key.split(",")) {
-        const p = propById.get(pid);
-        const city = (p?.city || p?.name || "Imóvel sem cidade").trim();
+        const city = cityOf(infoById.get(pid));
         byCity.set(city, (byCity.get(city) ?? 0) + 1);
       }
+      // Chave pelo TOTAL por cidade: mesmo total já avisado (no dia) nunca repete.
+      const sig = [...byCity.entries()]
+        .sort(([x], [y]) => x.localeCompare(y))
+        .map(([c, n]) => `${c}:${n}`)
+        .join("|");
       const r = await sendOpsPush(admin, {
         ownerId,
         kind: "auto-checkout-batch",
-        dedupeKey: `auto-checkout-batch:${ownerId}:${opts.runKey}:${key}`.slice(0, 400),
+        dedupeKey: `cleaning-pending:${ownerId}:${sig}:${day}:${userIds.slice().sort().join(",")}`.slice(0, 400),
         userIds,
         payload: {
           title: opsTitles.cleaningPending(),
