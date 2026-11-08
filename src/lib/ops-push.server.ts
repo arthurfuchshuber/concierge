@@ -56,6 +56,9 @@ function localNow(now = new Date()): LocalNow {
 }
 
 /** "15:00" | "15:00:00" -> minutos. Retorna fallback se inválido. */
+/** Fim do dia (23:59): limite de quem não tem horário limite de check-in cadastrado. */
+const END_OF_DAY_MINUTES = 23 * 60 + 59;
+
 function timeToMinutes(value: string | null | undefined, fallback: number): number {
   if (!value) return fallback;
   const m = /^(\d{1,2}):(\d{2})/.exec(value.trim());
@@ -72,7 +75,6 @@ function fmtTime(minutes: number): string {
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
-const DEFAULT_CHECKIN = 15 * 60; // 15:00
 const DEFAULT_CHECKOUT = 11 * 60; // 11:00
 
 /** Usuários que devem receber avisos operacionais de uma conta (owner + membros ativos owner/agent). */
@@ -366,10 +368,10 @@ export async function runOpsPushScan(admin: Admin, now = new Date()) {
       // check-in só é ATRASADO depois do HORÁRIO LIMITE configurado para o
       // imóvel — antes disso é só pendente e não gera aviso. Se o hóspede
       // avisou uma chegada ainda mais tarde, ela prevalece.
-      const configuredLimit = timeToMinutes(
-        r.standardTimeMax ?? p?.checkin_time_max ?? r.standardTime ?? p?.checkin_time ?? null,
-        DEFAULT_CHECKIN,
-      );
+      // NUNCA o horário INICIAL (08/11/2026: "Check-In Atrasado" saía às 15:30 num imóvel sem limite
+      // cadastrado, porque o código caía no início da janela). Sem horário limite, o check-in só fica
+      // atrasado depois do dia previsto (fim do dia).
+      const configuredLimit = timeToMinutes(r.standardTimeMax ?? p?.checkin_time_max ?? null, END_OF_DAY_MINUTES);
       const predicted = r.arrivalTimeOverride ?? r.guestArrivalTime ?? null;
       const predictedLimit = predicted ? timeToMinutes(predicted, configuredLimit) : configuredLimit;
       const limit = Math.max(configuredLimit, predictedLimit);
