@@ -99,11 +99,12 @@ export function CleaningPriceDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[calc(100vw-2rem)] sm:w-full sm:max-w-sm">
-        <DialogHeader>
-          <DialogTitle className="text-base font-display">Ajustar Valor da Limpeza</DialogTitle>
-          <p className="truncate text-[12.5px] text-muted-foreground" title={title}>{title}</p>
+      <DialogContent className="w-[calc(100vw-2rem)] gap-0 p-0 sm:w-full sm:max-w-sm">
+        <DialogHeader className="px-4 pt-3.5 pb-0 pr-14 text-left">
+          <DialogTitle className="truncate text-sm font-bold leading-6 text-foreground">Ajustar valor da limpeza</DialogTitle>
+          <p className="truncate text-xs leading-5 text-muted-foreground" title={title}>{title}</p>
         </DialogHeader>
+        <div className="flex flex-col gap-4 px-4 pb-4 pt-2.5">
         <div className="flex items-center justify-between rounded-[0.5rem] border border-border/60 bg-muted/30 px-3 py-2 text-[12.5px]">
           <span className="text-muted-foreground">Padrão do imóvel ({standardLabel})</span>
           <span className="font-semibold tabular-nums">{brl(standard)}</span>
@@ -151,6 +152,7 @@ export function CleaningPriceDialog({
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+      </div>
       </DialogContent>
     </Dialog>
   );

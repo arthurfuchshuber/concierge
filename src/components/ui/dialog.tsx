@@ -78,18 +78,17 @@ const DialogContent = React.forwardRef<
         {hideClose ? null : (
           <DialogPrimitive.Close
             data-window-close
-            // X SÓLIDO (30/10/2026): fundo opaco (sem transparência/desfoque), canto superior direito igual ao da janela.
-            // X DE CANTO MAIS DELICADO (pedido explícito, 21/10/2026, mockup aprovado): aba de 32px
-            // (era 44px), canto de 12px, fundo e fio de luz mais leves e ícone de 13px com traço 1.8.
-            // Mora AQUI para valer em todas as janelas; abaixo de `lg`, em janela "como página"
-            // (`pageLike`), ele some e o "Voltar" (`DialogDateRow`) assume.
+            // X OFICIAL (07/11/2026): alinhado à linha do título (`top-3.5 right-4`, o cabeçalho reserva `pr-14`),
+            // ícone 16px, cinza que clareia no hover, foco visível e área de toque de 40px (o `after` amplia o
+            // alvo sem aumentar o desenho). Mora AQUI para valer em todas as janelas; abaixo de `lg`, em janela
+            // "como página" (`pageLike`), ele some e o "Voltar" (`DialogDateRow`) assume.
             className={cn(
-              "absolute right-0 top-0 z-[5] grid size-8 cursor-pointer place-items-center rounded-bl-[12px] rounded-tr-[calc(var(--win-radius,12px)-1px)] bg-[color-mix(in_oklab,var(--card)_100%,var(--foreground)_8%)] text-muted-foreground transition-colors hover:bg-[color-mix(in_oklab,var(--card)_100%,var(--foreground)_14%)] hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none",
+              "absolute right-4 top-3.5 z-[5] grid size-6 cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors after:absolute after:-inset-2 after:content-[''] hover:bg-foreground/10 hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none",
               pageLike && "max-lg:hidden",
             )}
           >
-            <X className="size-[13px]" strokeWidth={1.8} />
-            <span className="sr-only">Close</span>
+            <X className="size-4" strokeWidth={2} />
+            <span className="sr-only">Fechar</span>
           </DialogPrimitive.Close>
         )}
       </DialogPrimitive.Content>

@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { centsToReaisInput, parseReaisInputToCents } from "@/components/ui/money-input";
 import { CleaningProviderAvatar, useCleaningProviderName } from "@/components/dashboard/CleaningProviderAvatar";
 import { EDIT_BTN, EDIT_INPUT } from "@/components/dashboard/edit-frame";
-import { WIDE_WINDOW_CLASS } from "@/components/dashboard/wide-window";
+import { WIDE_WINDOW_CLASS, windowTitle } from "@/components/dashboard/wide-window";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -257,10 +257,9 @@ function ConfirmChange({
         <AlertDialogCancel
           aria-label="Fechar"
           disabled={busy}
-          className="absolute right-0 top-0 z-[5] grid size-8 place-items-center rounded-none rounded-bl-[12px] rounded-tr-[calc(var(--win-radius,12px)-1px)] border-0 p-0 text-muted-foreground"
-          style={{ background: "color-mix(in srgb, var(--panel) 80%, white 8%)" }}
+          className="absolute right-4 top-3.5 z-[5] grid size-6 place-items-center rounded-md border-0 p-0 text-muted-foreground after:absolute after:-inset-2 after:content-[''] hover:bg-foreground/10 hover:text-foreground"
         >
-          <X className="size-3.5" strokeWidth={2.2} />
+          <X className="size-4" strokeWidth={2} />
         </AlertDialogCancel>
         <AlertDialogTitle className="pr-8 font-display text-[14px] font-bold leading-tight text-white">
           Confirmar alteração?
@@ -595,10 +594,10 @@ export function CleaningDayDetailContent({
     <div aria-label={`Detalhe de ${title ?? dayTitle(date)}`} className="flex min-h-0 flex-1 flex-col overflow-hidden">
       {/* CABEÇALHO UNIVERSAL DE JANELA AMPLA (07/11/2026, referência: "Check-ins
           amanhã"): sem ícone, título 14px negrito em 1 linha e subtítulo 12px;
-          o `pr-14` deixa o "X" oficial (32px, canto superior direito) livre. */}
+          o `pr-14` deixa o "X" oficial (canto superior direito) livre. */}
       <DialogHeader className="shrink-0 px-4 pt-3.5 pb-0 pr-14 text-left">
         <DialogTitle className="truncate text-sm font-bold leading-6 text-foreground" title={heading}>
-          {heading}
+          {windowTitle(heading)}
         </DialogTitle>
         <p className="text-xs leading-5 text-muted-foreground">{subtitle}</p>
       </DialogHeader>

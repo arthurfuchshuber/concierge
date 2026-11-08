@@ -384,7 +384,7 @@ describe("cabeçalho universal de janela ampla", () => {
       <CleaningDayDetailContent date="all" title="Custo Total Limpeza" source={{ mode: "done", items }} caretX={null} />,
     );
     const h2 = html.match(/<h2[^>]*>[\s\S]*?<\/h2>/)?.[0] ?? "";
-    expect(text(h2).trim()).toBe("Custo Total Limpeza");
+    expect(text(h2).trim()).toBe("Custo total limpeza");
     for (const c of ["truncate", "text-sm", "font-bold", "leading-6", "text-foreground"]) expect(h2).toContain(c);
     const header = html.match(/<div class="[^"]*pr-14[^"]*">/)?.[0] ?? "";
     for (const c of ["px-4", "pt-3.5", "pb-0", "pr-14", "text-left"]) expect(header).toContain(c);
@@ -406,10 +406,11 @@ describe("cabeçalho universal de janela ampla", () => {
         </Dialog>
       </QueryClientProvider>,
     );
-    const fechar = screen.getAllByRole("button", { name: "Close" });
+    const fechar = screen.getAllByRole("button", { name: "Fechar" });
     expect(fechar).toHaveLength(1);
-    expect(fechar[0].className).toContain("rounded-bl-[12px]");
-    expect(fechar[0].className).toContain("size-8");
+    for (const c of ["right-4", "top-3.5", "size-6", "text-muted-foreground", "hover:text-foreground", "focus-visible:ring-2"]) {
+      expect(fechar[0].className).toContain(c);
+    }
     expect(screen.queryByLabelText("Fechar detalhe")).toBeNull();
   });
 });

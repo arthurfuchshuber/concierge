@@ -3,7 +3,6 @@ import { ensureRealtimeAuth } from "@/lib/realtime-auth";
 import * as PopoverPrimitive from "@radix-ui/react-popover";
 import { SearchActionRow } from "./SearchActionRow";
 import { cleaningStatsQueryOptions } from "./cleaning-stats-query";
-import { TaskResolveDialog, settlementToServer, type ResolveValues } from "@/components/dashboard/TaskResolveDialog";
 import { searchScore } from "@/lib/search-score";
 import { POLICY_LABEL } from "@/lib/reservation-rich";
 import { trimSeries } from "@/lib/trim-series";
@@ -50,7 +49,7 @@ import {
   type CleaningForecastItem,
   type DayDetailSource,
 } from "@/components/dashboard/CleaningDayDetail";
-import { WIDE_WINDOW_CLASS } from "@/components/dashboard/wide-window";
+import { WIDE_WINDOW_CLASS, windowTitle } from "@/components/dashboard/wide-window";
 import { cleaningAdvanceDecision } from "@/lib/cleaning-advance";
 import { CleaningProviderAvatar, useCleaningBoard } from "@/components/dashboard/CleaningProviderAvatar";
 import { PropertyAccessButton } from "@/components/dashboard/PropertyAccessButton";
@@ -135,12 +134,6 @@ import { CleaningApprovalPanel, CLEANING_APPROVALS_KEY } from "@/components/dash
 import { cancelarEtapa, enfileirarEtapa, semPendentes } from "@/lib/offline/stage-outbox";
 import { notifyAction } from "@/components/UndoActionBar";
 import { ReservationRecordsButton, ReservationRecordsDialog } from "@/components/dashboard/ReservationRecords";
-import {
-  AttachmentPicker,
-  uploadPendingAttachments,
-  type PendingAttachment,
-} from "@/components/dashboard/TaskAttachments";
-import { attachTaskRecord, deleteReservationRecord } from "@/lib/reservation-records.functions";
 import { format, parse, isValid, differenceInCalendarDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { DateRange } from "react-day-picker";
@@ -173,13 +166,10 @@ import {
 import { MoneyInput } from "@/components/ui/money-input";
 import { OwnerLine } from "@/components/dashboard/OwnerLine";
 import { PropertyMapsButton } from "@/components/dashboard/PropertyMapsButton";
-import { CATEGORY_BY_KEY } from "@/components/dashboard/record-categories";
-import type { RecordCategory } from "@/lib/reservation-records.functions";
 import {
   PANEL_SHELL,
   PanelHeading,
   SectionLabel,
-  CountPill,
   ACTION_BAR,
   ACTION_SEGMENT,
   ACTION_BUTTON_TONE,
@@ -237,22 +227,12 @@ import {
 } from "@/lib/dashboard.functions";
 import { sortCheckinRowsCore, sortCheckoutRows, sortCleaningRows } from "@/lib/arrival-sorting";
 import {
-  listTaskLinkOptions,
-  listTasks,
   createTask,
-  deleteTasks,
-  restoreTask,
-  restoreTaskCompletion,
-  type TaskSnapshot,
-  type CompletionSnapshot,
-  setTaskStatus,
   skipTaskOccurrence,
-  toggleCleaningCompletion,
 } from "@/lib/tasks.functions";
 import { defaultShowInCleaning } from "@/lib/tasks-types";
 import type {
   TaskRow,
-  TaskCompletion,
   TaskLinkProperty,
   TaskLinkOwner,
   TaskLinkProvider,
@@ -759,12 +739,8 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   const occupancyFn = useServerFn(getOccupancyBoard);
   const cleaningStatsFn = useServerFn(getCleaningStats);
   const earliestCleaningFn = useServerFn(getEarliestCleaningDate);
-  const taskLinkOptionsFn = useServerFn(listTaskLinkOptions);
-  const listTasksFn = useServerFn(listTasks);
   const createTaskFn = useServerFn(createTask);
-  const setTaskStatusFn = useServerFn(setTaskStatus);
   const skipTaskOccurrenceFn = useServerFn(skipTaskOccurrence);
-  const toggleCleaningFn = useServerFn(toggleCleaningCompletion);
 
   const [range, setRange] = useState<"today" | "tomorrow" | "7d" | "all">("today");
   // Monta o calendário (a parte mais pesada) só depois que o resto do painel
@@ -2506,205 +2482,6 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
   // container rolável já usado pra calcular a largura das colunas —
   // kanbanRowRef, declarado mais abaixo).
   const kanbanMobileScreenshotRef = useRef<HTMLDivElement | null>(null);
-  const tasksQ = useQuery({
-    queryKey: ["dash-tasks", activeOwnerId ?? "self"],
-    queryFn: () => listTasksFn({ data: { ownerId: activeOwnerId } }),
-    staleTime: 15_000,
-    enabled: authed,
-  });
-  const invalidateTasks = useCallback(() => {
-    qc.invalidateQueries({ queryKey: ["dash-tasks", activeOwnerId ?? "self"] });
-  }, [qc, activeOwnerId]);
-
-  /*
-   * DESFAZER NAS PENDÊNCIAS (pedido explícito, 17/09/2026: "mostrar o botão
-   * 'Desfazer' sobre QUALQUER AÇÃO realizada, por 5 segundos").
-   *
-   * O servidor devolve a foto de ANTES de cada mudança; desfazer é gravar a
-   * foto de volta. Na conclusão com comprovação, os anexos que subiram junto
-   * também saem.
-   */
-  const deleteTasksFn = useServerFn(deleteTasks);
-  const restoreTaskFn = useServerFn(restoreTask);
-  const restoreCompletionFn = useServerFn(restoreTaskCompletion);
-  const deleteRecordFn = useServerFn(deleteReservationRecord);
-  const undoFailed = useCallback(
-    (e: unknown) => toast.error(e instanceof Error ? e.message : "Não foi possível desfazer."),
-    [],
-  );
-  const notifyTaskUndo = useCallback(
-    (message: string, undo: () => Promise<unknown>, attachmentIds: string[] = []) => {
-      notifyAction(message, () => {
-        void Promise.all([undo(), ...attachmentIds.map((id) => deleteRecordFn({ data: { id } }))])
-          .catch(undoFailed)
-          .finally(invalidateTasks);
-      });
-    },
-    [deleteRecordFn, invalidateTasks, undoFailed],
-  );
-  const restoreTaskUndo = useCallback(
-    (before: TaskSnapshot) => () => restoreTaskFn({ data: { before } }),
-    [restoreTaskFn],
-  );
-  /** Resposta instantânea: a pendência muda de estado na tela no clique. */
-  const patchTaskStatus = useCallback(
-    (taskId: string, status: "pending" | "done" | "canceled") => {
-      void qc.cancelQueries({ queryKey: ["dash-tasks"] });
-      qc.setQueriesData<{ tasks: TaskRow[] } & Record<string, unknown>>({ queryKey: ["dash-tasks"] }, (old) =>
-        old?.tasks ? { ...old, tasks: old.tasks.map((t) => (t.id === taskId ? { ...t, status } : t)) } : old,
-      );
-    },
-    [qc],
-  );
-  const setTaskStatusMutation = useMutation({
-    mutationFn: (v: {
-      taskId: string;
-      status: "pending" | "done" | "canceled";
-      amountSpentCents?: number | null;
-      /** Prestação de contas da conclusão (07/09/2026) — ambos opcionais. */
-      resolvedByProviderId?: string | null;
-      resolutionNote?: string | null;
-    } & Partial<Omit<ReturnType<typeof settlementToServer>, "amountSpentCents" | "resolvedByProviderId" | "resolutionNote">>) =>
-      setTaskStatusFn({ data: v }),
-    onMutate: (v) => patchTaskStatus(v.taskId, v.status),
-    onSuccess: invalidateTasks,
-    onError: (e) => {
-      invalidateTasks();
-      toast.error(e instanceof Error ? e.message : "Falha ao atualizar pendência.");
-    },
-  });
-  /** Mudança de status simples (sem tela de conclusão), com "Desfazer". */
-  function setTaskStatusWithUndo(taskId: string, status: "pending" | "done" | "canceled") {
-    setTaskStatusMutation.mutate(
-      { taskId, status },
-      {
-        onSuccess: (res) =>
-          notifyTaskUndo(
-            status === "pending"
-              ? "Pendência reaberta."
-              : status === "canceled"
-                ? "Pendência arquivada."
-                : "Pendência concluída.",
-            restoreTaskUndo(res.before),
-          ),
-      },
-    );
-  }
-  const toggleCleaningTaskMutation = useMutation({
-    mutationFn: (v: {
-      taskId: string;
-      logId?: string | null;
-      reservationId?: string | null;
-      amountSpentCents?: number | null;
-      resolvedByProviderId?: string | null;
-      resolutionNote?: string | null;
-    } & Partial<Omit<ReturnType<typeof settlementToServer>, "amountSpentCents" | "resolvedByProviderId" | "resolutionNote">>) =>
-      toggleCleaningFn({ data: v }),
-    onSuccess: invalidateTasks,
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Falha ao atualizar checklist."),
-  });
-  /** O inverso de marcar/desmarcar a ocorrência: desmarcar ou recolocar a
-   * marca exatamente como era. */
-  function toggleUndo(
-    res: { checked: boolean; removed: CompletionSnapshot | null },
-    v: { taskId: string; logId?: string | null; reservationId?: string | null },
-  ) {
-    return () =>
-      res.checked
-        ? toggleCleaningFn({
-            data: { taskId: v.taskId, logId: v.logId, reservationId: v.reservationId },
-          })
-        : res.removed
-          ? restoreCompletionFn({ data: { removed: res.removed } })
-          : Promise.resolve(null);
-  }
-  // Conclusão de pendência com prestação de contas (pedido explícito,
-  // 07/09/2026): ao concluir, perguntamos QUEM resolveu, QUANTO custou e
-  // deixamos anexar a comprovação. Antes isto era só um "teve gasto nessa
-  // tarefa? Sim/Não". Tudo continua OPCIONAL — dá pra concluir sem preencher
-  // nada. Substitui o antigo `expensePrompt`, mas mantém os dois gatilhos
-  // que já existiam: concluir na lista de Pendências ("status") e marcar no
-  // checklist do card de Limpeza ("cleaning", que fecha só a ocorrência).
-  type ResolvePromptState = { kind: "status"; task: TaskRow } | { kind: "cleaning"; task: TaskRow; row: ArrivalRow };
-  /* Dois gatilhos para a MESMA tela de conclusão (18/09/2026): marcar no
-     checklist do card de Limpeza ("cleaning") e concluir a pendência pelo
-     seu status ("status"). Cada um na tela que tem os dados dele; nunca
-     abrem ao mesmo tempo. */
-  const [resolvePrompt, setResolvePrompt] = useState<ResolvePromptState | null>(null);
-  const taskLinkOptionsQ = useQuery({
-    queryKey: ["dash-task-link-options", activeOwnerId ?? "self"],
-    queryFn: () => taskLinkOptionsFn({ data: { ownerId: activeOwnerId } }),
-    staleTime: 60_000,
-    /* Antes isto acordava junto com o painel de Pendências, que mudou de aba.
-       O único consumidor que sobrou aqui é a TELA DE CONCLUSÃO do checklist
-       da limpeza, que precisa da lista de prestadores — então é ela quem
-       liga a consulta. */
-    enabled: authed && !!resolvePrompt,
-  });
-  const attachTaskRecordFn = useServerFn(attachTaskRecord);
-
-  function closeResolvePrompt() {
-    setResolvePrompt(null);
-  }
-
-  async function confirmResolve(v: ResolveValues) {
-    if (!resolvePrompt) return;
-    const task = resolvePrompt.task;
-    // Anexo precisa de um imóvel (é ele que define a pasta e a permissão do
-    // arquivo). Sem imóvel os arquivos sumiriam em silêncio — melhor barrar
-    // ANTES de gravar a conclusão e explicar o que fazer.
-    if (v.files.length > 0 && !task.propertyId) {
-      toast.error(
-        "Para anexar fotos, vídeos ou áudios, a pendência precisa estar vinculada a um imóvel. Remova os anexos ou vincule um imóvel à pendência.",
-      );
-      return;
-    }
-    let undo: () => Promise<unknown>;
-    if (resolvePrompt.kind === "status") {
-      const res = await setTaskStatusMutation.mutateAsync({
-        taskId: task.id,
-        status: "done",
-        // Valor da resolução, quem resolveu, comprovação e TODA a prestação
-        // de contas da despesa (quem deve pagar, valor a pagar, quem pagou,
-        // diferença e destino) — 23/10/2026, mockups 0i/0j/0k.
-        ...settlementToServer(v),
-      });
-      undo = restoreTaskUndo(res.before);
-    } else {
-      const vars = {
-        taskId: task.id,
-        logId: resolvePrompt.row.logId,
-        reservationId: resolvePrompt.row.reservationId,
-      };
-      const res = await toggleCleaningTaskMutation.mutateAsync({
-        ...vars,
-        // A tela de conclusão é a mesma dos dois gatilhos: quem resolveu,
-        // como foi resolvido e a prestação de contas da despesa também ficam
-        // gravados na ocorrência da limpeza.
-        ...settlementToServer(v),
-      });
-      undo = toggleUndo(res, vars);
-    }
-    let attachmentIds: string[] = [];
-
-    // Comprovação sobe DEPOIS da conclusão gravada — se a pessoa desistir no
-    // meio, nada de arquivo órfão no storage. Falha de anexo não desfaz a
-    // conclusão, só avisa.
-    if (v.files.length > 0 && task.propertyId) {
-      const res = await uploadPendingAttachments(attachTaskRecordFn, v.files, {
-        propertyId: task.propertyId,
-        taskId: task.id,
-        logId: task.logId ?? undefined,
-        reservationId: task.reservationId ?? undefined,
-        isResolution: true,
-      });
-      attachmentIds = res.ids;
-      if (res.failed > 0) toast.error(`${res.failed} anexo(s) não subiram. A conclusão foi salva.`);
-    }
-    closeResolvePrompt();
-    notifyTaskUndo("Pendência concluída.", undo, attachmentIds);
-  }
-
   // Sem período escolhido, mantém o padrão de "hoje" (mesma convenção já
   // usada pela agenda/cards de limpeza quando nenhum período é escolhido).
   // O período usado é sempre o da PRÓPRIA reserva (`row.date` já é a data
@@ -2876,68 +2653,6 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     all: "Todos",
   };
 
-  // Nome do hóspede de uma pendência "pontual" (vinculada a log/reserva) —
-  // as pendências não guardam o nome, então cruzamos com as listas de
-  // chegadas/saídas já carregadas no Kanban (best-effort: some se nenhuma
-  // dessas listas tiver aquele log/reserva no momento).
-  const guestNameByStayRef = useMemo(() => {
-    const map = new Map<string, string>();
-    const sources: ArrivalRow[][] = [
-      kanbanCiRowsAll,
-      kanbanCoRowsAll,
-      concludedRows,
-      noShowRows,
-      tomorrowCheckinPendingRows,
-      tomorrowCheckoutPendingRows,
-    ];
-    for (const rows of sources) {
-      for (const r of rows) {
-        if (r.logId) map.set(`log:${r.logId}`, r.guestName || "Hóspede");
-        if (r.reservationId) map.set(`res:${r.reservationId}`, r.guestName || "Hóspede");
-      }
-    }
-    return map;
-  }, [
-    kanbanCiRowsAll,
-    kanbanCoRowsAll,
-    concludedRows,
-    noShowRows,
-    tomorrowCheckinPendingRows,
-    tomorrowCheckoutPendingRows,
-  ]);
-  // Tarefas que aparecem no checklist do card de Limpeza — repassadas pra
-  // ArrivalGroup/ArrivalCard só quando colMode === "cleaning" (única coluna
-  // que usa isso; as outras ignoram por completo).
-  /**
-   * Qual card de limpeza é a PRÓXIMA limpeza de cada imóvel (pedido
-   * explícito, 07/09/2026): as pendências abertas do imóvel são exibidas no
-   * card da limpeza mais próxima, e só nele.
-   *
-   * Isto é CALCULADO a cada render, nunca gravado: se entrar uma reserva
-   * repentina com limpeza pro dia 8, ela simplesmente passa a ser a mais
-   * próxima e as pendências aparecem lá — sem ninguém "mover" nada, sem
-   * rotina de correção, sem estado que possa ficar errado. Se essa limpeza
-   * do dia 8 for cancelada, tudo volta pro dia 10 pelo mesmo caminho.
-   *
-   * A base é `kanbanCoRowsAll` (checkouts com alcance "all", ver a query
-   * acima) e NÃO a lista já filtrada por período/cidade/proprietário — senão
-   * filtrar a tela por "Hoje" faria o sistema eleger a limpeza errada como
-   * "próxima". Só cards ainda não concluídos entram na disputa.
-   */
-  const nextCleaningKeyByProperty = useMemo(() => {
-    const best = new Map<string, { key: string; date: string }>();
-    for (const r of kanbanCoRowsAll) {
-      if (!r.propertyId) continue;
-      const key = r.reservationId ?? r.logId;
-      if (!key) continue;
-      const current = best.get(r.propertyId);
-      if (!current || r.date < current.date) best.set(r.propertyId, { key, date: r.date });
-    }
-    const out = new Map<string, string>();
-    for (const [propertyId, v] of best) out.set(propertyId, v.key);
-    return out;
-  }, [kanbanCoRowsAll]);
-
   /**
    * PRÓXIMA CHEGADA de cada imóvel — o outro lado da janela da limpeza.
    *
@@ -2967,45 +2682,6 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     }
     return best;
   }, [kanbanCiRowsAll]);
-
-  const cleaningTasksData = useMemo(
-    () => ({
-      tasks: tasksQ.data?.tasks ?? [],
-      completions: tasksQ.data?.completions ?? [],
-      nextCleaningKeyByProperty,
-    }),
-    [tasksQ.data, nextCleaningKeyByProperty],
-  );
-  function handleToggleCleaningTask(task: TaskRow, row: ArrivalRow) {
-    if (task.logId || task.reservationId) {
-      // Pontual: o próprio status da pendência representa esta estadia.
-      const willComplete = task.status !== "done";
-      if (willComplete) {
-        setResolvePrompt({ kind: "status", task });
-        return;
-      }
-      setTaskStatusWithUndo(task.id, "pending");
-    } else {
-      // Recorrente: marca só esta ocorrência (log/reserva do card) — a
-      // pendência em si continua ativa e volta pendente na próxima limpeza.
-      // Cada ocorrência é nova, então sempre abre a conclusão ao MARCAR
-      // (nunca ao desmarcar, que só remove o registro).
-      const completions = cleaningTasksData.completions;
-      const already = completions.some(
-        (c) =>
-          c.taskId === task.id &&
-          ((row.logId && c.logId === row.logId) || (row.reservationId && c.reservationId === row.reservationId)),
-      );
-      if (!already) {
-        setResolvePrompt({ kind: "cleaning", task, row });
-        return;
-      }
-      const vars = { taskId: task.id, logId: row.logId, reservationId: row.reservationId };
-      toggleCleaningTaskMutation.mutate(vars, {
-        onSuccess: (res) => notifyTaskUndo("Marca da limpeza removida.", toggleUndo(res, vars)),
-      });
-    }
-  }
 
   /**
    * As linhas das duas esteiras indexadas pela ESTADIA, para um card de um
@@ -3326,11 +3002,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       cleaningPendingPropIds,
       expandedId: expandedByColumn[colKey],
       onExpandedChange: (id: string | null) => setExpandedByColumn((prev) => ({ ...prev, [colKey]: id })),
-      // Checklist de pendências — só a coluna de Limpeza usa isso de fato
-      // (ArrivalCard ignora fora do modo "cleaning").
-      cleaningTasks: colMode === "cleaning" ? cleaningTasksData : undefined,
       nextCheckinByProperty: colMode === "cleaning" ? nextCheckinByProperty : undefined,
-      onToggleCleaningTask: colMode === "cleaning" ? handleToggleCleaningTask : undefined,
     };
   }
 
@@ -4181,22 +3853,6 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 </KanbanColumn>
               </div>
             </div>
-
-            <TaskResolveDialog
-              state={resolvePrompt}
-              onOpenChange={(v) => !v && closeResolvePrompt()}
-              providers={taskLinkOptionsQ.data?.providers ?? []}
-              companyName={taskLinkOptionsQ.data?.companyName ?? null}
-              guestName={
-                resolvePrompt
-                  ? ((resolvePrompt.task.reservationId && guestNameByStayRef.get(`res:${resolvePrompt.task.reservationId}`)) ||
-                      (resolvePrompt.task.logId && guestNameByStayRef.get(`log:${resolvePrompt.task.logId}`)) ||
-                      (resolvePrompt.kind === "cleaning" ? resolvePrompt.row.guestName : null) ||
-                      null)
-                  : null
-              }
-              onConfirm={confirmResolve}
-            />
           </section>
         </>
       ) : null}
@@ -4442,139 +4098,6 @@ export function OperationShell({
    passaram a usar o MESMO rótulo para separar "Precisam de atenção" de "Em
    dia". Um rótulo de seção escrito duas vezes é um rótulo de seção que vai
    divergir. Ver o comentário de abertura daquele arquivo. */
-
-/**
- * O CHECKLIST DA LIMPEZA — as pendências do imóvel dentro do card.
- *
- * DUAS MUDANÇAS DE 18/09/2026, ambas a pedido do cliente:
- *
- * 1. TRÊS DE CADA VEZ, com "+N" para abrir o resto — "igual fizemos na aba
- *    registros". Um imóvel com oito pendências transformava o card num
- *    rolo: a lista empurrava o botão de concluir para fora da tela, que é
- *    justamente o botão que a pessoa foi ali usar. Três cabem sem empurrar
- *    nada, e quem precisa ver tudo abre.
- *
- * 2. SAIU DO AZUL-CÉU. O bloco tinha borda, fundo e título em azul-céu — a
- *    cor mais berrante que sobrou da paleta antiga, dentro de um card que já
- *    está no padrão "Presença". Agora é a mesma casca dos outros blocos, com
- *    o fio âmbar no topo (é espera, não problema) e a contagem na pílula
- *    neutra.
- *
- * A etiqueta à direita de cada linha diz de ONDE a pendência veio (Dano,
- * Manutenção...): a lista passou a misturar categorias quando a origem virou
- * o critério de entrada, e sem a etiqueta a faxineira não sabe se "cobre-leito
- * manchado" é tarefa dela ou recado para o proprietário.
- */
-const CHECKLIST_VISIVEL = 3;
-
-function CleaningChecklist({
-  items,
-  onToggle,
-  onOpenRecords,
-}: {
-  items: { task: TaskRow; done: boolean }[];
-  onToggle: (task: TaskRow) => void;
-  onOpenRecords?: (task: TaskRow) => void;
-}) {
-  /* RECOLHIDA NO TÍTULO (27/09/2026): o cartão mostra só a linha
-     "Pendências"; a lista abre numa janela flutuante ao tocar. */
-  const feitas = items.filter((c) => c.done).length;
-  const lista = items;
-  void CHECKLIST_VISIVEL;
-
-  return (
-    <div onClick={(e) => e.stopPropagation()}>
-    <Popover>
-      <PopoverTrigger asChild>
-        {/* BLOCO "PENDÊNCIAS" COM PROGRESSO (pedido explícito, 15/10/2026,
-            mockup "Bloco A" aprovado): título em eyebrow, contagem na pílula à
-            direita e uma barra fina embaixo com o quanto já foi feito. */}
-        <button
-          type="button"
-          className="relative flex w-full flex-col gap-2 overflow-hidden rounded-[10px] border border-border bg-card/40 px-3 py-2.5 text-left"
-        >
-          <span className="flex w-full items-center gap-2.5">
-            <span className="min-w-0 flex-1 truncate text-[10px] font-extrabold uppercase tracking-[0.14em] text-muted-foreground">
-              Pendências do Imóvel
-            </span>
-            <CountPill>
-              {feitas}/{items.length}
-            </CountPill>
-          </span>
-          <span aria-hidden className="block h-1 w-full overflow-hidden rounded-full bg-foreground/10">
-            <span
-              className="block h-full rounded-full bg-gradient-to-r from-[#7c1ad8] to-[#e82dae]"
-              style={{ width: `${items.length > 0 ? Math.round((feitas / items.length) * 100) : 0}%` }}
-            />
-          </span>
-        </button>
-      </PopoverTrigger>
-      <PopoverContent
-        side="top"
-        align="center"
-        className="max-h-[60dvh] w-[min(360px,calc(100vw-32px))] overflow-y-auto p-3"
-        onClick={(e) => e.stopPropagation()}
-      >
-      <PanelHeading
-         title="Pendências do Imóvel"
-        className="mb-2"
-        right={
-          <CountPill>
-            {feitas}/{items.length}
-          </CountPill>
-        }
-      />
-      <div className="space-y-px">
-        {lista.map(({ task, done }) => {
-          const meta = CATEGORY_BY_KEY.get(TASK_CATEGORIA_REGISTRO[task.category] ?? "other");
-          return (
-            <div
-              key={task.id}
-              className="flex items-center gap-2.5 rounded-[8px] px-1 py-[7px] transition-colors hover:bg-foreground/[0.04]"
-            >
-              <Checkbox
-                checked={done}
-                onCheckedChange={() => onToggle(task)}
-                className="size-[17px] shrink-0 cursor-pointer"
-                aria-label={task.title}
-              />
-              {/* O TEXTO ABRE O REGISTRO (19/09/2026): a pendência nasceu de um
-                  registro da reserva, e era preciso sair do card e procurar na
-                  aba Registros para ver a foto/descrição. Agora abre aqui. */}
-              <button
-                type="button"
-                onClick={() => onOpenRecords?.(task)}
-                className={`min-w-0 flex-1 truncate text-left text-[12px] leading-snug underline-offset-2 hover:underline ${
-                  done ? "text-muted-foreground line-through" : ""
-                }`}
-                title={`${task.title} — ver registro`}
-              >
-                {task.title}
-              </button>
-              {meta && (
-                <span
-                  className={`shrink-0 rounded-full px-1.5 py-px text-[8.5px] font-extrabold uppercase tracking-[0.06em] ${meta.tone.replace(/border-\S+/, "")}`}
-                >
-                  {meta.short}
-                </span>
-              )}
-            </div>
-          );
-        })}
-      </div>
-      </PopoverContent>
-    </Popover>
-    </div>
-  );
-}
-
-/** A categoria da PENDÊNCIA volta à categoria do REGISTRO que a abriu, para a
- *  etiqueta usar o mesmo vocabulário que a pessoa vê na aba Registros. */
-const TASK_CATEGORIA_REGISTRO: Record<string, RecordCategory> = {
-  maintenance: "maintenance",
-  inspection: "damage",
-  guest_request: "forgotten",
-};
 
 const KANBAN_TONE: Record<string, string> = {
   emerald: "text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 ring-emerald-500/20",
@@ -5097,12 +4620,12 @@ function KpiCard({
            relatado, 23/09/2026: "os tooltips saíram do centro"). O `fixed`
            da base já é "positioned" o bastante para o `before:absolute` do
            fio de luz funcionar sem precisar de `relative` extra aqui. */
-        className="sg-vv-center w-[calc(100vw-2rem)] sm:w-full sm:max-w-md p-0 overflow-hidden rounded-[var(--win-radius)] border-[var(--panel-border)] bg-[var(--panel)] shadow-[0_30px_80px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.05)] before:pointer-events-none before:absolute before:inset-x-8 before:top-0 before:h-px before:content-[''] before:bg-[image:var(--panel-hair)]"
+        className={WIDE_WINDOW_CLASS}
       >
         {/* JANELA PADRÃO (29/10/2026): sem ícone no cabeçalho, título 14px
             negrito e subtítulo 12px em caixa normal, recuo de 16px. */}
         <DialogHeader className="px-4 pt-3.5 pb-0 pr-14 text-left">
-          <DialogTitle className="truncate text-sm font-bold leading-6">{label}</DialogTitle>
+          <DialogTitle className="truncate text-sm font-bold leading-6 text-foreground">{windowTitle(label)}</DialogTitle>
           <div className="text-xs leading-5 text-muted-foreground">
             {rangeLabel} · {displayRows.length} {displayRows.length === 1 ? "hóspede" : "hóspedes"}
           </div>
@@ -5317,12 +4840,12 @@ function FreePropertiesCard({
           lista rola e o anticorte global (`useAntiClipWindow`) encolhe a área
           até o último cartão inteiro. Cada imóvel leva "Proprietário: nome" +
           mensagem e o botão do Maps (regra de todo lugar que cita um anúncio). */}
-      <DialogContent className="sg-vv-center flex max-h-[90dvh] w-[calc(100vw-2rem)] flex-col gap-0 overflow-hidden p-0 sm:w-full sm:max-w-md rounded-[var(--win-radius)] border-[var(--panel-border)] bg-[var(--panel)] shadow-[0_30px_80px_rgba(0,0,0,0.7),inset_0_1px_0_rgba(255,255,255,0.05)] before:pointer-events-none before:absolute before:inset-x-8 before:top-0 before:h-px before:content-[''] before:bg-[image:var(--panel-hair)]">
+      <DialogContent className={WIDE_WINDOW_CLASS}>
         {/* JANELA PADRÃO (29/10/2026): título 14px negrito com iniciais
             maiúsculas, subtítulo 12px com singular/plural, recuo de 16px. */}
         <DialogHeader className="shrink-0 px-4 pt-3.5 pb-0 pr-14 text-left">
-          <DialogTitle className="truncate text-sm font-bold leading-6">
-            Imóveis Livres {isToday ? "Hoje" : dayLabel}
+          <DialogTitle className="truncate text-sm font-bold leading-6 text-foreground">
+            {windowTitle(`Imóveis livres ${isToday ? "hoje" : dayLabel}`)}
           </DialogTitle>
           <div className="text-xs leading-5 text-muted-foreground">
             {isToday ? "Hoje" : dayLabel} · {properties.length} {properties.length === 1 ? "imóvel" : "imóveis"}
@@ -5523,7 +5046,7 @@ function StatDisplayCard({
           {/* Cabeçalho universal de janela ampla (07/11/2026): sem ícone, título
               14px e subtítulo 12px; o "X" oficial fica no canto. */}
           <DialogHeader className="shrink-0 px-4 pt-3.5 pb-0 pr-14 text-left">
-            <DialogTitle className="truncate text-sm font-bold leading-6 text-foreground">{label}</DialogTitle>
+            <DialogTitle className="truncate text-sm font-bold leading-6 text-foreground">{windowTitle(label)}</DialogTitle>
             <div className="text-xs leading-5 text-muted-foreground">
               {value} · {breakdown!.length} {breakdown!.length === 1 ? "imóvel" : "imóveis"}
             </div>
@@ -7147,9 +6670,14 @@ function PropertyPhotoPeek({
         side="right"
         align="start"
         sideOffset={8}
+        // Sem colisão: a prévia nunca reposiciona/rola o trilho do calendário ao abrir ou fechar
+        // (o "flip" automático do Radix mexia no scroll do pai e o calendário "mudava de direção").
+        avoidCollisions={false}
         // Não rouba o foco nem o toque: é só uma prévia, e no computador o
         // mouse precisa poder sair por cima dela sem "prender" o quadro.
+        // Ao fechar, o foco também não volta ao gatilho (`focus()` rolaria o trilho).
         onOpenAutoFocus={(e) => e.preventDefault()}
+        onCloseAutoFocus={(e) => e.preventDefault()}
         // `!animate-none`/`!duration-0` no fechamento: mesmo com um único id
         // ativo, o Radix ainda tocaria a animação de SAÍDA da prévia antiga
         // enquanto a nova já entra — por uma fração de segundo, duas ficam
@@ -9585,7 +9113,7 @@ function EngagementBreakdownDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
-      <DialogContent className="w-[calc(100vw-2rem)] sm:w-full sm:max-w-md p-0 overflow-hidden">
+      <DialogContent className={WIDE_WINDOW_CLASS}>
         <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-500/60 to-transparent" />
         {/* JANELA PADRÃO (29/10/2026): título 14px negrito com iniciais
             maiúsculas ("Instruções Check-In" / "Senhas de Acesso" — sem a
@@ -9594,7 +9122,7 @@ function EngagementBreakdownDialog({
         <DialogHeader className="px-4 pt-3.5 pb-0 pr-14 text-left">
           {/* pr-14 no header: reserva espaço pro botão "X" de fechar do Dialog. */}
           <div className="flex items-center justify-between gap-3">
-            <DialogTitle className="min-w-0 truncate text-sm font-bold leading-6">{engagementWindowTitle(label)}</DialogTitle>
+            <DialogTitle className="min-w-0 truncate text-sm font-bold leading-6 text-foreground">{windowTitle(engagementWindowTitle(label))}</DialogTitle>
             <span className="shrink-0 rounded-full bg-emerald-500/15 px-2.5 py-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
               {pct}%
             </span>
@@ -9781,9 +9309,7 @@ function ArrivalGroup({
   expandedId: expandedIdProp,
   onExpandedChange,
   compact,
-  cleaningTasks,
   nextCheckinByProperty,
-  onToggleCleaningTask,
 }: {
   title: string;
   rows: ArrivalRow[];
@@ -9818,17 +9344,8 @@ function ArrivalGroup({
   /** Rótulo do segundo grupo quando existem atrasados (ex.: "Hoje",
    * "Amanhã"). Sem isto, o grupo se chama "No prazo". */
   restLabel?: string;
-  /** Pendências pra exibir como checklist no card (só a coluna de Limpeza
-   * repassa isso — ver arrivalGroupPropsFor). */
-  cleaningTasks?: {
-    tasks: TaskRow[];
-    completions: TaskCompletion[];
-    /** propertyId -> chave do card que é a PRÓXIMA limpeza daquele imóvel. */
-    nextCleaningKeyByProperty: Map<string, string>;
-  };
   /** propertyId -> próxima chegada do imóvel (fecha a janela da limpeza). */
   nextCheckinByProperty?: Map<string, { date: string; time: string | null }>;
-  onToggleCleaningTask?: (task: TaskRow, row: ArrivalRow) => void;
 }) {
   // Somente UM card pode ficar com o quadro de detalhes aberto por vez.
   const [localOpenId, setLocalOpenId] = useState<string | null>(null);
@@ -9889,9 +9406,7 @@ function ArrivalGroup({
       onToggleExpanded={(open) => setOpenId(open ? r.logId : null)}
       cleaningBlocked={mode === "checkin" ? (cleaningPendingPropIds?.get(r.propertyId) ?? null) : null}
       compact={compact}
-      cleaningTasks={cleaningTasks}
       nextCheckinByProperty={nextCheckinByProperty}
-      onToggleCleaningTask={onToggleCleaningTask}
     />
   );
   // Limpeza criada manualmente (02/10/2026): não tem estadia por trás, então
@@ -9933,9 +9448,7 @@ function ArrivalCard({
   onToggleExpanded,
   cleaningBlocked,
   compact: compactProp,
-  cleaningTasks,
   nextCheckinByProperty,
-  onToggleCleaningTask,
 }: {
   row: ArrivalRow;
   kind: "checkin" | "checkout";
@@ -9965,16 +9478,8 @@ function ArrivalCard({
       período, previsto e alertas de reserva. Reaproveita o mesmo card e os
       mesmos handlers; só a apresentação muda. */
   compact?: boolean;
-  /** Checklist de pendências (só no modo "cleaning" — ver mais abaixo). */
-  cleaningTasks?: {
-    tasks: TaskRow[];
-    completions: TaskCompletion[];
-    /** propertyId -> chave do card que é a PRÓXIMA limpeza daquele imóvel. */
-    nextCleaningKeyByProperty: Map<string, string>;
-  };
   /** propertyId -> próxima chegada do imóvel (fecha a janela da limpeza). */
   nextCheckinByProperty?: Map<string, { date: string; time: string | null }>;
-  onToggleCleaningTask?: (task: TaskRow, row: ArrivalRow) => void;
 }) {
   const [noteOpen, setNoteOpen] = useState(false);
   const [noteText, setNoteText] = useState(row.note ?? "");
@@ -10024,56 +9529,6 @@ function ArrivalCard({
     },
     onError: () => toast.error("Não foi possível alterar o silenciamento."),
   });
-
-  // Checklist de pendências desta limpeza — só no modo "cleaning". Pontual
-  // (log/reserva na própria pendência): o "feito" é o status da pendência.
-  // Recorrente (sem log/reserva, permanente do imóvel): o "feito" é uma
-  // marca separada (task_completions) pra ESTA ocorrência — a pendência
-  // continua ativa e volta pendente na próxima limpeza.
-  const cleaningChecklist = useMemo(() => {
-    if (mode !== "cleaning" || !cleaningTasks) return [];
-    const completedHere = new Set(
-      cleaningTasks.completions
-        .filter(
-          (c) =>
-            (!!row.logId && c.logId === row.logId) || (!!row.reservationId && c.reservationId === row.reservationId),
-        )
-        .map((c) => c.taskId),
-    );
-    /* EM TODA LIMPEZA DO IMÓVEL (pedido explícito, 18/09/2026), e não só na
-       primeira da fila.
-
-       A regra de 07/09/2026 elegia UMA limpeza — a mais próxima — para
-       carregar as pendências do imóvel, para a mesma pendência não se repetir
-       em vários cards. Na prática isso escondia a lista de quem estava com o
-       card na mão: se o imóvel tinha duas limpezas na fila e a pessoa abriu a
-       segunda, não via nada. O cliente preferiu a repetição à omissão —
-       "mostrar em toda limpeza do imóvel".
-
-       Repetir não duplica trabalho: marcar em qualquer um dos cards fecha a
-       MESMA pendência, e a marca daquela ocorrência (`task_completions`) é
-       por card. `nextCleaningKeyByProperty` continua existindo porque o
-       cálculo da próxima limpeza é usado em outro lugar. */
-
-    // Uma pendência concluída não deve seguir ocupando espaço nas limpezas
-    // seguintes, mas também não pode sumir no instante do clique — senão
-    // quem marcou por engano fica sem como desmarcar. Regra: em aberto
-    // sempre aparece; concluída só continua aparecendo na limpeza em que foi
-    // resolvida (marca desta ocorrência) ou nas primeiras 24h após a
-    // conclusão.
-    const DAY_MS = 86_400_000;
-    const stillVisibleWhenDone = (t: TaskRow) =>
-      completedHere.has(t.id) || (!!t.completedAt && Date.now() - new Date(t.completedAt).getTime() < DAY_MS);
-
-    return cleaningTasks.tasks
-      .filter((t) => t.showInCleaning && t.status !== "canceled")
-      .filter((t) => t.propertyId === row.propertyId)
-      .map((t) => ({
-        task: t,
-        done: t.logId || t.reservationId ? t.status === "done" : completedHere.has(t.id),
-      }))
-      .filter((it) => !it.done || stillVisibleWhenDone(it.task));
-  }, [mode, cleaningTasks, row.logId, row.reservationId, row.propertyId]);
 
   const guestTime = row.arrivalTimeOverride ?? row.guestArrivalTime;
   // Horário padrão exibido ao lado do período. No check-in, standardTime é o
@@ -11005,18 +10460,6 @@ function ArrivalCard({
         </div>
       )}
 
-      {/* Checklist de pendências desta limpeza — só aparece quando existe
-          pelo menos 1 pendência marcada "aparece na limpeza" pra este
-          imóvel/estadia (pedido explícito). */}
-      {cleaningChecklist.length > 0 && (
-        <CleaningChecklist
-          items={cleaningChecklist}
-          onToggle={(task) => onToggleCleaningTask?.(task, row)}
-          /* Tocar no texto abre os registros desta reserva — é de lá que a
-             pendência veio (pedido do cliente, 19/09/2026). */
-          onOpenRecords={() => setRecordsOpen(true)}
-        />
-      )}
       {recordsOpen && <ReservationRecordsDialog open onOpenChange={setRecordsOpen} row={row} mode={mode} />}
 
       {/* Action row: botão principal em largura total; Maps + menu à direita.
