@@ -8618,9 +8618,10 @@ function OccupancyPanel({
             expande/recolhe; clicar no botão de filtros não. */}
       {/* CABEÇALHO (mockup 31/10/2026, "Dashboard — Calendário/Busca"): título 14 px negrito centralizado e UMA barra
           (busca + Período + Filtros, mesmo padrão da tela Registros). Com a busca aberta, a barra encolhe, aparece
-          "Cancelar" e os resultados ficam num painel flutuante sobre o fundo desfocado. Dentro do card a barra é
-          um campo REBAIXADO (`variant="inset"`, mockup aprovado em 06/11/2026): sem brilho, contorno nem sombra
-          próprios, para não "saltar para frente" do calendário. */}
+          "Cancelar" e os resultados ficam num painel flutuante sobre o fundo desfocado. TESTE VISUAL (07/11/2026):
+          a barra deixa de ser um campo flutuante (`inset`) e vira uma FAIXA de ponta a ponta do card
+          (`variant="bleed"`), no mesmo racional da grade logo abaixo: mesmo fundo do card, cantos retos e fios
+          `border-y` em cima e embaixo — a de baixo é a divisória da grade. */}
       {searchOpen && (
         <div
           aria-hidden
@@ -8628,14 +8629,18 @@ function OccupancyPanel({
           className="fixed inset-0 z-[60] bg-background/60 backdrop-blur-sm"
         />
       )}
-      <div className={`relative px-4 pb-3.5 pt-3.5 ${searchOpen ? "z-[70]" : ""}`}>
-        <div className="truncate text-center text-sm font-bold leading-6" title="Calendário de Ocupação">
-          Calendário de Ocupação
+      {/* Com a busca aberta o cabeçalho sobe acima do véu; ganha o fundo do card para a faixa transparente não
+          mostrar o desfoque por trás. */}
+      <div className={`relative ${searchOpen ? "z-[70] rounded-t-[14px] bg-card" : ""}`}>
+        <div className="px-4 pb-2.5 pt-3.5">
+          <div className="truncate text-center text-sm font-bold leading-6" title="Calendário de Ocupação">
+            Calendário de Ocupação
+          </div>
         </div>
-        <div className="mt-3 flex items-center gap-2.5">
+        <div className="mx-0 mt-0 flex w-full min-w-0 items-center border-y border-border/50 px-0">
           <SearchActionRow
             className="min-w-0 flex-1"
-            variant="inset"
+            variant="bleed"
             value={query}
             onChange={(v) => {
               setQuery(v);
@@ -8679,14 +8684,14 @@ function OccupancyPanel({
             <button
               type="button"
               onClick={() => closeSearch()}
-              className="shrink-0 text-xs font-bold text-foreground/90 transition-colors hover:text-foreground"
+              className="shrink-0 self-stretch px-4 text-xs font-bold text-foreground/90 transition-colors hover:text-foreground"
             >
               Cancelar
             </button>
           )}
         </div>
         {searchOpen && searching && (
-          <div className="absolute inset-x-4 top-full -mt-2 overflow-hidden rounded-[14px] border border-border bg-[var(--panel)] shadow-[0_18px_40px_rgba(0,0,0,0.6)]">
+          <div className="absolute inset-x-4 top-full mt-1.5 overflow-hidden rounded-[14px] border border-border bg-[var(--panel)] shadow-[0_18px_40px_rgba(0,0,0,0.6)]">
             <p className="py-2.5 text-center text-[11px] font-semibold text-muted-foreground">
               {searchResults.length === 1 ? "1 busca encontrada..." : `${searchResults.length} buscas encontradas...`}
             </p>
@@ -8743,7 +8748,7 @@ function OccupancyPanel({
         )}
       </div>
       {/* Quadro de ponta a ponta no card (mockup 31/10/2026): sem recuo lateral, barra de rolagem colada na lateral. */}
-      <div className="overflow-hidden rounded-b-[14px] border-t border-border/50 px-0 pt-0 pb-4">
+      <div className="overflow-hidden rounded-b-[14px] border-t-0 px-0 pt-0 pb-4">
           {loading ? (
             <OccupancySkeleton />
           ) : properties.length === 0 ? (
