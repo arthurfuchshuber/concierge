@@ -2,6 +2,7 @@ import * as React from "react";
 import * as AlertDialogPrimitive from "@radix-ui/react-alert-dialog";
 
 import { cn } from "@/lib/utils";
+import { ownsScroll, splitWindowChildren, WindowBody } from "@/components/ui/window-body";
 import { anyWindowOpenNow, useOverlayLayer } from "@/lib/global-overlay-store";
 import { useAntiClipWindow } from "@/hooks/useAntiClipWindow";
 import { buttonVariants } from "@/components/ui/button";
@@ -36,19 +37,33 @@ AlertDialogOverlay.displayName = AlertDialogPrimitive.Overlay.displayName;
 const AlertDialogContent = React.forwardRef<
   React.ElementRef<typeof AlertDialogPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof AlertDialogPrimitive.Content>
->(({ className, ...props }, ref) => {
+>(({ className, children, ...props }, ref) => {
   const [, layerNodeRef] = useOverlayLayer("window", useAntiClipWindow(ref));
+  const wrapBody = !ownsScroll(className);
+  const split = splitWindowChildren(children);
   return (
     <AlertDialogPortal>
       <AlertDialogOverlay />
       <AlertDialogPrimitive.Content
         ref={layerNodeRef}
         className={cn(
-          "fixed left-[50%] top-[50%] z-50 grid grid-cols-[minmax(0,1fr)] w-[calc(100%_-_2rem)] max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 rounded-[var(--win-radius)] border max-h-[min(90dvh,calc(100dvh_-_3rem))] overflow-y-auto sg-elegant-scroll border-[var(--panel-border)] bg-[var(--panel)] text-foreground p-6 shadow-[0_30px_80px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.05)] before:pointer-events-none before:absolute before:inset-x-8 before:top-0 before:h-px before:content-[''] before:bg-[image:var(--panel-hair)] duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
+          "fixed left-[50%] top-[50%] z-50 grid grid-cols-[minmax(0,1fr)] w-[calc(100%_-_2rem)] max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 rounded-[var(--win-radius)] border max-h-[min(90dvh,calc(100dvh_-_3rem))]  border-[var(--panel-border)] bg-[var(--panel)] text-foreground p-6 shadow-[0_30px_80px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.05)] before:pointer-events-none before:absolute before:inset-x-8 before:top-0 before:h-px before:content-[''] before:bg-[image:var(--panel-hair)] duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
           className,
+          // ROLAGEM SÓ NO CONTEÚDO (08/11/2026): a casca nunca rola; quem rola é o `WindowBody`.
+          wrapBody ? "flex flex-col !overflow-hidden" : "overflow-hidden",
         )}
         {...props}
-      />
+      >
+        {wrapBody ? (
+          <>
+            {split.head}
+            {split.body.length > 0 ? <WindowBody>{split.body}</WindowBody> : null}
+            {split.foot}
+          </>
+        ) : (
+          children
+        )}
+      </AlertDialogPrimitive.Content>
     </AlertDialogPortal>
   );
 });
@@ -77,7 +92,7 @@ const AlertDialogTitle = React.forwardRef<
     {...props}
   />
 ));
-AlertDialogTitle.displayName = AlertDialogPrimitive.Title.displayName;
+AlertDialogTitle.displayName = "AlertDialogTitle";
 
 const AlertDialogDescription = React.forwardRef<
   React.ElementRef<typeof AlertDialogPrimitive.Description>,
@@ -89,7 +104,7 @@ const AlertDialogDescription = React.forwardRef<
     {...props}
   />
 ));
-AlertDialogDescription.displayName = AlertDialogPrimitive.Description.displayName;
+AlertDialogDescription.displayName = "AlertDialogDescription";
 
 const AlertDialogAction = React.forwardRef<
   React.ElementRef<typeof AlertDialogPrimitive.Action>,
