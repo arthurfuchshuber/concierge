@@ -331,11 +331,23 @@ export async function runOpsPushScan(admin: Admin, now = new Date()) {
     // ----- atrasos (com base nos cards pendentes da esteira) -----
     const lateCheckoutsByCity = new Map<string, number>();
     let lateCheckouts = 0;
-    for (const r of pendingCheckouts) {
+    // MESMO corte da baixa automática (08/11/2026): late checkout formal (R6) ou horário definido pela
+    // EQUIPE maior que o oficial. Antes o aviso olhava só o oficial e disparava "Check-Out Atrasado" no
+    // mesmo instante em que a baixa automática fechava o card no horário combinado pela equipe.
+    // Sem a leitura das autorizações não há como saber o corte: nenhum aviso de saída atrasada na rodada.
+    const { autoCheckoutTriggerTime, loadFormalLateCheckouts } = await import("@/lib/auto-checkout.server");
+    const lateOf = pendingCheckouts.length > 0 ? await loadFormalLateCheckouts(admin, propIds) : null;
+    for (const r of lateOf ? pendingCheckouts : []) {
       if (r.date > today) continue;
       if (isMuted(r)) continue;
       const p = propById.get(r.propertyId);
-      const limit = timeToMinutes(r.standardTime ?? p?.checkout_time ?? null, DEFAULT_CHECKOUT);
+      const cut = autoCheckoutTriggerTime({
+        standardTime: r.standardTime ?? p?.checkout_time ?? null,
+        lateCheckout: lateOf!(r),
+        arrivalTimeOverride: r.arrivalTimeOverride,
+        arrivalTimeSource: r.arrivalTimeSource,
+      });
+      const limit = cut ? cut[0] * 60 + cut[1] : timeToMinutes(null, DEFAULT_CHECKOUT);
       const lateBy = r.date < today ? 24 * 60 : t.minutes - limit;
       if (lateBy <= 0) continue;
       lateCheckouts++;

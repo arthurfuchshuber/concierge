@@ -408,7 +408,7 @@ describe("cabeçalho universal de janela ampla", () => {
     );
     const fechar = screen.getAllByRole("button", { name: "Fechar" });
     expect(fechar).toHaveLength(1);
-    for (const c of ["right-0", "top-0", "size-8", "rounded-bl-[12px]", "hover:text-foreground", "focus-visible:ring-2"]) {
+    for (const c of ["right-0", "top-0", "size-8", "rounded-bl-[12px]", "bg-black/35", "text-white", "hover:bg-black/55", "focus-visible:ring-2"]) {
       expect(fechar[0].className).toContain(c);
     }
     expect(screen.queryByLabelText("Fechar detalhe")).toBeNull();

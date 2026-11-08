@@ -7,6 +7,7 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { CORNER_CLOSE_CLASS } from "@/components/ui/corner-close";
 
 const Sheet = SheetPrimitive.Root;
 
@@ -85,7 +86,7 @@ const SheetContent = React.forwardRef<
             closeClassName ??
             // MESMO X DE CANTO DAS JANELAS (pedido explícito, 21/10/2026): aba delicada de 32px
             // colada no canto superior direito. Painéis que passam `closeClassName` seguem com o seu.
-            "absolute right-0 top-0 z-[10] grid size-8 cursor-pointer place-items-center rounded-bl-[12px] rounded-tr-[calc(var(--win-radius,12px)-1px)] bg-[color-mix(in_oklab,var(--card)_100%,var(--foreground)_8%)] text-muted-foreground transition-colors hover:bg-[color-mix(in_oklab,var(--card)_100%,var(--foreground)_14%)] hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none"
+            CORNER_CLOSE_CLASS
           }
         >
           <X className="size-[13px]" strokeWidth={1.8} />
