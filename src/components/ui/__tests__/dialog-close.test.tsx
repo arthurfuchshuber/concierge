@@ -48,10 +48,11 @@ describe("DialogContent — X oficial", () => {
     expect(screen.getByTestId("h").className).not.toContain("space-y-1.5");
   });
 
-  it("é único e continua sumindo no celular em janela pageLike; hideClose o omite", () => {
+  it("é único e visível em todas as telas, inclusive pageLike; hideClose o omite", () => {
     janela({ pageLike: true });
     expect(screen.getAllByRole("button", { name: "Fechar" })).toHaveLength(1);
-    expect(screen.getByRole("button", { name: "Fechar" }).className).toContain("max-lg:hidden");
+    expect(screen.getByRole("button", { name: "Fechar" }).className).not.toContain("max-lg:hidden");
+    expect(screen.getByRole("button", { name: "Fechar" }).className).not.toContain("hidden");
     cleanup();
     janela({ hideClose: true });
     expect(screen.queryByRole("button", { name: "Fechar" })).toBeNull();

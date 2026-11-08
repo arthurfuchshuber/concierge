@@ -81,11 +81,10 @@ const DialogContent = React.forwardRef<
             // X OFICIAL INTEGRADO DE QUINA (08/11/2026): aba colada no canto superior direito, sem borda, com o
             // canto inferior esquerdo arredondado (12px) e o superior direito acompanhando o raio da janela.
             // Mora AQUI para valer em todas as janelas; o cabeçalho reserva `pr-12`. Abaixo de `lg`, em janela
-            // "como página" (`pageLike`), ele some e o "Voltar" (`DialogDateRow`) assume.
-            className={cn(
-              "absolute right-0 top-0 z-[10] grid size-8 cursor-pointer place-items-center rounded-bl-[12px] rounded-tr-[calc(var(--win-radius,12px)-1px)] bg-[color-mix(in_oklab,var(--card)_100%,var(--foreground)_8%)] text-muted-foreground transition-colors hover:bg-[color-mix(in_oklab,var(--card)_100%,var(--foreground)_14%)] hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none",
-              pageLike && "max-lg:hidden",
-            )}
+            // "como página" (`pageLike`), ele também aparece (visível em 100% das telas).
+            className={
+              "absolute right-0 top-0 z-[10] grid size-8 cursor-pointer place-items-center rounded-bl-[12px] rounded-tr-[calc(var(--win-radius,12px)-1px)] bg-[color-mix(in_oklab,var(--card)_100%,var(--foreground)_8%)] text-muted-foreground transition-colors hover:bg-[color-mix(in_oklab,var(--card)_100%,var(--foreground)_14%)] hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none"
+            }
           >
             <X className="size-[13px]" strokeWidth={1.8} />
             <span className="sr-only">Fechar</span>
@@ -99,8 +98,8 @@ DialogContent.displayName = DialogPrimitive.Content.displayName;
 
 /**
  * Linha de topo das janelas "como página" (mockup aprovado, 22/10/2026): data dourada igual à das
- * páginas (`PageShell`) e, abaixo de `lg`, o "Voltar" alinhado à direita NA MESMA linha. No
- * computador o "Voltar" some (fecha pelo "X" de canto) e a linha reserva 40px para ele.
+ * páginas (`PageShell`). O fechamento é só o "X" de canto (visível em todos os tamanhos de tela); a linha
+ * reserva 40px à direita para nunca ficar embaixo dele.
  */
 const DialogDateRow = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => {
   const hoje = new Date()
@@ -112,19 +111,10 @@ const DialogDateRow = ({ className, ...props }: React.HTMLAttributes<HTMLDivElem
     })
     .replace(/^\w/, (c) => c.toUpperCase());
   return (
-    <div
-      className={cn("flex min-w-0 items-center justify-between gap-3 lg:pr-10", className)}
-      {...props}
-    >
+    <div className={cn("flex min-w-0 items-center justify-between gap-3 pr-10", className)} {...props}>
       <p className="ds-eyebrow ds-data truncate text-[10.5px] leading-[22px] tracking-[0.2em]">
         {hoje}
       </p>
-      <DialogPrimitive.Close
-        data-window-close
-        className="inline-flex h-[22px] shrink-0 cursor-pointer items-center gap-1 rounded-md text-[12px] font-medium text-muted-foreground transition-colors hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:hidden"
-      >
-        Voltar
-      </DialogPrimitive.Close>
     </div>
   );
 };

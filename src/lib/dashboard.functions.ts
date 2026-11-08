@@ -1948,7 +1948,7 @@ export const revertArrival = createServerFn({ method: "POST" })
       if (coId) {
         const { error } = await context.supabase
           .from("guest_arrival_status")
-          .update({ status: "pending", done_at: null, concluded_at: null })
+          .update({ status: "pending", done_at: null, concluded_at: null, note: null })
           .eq("id", coId);
         if (error) throw new Error(error.message);
       }
