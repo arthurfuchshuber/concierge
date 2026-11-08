@@ -4624,9 +4624,9 @@ function KpiCard({
       >
         {/* JANELA PADRÃO (29/10/2026): sem ícone no cabeçalho, título 14px
             negrito e subtítulo 12px em caixa normal, recuo de 16px. */}
-        <DialogHeader className="shrink-0 border-b border-border/40 px-4 pb-2.5 pt-3.5 pr-14 text-left">
-          <DialogTitle className="truncate text-sm font-bold leading-6 text-foreground">{windowTitle(label)}</DialogTitle>
-          <div className="text-xs leading-5 text-muted-foreground">
+        <DialogHeader className="shrink-0 border-b border-border/40 px-4 pb-2.5 pt-3 pr-12 text-left">
+          <DialogTitle className="truncate text-sm font-bold leading-5 text-foreground">{windowTitle(label)}</DialogTitle>
+          <div className="text-xs leading-4 text-muted-foreground">
             {rangeLabel} · {displayRows.length} {displayRows.length === 1 ? "hóspede" : "hóspedes"}
           </div>
           {/* Botão de print (câmera) removido POR ENQUANTO (pedido explícito,
@@ -4844,11 +4844,11 @@ function FreePropertiesCard({
       <DialogContent className={WIDE_WINDOW_CLASS}>
         {/* JANELA PADRÃO (29/10/2026): título 14px negrito com iniciais
             maiúsculas, subtítulo 12px com singular/plural, recuo de 16px. */}
-        <DialogHeader className="shrink-0 border-b border-border/40 px-4 pb-2.5 pt-3.5 pr-14 text-left">
-          <DialogTitle className="truncate text-sm font-bold leading-6 text-foreground">
+        <DialogHeader className="shrink-0 border-b border-border/40 px-4 pb-2.5 pt-3 pr-12 text-left">
+          <DialogTitle className="truncate text-sm font-bold leading-5 text-foreground">
             {windowTitle(`Imóveis livres ${isToday ? "hoje" : dayLabel}`)}
           </DialogTitle>
-          <div className="text-xs leading-5 text-muted-foreground">
+          <div className="text-xs leading-4 text-muted-foreground">
             {isToday ? "Hoje" : dayLabel} · {properties.length} {properties.length === 1 ? "imóvel" : "imóveis"}
           </div>
         </DialogHeader>
@@ -5046,9 +5046,9 @@ function StatDisplayCard({
         <DialogContent aria-describedby={undefined} className={WIDE_WINDOW_CLASS}>
           {/* Cabeçalho universal de janela ampla (07/11/2026): sem ícone, título
               14px e subtítulo 12px; o "X" oficial fica no canto. */}
-          <DialogHeader className="shrink-0 border-b border-border/40 px-4 pb-2.5 pt-3.5 pr-14 text-left">
-            <DialogTitle className="truncate text-sm font-bold leading-6 text-foreground">{windowTitle(label)}</DialogTitle>
-            <div className="text-xs leading-5 text-muted-foreground">
+          <DialogHeader className="shrink-0 border-b border-border/40 px-4 pb-2.5 pt-3 pr-12 text-left">
+            <DialogTitle className="truncate text-sm font-bold leading-5 text-foreground">{windowTitle(label)}</DialogTitle>
+            <div className="text-xs leading-4 text-muted-foreground">
               {value} · {breakdown!.length} {breakdown!.length === 1 ? "imóvel" : "imóveis"}
             </div>
           </DialogHeader>
@@ -9120,15 +9120,15 @@ function EngagementBreakdownDialog({
             maiúsculas ("Instruções Check-In" / "Senhas de Acesso" — sem a
             palavra "Viram"), subtítulo 12px em caixa normal concordando em
             singular/plural, recuo de 16px nas laterais. */}
-        <DialogHeader className="border-b border-border/40 px-4 pb-2.5 pt-3.5 pr-14 text-left">
-          {/* pr-14 no header: reserva espaço pro botão "X" de fechar do Dialog. */}
+        <DialogHeader className="border-b border-border/40 px-4 pb-2.5 pt-3 pr-12 text-left">
+          {/* pr-12 no header: reserva espaço pro botão "X" de fechar do Dialog. */}
           <div className="flex items-center justify-between gap-3">
-            <DialogTitle className="min-w-0 truncate text-sm font-bold leading-6 text-foreground">{windowTitle(engagementWindowTitle(label))}</DialogTitle>
+            <DialogTitle className="min-w-0 truncate text-sm font-bold leading-5 text-foreground">{windowTitle(engagementWindowTitle(label))}</DialogTitle>
             <span className="shrink-0 rounded-full bg-emerald-500/15 px-2.5 py-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
               {pct}%
             </span>
           </div>
-          <div className="text-xs leading-5 text-muted-foreground">
+          <div className="text-xs leading-4 text-muted-foreground">
             {value} de {total} {total === 1 ? "check-in" : "check-ins"}
           </div>
           {todayOnly && (

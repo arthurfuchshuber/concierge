@@ -257,9 +257,9 @@ function ConfirmChange({
         <AlertDialogCancel
           aria-label="Fechar"
           disabled={busy}
-          className="absolute right-4 top-3.5 z-10 grid size-7 place-items-center rounded-lg border border-border/40 bg-foreground/5 p-0 text-foreground/80 after:absolute after:-inset-1.5 after:content-[''] hover:bg-foreground/10 hover:text-foreground"
+          className="absolute right-0 top-0 z-[10] grid size-8 place-items-center rounded-none rounded-bl-[12px] rounded-tr-[calc(var(--win-radius,12px)-1px)] border-0 bg-[color-mix(in_oklab,var(--card)_100%,var(--foreground)_8%)] p-0 text-muted-foreground transition-colors hover:bg-[color-mix(in_oklab,var(--card)_100%,var(--foreground)_14%)] hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
-          <X className="size-4" strokeWidth={2} />
+          <X className="size-[13px]" strokeWidth={1.8} />
         </AlertDialogCancel>
         <AlertDialogTitle className="pr-8 font-display text-[14px] font-bold leading-tight text-white">
           Confirmar alteração?
@@ -595,11 +595,11 @@ export function CleaningDayDetailContent({
       {/* CABEÇALHO UNIVERSAL DE JANELA AMPLA (07/11/2026, referência: "Check-ins
           amanhã"): sem ícone, título 14px negrito em 1 linha e subtítulo 12px;
           o `pr-14` deixa o "X" oficial (canto superior direito) livre. */}
-      <DialogHeader className="shrink-0 border-b border-border/40 px-4 pb-2.5 pt-3.5 pr-14 text-left">
-        <DialogTitle className="truncate text-sm font-bold leading-6 text-foreground" title={heading}>
+      <DialogHeader className="shrink-0 border-b border-border/40 px-4 pb-2.5 pt-3 pr-12 text-left">
+        <DialogTitle className="truncate text-sm font-bold leading-5 text-foreground" title={heading}>
           {windowTitle(heading)}
         </DialogTitle>
-        <p className="text-xs leading-5 text-muted-foreground">{subtitle}</p>
+        <p className="text-xs leading-4 text-muted-foreground">{subtitle}</p>
       </DialogHeader>
       {/* O rodapé reserva a mesma calha da barra de rolagem da lista, para o
           "Valor Total" cair exatamente na coluna dos valores dos cards. */}
