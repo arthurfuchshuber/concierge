@@ -29,7 +29,7 @@ export { AssinaturaPage };
  * Administrativo › Assinatura (Stripe, cobrança por anúncio conectado ativo).
  * Celular e desktop seguem os mockups aprovados; os números vêm de `getAccountBilling`.
  */
-function AssinaturaPage() {
+function AssinaturaPage({ embedded = false }: { embedded?: boolean } = {}) {
   // `isPending` (e não `isLoading`) também cobre o intervalo em que a consulta espera a sessão: até lá `info` não é real.
   const { info, refetch, isPending, isError } = useSubscription();
   const { impersonation } = useImpersonation();
@@ -101,9 +101,12 @@ function AssinaturaPage() {
 
   return (
     <div className="flex w-full min-w-0 flex-col gap-[10px]">
-      <div className="hidden lg:block">
-        <PageHeader title="Assinatura" subtitle="Cobrança por imóvel, cartão e pagamentos." />
-      </div>
+      {/* Dentro do Administrativo o cabeçalho da página já diz "Assinatura" (sem título repetido, 08/11/2026). */}
+      {!embedded && (
+        <div className="hidden lg:block">
+          <PageHeader title="Assinatura" subtitle="Cobrança por imóvel, cartão e pagamentos." />
+        </div>
+      )}
 
       {isPending ? (
         <AssinaturaSkeleton />
@@ -125,8 +128,7 @@ function AssinaturaPage() {
         </>
       ) : info.isManual && info.isActive ? (
         <section className={`${PANEL_SHELL} px-4 py-5 text-center`}>
-          <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">Assinatura</div>
-          <p className="mt-2 text-[13.5px] font-bold">Acesso liberado pela ConciergeIA</p>
+          <p className="text-[13.5px] font-bold">Isento de pagamento pelo ConciergeIA.</p>
           <p className="mt-1 text-[12px] text-[var(--faint)]">Esta conta não tem cobrança recorrente no cartão.</p>
         </section>
       ) : (
