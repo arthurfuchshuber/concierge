@@ -4,8 +4,8 @@
  * Regra do titular: a IA pode SUGERIR o que aprender, mas só autorização humana explícita torna um
  * aprendizado permanente. Fluxo: CANDIDATO → REVISÃO HUMANA → DOCUMENTO VIVO (transparente e auditável).
  *
- * Este módulo define o contrato e as travas; a persistência depende das tabelas propostas em
- * `docs/guest-ai/etapa4-aprendizado-continuo.sql` (proposta, NÃO aplicada). Até a aprovação do titular,
+ * Este módulo define o contrato e as travas; a persistência depende das tabelas propostas ao titular no
+ * chat em 08/11/2026 (`guest_ai_learning_entries`/`_events`, NÃO aplicadas). Até a aprovação do titular,
  * nada aqui é chamado pelo Copiloto, pelo slot ou por cron — e nada entra no prompt.
  *
  * Travas de candidatura (`evaluateCandidate`):
