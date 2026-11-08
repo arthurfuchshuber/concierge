@@ -1,20 +1,18 @@
 import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { CreditCard, ShieldCheck, User as UserIcon, Plug } from "lucide-react";
+import { CreditCard, User as UserIcon, Plug } from "lucide-react";
 import { AssinaturaPage } from "@/components/admin-pages/AssinaturaPage";
-import { EquipePage } from "@/components/admin-pages/EquipePage";
 import { MeuPerfilPage } from "@/components/admin-pages/MeuPerfilPage";
 import { IntegracoesPage } from "@/components/admin-pages/IntegracoesPage";
 import { useMyPermissions } from "@/hooks/useMyPermissions";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { PageHeader } from "@/components/ds/PageHeader";
 
-type Tab = "perfil" | "assinatura" | "permissoes" | "integracoes";
+type Tab = "perfil" | "assinatura" | "integracoes";
 
 function coerceTab(v: unknown): Tab {
-  // "equipe" (legacy) redireciona para "permissoes" — a aba foi substituída.
-  if (v === "equipe") return "permissoes";
-  return v === "assinatura" || v === "permissoes" || v === "integracoes" ? v : "perfil";
+  // A aba "Permissões" foi removida (nova versão virá depois): links antigos caem em "Meu perfil".
+  return v === "assinatura" || v === "integracoes" ? v : "perfil";
 }
 
 export const Route = createFileRoute("/_authenticated/admin/administrativo")({
@@ -38,10 +36,6 @@ function AdministrativoPage() {
   const headers: Record<Tab, { title: string; subtitle: string }> = {
     perfil: { title: "Meu perfil", subtitle: "Seus dados pessoais e preferências nesta conta." },
     assinatura: { title: "Assinatura", subtitle: "Plano, cobrança e pagamentos da sua conta." },
-    permissoes: {
-      title: "Permissões",
-      subtitle: "Quem tem acesso à sua conta e o que cada um pode fazer.",
-    },
     integracoes: { title: "Integrações", subtitle: "Conexões externas e canais da sua conta." },
   };
 
@@ -59,7 +53,6 @@ function AdministrativoPage() {
   const tabsMobile: Array<{ value: Tab; label: string }> = [
     { value: "perfil", label: "Meu Perfil" },
     ...(canSeeBilling ? [{ value: "assinatura" as Tab, label: "Assinatura" }] : []),
-    { value: "permissoes", label: "Permissões" },
     { value: "integracoes", label: "Integrações" },
   ];
 
@@ -127,9 +120,6 @@ function AdministrativoPage() {
                 <CreditCard className="size-4" /> Assinatura
               </TabsTrigger>
             )}
-            <TabsTrigger value="permissoes">
-              <ShieldCheck className="size-4" /> Permissões
-            </TabsTrigger>
             <TabsTrigger value="integracoes">
               <Plug className="size-4" /> Integrações
             </TabsTrigger>
@@ -148,10 +138,6 @@ function AdministrativoPage() {
               <AssinaturaPage />
             </TabsContent>
           )}
-          <TabsContent value="permissoes" className="mt-0">
-            <EquipePage />
-          </TabsContent>
-
           <TabsContent value="integracoes" className="mt-0">
             <IntegracoesPage />
           </TabsContent>

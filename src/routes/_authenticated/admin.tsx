@@ -1,7 +1,7 @@
 import { SituationOutboxRunner } from "@/components/dashboard/SituationOutboxRunner";
 import { StageOutboxRunner } from "@/components/dashboard/StageOutboxRunner";
 import { createFileRoute, Outlet, Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { LogOut, LayoutDashboard, Settings2, Menu, Users, Shield, ShieldCheck, Activity, Star, Headphones, Wrench, Home, Contact, ChevronsLeft, ChevronsRight, Plus, Minus } from "lucide-react";
+import { LogOut, LayoutDashboard, Settings2, Menu, Users, Shield, Activity, Star, Headphones, Wrench, Home, Contact, ChevronsLeft, ChevronsRight, Plus, Minus } from "lucide-react";
 import conciergeLogo from "@/assets/concierge-logo.png";
 import { LiveSync, useFallbackInterval } from "@/components/LiveSync";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -96,10 +96,7 @@ const SIDEBAR_ORDER = ["group:dashboard", "group:stakeholders", "/admin/guias", 
 
 const adminOnlyNav = [
   { to: "/admin/engajamento", label: "Engajamento", icon: Activity, exact: false },
-  { to: "/admin/clientes", label: "Clientes", icon: Users, exact: false },
   { to: "/admin/recomendacoes-sigma", label: "Recomendações", icon: Star, exact: false },
-
-  { to: "/admin/admins", label: "Administradores", icon: ShieldCheck, exact: false },
 ] as const;
 
 
@@ -336,11 +333,8 @@ function AdminLayout() {
     pathname.startsWith("/admin/stakeholders") ||
     pathname.startsWith("/admin/proprietarios") ||
     pathname.startsWith("/admin/prestadores") ||
-    pathname.startsWith("/admin/clientes") ||
     pathname.startsWith("/admin/taxonomia") ||
-    pathname.startsWith("/admin/recomendacoes-sigma") ||
-
-    pathname.startsWith("/admin/admins");
+    pathname.startsWith("/admin/recomendacoes-sigma");
   // Rule: without an invite in play AND without being a team member, the user
   // can only see the panel after completing the account creation + validation
   // (CPF/CNPJ + plan) flow inside OnboardingCheckout. Só decide com respostas
