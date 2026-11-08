@@ -76,6 +76,22 @@ export const namingFor = (raw: unknown, exclusive: boolean) => {
 
 const normTitle = (s: unknown) => String(s ?? "").trim().replace(/\s+/g, " ").toLowerCase();
 
+/**
+ * `listing_id` do Airbnb → configurações do anúncio (`rate_plans[].settings`) dos canais lidos. Só entram
+ * configurações com conteúdo (objeto não vazio): o que veio vazio nunca apaga o que já estava gravado.
+ */
+export function freshSettingsByListing(channels: Array<{ attributes?: { rate_plans?: Array<{ settings?: Record<string, unknown> | null }> } }>): Map<string, Record<string, unknown>> {
+  const out = new Map<string, Record<string, unknown>>();
+  for (const ch of channels ?? []) {
+    for (const rp of ch?.attributes?.rate_plans ?? []) {
+      const s = rp?.settings;
+      const lid = s && typeof s === "object" ? String((s as Record<string, unknown>)["listing_id"] ?? "") : "";
+      if (lid && Object.keys(s!).length > 1) out.set(lid, s as Record<string, unknown>);
+    }
+  }
+  return out;
+}
+
 export type EntitySyncResult = {
   skipped?: boolean;
   entities: number;
@@ -212,6 +228,26 @@ export async function syncChannexEntities(opts: { force?: boolean; source?: stri
     return undefined;
   };
   const targets = new Map<string, { propertyId: string; meta: any }>(); // listingId → imóvel
+  // Configurações do anúncio (horários, regras, avisos, cancelamento, preços/taxas, estadia) vêm do
+  // `rate_plans[].settings` do canal — que acabou de ser lido. AUDITORIA 08/11/2026: antes elas só eram
+  // gravadas na importação/ativação e depois reaproveitadas para sempre (`raw_settings` congelado desde
+  // 16/10; Studio 3 e 4 importados sem elas), então o dossiê ficava desatualizado mesmo com a Channex certa.
+  // Agora toda leitura do canal compara e, se mudou, regrava e reaplica no imóvel e nos fatos da IA.
+  const settingsByListing = freshSettingsByListing(channels);
+  {
+    const { data: rows } = await admin
+      .from("property_listing_raw_data")
+      .select("property_id, airbnb_listing_id, raw_settings")
+      .not("airbnb_listing_id", "is", null)
+      .is("sync_paused_at", null);
+    for (const r of (rows ?? []) as Array<{ property_id: string; airbnb_listing_id: string; raw_settings: unknown }>) {
+      const lid = String(r.airbnb_listing_id);
+      const fresh = settingsByListing.get(lid);
+      if (!fresh || stableStringify(fresh) === stableStringify(r.raw_settings ?? {})) continue;
+      const meta = metaOf(lid);
+      if (meta) targets.set(lid, { propertyId: r.property_id, meta });
+    }
+  }
   if (changedListingIds.size) {
     const ids = [...changedListingIds];
     for (let i = 0; i < ids.length; i += 200) {
@@ -250,13 +286,20 @@ export async function syncChannexEntities(opts: { force?: boolean; source?: stri
       const rr = row as { airbnb_listing_id?: string; raw_settings?: Record<string, any>; normalized?: Record<string, any> } | null;
       const lid = String(rr?.airbnb_listing_id ?? "");
       if (lid) {
+        // configurações frescas do canal; sem elas (anúncio fora do canal lido), as últimas gravadas
+        const fresh = settingsByListing.get(lid);
+        const settings = fresh ?? rr?.raw_settings ?? {};
         const pub = (rr?.normalized?.public_listing ?? null) as import("@/lib/channex-listing.server").PublicListing | null;
-        await applyListingToProperty({ propertyId, listingId: lid, meta, settings: rr?.raw_settings ?? {}, pub: null });
+        await applyListingToProperty({ propertyId, listingId: lid, meta, settings, pub: null });
         const { publicFacts } = await import("@/lib/channex-listing.server");
-        const facts = [...normalizeListing(meta, rr?.raw_settings ?? {}), ...(pub ? publicFacts(pub) : [])];
+        const facts = [...normalizeListing(meta, settings), ...(pub ? publicFacts(pub) : [])];
         await admin
           .from("property_listing_raw_data")
-          .update({ normalized: { ...(rr?.normalized ?? {}), facts, ...structuredListing(rr?.raw_settings ?? {}, Boolean(rr?.normalized?.cohosts?.length)) }, updated_at: new Date().toISOString() } as never)
+          .update({
+            ...(fresh ? { raw_settings: fresh } : {}),
+            normalized: { ...(rr?.normalized ?? {}), facts, ...structuredListing(settings, Boolean(rr?.normalized?.cohosts?.length)) },
+            updated_at: new Date().toISOString(),
+          } as never)
           .eq("property_id", propertyId);
       }
     } catch (e) {
