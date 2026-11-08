@@ -61,7 +61,7 @@ export async function notifySaasAdminsTrialStarted(opts: {
       title: `🎉 Novo Trial: ${name}${envLabel}`,
       body: phone || "Sem telefone cadastrado",
       data: {
-        url: `/admin/clientes`,
+        url: `/admin`,
         tag: `trial-${opts.userId}`,
       },
     });
