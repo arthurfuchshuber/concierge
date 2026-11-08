@@ -63,6 +63,9 @@ export function useSubscription(opts?: { impersonateUserId?: string | null }) {
     queryKey,
     enabled: !!userId,
     queryFn: () => fetchBilling({ data: { ownerId: ownerForQuery } }),
+    // Cache quente: reabrir a aba Assinatura reaproveita o resultado; o realtime abaixo invalida quando muda.
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
   });
 
   useEffect(() => {

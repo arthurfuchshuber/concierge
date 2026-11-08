@@ -14,6 +14,7 @@ import {
   listMyPayments,
 } from "@/lib/billing/billing.functions";
 import { metaPixelTrack, metaPixelTrackOnce } from "@/lib/meta-pixel";
+import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeader } from "@/components/ds/PageHeader";
 import { PANEL_SHELL } from "@/components/dashboard/panel-chrome";
 import { PriceBands } from "@/components/pricing/ListingPricing";
@@ -29,7 +30,8 @@ export { AssinaturaPage };
  * Celular e desktop seguem os mockups aprovados; os números vêm de `getAccountBilling`.
  */
 function AssinaturaPage() {
-  const { info, refetch } = useSubscription();
+  // `isPending` (e não `isLoading`) também cobre o intervalo em que a consulta espera a sessão: até lá `info` não é real.
+  const { info, refetch, isPending, isError } = useSubscription();
   const { impersonation } = useImpersonation();
   const ownerId = impersonation?.userId ?? null;
   const portalFn = useServerFn(createPortalSession);
@@ -99,7 +101,20 @@ function AssinaturaPage() {
         <PageHeader title="Assinatura" subtitle="Cobrança por imóvel, cartão e pagamentos." />
       </div>
 
-      {hasStripe ? (
+      {isPending ? (
+        <AssinaturaSkeleton />
+      ) : isError ? (
+        <section className={`${PANEL_SHELL} flex flex-col items-center gap-3 px-4 py-5 text-center`}>
+          <p className="text-[13px] text-muted-foreground">Não foi possível carregar sua assinatura.</p>
+          <button
+            type="button"
+            onClick={() => refetch()}
+            className="inline-flex h-9 items-center rounded-full border border-border/70 bg-card px-4 text-xs font-semibold"
+          >
+            Tentar novamente
+          </button>
+        </section>
+      ) : hasStripe ? (
         <>
           <AssinaturaMobile view={view} paymentMethod={pm} onOpenPortal={openPortal} />
           <AssinaturaDesktop view={view} paymentMethod={pm} onOpenPortal={openPortal} />
@@ -132,5 +147,20 @@ function AssinaturaPage() {
         </section>
       )}
     </div>
+  );
+}
+
+/** Casca do card de assinatura enquanto a primeira resposta não chega (sem flash do "Sem Assinatura Ativa"). */
+function AssinaturaSkeleton() {
+  return (
+    <section aria-busy aria-label="Carregando assinatura" className={`${PANEL_SHELL} flex flex-col gap-4 px-4 pb-4 pt-5`}>
+      <div className="flex flex-col items-center gap-2">
+        <Skeleton className="h-[10px] w-28 rounded-[3px]" />
+        <Skeleton className="h-[13px] w-full max-w-md rounded-[4px]" />
+        <Skeleton className="h-[13px] w-2/3 max-w-sm rounded-[4px]" />
+      </div>
+      <Skeleton className="h-28 w-full rounded-[12px]" />
+      <Skeleton className="mx-auto h-11 w-56 max-w-full rounded-full" />
+    </section>
   );
 }
