@@ -5,8 +5,8 @@
  * Por quê: em celular (iOS/Android) e no emulador mobile do Chrome a barra
  * nativa é "overlay" — o `::-webkit-scrollbar` do styles.css é ignorado e a
  * barra some, então a pessoa não percebe que há mais conteúdo abaixo. Nesses
- * ambientes desenhamos uma barra fina, no mesmo estilo da global (lilás da
- * marca), sobreposta ao elemento que rola. Usa os MESMOS tokens da barra global
+ * ambientes desenhamos uma barra fina, no mesmo estilo da global ("fio de seda",
+ * marfim a 34%), sobreposta ao elemento que rola. Usa os MESMOS tokens da barra global
  * (`--scroll-thumb`, `--scroll-thumb-glow`), então os dois nunca divergem.
  *
  * Em desktop com barra clássica (largura > 0) este módulo não faz nada: vale a
@@ -19,7 +19,7 @@
 const CANDIDATES =
   '[class*="overflow-y-"], [class*="overflow-auto"], [class*="sg-elegant-scroll"], [role="dialog"], [data-radix-scroll-area-viewport]';
 const TRACK_MARGIN = 14; // mesma folga da barra global (cantos arredondados)
-const THUMB_W = 4; // mesmo traço visível da barra global (styles.css: 7px de área, 4px de traço)
+const THUMB_W = 2; // mesmo traço visível da barra global ("fio de seda": 2px)
 const MIN_THUMB = 28;
 
 function hasOverlayScrollbars(): boolean {
@@ -100,7 +100,7 @@ export function installScrollIndicators(): () => void {
         rect.top + TRACK_MARGIN + (h.scrollTop / maxScroll) * Math.max(trackH - thumbH, 0);
       thumb.style.display = "block";
       thumb.style.height = `${thumbH}px`;
-      thumb.style.transform = `translate(${rect.right - THUMB_W - 2}px, ${top}px)`;
+      thumb.style.transform = `translate(${rect.right - THUMB_W - 3}px, ${top}px)`;
       thumb.style.left = "0";
       thumb.style.top = "0";
     }

@@ -8,6 +8,7 @@ import { X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { CORNER_CLOSE_CLASS } from "@/components/ui/corner-close";
+import { splitWindowChildren, WindowBody } from "@/components/ui/window-body";
 
 const Sheet = SheetPrimitive.Root;
 
@@ -70,12 +71,16 @@ const SheetContent = React.forwardRef<
   SheetContentProps
 >(({ side = "right", className, closeClassName, children, ...props }, ref) => {
   const [layerRef, layerNodeRef] = useOverlayLayer("window", ref);
+  // ROLAGEM SÓ NO CONTEÚDO (08/11/2026): painel que rola (`overflow-y-auto` do chamador) vira casca fixa,
+  // com cabeçalho/rodapé fora e a barra só na área do conteúdo.
+  const wrapBody = /(^|\s)overflow-y-auto(\s|$)/.test(String(className ?? ""));
+  const split = splitWindowChildren(children);
   return (
     <SheetPortal>
       <SheetOverlay />
       <SheetPrimitive.Content
         ref={layerNodeRef}
-        className={cn(sheetVariants({ side }), className)}
+        className={cn(sheetVariants({ side }), className, wrapBody && "flex flex-col !overflow-hidden")}
         {...props}
         onPointerDownOutside={guardNestedOutside(layerRef, props.onPointerDownOutside)}
         onInteractOutside={guardNestedOutside(layerRef, props.onInteractOutside)}
@@ -92,7 +97,15 @@ const SheetContent = React.forwardRef<
           <X className="size-[13px]" strokeWidth={1.8} />
           <span className="sr-only">Fechar</span>
         </SheetPrimitive.Close>
-        {children}
+        {wrapBody ? (
+          <>
+            {split.head}
+            {split.body.length > 0 ? <WindowBody>{split.body}</WindowBody> : null}
+            {split.foot}
+          </>
+        ) : (
+          children
+        )}
       </SheetPrimitive.Content>
     </SheetPortal>
   );
@@ -122,7 +135,7 @@ const SheetTitle = React.forwardRef<
     {...props}
   />
 ));
-SheetTitle.displayName = SheetPrimitive.Title.displayName;
+SheetTitle.displayName = "SheetTitle";
 
 const SheetDescription = React.forwardRef<
   React.ElementRef<typeof SheetPrimitive.Description>,
@@ -134,7 +147,7 @@ const SheetDescription = React.forwardRef<
     {...props}
   />
 ));
-SheetDescription.displayName = SheetPrimitive.Description.displayName;
+SheetDescription.displayName = "SheetDescription";
 
 export {
   Sheet,

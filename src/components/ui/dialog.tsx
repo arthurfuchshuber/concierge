@@ -8,6 +8,7 @@ import { X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { CORNER_CLOSE_CLASS } from "@/components/ui/corner-close";
+import { ownsScroll, splitWindowChildren, WindowBody } from "@/components/ui/window-body";
 
 const Dialog = DialogPrimitive.Root;
 
@@ -56,6 +57,8 @@ const DialogContent = React.forwardRef<
   }
 >(({ className, children, hideClose, pageLike, overlayClassName, ...props }, ref) => {
   const [layerRef, layerNodeRef] = useOverlayLayer("window", useAntiClipWindow(ref));
+  const wrapBody = !ownsScroll(className);
+  const split = splitWindowChildren(children);
   return (
     <DialogPortal>
       <DialogOverlay className={overlayClassName} />
@@ -66,16 +69,26 @@ const DialogContent = React.forwardRef<
           // ainda descontando o teclado (`--kb-inset`) e a margem de 3rem —
           // `min(...)` garante o menor dos dois. `sg-elegant-scroll`: barra de
           // rolagem fina e visível, igual aos demais tooltips/popovers.
-          "sg-elegant-scroll fixed left-[50%] top-[50%] z-50 grid grid-cols-[minmax(0,1fr)] w-[calc(100%_-_2rem)] max-w-lg translate-x-[-50%] translate-y-[calc(-50%_-_var(--kb-inset,0px)_/_2)] gap-4 rounded-[var(--win-radius)] border border-[var(--panel-border)] bg-[var(--panel)] text-foreground p-5 sm:p-6 shadow-[0_30px_80px_rgba(0,0,0,0.55),0_2px_8px_rgba(0,0,0,0.25),inset_0_1px_0_rgba(255,255,255,0.05)] before:pointer-events-none before:absolute before:inset-x-8 before:top-0 before:h-px before:content-[''] before:bg-[image:var(--panel-hair)] duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 max-h-[min(90dvh,calc(100dvh_-_var(--kb-inset,0px)_-_3rem))] overflow-y-auto overscroll-contain touch-pan-y",
+          "fixed left-[50%] top-[50%] z-50 grid grid-cols-[minmax(0,1fr)] w-[calc(100%_-_2rem)] max-w-lg translate-x-[-50%] translate-y-[calc(-50%_-_var(--kb-inset,0px)_/_2)] gap-4 rounded-[var(--win-radius)] border border-[var(--panel-border)] bg-[var(--panel)] text-foreground p-5 sm:p-6 shadow-[0_30px_80px_rgba(0,0,0,0.55),0_2px_8px_rgba(0,0,0,0.25),inset_0_1px_0_rgba(255,255,255,0.05)] before:pointer-events-none before:absolute before:inset-x-8 before:top-0 before:h-px before:content-[''] before:bg-[image:var(--panel-hair)] duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 max-h-[min(90dvh,calc(100dvh_-_var(--kb-inset,0px)_-_3rem))]",
           pageLike &&
             "max-lg:!left-[10px] max-lg:!top-[80px] max-lg:!h-[calc(100dvh_-_80px)] max-lg:!max-h-none max-lg:!w-[calc(100vw_-_20px)] max-lg:!max-w-none max-lg:!translate-x-0 max-lg:!translate-y-0 max-lg:!rounded-b-none max-lg:!border-b-0",
           className,
+          // ROLAGEM SÓ NO CONTEÚDO (08/11/2026): a casca nunca rola; quem rola é o `WindowBody`.
+          wrapBody ? "flex flex-col !overflow-hidden" : "overflow-hidden",
         )}
         {...props}
         onPointerDownOutside={guardNestedOutside(layerRef, props.onPointerDownOutside)}
         onInteractOutside={guardNestedOutside(layerRef, props.onInteractOutside)}
       >
-        {children}
+        {wrapBody ? (
+          <>
+            {split.head}
+            {split.body.length > 0 ? <WindowBody>{split.body}</WindowBody> : null}
+            {split.foot}
+          </>
+        ) : (
+          children
+        )}
         {hideClose ? null : (
           <DialogPrimitive.Close
             data-window-close
@@ -149,7 +162,7 @@ const DialogTitle = React.forwardRef<
     {...props}
   />
 ));
-DialogTitle.displayName = DialogPrimitive.Title.displayName;
+DialogTitle.displayName = "DialogTitle";
 
 const DialogDescription = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Description>,
@@ -161,7 +174,7 @@ const DialogDescription = React.forwardRef<
     {...props}
   />
 ));
-DialogDescription.displayName = DialogPrimitive.Description.displayName;
+DialogDescription.displayName = "DialogDescription";
 
 export {
   Dialog,

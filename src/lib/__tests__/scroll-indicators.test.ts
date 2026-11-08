@@ -9,7 +9,7 @@ class RO {
 }
 (globalThis as unknown as { ResizeObserver: typeof RO }).ResizeObserver = RO;
 
-describe("scroll-indicators — barra nítida e fixa", () => {
+describe("scroll-indicators — fio de seda, sempre visível", () => {
   let off: () => void = () => {};
   afterEach(() => {
     off();
@@ -17,7 +17,7 @@ describe("scroll-indicators — barra nítida e fixa", () => {
     delete document.documentElement.dataset.scrollIndicators;
   });
 
-  it("desenha o traço da barra global (4px, mesmos tokens), sempre que a lista rola", async () => {
+  it("desenha o traço da barra global (fio de 2px, mesmos tokens), sempre que a lista rola", async () => {
     document.documentElement.dataset.scrollIndicators = "on";
     const box = document.createElement("div");
     box.className = "overflow-y-auto";
@@ -31,7 +31,7 @@ describe("scroll-indicators — barra nítida e fixa", () => {
     const layer = document.body.lastElementChild as HTMLElement;
     const thumb = layer.firstElementChild as HTMLElement;
     expect(thumb).toBeTruthy();
-    expect(thumb.style.width).toBe("4px");
+    expect(thumb.style.width).toBe("2px");
     expect(thumb.style.cssText).toContain("var(--scroll-thumb)");
     expect(thumb.style.cssText).toContain("var(--scroll-thumb-glow)");
     expect(thumb.style.display).toBe("block");
