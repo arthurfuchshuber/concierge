@@ -35,7 +35,8 @@
 import type { ComposedPrompt, ConversationContext } from "@/lib/guest-ai/orchestrator/contracts";
 import type { HistoryEntry, HistoryResult, HistoryUnavailableReason } from "./history";
 import { PERSONA_VERSION } from "./persona";
-import { CITY_EVENTS_TAG, CONTEXT_TAG, DOSSIER_TAG, GUEST_PROFILE_TAG, HISTORY_TAG, SYSTEM_PROMPT_VERSION, buildSystemPrompt } from "./system-prompt";
+import { CITY_EVENTS_TAG, CONTEXT_TAG, DOSSIER_TAG, GUEST_PROFILE_TAG, HISTORY_TAG, LIVING_DOCUMENT_TAG, SYSTEM_PROMPT_VERSION, buildSystemPrompt } from "./system-prompt";
+import type { LivingDocumentLoad } from "./learning/learning";
 import type { GuestProfileContext } from "./context/guest-profile";
 import { defaultBudgetConfig, evaluateBudget, type BudgetConfig, type BudgetMetrics, type BudgetOverReason } from "./budget";
 import { assertAvailabilityFor, type PropertyDossier } from "./dossier/contracts";
@@ -46,7 +47,7 @@ import type { HumanOwnershipSnapshot } from "./orchestrator/case-ownership";
 import type { GuestMessageBatch } from "./batch/message-batch";
 import type { CityEventsLoad } from "./data/city-events.server";
 
-export const COMPOSER_VERSION = "composer.2026-11-06.7";
+export const COMPOSER_VERSION = "composer.2026-11-08.1";
 export const PROMPT_VERSION = `b2.5/${COMPOSER_VERSION}/${SYSTEM_PROMPT_VERSION}/${PERSONA_VERSION}`;
 /** Teto de dossiês alternativos num mesmo turno (cada um é carregado sob demanda e autorizado). */
 export const MAX_CANDIDATE_DOSSIERS = 5;
@@ -98,6 +99,11 @@ export interface ComposeInput {
    * Ausente ⇒ o bloco não entra; indisponível ⇒ o bloco declara a indisponibilidade.
    */
   cityEvents?: CityEventsLoad | null;
+  /**
+   * Etapa 4 (08/11/2026): Documento Vivo do imóvel do turno (só aprendizados APROVADOS). Ausente,
+   * indisponível, vazio ou de outro imóvel ⇒ o bloco não entra (comportamento anterior).
+   */
+  livingDocument?: LivingDocumentLoad | null;
 }
 
 /**
@@ -559,6 +565,8 @@ export function composeTurnPrompt(input: ComposeInput, options: ComposeOptions =
   let profileJson: string | null = null;
   const profileIds: string[] = [];
   let eventsJson: string | null = null;
+  let livingJson: string | null = null;
+  const livingIds: string[] = [];
   const guideIds = new Set<string>();
   try {
     contextData = buildContextData(ctx, guarded, unavailable, input.operational ?? null);
@@ -611,6 +619,19 @@ export function composeTurnPrompt(input: ComposeInput, options: ComposeOptions =
       // da IA. Lugares e distâncias reais vêm das ferramentas de consulta (Google Places / rotas).
     }
     if (input.cityEvents) eventsJson = encodeDataBlock(eventsData(input.cityEvents, guarded, guideIds));
+    const ld = input.livingDocument ?? null;
+    // Só do imóvel do turno; cada frase passa pelo guard (recusada ⇒ só ela sai).
+    if (ld && ld.status === "available" && ld.propertyId === ctx.guest.property.id && ld.items.length > 0) {
+      let n = 0;
+      const items = optionalItems(ld.items, (it) => {
+        const texto = guarded(it.statement, "living_document");
+        n += 1;
+        const id = `vivo:${n}`;
+        livingIds.push(id);
+        return { id, categoria: it.category, texto, origem: it.source, aprovado_em: it.approvedAt };
+      });
+      if (items.length > 0) livingJson = encodeDataBlock(items);
+    }
   } catch (e) {
     if (e instanceof GuardRefusal) return { kind: "unavailable", reason: e.status === "ambiguous" ? "guard_ambiguous" : "guard_blocked" };
     return { kind: "unavailable", reason: e instanceof GuardFailure ? "guard_failed" : "compose_failed" };
@@ -621,6 +642,7 @@ export function composeTurnPrompt(input: ComposeInput, options: ComposeOptions =
   const dossierBlock = dossierJson === null ? null : `<${DOSSIER_TAG} total="${dossierRefs.length}">\n${dossierJson}\n</${DOSSIER_TAG}>`;
   const profileBlock = profileJson === null ? null : `<${GUEST_PROFILE_TAG}>\n${profileJson}\n</${GUEST_PROFILE_TAG}>`;
   const eventsBlock = eventsJson === null ? null : `<${CITY_EVENTS_TAG}>\n${eventsJson}\n</${CITY_EVENTS_TAG}>`;
+  const livingBlock = livingJson === null ? null : `<${LIVING_DOCUMENT_TAG} total="${livingIds.length}">\n${livingJson}\n</${LIVING_DOCUMENT_TAG}>`;
   const historyBlock = `<${HISTORY_TAG} mensagem_atual="${last.ref}" total="${history.entries.length}">\n${historyJson}\n</${HISTORY_TAG}>`;
   const lotIds = new Set(input.batch ? input.batch.messages.map((m) => m.id) : (() => {
     const t: string[] = [];
@@ -639,6 +661,7 @@ export function composeTurnPrompt(input: ComposeInput, options: ComposeOptions =
     contextBlock,
     ...(profileBlock ? [profileBlock] : []),
     ...(dossierBlock ? [dossierBlock] : []),
+    ...(livingBlock ? [livingBlock] : []),
     ...(eventsBlock ? [eventsBlock] : []),
     historyBlock,
     closing,
@@ -653,6 +676,7 @@ export function composeTurnPrompt(input: ComposeInput, options: ComposeOptions =
       { name: "context", chars: contextBlock.length },
       ...(profileBlock ? [{ name: "guest_profile", chars: profileBlock.length }] : []),
       ...(dossierBlock ? [{ name: "dossiers", chars: dossierBlock.length }] : []),
+      ...(livingBlock ? [{ name: "living_document", chars: livingBlock.length }] : []),
       ...(eventsBlock ? [{ name: "city_events", chars: eventsBlock.length }] : []),
       { name: "history", chars: historyBlock.length },
       { name: "closing", chars: closing.length },
@@ -667,6 +691,7 @@ export function composeTurnPrompt(input: ComposeInput, options: ComposeOptions =
     ...history.entries.map((e) => e.ref),
     ...dossierIds,
     ...profileIds,
+    ...livingIds,
     ...guideIds,
   ]);
 

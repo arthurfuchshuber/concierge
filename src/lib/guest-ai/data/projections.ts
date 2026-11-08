@@ -260,3 +260,9 @@ export const CITY_REFERENCE_PUBLIC_COLUMNS = [
   "maps_url",
   "display_order",
 ] as const;
+
+/**
+ * Documento Vivo (Etapa 4, aprendizado contínuo): só entradas APROVADAS do imóvel do turno. Fora: dono,
+ * evidências, quem decidiu e notas de revisão (nada disso vai ao modelo).
+ */
+export const LIVING_DOCUMENT_COLUMNS = ["id", "property_id", "category", "statement", "source", "decided_at"] as const;

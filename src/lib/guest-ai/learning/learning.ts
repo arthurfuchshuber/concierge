@@ -4,9 +4,11 @@
  * Regra do titular: a IA pode SUGERIR o que aprender, mas só autorização humana explícita torna um
  * aprendizado permanente. Fluxo: CANDIDATO → REVISÃO HUMANA → DOCUMENTO VIVO (transparente e auditável).
  *
- * Este módulo define o contrato e as travas; a persistência depende das tabelas propostas ao titular no
- * chat em 08/11/2026 (`guest_ai_learning_entries`/`_events`, NÃO aplicadas). Até a aprovação do titular,
- * nada aqui é chamado pelo Copiloto, pelo slot ou por cron — e nada entra no prompt.
+ * Este módulo define o contrato e as travas. Persistência (aplicada pelo titular em 08/11/2026):
+ * `guest_ai_learning_entries`/`_events` + RPCs `guest_ai_learning_propose` (só service_role) e
+ * `guest_ai_learning_review` (dono, admin ou `ai_train`). O Copiloto lê SÓ as entradas aprovadas do imóvel
+ * do turno (`data/living-document.server.ts`) e as leva ao prompt no bloco `<documento_vivo>`; propor e
+ * revisar ficam FORA deste módulo (somente leitura): `src/lib/guest-ai-learning.{server,functions}.ts`.
  *
  * Travas de candidatura (`evaluateCandidate`):
  *  - ORIGEM: só fato ENCERRADO — checkout feito, incidente resolvido ou confirmação expressa do hóspede de
@@ -191,4 +193,50 @@ export function renderLivingDocument(propertyId: string, entries: readonly Learn
       out.push(`- ${e.statement} (origem: ${SOURCE_LABEL[e.source]}; aprovado em ${(e.decidedAt ?? "").slice(0, 10)})`);
   }
   return out.join("\n");
+}
+
+// ─────────────── Documento Vivo no prompt ───────────────
+
+/** Teto de entradas levadas ao modelo por turno (as mais recentes aprovadas). */
+export const LIVING_DOCUMENT_MAX = 40;
+
+export interface LivingDocumentItem {
+  id: string;
+  category: LearningCategory;
+  statement: string;
+  source: LearningSource;
+  approvedAt: string | null;
+}
+
+export type LivingDocumentLoad =
+  | { status: "available"; propertyId: string; items: LivingDocumentItem[] }
+  | { status: "unavailable"; reason: "lookup_failed" };
+
+/**
+ * Normaliza as linhas lidas do banco (pura). Descarta o que não for do imóvel pedido, categoria/origem
+ * fora da lista fechada, frase vazia ou que hoje seria recusada como pontual ou com segredo (defesa em
+ * profundidade: uma frase aprovada nunca leva segredo ao modelo).
+ */
+export function normalizeLivingRows(propertyId: string, rows: readonly unknown[]): LivingDocumentItem[] {
+  const out: LivingDocumentItem[] = [];
+  for (const raw of rows) {
+    const r = (raw ?? {}) as Record<string, unknown>;
+    if (r["property_id"] !== propertyId || typeof r["id"] !== "string") continue;
+    const category = r["category"];
+    const source = r["source"];
+    if (!(LEARNING_CATEGORIES as readonly unknown[]).includes(category)) continue;
+    if (!(LEARNING_SOURCES as readonly unknown[]).includes(source)) continue;
+    const statement = typeof r["statement"] === "string" ? norm(r["statement"]) : "";
+    if (statement.length < LEARNING_STATEMENT_MIN || statement.length > LEARNING_STATEMENT_MAX) continue;
+    if (SECRET_SCRUBBER.scan(statement).status !== "safe") continue;
+    out.push({
+      id: r["id"],
+      category: category as LearningCategory,
+      statement,
+      source: source as LearningSource,
+      approvedAt: typeof r["decided_at"] === "string" ? r["decided_at"].slice(0, 10) : null,
+    });
+    if (out.length >= LIVING_DOCUMENT_MAX) break;
+  }
+  return out;
 }

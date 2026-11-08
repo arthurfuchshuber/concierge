@@ -104,12 +104,23 @@ describe("revisão humana", () => {
   });
 });
 
-describe("fronteiras (até a aprovação do SQL)", () => {
-  it("o módulo é puro e ninguém o usa ainda: sem banco, rede, prompt, slot ou cron", () => {
+describe("fronteiras (SQL aplicado pelo titular em 08/11/2026)", () => {
+  it("o núcleo segue puro; o prompt só lê aprovados; slot intocado; escrita só fora do módulo", () => {
     const root = path.resolve(__dirname, "../..");
     const src = readFileSync(path.join(root, "learning/learning.ts"), "utf8");
     expect(src).not.toMatch(/supabase|client\.server|\bfetch\(|\.from\(\s*["'`]|\.rpc\(|generateGuestLlm/);
-    for (const f of ["system-prompt.ts", "composer.ts", "slot.server.ts", "copilot/generate.server.ts"])
-      expect(readFileSync(path.join(root, f), "utf8"), f).not.toMatch(/learning\/learning|renderLivingDocument/);
+    // o slot continua sem conhecer o aprendizado
+    expect(readFileSync(path.join(root, "slot.server.ts"), "utf8")).not.toMatch(/learning|living/i);
+    // leitura do Documento Vivo: só aprovados, pela camada de dados
+    const reader = readFileSync(path.join(root, "data/living-document.server.ts"), "utf8");
+    expect(reader).toMatch(/\.eq\("status", "approved"\)/);
+    expect(reader).not.toMatch(/\.(insert|update|upsert|delete|rpc)\s*\(/);
+    // proposta e revisão: fora de guest-ai/ (somente leitura)
+    const propose = readFileSync(path.resolve(root, "../guest-ai-learning.server.ts"), "utf8");
+    expect(propose).toMatch(/evaluateCandidate\(input\)/);
+    expect(propose).toMatch(/guest_ai_learning_propose/);
+    const review = readFileSync(path.resolve(root, "../guest-ai-learning.functions.ts"), "utf8");
+    expect(review).toMatch(/guest_ai_learning_review/);
+    expect(review).not.toMatch(/supabaseAdmin|client\.server/);
   });
 });
