@@ -17,7 +17,7 @@ import {
 import type { OpsState } from "@/lib/guest-ai/data/ops-state.server";
 import type { ModelDecision } from "@/lib/guest-ai/orchestrator/contracts";
 import type { ValidatedTurn } from "@/lib/guest-ai/types";
-import { v5 } from "./helpers/b23-chain";
+import { v6 } from "./helpers/b23-chain";
 
 const ROOT = path.resolve(__dirname, "..");
 const TURN = {
@@ -34,7 +34,7 @@ const TURN = {
 
 const decision = (over: Partial<ModelDecision> = {}) =>
   ({
-    ...(v5() as unknown as ModelDecision),
+    ...(v6() as unknown as ModelDecision),
     hospitalityMilestone: { kind: "checkin_confirmed", evidence: ["hist:guest:h1"] },
     milestoneQuote: "Já entramos",
     intents: ["arrival_confirmation"],
