@@ -11,6 +11,8 @@ export const REAL_COLUMNS: Record<string, readonly string[]> = {
   property_checkout_items: ["id", "property_id", "label", "position"],
   property_emergency_contacts: ["id", "property_id", "label", "number", "position"],
   property_manual_items: ["id", "property_id", "title", "description", "body", "position", "created_at", "images"],
+  /* aplicada pelo titular em 08/11/2026 (Etapa 4) */
+  guest_ai_learning_entries: ["id", "owner_id", "property_id", "category", "statement", "source", "evidence_refs", "status", "proposed_by", "created_at", "decided_by", "decided_at", "decision_note"],
   property_playbook_entries: ["id", "property_id", "field_key", "value", "note", "custom_label", "custom_audience", "section_num", "created_by", "created_at", "updated_at"],
 };
 

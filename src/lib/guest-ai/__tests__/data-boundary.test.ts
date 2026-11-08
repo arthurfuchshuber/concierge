@@ -233,6 +233,7 @@ describe("F0 · projeções explícitas", () => {
       ["property_emergency_contacts", P.EMERGENCY_COLUMNS],
       ["property_manual_items", P.MANUAL_COLUMNS],
       ["property_playbook_entries", P.ENTRY_COLUMNS],
+      ["guest_ai_learning_entries", P.LIVING_DOCUMENT_COLUMNS],
     ];
     for (const [table, list] of map) {
       const real = new Set([...(REAL_COLUMNS[table] ?? []), ...(PENDING_MIGRATION_COLUMNS[table] ?? [])]);

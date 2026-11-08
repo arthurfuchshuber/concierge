@@ -37,6 +37,7 @@ import { fetchConversationHistory } from "@/lib/guest-ai/data/history.server";
 import { fetchGuestImages, type GuestImage } from "@/lib/guest-ai/data/guest-images.server";
 import { fetchGuestProfile } from "@/lib/guest-ai/data/guest-profile.server";
 import { fetchCityEvents } from "@/lib/guest-ai/data/city-events.server";
+import { fetchLivingDocument } from "@/lib/guest-ai/data/living-document.server";
 import { fetchPropertyOrigin, type PropertyOrigin } from "@/lib/guest-ai/data/property-origin.server";
 import type { GuestToolContext, MapsHttp } from "@/lib/guest-ai/tools/contracts";
 import { hasNewerGuestMessage } from "@/lib/guest-ai/data/newer-guest-message.server";
@@ -88,7 +89,7 @@ export type CopilotPorts = Required<
     | "loadSenderIdentitySource"
   >
 > &
-  Pick<ChainDeps, "loadGuestProfile" | "loadCityEvents">;
+  Pick<ChainDeps, "loadGuestProfile" | "loadCityEvents" | "loadLivingDocument">;
 
 export interface CopilotGenerateDeps {
   db?: GuestAiDb;
@@ -213,6 +214,7 @@ function productionPorts(
     loadSenderIdentitySource: (t, s) => loadSenderIdentitySource(t, { db, signal: s }),
     loadGuestProfile: (t, s) => fetchGuestProfile(t, { db, signal: s }),
     loadCityEvents: (t, s) => fetchCityEvents(t, { db, signal: s }),
+    loadLivingDocument: (t, s) => fetchLivingDocument(t, { db, signal: s }),
   };
 }
 
@@ -574,6 +576,7 @@ export async function generateCopilotSuggestion(
       loadSenderIdentitySource: ports.loadSenderIdentitySource,
       loadGuestProfile: ports.loadGuestProfile,
       loadCityEvents: ports.loadCityEvents,
+      loadLivingDocument: ports.loadLivingDocument,
       generate: (prompt, sg) => generator.generate(prompt, sg),
       guard: SECRET_SCRUBBER,
       stageTimeoutMs: Math.max(1_000, Math.min(15_000, Math.floor(remainingMs()))),
