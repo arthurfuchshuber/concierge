@@ -1552,7 +1552,7 @@ function StatusSection({ label, children }: { label: string; children: React.Rea
   return (
     <section aria-label={label} className="relative min-w-0">
       {/* Sem divisor com rótulo (pedido, 05/11/2026): os cartões seguem direto, no fluxo da página. */}
-      <div className="grid grid-cols-[minmax(0,1fr)] gap-3">{children}</div>
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-2.5">{children}</div>
     </section>
   );
 }
@@ -1584,16 +1584,16 @@ const StatChip = forwardRef<
       ref={ref}
       type="button"
       {...rest}
-      className={`inline-flex h-[26px] shrink-0 items-center gap-1.5 rounded-full border px-2.5 text-[12px] font-bold tabular-nums transition-colors ${
+      className={`inline-flex h-[22px] shrink-0 items-center gap-[5px] rounded-full border px-2 text-[11px] font-bold tabular-nums transition-colors ${
         pending
           ? "border-[#c98c8c]/30 bg-[#c98c8c]/12 text-[#c98c8c] hover:bg-[#c98c8c]/18"
           : "border-foreground/25 bg-foreground/[0.11] text-foreground hover:bg-foreground/[0.17]"
       } ${open ? "ring-1 ring-foreground/25" : ""}`}
     >
       {pending ? (
-        <CircleAlert className="size-3.5" />
+        <CircleAlert className="size-3" />
       ) : (
-        <Camera className="size-3.5 text-foreground/70" />
+        <Camera className="size-3 text-foreground/70" />
       )}
       {/* "Pendências" ESCRITO ao lado do ícone (pedido, 05/10/2026): só o
           número não dizia o que era. O chip de registros continua só com o
@@ -1695,20 +1695,21 @@ function PropertyCard({
         />
       )}
       {/* `relative` mantém o conteúdo acima da faixa. */}
-      <div className="relative flex min-h-[106px] min-w-0">
+      {/* PADRÃO DOS CARTÕES DE IMÓVEL (mockup aprovado, 08/11/2026): mesma altura (96px), foto
+          quadrada de 96px colada à esquerda, recuos e título dos cartões dos Guias Digitais. */}
+      <div className="relative flex h-[96px] min-w-0">
         {/* A FOTO É A CAPA DO IMÓVEL, como em Guias (escolha do cliente,
             04/10/2026). `coverUrl` só existe em "Por imóvel": em "Por data" o
-            cartão reúne vários imóveis e não há uma capa que o represente. A
-            largura é a de Guias: 40% no celular e 141px no computador. */}
+            cartão reúne vários imóveis e não há uma capa que o represente. */}
         {group.coverUrl !== undefined && (
-          <div className="relative w-[40%] shrink-0 overflow-hidden bg-secondary lg:w-[141px]">
+          <div className="relative w-24 shrink-0 overflow-hidden bg-secondary">
             <CoverImage urls={[...(group.coverUrls ?? []), group.coverUrl]} />
           </div>
         )}
-        <div className="flex min-w-0 flex-1 flex-col justify-between gap-1.5 px-3 py-2.5">
-          <div className="min-w-0">
+        <div className="flex min-w-0 flex-1 flex-col justify-between gap-1.5 py-2.5 pl-3.5 pr-2.5">
+          <div className="grid min-w-0 gap-1">
             {/* Regra global (29/10/2026): título do imóvel primeiro, proprietário logo abaixo. */}
-            <span className="ds-card-title block truncate" title={group.label}>
+            <span className="block truncate text-[14.5px] font-extrabold leading-tight" title={group.label}>
               {group.label}
             </span>
             {/* PROPRIETÁRIO COM O ÍCONE DE MENSAGEM PADRÃO — o mesmo botão que
@@ -1721,15 +1722,6 @@ function PropertyCard({
                 country={group.ownerPhoneCountry}
                 phonePosition="adjacent"
               />
-            )}
-            {subtitle && (
-              <span
-                className={`mt-0.5 block truncate text-[11px] ${
-                  hasPending ? "text-[#c98c8c]" : "text-muted-foreground/80"
-                }`}
-              >
-                {subtitle}
-              </span>
             )}
           </div>
 
@@ -1770,6 +1762,11 @@ function PropertyCard({
                 aria-label={restLabel}
                 title={restLabel}
               />
+            )}
+            {/* "Último registro" na MESMA linha do chip (mockup de 08/11/2026): o cartão de 96px
+                não comporta uma linha a mais. */}
+            {subtitle && (
+              <span className="min-w-0 truncate text-[11px] text-muted-foreground/80">{subtitle}</span>
             )}
           </div>
         </div>
