@@ -56,7 +56,9 @@ self.addEventListener("push", (event) => {
   const options = {
     body,
     icon: "/favicon.png",
-    badge: "/favicon.png",
+    // Ícone pequeno do Android: o sistema usa só o CONTORNO (canal alfa) e pinta numa cor;
+    // por isso é a silhueta branca do "A" em fundo transparente (o favicon é opaco e virava um borrão).
+    badge: "/notification-badge.png",
     image: undefined,
     tag,
     renotify: true,
