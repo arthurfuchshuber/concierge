@@ -1,7 +1,7 @@
 import { SituationOutboxRunner } from "@/components/dashboard/SituationOutboxRunner";
 import { StageOutboxRunner } from "@/components/dashboard/StageOutboxRunner";
 import { createFileRoute, Outlet, Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { LogOut, LayoutDashboard, Settings2, Menu, Users, Shield, Activity, Star, Headphones, Wrench, Home, Contact, ChevronsLeft, ChevronsRight, Plus, Minus } from "lucide-react";
+import { LogOut, LayoutDashboard, Settings2, Menu, Users, Shield, Activity, Star, Headphones, Wrench, Home, Contact, Cpu, ChevronsLeft, ChevronsRight, Plus, Minus } from "lucide-react";
 import conciergeLogo from "@/assets/concierge-logo.png";
 import { LiveSync, useFallbackInterval } from "@/components/LiveSync";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -97,6 +97,7 @@ const SIDEBAR_ORDER = ["group:dashboard", "group:stakeholders", "/admin/guias", 
 const adminOnlyNav = [
   { to: "/admin/engajamento", label: "Engajamento", icon: Activity, exact: false },
   { to: "/admin/recomendacoes-sigma", label: "Recomendações", icon: Star, exact: false },
+  { to: "/admin/ia", label: "Telemetria IA", icon: Cpu, exact: false },
 ] as const;
 
 
