@@ -233,6 +233,11 @@ export const SENDER_PREF_SELECT = "channex_id, owner_id:payload->>owner_id, chan
 
 /** Cidade do imóvel (para os eventos da Home do guia). Posse conferida pelo `owner_id`. */
 export const PROPERTY_CITY_COLUMNS = ["id", "owner_id", "city", "country"] as const;
+/**
+ * Origem geográfica do imóvel para as ferramentas de consulta (lugares e rotas, 07/11/2026): coordenadas do
+ * cadastro e localidade. Nada além disso (sem endereço, sem credenciais). Posse conferida pelo `owner_id`.
+ */
+export const PROPERTY_ORIGIN_COLUMNS = ["id", "owner_id", "lat", "lng", "city", "state", "country"] as const;
 /** Edição gravada do feed "O que rola na cidade" (mesma tabela que a Home lê). */
 export const CITY_NEWS_COLUMNS = ["items", "date"] as const;
 /** Grupo de referências compartilhado entre guias (mesma resolução do guia público). */

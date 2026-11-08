@@ -37,6 +37,8 @@ import { fetchConversationHistory } from "@/lib/guest-ai/data/history.server";
 import { fetchGuestImages, type GuestImage } from "@/lib/guest-ai/data/guest-images.server";
 import { fetchGuestProfile } from "@/lib/guest-ai/data/guest-profile.server";
 import { fetchCityEvents } from "@/lib/guest-ai/data/city-events.server";
+import { fetchPropertyOrigin, type PropertyOrigin } from "@/lib/guest-ai/data/property-origin.server";
+import type { GuestToolContext, MapsHttp } from "@/lib/guest-ai/tools/contracts";
 import { hasNewerGuestMessage } from "@/lib/guest-ai/data/newer-guest-message.server";
 import { formatForChannel } from "./channel-format";
 import type { HistoryResult } from "@/lib/guest-ai/history";
@@ -108,6 +110,7 @@ export interface CopilotGenerateDeps {
     beforeNetwork: () => Promise<boolean>;
     traceId: string;
     loadVision: () => Promise<CopilotVisionInput>;
+    loadToolContext: () => Promise<GuestToolContext | null>;
   }) => CopilotGenerator;
   /** Rajada: há mensagem do hóspede mais nova na conversa? (produção: `hasNewerGuestMessage`). */
   checkNewerGuestMessage?: (
@@ -116,6 +119,10 @@ export interface CopilotGenerateDeps {
   ) => Promise<"newer" | "none" | "unknown">;
   /** Fotos do hóspede (produção: `fetchGuestImages`; testes: falso em memória). */
   loadImages?: (turn: ValidatedTurn, db: GuestAiDb, signal: AbortSignal) => Promise<GuestImage[]>;
+  /** Origem do imóvel para as ferramentas (produção: `fetchPropertyOrigin`; testes: falso em memória). */
+  loadPropertyOrigin?: (turn: ValidatedTurn, db: GuestAiDb, signal: AbortSignal) => Promise<PropertyOrigin | null>;
+  /** Transporte do Google Maps das ferramentas (testes: falso, sem rede). */
+  toolHttp?: MapsHttp;
   provider?: LlmProvider;
   log?: LlmLogger;
   /** Relógio de parede em ms desde a época (padrão `Date.now`). */
@@ -497,8 +504,16 @@ export async function generateCopilotSuggestion(
           .map((i) => ({ ref: ref(i.messageId), at: i.at })),
       };
     };
+    // ferramentas de consulta (Google Places / rotas): origem = coordenadas do imóvel do turno validado
+    const loadToolContext = async (): Promise<GuestToolContext | null> => {
+      const o = deps.loadPropertyOrigin
+        ? await deps.loadPropertyOrigin(turn, db, controller.signal)
+        : await fetchPropertyOrigin(turn, { db: abortableDb(db, controller.signal), signal: controller.signal });
+      if (!o) return null;
+      return { origin: o.origin, city: o.city, region: o.region, country: o.country, surface: turn.surface };
+    };
     const generator = deps.generator
-      ? deps.generator({ remainingMs, beforeNetwork, traceId: claimed.suggestionId, loadVision })
+      ? deps.generator({ remainingMs, beforeNetwork, traceId: claimed.suggestionId, loadVision, loadToolContext })
       : createCopilotGenerator({
           modelId: copilotModelId(env),
           maxOutputTokens: COPILOT_MAX_OUTPUT_TOKENS,
@@ -511,6 +526,8 @@ export async function generateCopilotSuggestion(
           provider: deps.provider,
           log: deps.log,
           loadVision,
+          loadToolContext,
+          toolHttp: deps.toolHttp,
         });
     const chainDeps: ChainDeps = {
       loadContext: async (t, sg) => {
