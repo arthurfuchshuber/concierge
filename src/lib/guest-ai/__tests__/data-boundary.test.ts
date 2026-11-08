@@ -80,7 +80,8 @@ describe("F0 · fronteira de dados (varredura estática do módulo guest-ai/)", 
   it("F0/F1 (data, context, policy, slot, trust, types) não têm LLM, embeddings, rede nem gateway", () => {
     const re = /lib\/llm|guest-ai\/llm|ai\.gateway|openai|anthropic|generativelanguage|embedTexts|embedOne|runAgent|chatText|chatJson|\bfetch\(/i;
     // B3.3: shadow-exec usa o Gateway (gerador emitido). Copiloto (05/11): gerador ligado ao Gateway + registro de modelos.
-    const f2b = /^(llm|orchestrator|validation|shadow|shadow-exec|copilot)\//;
+    // Tool calling (07/11/2026): ferramentas de consulta (Google Places / rotas) em tools/.
+    const f2b = /^(llm|orchestrator|validation|shadow|shadow-exec|copilot|tools)\//;
     expect(files.filter((f) => !f2b.test(rel(f)) && re.test(code(f))).map(rel)).toEqual([]);
   });
 
@@ -88,8 +89,10 @@ describe("F0 · fronteira de dados (varredura estática do módulo guest-ai/)", 
     const runtime = files.filter((f) => /guest-ai\/llm\/gateway\.server|generateGuestLlm/.test(code(f)) && !rel(f).startsWith("llm/"));
     // Copiloto (05/11/2026): o gerador do Copiloto é o ÚNICO chamador do Gateway (uma chamada por sugestão, custo por turno limitado).
     expect(runtime.map(rel).sort()).toEqual(["copilot/generator.server.ts"]);
-    // fora de llm/, nada de rede direta nem de outro provedor
-    expect(files.filter((f) => !rel(f).startsWith("llm/") && /\bfetch\(|ai\.gateway|openai\.com|anthropic\.com/.test(code(f))).map(rel)).toEqual([]);
+    // fora de llm/, nada de rede direta nem de outro provedor — exceto o transporte do Google Maps das ferramentas
+    expect(files.filter((f) => !rel(f).startsWith("llm/") && /\bfetch\(|ai\.gateway|openai\.com|anthropic\.com/.test(code(f))).map(rel)).toEqual([
+      "tools/google-maps.server.ts",
+    ]);
   });
 
   it("F2-B · B1: orchestrator/validation/shadow não acessam banco, credenciais, canais de envio nem tabelas legadas", () => {
@@ -131,9 +134,32 @@ describe("F0 · fronteira de dados (varredura estática do módulo guest-ai/)", 
     for (const f of llm) {
       const c = code(f);
       expect(c, rel(f)).not.toMatch(/@\/lib\/llm|lib\/llm\/|guest-ai\/(data|context|policy)|credentials|CredentialGrant|supabase|slot\.server|\.\.\/(data|context|policy)\//);
-      // F2-A não executa nem registra ferramentas (tool calling) nem envia a canais.
-      expect(c, rel(f)).not.toMatch(/\btools\s*:|tool_choice|function_call|sinch|whatsapp|channex|airbnb/i);
+      // Tool calling (07/11/2026): o gateway só TRANSPORTA ferramentas (declaração, chamadas, resultados);
+      // não executa nem registra nenhuma — isso fica em tools/. Continua sem enviar a canais.
+      expect(c, rel(f)).not.toMatch(/sinch|whatsapp|channex|airbnb/i);
+      expect(c, rel(f)).not.toMatch(/guest-ai\/tools|executeToolCalls|GUEST_TOOLS/);
     }
+  });
+
+  it("Tool calling · tools/ só consulta: sem banco, credenciais, canais nem escrita; rede só no transporte do Maps", () => {
+    const tools = files.filter((f) => rel(f).startsWith("tools/"));
+    expect(tools.map(rel).sort()).toEqual([
+      "tools/contracts.ts",
+      "tools/executor.ts",
+      "tools/google-maps.server.ts",
+      "tools/google-places.ts",
+      "tools/google-routes.ts",
+      "tools/registry.ts",
+    ]);
+    for (const f of tools) {
+      const c = code(f);
+      expect(c, rel(f)).not.toMatch(/supabase|getGuestAiDb|client\.server|\.from\(\s*["'`]|guest-ai\/(data|context|policy)\//);
+      expect(c, rel(f)).not.toMatch(/fetchSensitiveCredentials|credentials|CredentialGrant|PROPERTY_CREDENTIAL_COLUMNS|wifi|lock_code|gate_code|pin_code/i);
+      expect(c, rel(f)).not.toMatch(/sinch|channex|sendHandoffPush|sendGuestReplyPush|property_chat_messages/i);
+      expect(c, rel(f)).not.toMatch(/\.(insert|update|upsert|delete|rpc)\(/);
+      expect(c, rel(f)).not.toMatch(/generateGuestLlm|gateway\.server/);
+    }
+    expect(tools.filter((f) => /\bfetch\(/.test(code(f))).map(rel)).toEqual(["tools/google-maps.server.ts"]);
   });
 
   it("F2-A · o slot continua desligado: não importa o gateway e devolve fallback humano (null)", async () => {

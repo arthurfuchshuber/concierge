@@ -28,6 +28,9 @@ import {
   type LlmRequest,
   type LlmResult,
   type LlmTelemetry,
+  type LlmToolCall,
+  type LlmToolChoice,
+  type LlmToolSpec,
   type LlmUsage,
   type ReasoningEffort,
 } from "./contracts";
@@ -51,7 +54,41 @@ export interface GatewayDeps {
   log?: LlmLogger;
 }
 
-const ROLES = new Set(["system", "user", "assistant"]);
+const ROLES = new Set(["system", "user", "assistant", "tool"]);
+const TOOL_NAME = /^[a-z][a-z0-9_]{0,63}$/;
+const TOOL_CALL_ID = /^[\w.:-]{1,128}$/;
+const TOOL_CHOICES = new Set<LlmToolChoice>(["auto", "none"]);
+
+/** Ferramentas declaradas válidas (nome único, descrição, schema de objeto). `null` ⇒ inválido. */
+function validateTools(tools: unknown): readonly LlmToolSpec[] | null {
+  if (tools === undefined) return [];
+  if (!Array.isArray(tools) || tools.length > LIMITS.maxTools) return null;
+  const names = new Set<string>();
+  for (const t of tools as readonly unknown[]) {
+    const x = t as Partial<LlmToolSpec> | null;
+    if (!x || typeof x !== "object") return null;
+    if (typeof x.name !== "string" || !TOOL_NAME.test(x.name) || names.has(x.name)) return null;
+    if (typeof x.description !== "string" || !x.description.trim() || x.description.length > 1_024) return null;
+    const p = x.parameters as Record<string, unknown> | undefined;
+    if (!p || typeof p !== "object" || Array.isArray(p) || p["type"] !== "object") return null;
+    names.add(x.name);
+  }
+  return tools as readonly LlmToolSpec[];
+}
+
+/** Chamada de ferramenta bem formada (id, nome, argumentos dentro do teto). */
+function validToolCall(c: unknown): c is LlmToolCall {
+  const x = c as Partial<LlmToolCall> | null;
+  return (
+    !!x &&
+    typeof x.id === "string" &&
+    TOOL_CALL_ID.test(x.id) &&
+    typeof x.name === "string" &&
+    TOOL_NAME.test(x.name) &&
+    typeof x.arguments === "string" &&
+    x.arguments.length <= LIMITS.maxToolArgumentsChars
+  );
+}
 const EFFORTS = new Set<ReasoningEffort>(["none", "auto", "low", "medium", "high"]);
 const TRACE_ID = /^[\w.:-]{1,80}$/;
 
@@ -91,8 +128,21 @@ export function validateLlmRequest(req: LlmRequest): ValidatedRequest | null {
   let inputChars = 0;
   let imageCount = 0;
   let imageChars = 0;
+  const openCalls = new Set<string>();
   for (const m of req.messages as readonly LlmMessage[]) {
     if (!m || !ROLES.has(m.role)) return null;
+    // chamadas de ferramenta só em `assistant`; resultado (`tool`) só responde a uma chamada anterior
+    if (m.toolCalls !== undefined) {
+      if (m.role !== "assistant" || !Array.isArray(m.toolCalls) || m.toolCalls.length === 0 || m.toolCalls.length > LIMITS.maxToolCalls) return null;
+      for (const c of m.toolCalls) {
+        if (!validToolCall(c)) return null;
+        openCalls.add(c.id);
+        inputChars += c.arguments.length;
+      }
+    }
+    if (m.role === "tool") {
+      if (typeof m.toolCallId !== "string" || !openCalls.has(m.toolCallId) || typeof m.content !== "string") return null;
+    } else if (m.toolCallId !== undefined) return null;
     if (typeof m.content === "string") {
       inputChars += m.content.length;
       continue;
@@ -113,6 +163,13 @@ export function validateLlmRequest(req: LlmRequest): ValidatedRequest | null {
     }
   }
   if (inputChars === 0 || inputChars > LIMITS.maxTotalChars) return null;
+  const tools = validateTools(req.tools);
+  if (tools === null) return null;
+  const toolChoice: LlmToolChoice = req.toolChoice ?? "auto";
+  if (!TOOL_CHOICES.has(toolChoice)) return null;
+  if (req.toolChoice !== undefined && tools.length === 0) return null;
+  // resultado de ferramenta exige as ferramentas declaradas na mesma requisição
+  if (openCalls.size > 0 && tools.length === 0) return null;
   if (imageCount > LIMITS.maxImageParts || imageChars > LIMITS.maxImageDataUrlChars) return null;
   if (!req.messages.some((m) => m.role === "user")) return null;
   const maxOut = Math.min(LIMITS.maxOutputTokens, spec.maxOutputTokens);
@@ -139,7 +196,16 @@ export function validateLlmRequest(req: LlmRequest): ValidatedRequest | null {
     timeoutMs,
     inputChars,
     imageCount,
-    provider: { spec, messages: req.messages, maxOutputTokens: req.maxOutputTokens, reasoningEffort: effort, responseFormat: format, temperature },
+    provider: {
+      spec,
+      messages: req.messages,
+      maxOutputTokens: req.maxOutputTokens,
+      reasoningEffort: effort,
+      responseFormat: format,
+      temperature,
+      // sem ferramentas o pedido ao transporte fica idêntico ao de antes (campos ausentes)
+      ...(tools.length > 0 ? { tools, toolChoice } : {}),
+    },
   };
 }
 
@@ -149,7 +215,8 @@ export function containsForbidden(messages: readonly LlmMessage[], forbidden: re
   const values = forbidden.filter((v) => typeof v === "string" && v.length > 0);
   return messages.some((m) => {
     if (!m || (typeof m.content !== "string" && !Array.isArray(m.content))) return false;
-    const text = llmMessageText(m.content);
+    const args = Array.isArray(m.toolCalls) ? m.toolCalls.map((c) => (typeof c?.arguments === "string" ? c.arguments : "")).join("\n") : "";
+    const text = `${llmMessageText(m.content)}\n${args}`;
     return values.some((v) => text.includes(v));
   });
 }
@@ -327,6 +394,13 @@ export async function generateGuestLlm(request: LlmRequest, deps: GatewayDeps = 
           usage = addUsage(usage, normalizeUsage(outcome.usage, cur.inputChars, text.length, cur.imageCount));
           const t = () => telemetryBase(provider.id, cur.spec.id, attempts, usage, cur.spec, requestId);
           const extra = { ...extraBase, outputChars: text.length };
+          if (outcome.finishReason === "tool_calls") {
+            // só vale se a requisição ofereceu ferramentas e permitiu chamá-las; nomes fora da lista são descartados
+            const declared = new Set((cur.provider.tools ?? []).map((x) => x.name));
+            const calls = (cur.provider.toolChoice ?? "auto") === "auto" ? (outcome.toolCalls ?? []).filter((c) => validToolCall(c) && declared.has(c.name)) : [];
+            if (calls.length === 0) return emit(fail(failure("invalid_response"), t()), extra);
+            return emit({ ok: true, text: text.trim(), finishReason: "tool_calls", toolCalls: calls, telemetry: t() }, extra);
+          }
           if (outcome.finishReason === "length") return emit(fail(failure("truncated_response"), t()), extra);
           if (outcome.finishReason === "content_filter") return emit(fail(failure("content_filtered"), t()), extra);
           if (outcome.finishReason !== "stop") return emit(fail(failure("invalid_response"), t()), extra);
