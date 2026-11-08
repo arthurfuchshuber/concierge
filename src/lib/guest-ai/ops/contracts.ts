@@ -85,6 +85,8 @@ export const OPS_REFUSAL_CODES = [
   "card_done",
   "card_muted",
   "staff_prediction",
+  // saída antes do horário combinado pela equipe ou do late checkout autorizado (Etapa 1, 08/11/2026)
+  "before_staff_cut",
   // equipe e negociações
   "assigned_to_team",
   "team_in_command",

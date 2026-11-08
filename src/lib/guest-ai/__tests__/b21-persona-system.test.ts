@@ -179,7 +179,7 @@ describe("B2.1 · System Prompt — silêncio, intenções, interlocutor/titular
     expect(sys).toMatch(/milestoneQuote/);
     expect(sys).toMatch(/já saiu e entregou o imóvel antes da data final da reserva/);
     expect(sys).toMatch(/Plano de sair mais cedo, sem saída já feita, não é saída/);
-    expect(sys).toMatch(/Chegada entre 00:00 e 05:00 no fuso do imóvel pertence à noite da data de entrada/);
+    expect(sys).toMatch(/Chegada entre 00:00 e 04:59 no fuso do imóvel pertence à noite da data de entrada/);
     expect(sys).toMatch(/trate o problema com prioridade/);
   });
   it("comportamento não é roteiro: nenhuma frase de exemplo da diretriz embutida", () => {
