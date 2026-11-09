@@ -3042,9 +3042,19 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       }
       right={
         <InfoHint title="Guia do hóspede">
-          Conta as reservas com check-in no período (o mesmo hóspede conta uma vez só). “Viram instruções Check-In” são os que já abriram as Instruções da
-          sessão “Chegada” pelo menos uma vez; “Viram senha de acesso” são os que já visualizaram as senhas no guia pelo
-          menos uma vez.
+          {/* Uma linha por indicador (board de 08/11/2026): quem lê acha cada status sem garimpar o parágrafo. */}
+          <span className="block">
+            Conta as reservas com check-ins pendentes no dia de hoje (cada hóspede conta uma vez).
+          </span>
+          <span className="my-2 block h-px bg-foreground/10" aria-hidden="true" />
+          <span className="block">
+            <b className="font-semibold text-foreground">• Viram instruções Check-In</b> — abriram as Instruções da
+            sessão “Chegada” ao menos uma vez.
+          </span>
+          <span className="mt-1.5 block">
+            <b className="font-semibold text-foreground">• Viram senha de acesso</b> — visualizaram as senhas no guia ao
+            menos uma vez.
+          </span>
         </InfoHint>
       }
     />
