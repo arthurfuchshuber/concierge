@@ -63,7 +63,7 @@ const TABLES = [
   "ai_conversations","ai_conversation_channels","ai_conversation_summaries","ai_messages","ai_knowledge_gaps",
   "ai_precedents","ai_memories","ai_host_corrections","ai_proactive_actions","ai_guest_memory","permission_nodes",
   "poi_categories","poi_tags","sigma_city_faqs","sigma_city_marketplace","sigma_city_packs","sigma_city_recommendations",
-  "city_daily_news",
+  "city_daily_news","guest_ai_copilot_suggestions",
 ];
 
 /**
