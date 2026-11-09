@@ -1338,8 +1338,25 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     // Sem debounce aqui: o card já se moveu de forma otimista no clique, e a
     // recarga acontece assim que o servidor confirma — esperar 600s+ dava a
     // impressão de que o botão "não respondia".
-    onSuccess: () => {
+    onSuccess: (res, v) => {
       refreshDashboard(0);
+      // A etapa já tinha sido concluída por outra pessoa/IA (tela desatualizada): o servidor não reescreve
+      // nada e a tela avisa quem fez e quando, em vez de fingir que foi este clique.
+      const r = res as { alreadyDone?: boolean; doneAt?: string | null; doneNote?: string | null } | undefined;
+      if (r?.alreadyDone) {
+        const etapa =
+          v.from === "checkin" ? "check-in" : v.from === "cleaning" || v.skipCleaning ? "limpeza" : "check-out";
+        const hora = r.doneAt
+          ? new Date(r.doneAt).toLocaleTimeString("pt-BR", {
+              hour: "2-digit",
+              minute: "2-digit",
+              timeZone: "America/Sao_Paulo",
+            })
+          : null;
+        toast.info(`Este ${etapa} já estava concluído`, {
+          description: [r.doneNote, hora ? `às ${hora}` : null].filter(Boolean).join(" ") || undefined,
+        });
+      }
     },
     onError: (e) => {
       toast.error(e instanceof Error ? e.message : "Falha ao avançar card.");

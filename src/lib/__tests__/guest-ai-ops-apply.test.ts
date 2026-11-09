@@ -139,6 +139,18 @@ describe("G2c · conclusão pelo avanço oficial do painel", () => {
     expect(f.log).toEqual([]);
   });
 
+  it("etapa concluída por outra pessoa no meio do caminho ⇒ card_done, nada é escrito", async () => {
+    const f = fakeDb();
+    const advance = vi.fn(async () => ({ ok: true, alreadyDone: true }));
+    expect(
+      await applyOpsAction(
+        { action: "checkout_done", ...BASE },
+        { db: f.db, advance: advance as never },
+      ),
+    ).toEqual({ ok: false, code: "card_done" });
+    expect(f.log).toEqual([]);
+  });
+
   it("saída antecipada: conclui e só depois puxa o card de saída para hoje (data original registrada)", async () => {
     const f = fakeDb([{ reservation_id: "r1", kind: "checkout", status: "pending" }]);
     const order: string[] = [];

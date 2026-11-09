@@ -57,6 +57,7 @@ export type OpsApplyPortResult =
       ok: false;
       code:
         | "panel_refused"
+        | "card_done"
         | "apply_failed"
         | "staff_prediction_race"
         | "staff_author_unknown"
