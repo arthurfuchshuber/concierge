@@ -37,6 +37,7 @@ import {
   LineChart,
   Line,
   XAxis,
+  YAxis,
   LabelList,
   CartesianGrid,
   Cell,
@@ -3051,6 +3052,8 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
      sumindo entre o rótulo e o "i" fecha a linha sem pedir mais nada. */
   const engagementEyebrow = (
     <PanelHeading
+      lgCentered
+      className="mb-3 lg:mb-0"
       title="Guia do hóspede"
       dot={
         <span
@@ -3077,9 +3080,24 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       }
     />
   );
+  /* O Guia some quando não há dado de engajamento (nenhum check-in no período
+     e nenhum com senha); enquanto carrega, continua à vista. */
+  const engagementHasData = (engQ.data?.checkinsInPeriod ?? 0) > 0 || (engQ.data?.checkinsWithCodes ?? 0) > 0;
+  const showGuia = engQ.isLoading || engagementHasData;
+  /* AS 4 ARRUMAÇÕES DO TOPO NO DESKTOP (mockups 09/11/2026): o Guia (à
+     esquerda) e a Fila de Limpeza (última peça do bloco de cartões) aparecem
+     ou somem conforme haja dado; os cartões nunca esticam numa faixa larga.
+       · Guia + Fila: Guia 742 | 6 colunas (linha 1 = 2 cartões de 3, linha 2 = 3 de 2);
+       · só Guia:     Guia 742 | 2 colunas (2×2);
+       · só Fila:     5 cartões iguais numa linha, Fila por último;
+       · nenhum:      4 cartões iguais numa linha. */
+  const showFila = cleaningRows.length > 0;
+  const topWrapCols = showGuia ? "lg:grid-cols-[742fr_624fr]" : "lg:grid-cols-1";
+  const topTilesCols = showGuia ? (showFila ? "lg:grid-cols-6" : "lg:grid-cols-2") : showFila ? "lg:grid-cols-5" : "lg:grid-cols-4";
+  const tileRow1Span = showGuia && showFila ? "lg:col-span-3" : "lg:col-span-1";
+  const tileRow2Span = showGuia && showFila ? "lg:col-span-2" : "lg:col-span-1";
   function renderEngagementTop() {
-    const hasData = (engQ.data?.checkinsInPeriod ?? 0) > 0 || (engQ.data?.checkinsWithCodes ?? 0) > 0;
-    if (!engQ.isLoading && !hasData) return null;
+    if (!showGuia) return null;
 
     /* UM CARD SÓ, no celular e no computador (mockup aprovado, 17/09/2026).
        Antes o computador quebrava em dois cards, um por métrica — só um
@@ -3087,9 +3105,12 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
        Agora é o mesmo quadrante nas duas telas: o próprio `EngagementBars`
        muda a arrumação de cada anel conforme a largura. */
     return (
-      <div className="relative overflow-hidden rounded-[16px] p-px">
+      <div className="relative overflow-hidden rounded-[16px] p-px lg:h-full">
         {engagementRing}
-        <div className="relative rounded-[15px] bg-card p-4 lg:px-5" style={{ backgroundImage: engagementCardBg }}>
+        <div
+          className="relative rounded-[15px] bg-card p-4 lg:flex lg:h-full lg:flex-col lg:px-5 lg:pb-[14px] lg:pt-[13px]"
+          style={{ backgroundImage: engagementCardBg }}
+        >
           {engagementEyebrow}
           <EngagementBars
             loading={engQ.isLoading}
@@ -3279,10 +3300,6 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
 
       {view === "resumo" ? (
         <div className="ds-stack">
-          {/* Engajamento do guia — fica no topo, antes de tudo (pedido
-              explícito), com destaque. Ver renderEngagementTop acima. */}
-          {renderEngagementTop()}
-
           {/* Grade única dos KPIs — a ordem visual diverge entre mobile e
               desktop (pedido explícito), então cada card carrega sua própria
               posição via classes "order" (mobile) e "lg:order" (desktop) em
@@ -3303,13 +3320,23 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
               única linha → liberado p/ limpeza (faixa cheia) → calendário →
               em estadia e imóveis livres na linha seguinte. */}
           <div className="ds-card-grid grid-cols-2 lg:grid-cols-4">
+            {/* Engajamento do guia — fica no topo, antes de tudo (pedido
+                explícito), com destaque. Ver renderEngagementTop acima. No
+                celular é o 1º item da grade (`order-none`→ antes do "Hoje"); no
+                desktop mora à esquerda dos cartões. */}
+            <div className={`contents lg:col-span-4 lg:grid lg:gap-[var(--ds-grid-gap)] ${topWrapCols}`}>
+              {showGuia ? (
+                <div className="order-[0] col-span-2 lg:order-none lg:col-span-1 lg:h-[142px]">{renderEngagementTop()}</div>
+              ) : null}
+              <div className={`contents lg:grid lg:auto-rows-[66px] lg:gap-[var(--ds-grid-gap)] ${topTilesCols}`}>
             {/* RÓTULOS DE SEÇÃO — só no celular (mockup aprovado,
                 17/09/2026): "Hoje", "Amanhã" e "Ocupação" separam a lista
                 num fio que some. No computador os quatro cards ficam numa
                 linha só e os rótulos não fazem falta. */}
             <SectionLabel className="col-span-2 order-1 lg:hidden">Hoje</SectionLabel>
-            <div className="order-2 lg:order-1">
+            <div className={`order-2 lg:order-1 ${tileRow1Span}`}>
               <KpiCard
+                deskTile="stacked"
                 label="Check-ins Pendentes"
                 openSignal={pushSignal("checkins")}
                 rows={checkinPendingRows}
@@ -3326,8 +3353,9 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 valueSizeClass={opBigSize}
               />
             </div>
-            <div className="order-3 lg:order-2">
+            <div className={`order-3 lg:order-2 ${tileRow1Span}`}>
               <KpiCard
+                deskTile="stacked"
                 label="Checkouts Pendentes"
                 openSignal={pushSignal("checkouts")}
                 rows={checkoutPendingRows}
@@ -3345,8 +3373,9 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
               />
             </div>
             <SectionLabel className="col-span-2 order-5 lg:hidden">Amanhã</SectionLabel>
-            <div className="order-6 lg:order-3">
+            <div className={`order-6 lg:order-3 ${tileRow2Span}`}>
               <KpiCard
+                deskTile="stacked"
                 label="Check-ins amanhã"
                 rows={tomorrowCheckinPendingRows}
                 icon={CalendarCheck}
@@ -3359,8 +3388,9 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 valueSizeClass={opBigSize}
               />
             </div>
-            <div className="order-7 lg:order-4">
+            <div className={`order-7 lg:order-4 ${tileRow2Span}`}>
               <KpiCard
+                deskTile="stacked"
                 label="Checkouts amanhã"
                 openSignal={pushSignal("checkouts-amanha")}
                 rows={tomorrowCheckoutPendingRows}
@@ -3378,9 +3408,10 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
             {/* Fila de Limpeza — faixa fina, largura total (só quando houver
                 1+), mantendo o destaque âmbar (borda + gradiente + acento
                 lateral). Fica logo depois dos 4 KPIs do topo. */}
-            {cleaningRows.length > 0 ? (
-              <div className="order-4 col-span-2 lg:order-5 lg:col-span-4">
+            {showFila ? (
+              <div className={`order-4 col-span-2 lg:order-5 ${tileRow2Span}`}>
                 <KpiCard
+                  deskTile="stacked"
                   label="Fila de Limpeza"
                   openSignal={pushSignal("limpeza")}
                   rows={cleaningRows}
@@ -3396,6 +3427,8 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 />
               </div>
             ) : null}
+              </div>
+            </div>
 
             {/* Calendário de ocupação — pedido explícito: agora vem ANTES de
                 "Em Estadia"/"Imóveis livres" (antes vinha depois). Os
@@ -3466,6 +3499,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
             <div className="contents lg:order-7 lg:col-span-4 lg:col-start-1 lg:grid lg:grid-cols-2 lg:gap-[var(--ds-grid-gap)]">
               <div className="order-10 col-span-1">
                 <KpiCard
+                  deskTile="inline"
                   label="Em Estadia"
                   openSignal={pushSignal("estadia")}
                   rows={stayRows}
@@ -3628,6 +3662,16 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 explícito, 21/09/2026). O painel de Eficiência foi excluído por
                 inteiro em 29/10/2026. */}
             <div className="ds-card-grid grid-cols-1 lg:grid-cols-2 items-stretch">
+              <div>
+                <CleaningCostComposition
+                  days={cleaningChartDaily?.length ?? 0}
+                  cleanCents={limpezaOn ? cleaningScreen.costValue : 0}
+                  cleanCount={limpezaOn ? cleaningScreen.countValue : 0}
+                  extraCents={extrasCents}
+                  extraCount={extrasCount}
+                  loading={cleaningScreen.statsLoading || cleaningScreen.trendLoading || (extrasActive && extrasQ.isLoading)}
+                />
+              </div>
               <div>
                 <CleaningTopProperties
                   days={cleaningChartDaily?.length ?? 0}
@@ -4424,9 +4468,17 @@ function KpiCard({
   cardProps,
   valueSizeClass,
   openSignal,
+  deskTile,
 }: {
   /** Clique no push (07/11/2026): cada valor novo abre a janela sozinha. */
   openSignal?: number;
+  /**
+   * Só no DESKTOP (`lg:`), mockups 09/11/2026 — o celular não muda:
+   *  · "stacked": rótulo em cima (ícone sem caixa) e número 28px embaixo,
+   *    alinhado à esquerda, em cartão de 66px;
+   *  · "inline": faixa de 54px — ícone em caixa, rótulo e número à direita.
+   */
+  deskTile?: "stacked" | "inline";
   /** Tamanho compartilhado por todos os números da página (ver `kpiSizeClass`). */
   valueSizeClass?: string;
   label: string;
@@ -4556,19 +4608,29 @@ function KpiCard({
                  um card normal com um TRAÇO âmbar na lateral; o rótulo fica
                  CENTRALIZADO (pedido explícito, com print) e a contagem à
                  direita, numa pílula neutra. */
-              className={`relative flex w-full items-center gap-3 overflow-hidden rounded-[14px] border-0 bg-card px-3.5 py-3 text-left transition hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${shadowClass}`}
+              className={`relative flex w-full items-center gap-3 overflow-hidden rounded-[14px] border-0 bg-card px-3.5 py-3 text-left transition hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${shadowClass}${
+                deskTile === "stacked"
+                  ? " lg:grid lg:h-full lg:grid-cols-[auto_1fr] lg:grid-rows-[auto_1fr] lg:content-start lg:items-center lg:gap-x-[7px] lg:gap-y-0 lg:pb-0 lg:pl-[13px] lg:pr-[14px] lg:pt-[11px] lg:border lg:border-[rgba(255,185,0,0.38)] lg:[background-image:linear-gradient(180deg,rgba(255,185,0,0.07),rgba(255,185,0,0)_70%)]"
+                  : ""
+              }`}
             >
               <span
                 aria-hidden
-                className="absolute inset-y-0 left-0 w-[2px] bg-gradient-to-b from-transparent via-[#c9a962] to-transparent"
+                className={`absolute inset-y-0 left-0 w-[2px] bg-gradient-to-b from-transparent via-[#c9a962] to-transparent ${deskTile === "stacked" ? "lg:hidden" : ""}`}
               />
-              <span className="ds-atencao grid size-8 shrink-0 place-items-center rounded-[10px] bg-[#c9a962]/10">
-                <Icon className="size-4" strokeWidth={2.2} />
+              <span
+                className={`ds-atencao grid size-8 shrink-0 place-items-center rounded-[10px] bg-[#c9a962]/10 ${deskTile === "stacked" ? "lg:size-auto lg:rounded-none lg:bg-transparent" : ""}`}
+              >
+                <Icon className={`size-4 ${deskTile === "stacked" ? "lg:size-[14px]" : ""}`} strokeWidth={2.2} />
               </span>
-              <span className="ds-eyebrow min-w-0 flex-1 truncate text-center text-[10.5px] tracking-[0.12em] text-muted-foreground">
+              <span
+                className={`ds-eyebrow min-w-0 flex-1 truncate text-center text-[10.5px] tracking-[0.12em] text-muted-foreground ${deskTile === "stacked" ? "lg:text-left lg:text-[10px] lg:font-extrabold lg:tracking-[0.11em]" : ""}`}
+              >
                 {label}
               </span>
-              <span className="grid h-[26px] min-w-[26px] shrink-0 place-items-center rounded-full bg-foreground/[0.06] px-2 font-display text-[14px] font-bold leading-none tabular-nums shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_8%,transparent)]">
+              <span
+                className={`grid h-[26px] min-w-[26px] shrink-0 place-items-center rounded-full bg-foreground/[0.06] px-2 font-display text-[14px] font-bold leading-none tabular-nums shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_8%,transparent)] ${deskTile === "stacked" ? "lg:col-span-2 lg:mt-[7px] lg:h-[30px] lg:min-w-0 lg:justify-self-start lg:rounded-none lg:bg-transparent lg:p-0 lg:text-[28px] lg:font-extrabold lg:leading-[30px] lg:tracking-[-0.03em] lg:shadow-none" : ""}`}
+              >
                 {loading ? "—" : rows.length}
               </span>
             </button>
@@ -4599,18 +4661,41 @@ function KpiCard({
                · o cartão ficou mais baixo — 14px de respiro em vez de 20. */
           <button
             type="button"
-            className={`relative flex h-full w-full flex-col gap-1 overflow-hidden rounded-[14px] border-0 bg-card px-2.5 pb-2.5 pt-3 text-left transition hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${shadowClass}`}
+            className={`relative flex h-full w-full flex-col gap-1 overflow-hidden rounded-[14px] border-0 bg-card px-2.5 pb-2.5 pt-3 text-left transition hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${shadowClass}${
+              deskTile === "stacked"
+                ? " lg:justify-start lg:gap-0 lg:pb-0 lg:pl-[13px] lg:pr-[14px] lg:pt-[11px]"
+                : deskTile === "inline"
+                  ? " lg:h-[54px] lg:flex-row lg:items-center lg:gap-2.5 lg:px-3 lg:py-0"
+                  : ""
+            }`}
           >
-            {topLine && <span aria-hidden className={`absolute inset-x-3 top-0 h-[2px] rounded-b-[3px] ${topLine}`} />}
-            <div className="flex w-full min-w-0 items-center gap-1.5">
+            {topLine && (
               <span
-                className={`grid size-6 shrink-0 place-items-center rounded-[8px] bg-foreground/[0.05] ${dotClass.replace("bg-", "text-")}`}
+                aria-hidden
+                className={`absolute inset-x-3 top-0 h-[2px] rounded-b-[3px] ${deskTile === "stacked" ? "lg:inset-x-3.5 lg:h-px" : ""} ${topLine}`}
+              />
+            )}
+            <div className={`flex w-full min-w-0 items-center gap-1.5 ${deskTile === "stacked" ? "lg:gap-[7px]" : deskTile === "inline" ? "lg:flex-1 lg:gap-2.5" : ""}`}>
+              <span
+                className={`grid size-6 shrink-0 place-items-center rounded-[8px] bg-foreground/[0.05] ${dotClass.replace("bg-", "text-")} ${
+                  deskTile === "stacked"
+                    ? "lg:size-auto lg:rounded-none lg:bg-transparent"
+                    : deskTile === "inline"
+                      ? "lg:size-7"
+                      : ""
+                }`}
               >
-                <Icon className="size-3.5" strokeWidth={2} />
+                <Icon className={`size-3.5 ${deskTile === "inline" ? "lg:size-[15px]" : ""}`} strokeWidth={2} />
               </span>
               {/* Uma única linha — sempre reticências, nunca quebra. */}
               <span
-                className="ds-eyebrow min-w-0 flex-1 truncate text-[9px] tracking-[0.04em] sm:text-[10px] sm:tracking-[0.08em]"
+                className={`ds-eyebrow min-w-0 flex-1 truncate text-[9px] tracking-[0.04em] sm:text-[10px] sm:tracking-[0.08em] ${
+                  deskTile === "stacked"
+                    ? "lg:font-extrabold lg:tracking-[0.11em]"
+                    : deskTile === "inline"
+                      ? "lg:text-[10.5px] lg:font-extrabold lg:tracking-[0.12em]"
+                      : ""
+                }`}
                 title={label}
               >
                 {label}
@@ -4624,6 +4709,12 @@ function KpiCard({
             <div
               className={`w-full pt-1.5 text-center font-display font-bold tabular-nums leading-none tracking-[-0.03em] ${
                 valueSizeClass ?? (shadowTone ? "text-[24px] sm:text-[27px]" : "text-[22px] sm:text-[26px]")
+              } ${
+                deskTile === "stacked"
+                  ? "lg:mt-[7px] lg:pt-0 lg:text-left lg:text-[28px] lg:font-extrabold lg:leading-[30px]"
+                  : deskTile === "inline"
+                    ? "lg:w-auto lg:pt-0 lg:text-right lg:text-[24px] lg:font-extrabold lg:leading-6"
+                    : ""
               } whitespace-nowrap ${
                 !loading && rows.length > 0 && shadowTone === "sky"
                   ? "text-sky-500 dark:text-sky-400"
@@ -4850,23 +4941,23 @@ function FreePropertiesCard({
             ícone, número no meio, data no canto inferior direito. */}
         <button
           type="button"
-          className="ds-3d ds-3d-hover flex h-full w-full flex-col gap-1 rounded-[14px] border-0 bg-card px-2.5 pb-2.5 pt-3 text-left transition hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+          className="ds-3d ds-3d-hover flex h-full w-full flex-col gap-1 rounded-[14px] border-0 bg-card px-2.5 pb-2.5 pt-3 text-left transition hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 lg:h-[54px] lg:flex-row lg:items-center lg:gap-2.5 lg:px-3 lg:py-0"
         >
-          <div className="flex w-full min-w-0 items-center gap-1.5">
+          <div className="flex w-full min-w-0 items-center gap-1.5 lg:flex-1 lg:gap-2.5">
             {/* Ícone neutro (mesma cor do texto do rótulo) — só o número
                 grande é que muda de cor conforme o estado. */}
-            <span className="grid size-6 shrink-0 place-items-center rounded-[8px] bg-foreground/[0.05] text-muted-foreground">
-              <Home className="size-3.5" strokeWidth={2} />
+            <span className="grid size-6 shrink-0 place-items-center rounded-[8px] bg-foreground/[0.05] text-muted-foreground lg:size-7">
+              <Home className="size-3.5 lg:size-[15px]" strokeWidth={2} />
             </span>
             <span
-              className="ds-eyebrow min-w-0 flex-1 truncate text-[9px] tracking-[0.04em] sm:text-[10px] sm:tracking-[0.08em]"
+              className="ds-eyebrow min-w-0 flex-1 truncate text-[9px] tracking-[0.04em] sm:text-[10px] sm:tracking-[0.08em] lg:text-[10.5px] lg:font-extrabold lg:tracking-[0.12em]"
               title={`Imóveis livres ${dayLabel}`}
             >
               Imóveis livres
             </span>
           </div>
           <div
-            className={`w-full pt-1.5 text-center font-display font-bold tabular-nums leading-none whitespace-nowrap ${valueSizeClass} ${hasFree ? "text-red-500 dark:text-red-400" : "text-foreground"}`}
+            className={`w-full pt-1.5 text-center font-display font-bold tabular-nums leading-none whitespace-nowrap ${valueSizeClass} lg:w-auto lg:pt-0 lg:text-right lg:text-[24px] lg:font-extrabold lg:leading-6 ${hasFree ? "text-red-500 dark:text-red-400" : "text-foreground"}`}
           >
             {loading ? "—" : properties.length}
           </div>
@@ -5222,6 +5313,25 @@ function dayTick(v: string): string {
   return `${d}/${m}`;
 }
 
+/** `true` a partir de `lg` (1024px). Os gráficos da Financeiro crescem no
+    desktop (mockups 09/11/2026); no celular continuam do tamanho de sempre. */
+function useIsLg(): boolean {
+  const [lg, setLg] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1024px)");
+    const on = () => setLg(mq.matches);
+    on();
+    mq.addEventListener("change", on);
+    return () => mq.removeEventListener("change", on);
+  }, []);
+  return lg;
+}
+
+/** Informação à direita do cabeçalho do gráfico — só no desktop. */
+function ChartPeak({ children }: { children: React.ReactNode }) {
+  return <span className="hidden text-[11px] font-semibold text-muted-foreground lg:inline">{children}</span>;
+}
+
 /** O que o gráfico recebe da moldura para destacar e abrir o dia tocado. */
 type ChartPick = {
   selected: string | null;
@@ -5262,10 +5372,13 @@ function CleaningChartFrame({
   detail,
   tone,
   legend,
+  peak,
   children,
 }: {
   title: string;
   data: CleaningDailyPoint[] | undefined;
+  /** "Pico: 06/11 · 4 serviços" — à direita do cabeçalho, só no desktop. */
+  peak?: React.ReactNode;
   loading: boolean;
   /** Cor do ponto do cabeçalho — a mesma da série desenhada abaixo. */
   tone?: string;
@@ -5277,9 +5390,11 @@ function CleaningChartFrame({
   detail?: DayDetailSource | ((date: string) => DayDetailSource[]);
   /** Legenda de cores, centrada embaixo do gráfico (período misto). */
   legend?: React.ReactNode;
-  children: (width: number, pick: ChartPick) => React.ReactElement;
+  children: (width: number, pick: ChartPick, height: number) => React.ReactElement;
 }) {
   const days = data?.length ?? 0;
+  const isLg = useIsLg();
+  const chartH = isLg ? 232 : 128;
   const anti = useAntiClipColumns(days, CLEANING_DAY_MIN_PX);
   const [selected, setSelected] = useState<string | null>(null);
   /** X do dia tocado, nas coordenadas do gráfico (antes da rolagem). */
@@ -5321,9 +5436,10 @@ function CleaningChartFrame({
         title={days > 0 ? `${title} (${days} ${days === 1 ? "dia" : "dias"})` : title}
         dotColor={tone}
         className="mb-2.5"
+        right={peak}
       />
       {loading || !data || days === 0 ? (
-        <div className="h-32 grid place-items-center text-muted-foreground">
+        <div className="grid place-items-center text-muted-foreground" style={{ height: chartH }}>
           <Loader2 className="size-4 animate-spin" />
         </div>
       ) : (
@@ -5334,8 +5450,8 @@ function CleaningChartFrame({
               style={{ width: anti.viewportWidth }}
               onScroll={(e) => setScrollLeft(e.currentTarget.scrollLeft)}
             >
-              <div className={`h-32 ${detail ? "cursor-pointer" : ""}`} style={{ width: anti.contentWidth }}>
-                {anti.contentWidth ? children(anti.contentWidth, pick) : null}
+              <div className={detail ? "cursor-pointer" : ""} style={{ width: anti.contentWidth, height: chartH }}>
+                {anti.contentWidth ? children(anti.contentWidth, pick, chartH) : null}
               </div>
             </div>
             {/* Espaçador INVISÍVEL: é a sobra que não dá para um dia inteiro.
@@ -5389,6 +5505,17 @@ function CleaningDailyBarChart({
   series?: CleaningSeries;
 }) {
   const split = series === "split";
+  const isLg = useIsLg();
+  // Pico do período (desktop): o dia com mais serviços.
+  const peakDay = (data ?? []).reduce<CleaningDailyPoint | null>((best, d) => (!best || d.count > best.count ? d : best), null);
+  // Escala do eixo (desktop): de 0 ao pico, em passos inteiros (no mínimo até 4).
+  const yStep = Math.max(1, Math.ceil(Math.max(4, peakDay?.count ?? 0) / 4));
+  const yTop = Math.ceil(Math.max(4, peakDay?.count ?? 0) / yStep) * yStep + (peakDay && peakDay.count >= 4 ? 0.4 * yStep : 0);
+  const yTicks = Array.from({ length: Math.floor(yTop / yStep) + 1 }, (_, i) => i * yStep);
+  const peakLabel =
+    peakDay && peakDay.count > 0
+      ? `Pico: ${dayTick(peakDay.date)} · ${peakDay.count} ${peakDay.count === 1 ? "serviço" : "serviços"}`
+      : null;
   return (
     <CleaningChartFrame
       title={title}
@@ -5397,16 +5524,31 @@ function CleaningDailyBarChart({
       detail={detail}
       tone={cleaningSeriesColor(series)}
       legend={split ? <CleaningSplitLegend /> : null}
+      peak={peakLabel ? <ChartPeak>{peakLabel}</ChartPeak> : undefined}
     >
-      {(width, pick) => (
+      {(width, pick, height) => (
         <BarChart
           width={width}
-          height={128}
+          height={height}
           data={data}
-          margin={{ top: 14, right: 8, left: 8, bottom: 0 }}
+          margin={{ top: isLg ? 26 : 14, right: isLg ? 10 : 8, left: isLg ? 10 : 8, bottom: 0 }}
           onClick={pick.onPick}
         >
-          <CartesianGrid stroke="var(--border)" strokeDasharray="2 4" vertical={false} />
+          <CartesianGrid stroke="var(--border)" strokeDasharray={isLg ? "3 5" : "2 4"} vertical={false} />
+          {/* Só no desktop: escala inteira de 0 ao pico (gradeado tracejado). */}
+          {isLg && (
+            <YAxis
+              width={22}
+              tick={{ fontSize: 9.5, fill: "var(--muted-foreground)", textAnchor: "start", dy: -4 }}
+              tickLine={false}
+              axisLine={false}
+              tickMargin={-6}
+              mirror
+              allowDecimals={false}
+              domain={[0, yTop]}
+              ticks={yTicks}
+            />
+          )}
           <XAxis
             dataKey="date"
             tickFormatter={dayTick}
@@ -5449,9 +5591,15 @@ function CleaningDailyBarChart({
             maxBarSize={22}
             isAnimationActive={false}
           >
-            {/* Dia aberto em cor cheia; os demais esmaecem. */}
+            {/* Dia aberto em cor cheia; os demais esmaecem. No desktop o dia de
+                pico fica em cor cheia e os outros um tom abaixo. */}
             {(data ?? []).map((d) => (
-              <Cell key={d.date} fillOpacity={pick.selected && pick.selected !== d.date ? 0.32 : 1} />
+              <Cell
+                key={d.date}
+                fillOpacity={
+                  pick.selected && pick.selected !== d.date ? 0.32 : isLg && !pick.selected && d.date !== peakDay?.date ? 0.86 : 1
+                }
+              />
             ))}
             {/* Substitui o eixo vertical removido: o número fica em cima da
                 própria barra, que é onde se olha. */}
@@ -5459,7 +5607,7 @@ function CleaningDailyBarChart({
               dataKey="count"
               position="top"
               offset={4}
-              style={{ fontSize: 10, fill: "var(--muted-foreground)" }}
+              style={{ fontSize: isLg ? 12 : 10, fontWeight: isLg ? 700 : 400, fill: isLg ? "var(--foreground)" : "var(--muted-foreground)" }}
             />
           </Bar>
         </BarChart>
@@ -5486,6 +5634,13 @@ function CleaningDailyAreaChart({
 }) {
   const split = series === "split";
   const lineColor = cleaningSeriesColor(series);
+  const isLg = useIsLg();
+  const peakDay = (data ?? []).reduce<CleaningDailyPoint | null>(
+    (best, d) => (!best || d.totalCents > best.totalCents ? d : best),
+    null,
+  );
+  const peakLabel =
+    peakDay && peakDay.totalCents > 0 ? `Pico: ${centsToBRLShort(peakDay.totalCents)} em ${dayTick(peakDay.date)}` : null;
   return (
     <CleaningChartFrame
       title={title}
@@ -5494,13 +5649,14 @@ function CleaningDailyAreaChart({
       detail={detail}
       tone={lineColor}
       legend={split ? <CleaningSplitLegend /> : null}
+      peak={peakLabel ? <ChartPeak>{peakLabel}</ChartPeak> : undefined}
     >
-      {(width, pick) => (
+      {(width, pick, height) => (
         <AreaChart
           width={width}
-          height={128}
+          height={height}
           data={data}
-          margin={{ top: 16, right: 8, left: 8, bottom: 0 }}
+          margin={{ top: isLg ? 30 : 16, right: isLg ? 34 : 8, left: isLg ? 34 : 8, bottom: 0 }}
           onClick={pick.onPick}
         >
           <defs>
@@ -5513,7 +5669,7 @@ function CleaningDailyAreaChart({
               <stop offset="100%" stopColor={CLEANING_FORECAST_COLOR} stopOpacity={0} />
             </linearGradient>
           </defs>
-          <CartesianGrid stroke="var(--border)" strokeDasharray="2 4" vertical={false} />
+          <CartesianGrid stroke="var(--border)" strokeDasharray={isLg ? "3 5" : "2 4"} vertical={false} />
           <XAxis
             dataKey="date"
             tickFormatter={dayTick}
@@ -5571,6 +5727,12 @@ function CleaningDailyAreaChart({
             strokeDasharray={series === "forecast" ? "4 3" : undefined}
             fill={split ? "none" : series === "forecast" ? "url(#cleaningForecastArea)" : "url(#cleaningCostArea)"}
             isAnimationActive={false}
+            // Desktop: um ponto vazado em cada dia (mockup).
+            dot={
+              isLg
+                ? { r: 3.6, fill: "var(--card)", stroke: split ? CLEANING_DONE_COLOR : lineColor, strokeWidth: 2 }
+                : false
+            }
           >
             {/* Mesmo papel do rótulo das barras. Valor arredondado e sem
                 centavos, como o eixo removido já fazia — o valor cheio
@@ -5581,7 +5743,11 @@ function CleaningDailyAreaChart({
               position="top"
               offset={6}
               formatter={(v: number) => (v ? `R$ ${Math.round(v / 100).toLocaleString("pt-BR")}` : "")}
-              style={{ fontSize: 9.5, fill: "var(--muted-foreground)" }}
+              style={{
+                fontSize: isLg ? 11 : 9.5,
+                fontWeight: isLg ? 700 : 400,
+                fill: isLg ? "var(--foreground)" : "var(--muted-foreground)",
+              }}
             />
           </Area>
           {pick.selected && (
@@ -5630,7 +5796,7 @@ function CleaningTopProperties({
   const top = (items ?? []).slice(0, 5);
   const maxCount = Math.max(1, ...top.map((i) => i.count));
   return (
-    <div className={`${PANEL_SHELL} h-full w-full px-3.5 py-3.5`}>
+    <div className={`${PANEL_SHELL} flex h-full w-full flex-col px-3.5 py-3.5 lg:min-h-[246px] lg:px-5`}>
       <PanelHeading
         title={days > 0 ? `Top 5 imóveis (${days} ${days === 1 ? "dia" : "dias"})` : "Top 5 imóveis"}
         dotColor={cleaningSeriesColor(series)}
@@ -5645,13 +5811,17 @@ function CleaningTopProperties({
       ) : top.length === 0 ? (
         <div className="py-6 text-center text-xs text-muted-foreground">{unit === "limpeza" ? "Nenhuma limpeza no período." : "Nenhum serviço no período."}</div>
       ) : (
-        <ul className="space-y-1.5">
-          {top.map((item) => (
-            <li key={item.propertyId} className="flex items-center gap-2">
-              <span className="w-20 shrink-0 truncate text-[10.5px] text-foreground" title={item.propertyName}>
+        <ul className="space-y-1.5 lg:flex lg:flex-1 lg:flex-col lg:justify-center lg:gap-[17px] lg:space-y-0">
+          {top.map((item, idx) => (
+            <li key={item.propertyId} className="flex items-center gap-2 lg:gap-3">
+              <span className="hidden w-[18px] shrink-0 text-[11px] font-bold text-muted-foreground lg:block">{idx + 1}</span>
+              <span
+                className="w-20 shrink-0 truncate text-[10.5px] text-foreground lg:w-[230px] lg:text-[12.5px] lg:font-semibold"
+                title={item.propertyName}
+              >
                 {item.propertyName}
               </span>
-              <span className="h-2 flex-1 rounded-full bg-muted/50 overflow-hidden">
+              <span className="h-2 flex-1 overflow-hidden rounded-full bg-muted/50 lg:h-2.5">
                 {series === "split" ? (
                   <span
                     className="flex h-full overflow-hidden rounded-full"
@@ -5682,12 +5852,95 @@ function CleaningTopProperties({
                   />
                 )}
               </span>
-              <span className="w-9 shrink-0 text-right text-[10px] tabular-nums text-muted-foreground">
+              <span className="w-9 shrink-0 text-right text-[10px] tabular-nums text-muted-foreground lg:w-[22px] lg:text-[12.5px] lg:font-bold lg:text-foreground">
                 {item.count}
               </span>
             </li>
           ))}
         </ul>
+      )}
+    </div>
+  );
+}
+
+/**
+ * COMPOSIÇÃO DO CUSTO (mockups 09/11/2026): quanto do custo do período é
+ * limpeza e quanto é serviço extra. Rosca com o total no centro (sem rótulo
+ * "Total") e duas linhas de legenda; no desktop ainda leva a nota com as
+ * quantidades e o ticket médio da limpeza. Fica ACIMA do Top 5 no celular e à
+ * ESQUERDA dele no desktop.
+ */
+function CleaningCostComposition({
+  days,
+  cleanCents,
+  cleanCount,
+  extraCents,
+  extraCount,
+  loading,
+}: {
+  days: number;
+  cleanCents: number;
+  cleanCount: number;
+  extraCents: number;
+  extraCount: number;
+  loading: boolean;
+}) {
+  const total = cleanCents + extraCents;
+  const R = 62;
+  const C = 2 * Math.PI * R;
+  const cleanFrac = total > 0 ? cleanCents / total : 0;
+  const pct = (v: number) =>
+    `${(total > 0 ? (v / total) * 100 : 0).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
+  const ticket = cleanCount > 0 ? centsToBRL(Math.round(cleanCents / cleanCount)) : null;
+  const legendRow = (color: string, label: string, cents: number, opacity = 1, last = false) => (
+    <div className={`flex items-center gap-2.5 border-border/60 py-2.5 lg:border-b lg:py-[11px] ${last ? "" : "border-b"}`}>
+      <i aria-hidden className="size-2.5 shrink-0 rounded-[3px]" style={{ background: color, opacity }} />
+      <span className="flex-1 text-[13px] font-semibold text-foreground">{label}</span>
+      <span className="text-[13px] font-extrabold tabular-nums text-foreground">{centsToBRLShort(cents)}</span>
+      <span className="w-[46px] text-right text-xs tabular-nums text-muted-foreground">{pct(cents)}</span>
+    </div>
+  );
+  return (
+    <div className={`${PANEL_SHELL} flex h-full w-full flex-col px-3.5 py-3.5 lg:min-h-[246px] lg:px-5`}>
+      <PanelHeading
+        title={days > 0 ? `Composição do custo (${days} ${days === 1 ? "dia" : "dias"})` : "Composição do custo"}
+        dotColor={CLEANING_DONE_COLOR}
+        className="mb-2.5 lg:min-h-4"
+      />
+      {loading ? (
+        <div className="grid place-items-center py-6 text-muted-foreground">
+          <Loader2 className="size-4 animate-spin" />
+        </div>
+      ) : total <= 0 ? (
+        <div className="py-6 text-center text-xs text-muted-foreground">Nenhum custo no período.</div>
+      ) : (
+        <div className="flex flex-col items-center gap-4 lg:flex-1 lg:flex-row lg:justify-center lg:gap-[30px] lg:px-2.5">
+          <svg viewBox="0 0 170 170" className="size-[148px] shrink-0 lg:size-[170px]" role="img" aria-label="Composição do custo">
+            <g transform="rotate(-90 85 85)">
+              <circle cx="85" cy="85" r={R} fill="none" stroke="var(--muted-foreground)" strokeOpacity={0.35} strokeWidth="18" />
+              <circle
+                cx="85"
+                cy="85"
+                r={R}
+                fill="none"
+                stroke={CLEANING_DONE_COLOR}
+                strokeWidth="18"
+                strokeDasharray={`${C * cleanFrac} ${C}`}
+              />
+            </g>
+            <text x="85" y="91" textAnchor="middle" fontSize="21" fontWeight="800" fill="var(--foreground)">
+              {centsToBRLShort(total)}
+            </text>
+          </svg>
+          <div className="w-full min-w-0 lg:flex-1">
+            {legendRow(CLEANING_DONE_COLOR, "Limpezas", cleanCents)}
+            {legendRow("var(--muted-foreground)", "Serviços extras", extraCents, 0.55, true)}
+            <div className="mt-3 hidden text-[11.5px] leading-4 text-muted-foreground lg:block">
+              {cleanCount} {cleanCount === 1 ? "limpeza" : "limpezas"} e {extraCount} {extraCount === 1 ? "extra" : "extras"} no período
+              {ticket ? ` · ticket médio de limpeza ${ticket}` : ""}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -8972,7 +9225,7 @@ function EngagementBars({
        vai para a esquerda e a frase para a direita, que é onde sobra
        largura. Quando só existe uma das métricas, ela ocupa o espaço todo e
        o fio não aparece. */
-    <div className="flex items-start gap-3.5 lg:gap-7">
+    <div className="flex items-start gap-3.5 lg:flex-1 lg:items-center lg:gap-0">
       {temCheckin && (
         <RingCell
           label="Viram instruções Check-In"
@@ -8986,7 +9239,7 @@ function EngagementBars({
       {temCheckin && temCodigos && (
         <span
           aria-hidden="true"
-          className="w-px shrink-0 self-stretch bg-gradient-to-b from-transparent via-foreground/20 to-transparent"
+          className="w-px shrink-0 self-stretch bg-gradient-to-b from-transparent via-foreground/20 to-transparent lg:h-[60px] lg:self-center lg:bg-foreground/10 lg:[background-image:none]"
         />
       )}
       {temCodigos && (
@@ -9249,7 +9502,7 @@ function RingCell({
   const gid = `ring-${done ? "ok" : "falta"}`;
   const arco = RING_C * Math.max(pct, 3) * 0.01;
   return (
-    <div className="relative flex min-w-0 flex-1 flex-col items-center gap-3 lg:flex-row lg:gap-4">
+    <div className="relative flex min-w-0 flex-1 flex-col items-center gap-3 lg:flex-row lg:justify-center lg:gap-3.5">
       {breakdown ? (
         <EngagementBreakdownDialog
           label={label}
@@ -9267,12 +9520,10 @@ function RingCell({
           }
         />
       ) : null}
-      <div className="pointer-events-none relative z-[1] shrink-0" style={{ width: RING_D, height: RING_D }}>
+      <div className="pointer-events-none relative z-[1] size-[78px] shrink-0 lg:size-[56px]">
         <svg
-          width={RING_D}
-          height={RING_D}
           viewBox={`0 0 ${RING_D} ${RING_D}`}
-          className={`-rotate-90 ${tone}`}
+          className={`size-full -rotate-90 ${tone}`}
           aria-hidden="true"
         >
           <defs>
@@ -9303,18 +9554,24 @@ function RingCell({
           />
         </svg>
         <span className="absolute inset-0 flex items-center justify-center font-display leading-none tabular-nums">
-          <span className="text-[20px] font-bold tracking-[-0.02em]">{value}</span>
-          <span className="ds-faint text-[13px] font-medium">/{total}</span>
+          <span className="text-[20px] font-bold tracking-[-0.02em] lg:text-[15px] lg:font-extrabold">{value}</span>
+          <span className="ds-faint text-[13px] font-medium lg:text-[10.5px] lg:font-medium">/{total}</span>
         </span>
       </div>
       {/* A frase em UMA linha: no celular ela encolhe para caber inteira na
           metade do card; no computador sobra largura de sobra. */}
-      <p
-        className="pointer-events-none relative z-[1] min-w-0 truncate text-center text-[10.5px] font-semibold text-muted-foreground lg:text-left lg:text-[13px]"
-        title={label}
-      >
-        {label}
-      </p>
+      <div className="pointer-events-none relative z-[1] min-w-0 text-center lg:text-left lg:leading-[19px]">
+        <p
+          className="min-w-0 truncate text-[10.5px] font-semibold text-muted-foreground lg:text-[14px] lg:font-bold lg:text-foreground"
+          title={label}
+        >
+          {label}
+        </p>
+        {/* Só no desktop (mockup 09/11/2026): "14 de 18 hóspedes". */}
+        <p className="hidden text-[11.5px] text-muted-foreground lg:block">
+          {value} de {total} {total === 1 ? "hóspede" : "hóspedes"}
+        </p>
+      </div>
     </div>
   );
 }
