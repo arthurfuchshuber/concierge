@@ -189,11 +189,14 @@ export async function applyOpsAction(
       ((await import("@/lib/dashboard.functions")).runAdvanceArrival as unknown as Advance);
     const kind = req.action === "checkin_done" ? "checkin" : "checkout";
     try {
-      await advance(
+      const r = (await advance(
         db as never,
         { reservationId: req.reservationId, from: kind },
         { origin: "ai" },
-      );
+      )) as { alreadyDone?: boolean } | undefined;
+      // Alguém (equipe, hóspede, regra de horário) concluiu a etapa entre a leitura do card e a escrita:
+      // a rotina não reescreve nada, e a ação da IA fica registrada como recusada por "card concluído".
+      if (r?.alreadyDone) return { ok: false, code: "card_done" };
     } catch {
       // as travas do painel recusaram (ex.: estadia anterior ainda aberta no imóvel); nada a forçar
       return { ok: false, code: "panel_refused" };

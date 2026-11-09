@@ -1356,6 +1356,31 @@ const AdvanceInput = z
  * limpeza (`from: "cleaning"`), pra registrar quem concluiu — omitido no
  * cron, que não tem um usuário humano por trás da ação.
  */
+type StageRow = {
+  status: string | null;
+  done_at: string | null;
+  concluded_at: string | null;
+  note: string | null;
+};
+
+/**
+ * A etapa pedida já foi concluída por alguém? Devolve a linha que comprova (para a tela dizer quem e
+ * quando), ou `null` para seguir com o avanço normal. Regras:
+ *  - check-in: linha de check-in `done` (no-show NÃO conta: segue o fluxo de sempre);
+ *  - estadia/check-out: linha de check-out `done`;
+ *  - limpeza e "limpeza não será realizada": linha de check-out com `concluded_at`.
+ * "Desfazer" (revertArrival) volta essas colunas para pendente/nulo, então refazer depois de desfazer funciona.
+ */
+export function alreadyAdvanced(
+  data: { from: "checkin" | "stay" | "checkout" | "cleaning"; skipCleaning?: boolean },
+  rows: { checkin?: StageRow; checkout?: StageRow },
+): StageRow | null {
+  const { checkin, checkout } = rows;
+  if (data.skipCleaning || data.from === "cleaning") return checkout?.concluded_at ? checkout : null;
+  if (data.from === "checkin") return checkin?.status === "done" ? checkin : null;
+  return checkout?.status === "done" ? checkout : null;
+}
+
 export async function runAdvanceArrival(
   supabase: SupabaseClient<Database>,
   data: z.infer<typeof AdvanceInput>,
@@ -1407,6 +1432,43 @@ export async function runAdvanceArrival(
 
   const nowIso = new Date().toISOString();
   const today = todayISO();
+
+  // IDEMPOTÊNCIA (09/11/2026, bug real): a IA concluiu o check-out do Studio 102 às 09:55 e, 3 min depois,
+  // um clique da equipe numa tela aberta com a "última visão salva" reescreveu o carimbo e trocou a nota
+  // "Confirmado pela IA…" por "Confirmado pela equipe" (e mandou de novo o push). Etapa já concluída = nada
+  // a fazer: devolve sucesso com `alreadyDone`, sem reescrever nota/horário/autor nem disparar avisos. Vale
+  // para equipe, hóspede, IA, cron e a fila offline de limpezas (reenvio depois de um sucesso).
+  {
+    let q = supabase
+      .from("guest_arrival_status")
+      .select("kind, status, done_at, concluded_at, note");
+    q =
+      data.reservationId && data.logId
+        ? q.or(`log_id.eq.${data.logId},reservation_id.eq.${data.reservationId}`)
+        : data.reservationId
+          ? q.eq("reservation_id", data.reservationId)
+          : q.eq("log_id", data.logId!);
+    const { data: current, error: curErr } = await q;
+    if (curErr) throw new Error(curErr.message);
+    const rows = (current ?? []) as Array<{
+      kind: string;
+      status: string | null;
+      done_at: string | null;
+      concluded_at: string | null;
+      note: string | null;
+    }>;
+    const checkinRow = rows.find((r) => r.kind === "checkin");
+    const checkoutRow = rows.find((r) => r.kind === "checkout");
+    const already = alreadyAdvanced(data, { checkin: checkinRow, checkout: checkoutRow });
+    if (already) {
+      return {
+        ok: true,
+        alreadyDone: true as const,
+        doneAt: already.done_at ?? already.concluded_at ?? null,
+        doneNote: already.note ?? null,
+      };
+    }
+  }
 
   async function upsertStatus(
     kind: "checkin" | "checkout",
