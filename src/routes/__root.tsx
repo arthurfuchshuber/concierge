@@ -73,6 +73,14 @@ function activeAccountIdSync(): string | null {
   }
 }
 
+/** Tira do retrato restaurado TODOS os dados do servidor quando há internet (ver comentário do persister). */
+export function semDadosVelhos<
+  T extends { clientState: { queries: Array<{ queryKey: readonly unknown[] }> } },
+>(client: T, online: boolean): T {
+  if (!online) return client;
+  return { ...client, clientState: { ...client.clientState, queries: [] } };
+}
+
 function purgePersistedCache() {
   if (typeof window === "undefined") return;
   try {
@@ -524,7 +532,7 @@ function RootComponent() {
   // O cache offline é POR USUÁRIO. Com uma chave única, o próximo login no
   // mesmo aparelho reidratava a última visão da conta anterior (vazamento
   // entre empresas). A chave carrega o id do usuário da sessão atual.
-  const persister =
+  const basePersister =
     typeof window !== "undefined"
       ? createSyncStoragePersister({
           storage: window.localStorage,
@@ -532,6 +540,20 @@ function RootComponent() {
           throttleTime: 1000,
         })
       : null;
+  // NENHUM DADO DO SERVIDOR VEM DO CACHE COM INTERNET (09/11/2026, bug real no Studio 102): ao abrir o app, a
+  // tela pintava a última cópia salva e mostrava como pendente um check-out que a IA já tinha concluído; o
+  // clique saía antes da releitura. Com internet, nada do servidor é restaurado (pedido: toda ação reflete na hora para todos;
+  // filtros são estado local de cada tela e não passam por aqui) — a tela espera a resposta em vez de mostrar estado velho. Sem internet continuam vindo do aparelho
+  // (última visão, com a faixa "de quando é").
+  const persister = basePersister
+    ? {
+        ...basePersister,
+        restoreClient: async () => {
+          const c = await basePersister.restoreClient();
+          return c ? semDadosVelhos(c, typeof navigator === "undefined" || navigator.onLine !== false) : c;
+        },
+      }
+    : null;
 
   const content = (
     <I18nProvider>

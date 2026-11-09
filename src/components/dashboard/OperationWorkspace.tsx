@@ -1,5 +1,6 @@
 import { useFallbackInterval } from "@/components/LiveSync";
 import { ensureRealtimeAuth } from "@/lib/realtime-auth";
+import { useResyncing } from "@/lib/resync-state";
 import * as PopoverPrimitive from "@radix-ui/react-popover";
 import { SearchActionRow } from "./SearchActionRow";
 import { cleaningStatsQueryOptions } from "./cleaning-stats-query";
@@ -9520,6 +9521,9 @@ function ArrivalCard({
   /** propertyId -> próxima chegada do imóvel (fecha a janela da limpeza). */
   nextCheckinByProperty?: Map<string, { date: string; time: string | null }>;
 }) {
+  // Retrato possivelmente velho (voltou de segundo plano/reconectou): botões de etapa em "Atualizando…" até a
+  // releitura terminar (mockup D009, 09/11/2026). Só a ação principal do card; ver `resync-state.ts`.
+  const resyncing = useResyncing();
   const [noteOpen, setNoteOpen] = useState(false);
   const [noteText, setNoteText] = useState(row.note ?? "");
   // Registros da reserva abertos pelo toque num item do checklist da limpeza.
@@ -10573,7 +10577,7 @@ function ArrivalCard({
               }
               runMark();
             }}
-            disabled={busy || blockCheck || awaitingCheckout}
+            disabled={busy || resyncing || blockCheck || awaitingCheckout}
             aria-label={
               awaitingCheckout
                 ? "Aguardando check-out do hóspede"
@@ -10609,7 +10613,9 @@ function ArrivalCard({
                           : "Marcar como Concluído"
             }
             className={`flex-1 min-w-0 self-center box-border leading-none inline-flex items-center justify-center gap-2 font-semibold tracking-tight rounded-[7px] transition-all active:scale-[0.99] h-7 max-h-7 min-h-7 px-2.5 text-[11px] ${
-              awaitingCheckout
+              resyncing
+                ? "bg-muted/50 text-muted-foreground border border-border/60 cursor-wait"
+                : awaitingCheckout
                 ? "bg-amber-900/20 text-amber-800 dark:text-amber-600 border border-amber-800/40 cursor-not-allowed"
                 : cleaningBlock
                   ? "bg-orange-500/25 text-orange-700 dark:text-orange-400 border border-orange-500/50 cursor-not-allowed"
@@ -10622,7 +10628,11 @@ function ArrivalCard({
                         : "bg-emerald-600 text-white hover:bg-emerald-700"
             }`}
           >
-            <Check className="size-3 shrink-0" />
+            {resyncing ? (
+              <Loader2 className="size-3 shrink-0 animate-spin" />
+            ) : (
+              <Check className="size-3 shrink-0" />
+            )}
             {/* O botão SEMPRE diz o que faz, inclusive na Lista (pedido
                 explícito, 08/09/2026). Antes ali ficava só um ✓ ocupando
                 60% da largura do card: o maior objeto da tela era também o
@@ -10637,7 +10647,9 @@ function ArrivalCard({
                 linha só, com `truncate`: quem cede largura é o texto, nunca os
                 ícones ao lado. */}
             <span className="truncate text-[clamp(10px,2.9vw,12px)] tracking-[-0.01em]">
-              {awaitingCheckout
+              {resyncing
+                ? "Atualizando…"
+                : awaitingCheckout
                 ? "Aguardando Check-Out"
                 : mode === "cleaning"
                   ? "Finalizar Limpeza"
