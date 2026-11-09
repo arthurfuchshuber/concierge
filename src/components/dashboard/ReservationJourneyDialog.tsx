@@ -127,26 +127,48 @@ function nodesFor(status: string): { labels: string[]; states: NodeState[] } {
 
 function Stepper({ status }: { status: string }) {
   const { labels, states } = nodesFor(status);
+  const last = labels.length - 1;
+  /* 09/11/2026 (mockup aprovado): a linha de etapas usa a LARGURA EXATA do cartão do momento — a primeira etapa
+     encosta na borda esquerda e a última na direita — e os 5 nós ficam em intervalos IGUAIS entre os centros
+     (centro i = 11px + i × (100% − 22px) / (n − 1)). */
+  const step = `((100% - 22px) / ${last})`;
+  const lineColorOf = (i: number) => {
+    const prev = states[i - 1];
+    const st = states[i]!;
+    return prev === "done" && (st === "done" || st === "now")
+      ? SAGE
+      : prev === "bad"
+        ? ROSE
+        : "color-mix(in oklab, var(--foreground) 12%, transparent)";
+  };
   return (
-    <ol className="grid grid-cols-5" aria-label="Etapas da reserva">
+    <ol className="relative h-[43px]" aria-label="Etapas da reserva">
+      {labels.slice(1).map((_, k) => (
+        <li
+          key={`line-${k}`}
+          aria-hidden
+          className="absolute top-[10px] h-0.5"
+          style={{
+            left: `calc(11px + ${k} * ${step} + 13px)`,
+            width: `calc(${step} - 26px)`,
+            background: lineColorOf(k + 1),
+          }}
+        />
+      ))}
       {labels.map((label, i) => {
         const st = states[i]!;
-        const prev = states[i - 1];
-        const lineColor =
-          prev === "done" && (st === "done" || st === "now")
-            ? SAGE
-            : prev === "bad"
-              ? ROSE
-              : "color-mix(in oklab, var(--foreground) 12%, transparent)";
         return (
-          <li key={label + i} className="relative flex min-w-0 flex-col items-center gap-[7px]">
-            {i > 0 && (
-              <span
-                aria-hidden
-                className="absolute top-[10px] h-0.5"
-                style={{ left: "calc(-50% + 13px)", width: "calc(100% - 26px)", background: lineColor }}
-              />
-            )}
+          <li
+            key={label + i}
+            className={`absolute top-0 flex flex-col gap-[7px] ${i === 0 ? "items-start" : i === last ? "items-end" : "items-center"}`}
+            style={
+              i === 0
+                ? { left: 0 }
+                : i === last
+                  ? { right: 0 }
+                  : { left: `calc(11px + ${i} * ${step})`, transform: "translateX(-50%)" }
+            }
+          >
             {st === "done" ? (
               <span className="relative z-10 grid size-[22px] place-items-center rounded-full bg-[#1f2d27]">
                 <Check className="size-3" style={{ color: SAGE }} strokeWidth={2.6} />
@@ -167,7 +189,7 @@ function Stepper({ status }: { status: string }) {
               />
             )}
             <span
-              className={`max-w-full truncate text-center text-[10.5px] leading-[14px] ${
+              className={`whitespace-nowrap text-center text-[10.5px] leading-[14px] ${
                 st === "now" || st === "bad" ? "font-bold text-foreground" : "font-medium text-[#8f8781]"
               }`}
             >

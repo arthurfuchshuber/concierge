@@ -10052,12 +10052,7 @@ function ArrivalCard({
             mode === "cleaning" ? (
               <CleaningInlineEditor
                 row={row}
-                logId={journeyLogId}
-                reservationId={journeyReservationId}
-                onAdjust={() => setPriceOpen(true)}
                 onConclude={mode === "cleaning" ? () => { setJourneyOpen(false); onMark(row); } : undefined}
-                onSkip={mode === "cleaning" && onSkipCleaning ? () => { setJourneyOpen(false); onSkipCleaning(row); } : undefined}
-                onNote={() => { setJourneyOpen(false); setNoteOpen(true); }}
               />
             ) : undefined
           }
