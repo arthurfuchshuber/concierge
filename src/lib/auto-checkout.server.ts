@@ -1,4 +1,4 @@
-// Server-only: confirmação automática de checkout no corte oficial do imóvel (ou late checkout formal).
+// Server-only: confirmação automática de checkout no horário previsto do card (ou no corte oficial / late checkout formal).
 // Importar somente dentro de handlers (server routes / server functions).
 
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -37,23 +37,27 @@ function parseHm(value: string | null): [number, number] | null {
 }
 
 /**
- * Confirma automaticamente o checkout de um card de saída pendente no CORTE OFICIAL do imóvel. Roda por cron
+ * Confirma automaticamente o checkout de um card de saída pendente no horário PREVISTO do card ou, sem previsão,
+ * no CORTE OFICIAL do imóvel. Roda por cron
  * (`cron.auto-checkout`, a cada 5 minutos) — não depende de ninguém abrir o app.
  *
- * REGRA (diretriz definitiva de produto, 06/11/2026 — Gate G2c). A baixa automática tem UM gatilho só:
+ * CORTE (vale quando não há previsão no card e é o teto das previsões do hóspede/IA):
  *   · no dia da saída CONFIRMADA da reserva, ao atingir o horário limite oficial de checkout do imóvel
  *     (`properties.checkout_time`, que chega aqui como `standardTime`), no fuso do imóvel;
  *   · única exceção: late checkout FORMALMENTE autorizado pela equipe no card de checkout
  *     (`late_checkout_time` + `late_checkout_approved_at` + `late_checkout_by`, os três preenchidos — gravados
  *     só pelo trigger `guard_stay_authorizations`, que confere a permissão de quem autorizou). Aí o corte é o
  *     horário autorizado.
- * O antigo "gatilho 1" (confirmar ao alcançar o horário PREVISTO, `arrival_time_override`) foi descontinuado:
- * a previsão NUNCA antecipa a baixa. Única influência: horário definido pela EQUIPE (`arrival_time_source =
- * 'staff'`) MAIOR que o oficial estende o corte até esse horário (08/11/2026); o do hóspede (`guest`) ou da IA
- * (`guest_ai`) é só informativo. Uma data prevista diferente (`arrival_date_override`) também não
- * antecipa nada: saída antes do dia confirmado só com confirmação factual (hóspede no chat/guia ou equipe).
- * Pedido de hóspede ou da IA nunca estende o corte: só a equipe concede late checkout.
- *
+ * GATILHO DA PREVISÃO DE VOLTA (titular, 08/11/2026 — substitui a diretriz de 06/11 de que a previsão nunca dá
+ * baixa): com um horário previsto no card de saída (`arrival_time_override`, de qualquer origem — equipe, hóspede
+ * pelo guia ou IA pelo chat), a baixa automática acontece ao atingir ESSE horário, no dia da saída confirmada.
+ *   · Previsão da EQUIPE (`staff`) vale como está: antecipa ou estende o corte (só a equipe estende).
+ *   · Previsão do hóspede (`guest`) ou da IA (`guest_ai`) só ANTECIPA: nunca passa do corte (oficial ou late
+ *     checkout formal) — pedido de hóspede nunca estende a saída.
+ *   · Late checkout formal (R6) é o teto de qualquer previsão.
+ * Sem previsão, vale o corte (oficial ou late checkout formal).
+ * Uma data prevista diferente (`arrival_date_override`) continua sem antecipar o DIA: a baixa só acontece no
+ * dia da saída confirmada; saída em outro dia só com confirmação factual (hóspede no chat/guia ou equipe).
  * O fuso é o do IMÓVEL (`propertyTimeZone`) — o mesmo do guia do hóspede, nunca um fuso fixo de servidor.
  * A ação reaproveita `runAdvanceArrival` — a MESMA lógica do clique manual em "Confirmar checkout" (libera o
  * imóvel, entra na fila de limpeza, avisa os prestadores) — com `supabaseAdmin`, já que não há usuário logado
@@ -73,18 +77,25 @@ export interface FormalLateCheckout {
 export function autoCheckoutTriggerTime(r: {
   standardTime?: string | null;
   lateCheckout?: FormalLateCheckout | null;
-  /** Horário definido no card (previsão). Só a EQUIPE (`arrivalTimeSource === "staff"`) estende o corte. */
+  /** Horário previsto no card (qualquer origem). Equipe antecipa ou estende; hóspede/IA só antecipam. */
   arrivalTimeOverride?: string | null;
   arrivalTimeSource?: string | null;
 }): [number, number] | null {
+  const mins = (hm: [number, number]) => hm[0] * 60 + hm[1];
+  const earliest = (a: [number, number], b: [number, number]) => (mins(a) <= mins(b) ? a : b);
   const late = r.lateCheckout;
   const formal = late && late.time && late.approvedAt && late.by ? parseHm(late.time) : null;
-  if (formal) return formal; // late checkout formal (R6) manda
   const standard = parseHm(r.standardTime ?? null);
-  // Horário definido pela EQUIPE MAIOR que o oficial estende o corte; menor nunca antecipa.
-  // Hóspede (`guest`) e IA (`guest_ai`) continuam só informativos.
-  const staff = r.arrivalTimeSource === "staff" ? parseHm(r.arrivalTimeOverride ?? null) : null;
-  if (staff && standard && staff[0] * 60 + staff[1] > standard[0] * 60 + standard[1]) return staff;
+  const forecast = parseHm(r.arrivalTimeOverride ?? null);
+  if (forecast) {
+    // late checkout formal (R6) é o teto de qualquer previsão
+    if (formal) return earliest(forecast, formal);
+    // previsão da equipe vale como está (antecipa ou estende)
+    if (r.arrivalTimeSource === "staff") return forecast;
+    // hóspede/IA só antecipam: nunca passam do corte oficial
+    return standard ? earliest(forecast, standard) : forecast;
+  }
+  if (formal) return formal; // late checkout formal (R6) manda
   return standard;
 }
 

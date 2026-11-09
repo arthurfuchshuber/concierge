@@ -8,8 +8,8 @@
  *    do painel (no-show, estadia anterior aberta, fechar a estadia no checkout, limpeza vencida, avisos);
  *  - `early_departure`: concluída pelo mesmo avanço e, em seguida, o card de saída é puxado para HOJE
  *    (`arrival_date_override`, com a data original em `arrival_date_base`, como no formulário do guia);
- *  - `eta_*`: `arrival_time_override` com `arrival_time_source = 'guest_ai'` (informativa: previsão
- *    nenhuma dá baixa automática). Escrita CONDICIONAL: nunca sobre previsão da equipe (`staff`), conferido no próprio UPDATE.
+ *  - `eta_*`: `arrival_time_override` com `arrival_time_source = 'guest_ai'` (no card de SAÍDA a baixa
+ *    automática acontece nesse horário, sem nunca passar do corte oficial/late formal — 08/11/2026). Escrita CONDICIONAL: nunca sobre previsão da equipe (`staff`), conferido no próprio UPDATE.
  *    Vale a informação mais recente entre o chat e o guia: o guia grava `guest` por cima, a IA grava
  *    `guest_ai` por cima de `guest`/`guest_ai`.
  *  - `late_checkout`: concessão expressa de atendente humano no chat ⇒ `internal_set_late_checkout` em nome

@@ -99,6 +99,14 @@ describe("Check-Out Atrasado respeita o corte da baixa automática", () => {
     expect(lateTitles()).toHaveLength(1);
   });
 
+  it("previsão MAIS CEDO que o oficial (hóspede, IA ou equipe) não deixa ninguém 'atrasado' antes do oficial", async () => {
+    for (const src of ["guest", "guest_ai", "staff"]) {
+      rowsRef.checkout = [row({ arrivalTimeOverride: "09:00", arrivalTimeSource: src })];
+      await runOpsPushScan(fakeAdmin(), at("10:30"));
+    }
+    expect(lateTitles()).toEqual([]);
+  });
+
   it("late checkout formal (R6) manda", async () => {
     rowsRef.checkout = [row()];
     lateRef.rows = [
