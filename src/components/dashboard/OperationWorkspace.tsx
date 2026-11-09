@@ -9562,7 +9562,7 @@ function RingCell({
           metade do card; no computador sobra largura de sobra. */}
       <div className="pointer-events-none relative z-[1] min-w-0 text-center lg:text-left lg:leading-[23px]">
         <p
-          className="min-w-0 truncate text-[10.5px] font-semibold text-muted-foreground lg:text-[17px] lg:font-bold lg:text-foreground"
+          className="min-w-0 truncate text-[10.5px] font-semibold text-muted-foreground lg:text-[15px] lg:font-bold lg:text-foreground"
           title={label}
         >
           {label}
