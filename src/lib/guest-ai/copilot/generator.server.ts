@@ -183,6 +183,25 @@ export const COPILOT_HEDGE_FRACTION = 0.35;
 /** Tempo mínimo para valer a pena disparar o Reserva. */
 export const COPILOT_HEDGE_MIN_BUDGET_MS = 3_500;
 
+/**
+ * Folga do teto SÓ para a corrida protegida (09/11/2026). O pior caso reservado é por BYTES (limite superior de
+ * tokens: ~3-4× o real em português), então Titular + Reserva passavam de US$ 0,15 por pouco e a corrida NUNCA
+ * disparava nos turnos grandes (stage_timeout de 09:41, 7 de 8 timeouts). A folga de 25% só vale para disparar o
+ * Reserva; o custo REAL é medido depois e o Reserva só corre quando o Titular demora.
+ */
+export const COPILOT_HEDGE_CEILING_FACTOR = 1.25;
+
+/** Falhas em que nada foi gerado: o custo é zero (não o pior caso reservado). */
+const NO_GENERATION_CODES: ReadonlySet<string> = new Set([
+  "bad_request", "json_format_rejected", "model_unavailable", "auth", "billing", "rate_limited",
+  "config_missing", "invalid_request", "sensitive_content_blocked",
+]);
+/** Falhas em que vale tentar o OUTRO modelo (429/402/auth e erros do próprio pedido ficam de fora). */
+const FALLBACK_AFTER_CODES: ReadonlySet<string> = new Set([
+  "bad_request", "json_format_rejected", "model_unavailable", "provider_unavailable", "network",
+  "empty_response", "truncated_response", "content_filtered", "internal_error", "timeout",
+]);
+
 export function hedgeDelayMs(remainingMs: number): number {
   return Math.round(Math.min(COPILOT_HEDGE_MAX_DELAY_MS, Math.max(COPILOT_HEDGE_MIN_DELAY_MS, remainingMs * COPILOT_HEDGE_FRACTION)));
 }
@@ -397,7 +416,8 @@ export function createCopilotGenerator(deps: CopilotGeneratorDeps): CopilotGener
           };
         }
         // uso desconhecido depois de chamar ⇒ custo liquidado pelo pior caso reservado
-        cost += r.telemetry.attempts === 0 ? 0 : u.source === "none" ? estimateCostUsd(spec!, inBound, outputTokens) : r.telemetry.costUsd;
+        const nothingGenerated = !r.ok && NO_GENERATION_CODES.has(r.error.code);
+        cost += r.telemetry.attempts === 0 || nothingGenerated ? 0 : u.source === "none" ? estimateCostUsd(spec!, inBound, outputTokens) : r.telemetry.costUsd;
       };
       const settle = (status: "called" | "failed", error: LlmErrorCode | null) => {
         t = Object.freeze({
@@ -438,11 +458,23 @@ export function createCopilotGenerator(deps: CopilotGeneratorDeps): CopilotGener
         // o Reserva só corre se o pior caso das DUAS chamadas couber no teto do turno
         const hedgeFits =
           !!hedgeSpec &&
-          cost + estimateCostUsd(spec!, inBound, outputTokens) + estimateCostUsd(hedgeSpec, inBound, outputTokens) <= ceiling;
+          cost + estimateCostUsd(spec!, inBound, outputTokens) + estimateCostUsd(hedgeSpec, inBound, outputTokens) <= ceiling * COPILOT_HEDGE_CEILING_FACTOR;
+        /** Titular falhou (sem corrida): tenta o Reserva UMA vez, se houver tempo e o custo REAL couber. */
+        const fallbackAfterFailure = async (failed: GatewayResult): Promise<GatewayResult> => {
+          if (failed.ok || !hedgeSpec || !hedgeId) return failed;
+          if (tools.length > 0 && toolChoice) return failed; // rodada de ferramentas: falha continua sendo falha
+          if (!FALLBACK_AFTER_CODES.has(failed.error.code)) return failed;
+          if (signal.aborted || deps.remainingMs() < COPILOT_HEDGE_MIN_BUDGET_MS) return failed;
+          if (cost + estimateCostUsd(hedgeSpec, inBound, outputTokens) > ceiling * COPILOT_HEDGE_CEILING_FACTOR) return failed;
+          hedged = true;
+          const r2 = await single(hedgeId, messages, toolChoice, signal);
+          account(r2, inBound);
+          return r2.ok ? r2 : failed;
+        };
         if (!hedgeFits) {
           const r = await single(deps.modelId, messages, toolChoice, signal);
           account(r, inBound);
-          return r;
+          return fallbackAfterFailure(r);
         }
         type Run = { who: "primary" | "hedge"; r: GatewayResult; ctrl: AbortController };
         const ctrls = { primary: new AbortController(), hedge: new AbortController() };
@@ -465,7 +497,7 @@ export function createCopilotGenerator(deps: CopilotGeneratorDeps): CopilotGener
           if (waited || deps.remainingMs() < COPILOT_HEDGE_MIN_BUDGET_MS || signal.aborted) {
             const a = waited ?? (await pA);
             account(a.r, inBound);
-            return a.r;
+            return fallbackAfterFailure(a.r);
           }
           hedged = true;
           const pB = run("hedge", hedgeId!);

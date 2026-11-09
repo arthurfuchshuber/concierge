@@ -226,3 +226,42 @@ describe("Corrida protegida do gerador do Copiloto", () => {
     expect(seen[0]).toBe(seen[1]);
   }, 15_000);
 });
+
+describe("Falhas técnicas do Copiloto (09/11/2026)", () => {
+  const prompt = {
+    system: "Você é o concierge.",
+    messages: [{ role: "user" as const, content: "Que horas é o check-in? Responda em JSON." }],
+    sourceIds: new Set<string>(),
+    promptVersion: "teste",
+  } as unknown as ComposedPrompt;
+  const mk = (provider: unknown, maxOutputTokens = 1536) =>
+    createCopilotGenerator({
+      modelId: GUEST_AI_DEFAULT_MODEL,
+      maxOutputTokens,
+      reasoningEffort: "auto",
+      remainingMs: () => 12_000,
+      beforeNetwork: async () => true,
+      traceId: "t",
+      provider: provider as never,
+      log: () => {},
+    });
+
+  it("Titular recusa o pedido (bad_request) ⇒ o Reserva responde, sem custo fantasma do pior caso", async () => {
+    const calls: string[] = [];
+    const provider = {
+      id: "fake",
+      async complete(req: ProviderRequest): Promise<ProviderOutcome> {
+        calls.push(req.spec.id);
+        if (req.spec.id === GUEST_AI_DEFAULT_MODEL)
+          return { kind: "error", error: { code: "bad_request", retryable: false } as never, usage: null, requestId: null };
+        return okJson({ quem: req.spec.id });
+      },
+    };
+    const g = mk(provider);
+    const text = await g.generate(prompt, new AbortController().signal);
+    expect(JSON.parse(text)).toEqual({ quem: GUEST_AI_RESERVE_MODEL });
+    expect(calls).toEqual([GUEST_AI_DEFAULT_MODEL, GUEST_AI_RESERVE_MODEL]);
+    expect(g.telemetry()).toMatchObject({ status: "called", hedged: true });
+    expect(g.telemetry().costUsd).toBeLessThan(0.05);
+  });
+});
