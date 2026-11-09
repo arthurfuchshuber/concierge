@@ -11,9 +11,7 @@ import {
   FileText,
   Download,
   Loader2,
-  Send,
   Trash2,
-  StickyNote,
   Mic,
   Play,
   Pause,
@@ -38,7 +36,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { AudioRecorderButton, type RecordedAudio } from "@/components/handoff/AudioRecorderButton";
+import type { RecordedAudio } from "@/components/handoff/AudioRecorderButton";
+import { RecordComposer } from "@/components/records/RecordComposer";
 import {
   CATEGORIES,
   CATEGORY_BY_KEY,
@@ -796,8 +795,9 @@ function CategorySheet({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-[calc(100vw-2rem)] gap-0 p-0 sm:max-w-sm">
-        <DialogHeader className="px-4 pb-2.5 pt-3 pr-12 text-left">
-          <DialogTitle className="truncate text-sm font-bold leading-5 text-foreground">O que você vai registrar?</DialogTitle>
+        {/* Título e subtítulo na largura total da janela (board de 08/11/2026); só o título guarda o canto do X. */}
+        <DialogHeader className="px-4 pb-2.5 pt-3 text-left">
+          <DialogTitle className="truncate pr-8 text-sm font-bold leading-5 text-foreground">O que você vai registrar?</DialogTitle>
           <p className="text-xs leading-4 text-muted-foreground">Escolha a categoria — só depois a captura começa.</p>
         </DialogHeader>
         <div className="flex flex-col gap-1.5 px-3 pb-3.5">
@@ -838,7 +838,7 @@ function CategorySheet({
 }
 
 /** O que a pessoa quis fazer antes de escolher a categoria. */
-type PendingAction = "photo" | "video" | "file" | "audio" | "note";
+type PendingAction = "photo" | "video" | "file" | "voice" | "note";
 
 export function ReservationRecordsDialog({
   open,
@@ -863,12 +863,14 @@ export function ReservationRecordsDialog({
     staleTime: 10_000,
   });
 
-  const [text, setText] = useState("");
+  // Conteúdo do campo único (texto ou áudio gravado), guardado até a categoria ser escolhida.
+  const [pendingText, setPendingText] = useState("");
+  const [pendingAudio, setPendingAudio] = useState<RecordedAudio | null>(null);
+  const [composerClear, setComposerClear] = useState(0);
   const [filter, setFilter] = useState<RecordCategory | "all">("all");
   const [sheetOpen, setSheetOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
   const [pickedCategory, setPickedCategory] = useState<RecordCategory | null>(null);
-  const [recordingAudio, setRecordingAudio] = useState(false);
 
   /* A FOLHA DA SITUAÇÃO (10/09/2026). A captura não envia mais nada sozinha:
    * ela monta um rascunho e abre a folha, onde a pessoa junta mais arquivos
@@ -880,6 +882,10 @@ export function ReservationRecordsDialog({
     item: DraftItem | null;
     extra?: DraftItem[];
     title: string;
+    /** Texto do campo único — vai inteiro para a Descrição (08/11/2026). */
+    description?: string;
+    /** Áudio do microfone do modal: a folha transcreve para a Descrição e mantém o áudio salvo. */
+    transcribe?: boolean;
   } | null>(null);
 
   const photoInputRef = useRef<HTMLInputElement>(null);
@@ -906,7 +912,6 @@ export function ReservationRecordsDialog({
   /** Toque em Foto/Vídeo/Arquivo/Áudio (ou envio de texto): abre a folha de
    * categoria ANTES de qualquer captura. */
   function requestAction(action: PendingAction) {
-    if (action === "note" && !text.trim()) return;
     setPendingAction(action);
     setSheetOpen(true);
   }
@@ -921,12 +926,23 @@ export function ReservationRecordsDialog({
     if (action === "photo") photoInputRef.current?.click();
     else if (action === "video") videoInputRef.current?.click();
     else if (action === "file") fileInputRef.current?.click();
-    else if (action === "audio") setRecordingAudio(true);
-    else if (action === "note") {
-      // Texto digitado também abre a folha: vira o título, e a pessoa
-      // completa a descrição (ou dita) antes de registrar.
-      setSituation({ category, item: null, title: text.trim().slice(0, 50) });
-      setText("");
+    else if (action === "voice" && pendingAudio) {
+      // Microfone do campo (08/11/2026): o áudio fica salvo na situação e a transcrição vai para a Descrição.
+      const audio = pendingAudio;
+      const filename = `audio-${Date.now()}.${audio.mime.includes("mp4") ? "m4a" : "webm"}`;
+      setSituation({
+        category,
+        item: draftItemFrom(audio.blob, { name: filename, mime: audio.mime, durationMs: audio.durationMs }),
+        title: "",
+        transcribe: true,
+      });
+      setPendingAudio(null);
+      setComposerClear((n) => n + 1);
+    } else if (action === "note") {
+      // Texto digitado vai INTEIRO para a Descrição (08/11/2026); antes virava o título e era cortado em 50.
+      setSituation({ category, item: null, title: "", description: pendingText });
+      setPendingText("");
+      setComposerClear((n) => n + 1);
     }
   }
 
@@ -938,21 +954,6 @@ export function ReservationRecordsDialog({
     const category = pickedCategory ?? FALLBACK_CATEGORY;
     const [first, ...rest] = files.map((f) => draftItemFrom(f, { name: f.name, mime: f.type }));
     setSituation({ category, item: first, extra: rest, title: "" });
-  }
-
-  function onAudioRecorded(audio: RecordedAudio) {
-    const category = pickedCategory ?? FALLBACK_CATEGORY;
-    const filename = `audio-${Date.now()}.${audio.mime.includes("mp4") ? "m4a" : "webm"}`;
-    setRecordingAudio(false);
-    setSituation({
-      category,
-      item: draftItemFrom(audio.blob, {
-        name: filename,
-        mime: audio.mime,
-        durationMs: audio.durationMs,
-      }),
-      title: "",
-    });
   }
 
   const records = q.data?.records ?? [];
@@ -1104,77 +1105,42 @@ export function ReservationRecordsDialog({
             />
             <input ref={fileInputRef} type="file" multiple className="hidden" onChange={onFilePicked} />
 
-            {recordingAudio ? (
-              <div className="mb-2 flex items-center gap-2">
-                <AudioRecorderButton
-                  autoStart
-                  maxSeconds={120}
-                  onRecorded={onAudioRecorded}
-                  onCancel={() => setRecordingAudio(false)}
-                  compact
-                />
-              </div>
-            ) : (
-              <div className="mb-2 flex flex-wrap items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => requestAction("photo")}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-border/60 bg-secondary/30 px-2.5 py-1.5 text-[11px] font-medium text-foreground/80 hover:bg-secondary/50 "
-                >
-                  <Camera className="size-3.5" /> Foto
-                </button>
-                <button
-                  type="button"
-                  onClick={() => requestAction("video")}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-border/60 bg-secondary/30 px-2.5 py-1.5 text-[11px] font-medium text-foreground/80 hover:bg-secondary/50 disabled:opacity-50"
-                >
-                  <Video className="size-3.5" /> Vídeo
-                </button>
-                <button
-                  type="button"
-                  onClick={() => requestAction("file")}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-border/60 bg-secondary/30 px-2.5 py-1.5 text-[11px] font-medium text-foreground/80 hover:bg-secondary/50 disabled:opacity-50"
-                >
-                  <Paperclip className="size-3.5" /> Arquivo
-                </button>
-                <button
-                  type="button"
-                  onClick={() => requestAction("audio")}
-                  aria-label="Gravar áudio"
-                  title="Gravar áudio"
-                  className="grid size-8 place-items-center rounded-lg border border-border/60 bg-secondary/30 text-foreground/80 hover:bg-secondary/50 disabled:opacity-50"
-                >
-                  <Mic className="size-3.5" />
-                </button>
-              </div>
-            )}
+            {/* Foto, Vídeo e Arquivo; o microfone mora DENTRO do campo, ao lado do enviar (board de 08/11/2026). */}
+            <div className="mb-2 flex flex-wrap items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => requestAction("photo")}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-border/60 bg-secondary/30 px-2.5 py-1.5 text-[11px] font-medium text-foreground/80 hover:bg-secondary/50 "
+              >
+                <Camera className="size-3.5" /> Foto
+              </button>
+              <button
+                type="button"
+                onClick={() => requestAction("video")}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-border/60 bg-secondary/30 px-2.5 py-1.5 text-[11px] font-medium text-foreground/80 hover:bg-secondary/50 disabled:opacity-50"
+              >
+                <Video className="size-3.5" /> Vídeo
+              </button>
+              <button
+                type="button"
+                onClick={() => requestAction("file")}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-border/60 bg-secondary/30 px-2.5 py-1.5 text-[11px] font-medium text-foreground/80 hover:bg-secondary/50 disabled:opacity-50"
+              >
+                <Paperclip className="size-3.5" /> Arquivo
+              </button>
+            </div>
 
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                if (!text.trim()) return;
+            <RecordComposer
+              clearToken={composerClear}
+              onSubmitText={(t) => {
+                setPendingText(t);
                 requestAction("note");
               }}
-              className="flex items-center gap-2"
-            >
-              <div className="flex h-9 min-w-0 flex-1 items-center rounded-full border border-border bg-background px-3">
-                <StickyNote className="mr-1.5 size-3.5 shrink-0 text-muted-foreground" />
-                <input
-                  value={text}
-                  onChange={(e) => setText(e.target.value)}
-                  placeholder="Descrever situação, problema ou auditoria…"
-                  className="min-w-0 flex-1 bg-transparent text-xs outline-none placeholder:text-muted-foreground"
-                />
-              </div>
-              <button
-                type="submit"
-                disabled={!text.trim()}
-                className="grid size-9 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground disabled:opacity-40"
-                aria-label="Descrever situação"
-              >
-                <Send className="size-4" />
-              </button>
-            </form>
+              onSubmitAudio={(audio) => {
+                setPendingAudio(audio);
+                requestAction("voice");
+              }}
+            />
           </div>
         </DialogContent>
       </Dialog>
@@ -1200,6 +1166,8 @@ export function ReservationRecordsDialog({
           initial={situation.item}
           initialExtra={situation.extra}
           initialTitle={situation.title}
+          initialDescription={situation.description}
+          transcribeInitialAudio={situation.transcribe}
           onSaved={invalidate}
         />
       )}

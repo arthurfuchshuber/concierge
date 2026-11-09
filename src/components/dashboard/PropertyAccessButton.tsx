@@ -34,7 +34,7 @@ import {
 } from "@/components/dashboard/filter-panel";
 import { CARD_PROPERTY } from "@/components/dashboard/card-colors";
 import { OwnerLine } from "@/components/dashboard/OwnerLine";
-import { PropertyMapsButton, propertyMapsHref } from "@/components/dashboard/PropertyMapsButton";
+import { propertyMapsHref } from "@/components/dashboard/PropertyMapsButton";
 import { useCleaningBoard } from "@/components/dashboard/CleaningProviderAvatar";
 import {
   getPropertyAccessInfo,
@@ -70,15 +70,17 @@ import { cn } from "@/lib/utils";
  *  · "Clique ao fundo retorna à página anterior": com a tela interna "Passo a
  *    passo" aberta, tocar fora VOLTA para "Acesso" em vez de fechar — mesmo
  *    padrão do editor de Previsão (`onOpenChange` intercepta o fechamento).
- *  · O quadrante mostra o nome do anúncio, então leva "Proprietário: <primeiro
- *    nome>" e o MESMO botão do Maps (`PropertyMapsButton`).
+ *  · O quadrante mostra o nome do anúncio em largura total, com "Proprietário: <primeiro nome>"; o pino do
+ *    Maps saiu daqui (board de 08/11/2026) — o do card continua ao lado da chave.
+ *  · O detalhamento (portão, fechadura, rede, senha) aparece sempre; campo vazio = "Não cadastrado".
  *  · Senhas começam DESFOCADAS; "Mostrar" revela todas, e elas voltam a ficar
  *    ocultas sempre que o quadrante fecha. Copiar funciona oculto ou não.
  *  · Os códigos não vêm na lista do quadro: só são buscados ao abrir, por
  *    `getPropertyAccessInfo` (regra "senha só sai do servidor com prova").
  *  · "Enviar à <prestador>" abre o WhatsApp com tudo pronto para quem está no
  *    quadrado da limpeza. Sem prestador (ou sem telefone), vira "Enviar pelo
- *    WhatsApp" e a pessoa escolhe o contato.
+ *    WhatsApp" e a pessoa escolhe o contato. O botão só aparece com integração de WhatsApp ATIVA na conta
+ *    (`whatsappEnabled`); sem ela, "Copiar tudo" ocupa a largura toda (board de 08/11/2026).
  */
 
 /** Prazo para o acesso responder antes de virar aviso (ver a consulta abaixo). */
@@ -170,12 +172,24 @@ function AccessChip({
 }: {
   icon: LucideIcon;
   label: string;
-  value: string;
+  value: string | null;
   secret?: boolean;
   revealed: boolean;
   copied: boolean;
   onCopy: () => void;
 }) {
+  // Campo vazio: "Não cadastrado", sem cópia nem desfoque (board de 08/11/2026).
+  if (!value) {
+    return (
+      <div className="relative flex min-w-0 flex-col gap-[3px] rounded-[10px] bg-[var(--panel-well)] px-2.5 py-2 text-left">
+        <span className="flex items-center gap-[5px] text-[9.5px] font-extrabold uppercase tracking-[0.06em] text-muted-foreground">
+          <Icon className="size-3 shrink-0" strokeWidth={2} />
+          <span className="min-w-0 truncate">{label}</span>
+        </span>
+        <span className="min-w-0 truncate text-[12px] font-medium text-muted-foreground">Não cadastrado</span>
+      </div>
+    );
+  }
   const hidden = secret && !revealed;
   return (
     <button
@@ -565,9 +579,10 @@ export function PropertyAccessButton({ row }: { row: Row }) {
               )}
             </div>
 
-            <div className="flex items-start gap-2.5 border-b border-[var(--panel-div)] px-3.5 py-3">
-              <div className="min-w-0 flex-1">
-                <span className={`${CARD_PROPERTY} truncate`}>{row.propertyName ?? "Imóvel"}</span>
+            {/* Título na largura total, sem o pino do Maps (board de 08/11/2026). */}
+            <div className="border-b border-[var(--panel-div)] px-3.5 py-3">
+              <div className="min-w-0">
+                <span className={`${CARD_PROPERTY} block truncate`}>{row.propertyName ?? "Imóvel"}</span>
                 {row.ownerName && (
                   <OwnerLine
                     name={row.ownerName}
@@ -584,13 +599,6 @@ export function PropertyAccessButton({ row }: { row: Row }) {
                 )}
                 <ComplementLine items={complement} />
               </div>
-              <PropertyMapsButton
-                propertyName={row.propertyName}
-                propertyAddress={row.propertyAddress}
-                mapsUrl={row.mapsUrl}
-                garageMapsUrl={row.garageMapsUrl}
-                complement={info?.complement ?? null}
-              />
             </div>
 
             {q.isFetching && !info ? (
@@ -621,50 +629,43 @@ export function PropertyAccessButton({ row }: { row: Row }) {
               </div>
             ) : (
               <>
+                {/* Detalhamento sempre visível (board de 08/11/2026): campo vazio aparece como "Não cadastrado". */}
                 <div className="grid grid-cols-2 gap-1.5 px-3.5 py-3">
-                  {info.gateCode && (
-                    <AccessChip
-                      icon={Fence}
-                      label={gateName}
-                      value={info.gateCode}
-                      secret
-                      revealed={revealed}
-                      copied={copiedKey === "gate"}
-                      onCopy={() => copyChip("gate", info.gateCode as string, "Código copiado.")}
-                    />
-                  )}
-                  {info.lockCode && (
-                    <AccessChip
-                      icon={Lock}
-                      label={lockName}
-                      value={info.lockCode}
-                      secret
-                      revealed={revealed}
-                      copied={copiedKey === "lock"}
-                      onCopy={() => copyChip("lock", info.lockCode as string, "Código copiado.")}
-                    />
-                  )}
-                  {info.wifiSsid && (
-                    <AccessChip
-                      icon={Wifi}
-                      label="Rede"
-                      value={info.wifiSsid}
-                      revealed={revealed}
-                      copied={copiedKey === "ssid"}
-                      onCopy={() => copyChip("ssid", info.wifiSsid as string, "Rede copiada.")}
-                    />
-                  )}
-                  {info.wifiPassword && (
-                    <AccessChip
-                      icon={Wifi}
-                      label="Senha"
-                      value={info.wifiPassword}
-                      secret
-                      revealed={revealed}
-                      copied={copiedKey === "wifi"}
-                      onCopy={() => copyChip("wifi", info.wifiPassword as string, "Senha copiada.")}
-                    />
-                  )}
+                  <AccessChip
+                    icon={Fence}
+                    label={gateName}
+                    value={info.gateCode}
+                    secret
+                    revealed={revealed}
+                    copied={copiedKey === "gate"}
+                    onCopy={() => info.gateCode && copyChip("gate", info.gateCode, "Código copiado.")}
+                  />
+                  <AccessChip
+                    icon={Lock}
+                    label={lockName}
+                    value={info.lockCode}
+                    secret
+                    revealed={revealed}
+                    copied={copiedKey === "lock"}
+                    onCopy={() => info.lockCode && copyChip("lock", info.lockCode, "Código copiado.")}
+                  />
+                  <AccessChip
+                    icon={Wifi}
+                    label="Rede"
+                    value={info.wifiSsid}
+                    revealed={revealed}
+                    copied={copiedKey === "ssid"}
+                    onCopy={() => info.wifiSsid && copyChip("ssid", info.wifiSsid, "Rede copiada.")}
+                  />
+                  <AccessChip
+                    icon={Wifi}
+                    label="Senha"
+                    value={info.wifiPassword}
+                    secret
+                    revealed={revealed}
+                    copied={copiedKey === "wifi"}
+                    onCopy={() => info.wifiPassword && copyChip("wifi", info.wifiPassword, "Senha copiada.")}
+                  />
                 </div>
 
                 {stepsLabel && (
@@ -691,14 +692,17 @@ export function PropertyAccessButton({ row }: { row: Row }) {
                     <Copy className="size-3 shrink-0" />
                     <span className="truncate">Copiar tudo</span>
                   </button>
-                  <button
-                    type="button"
-                    onClick={sendWhatsapp}
-                    className="ds-surface inline-flex h-8 min-w-0 flex-1 items-center justify-center gap-1.5 bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] px-2 text-[12px] font-bold text-white"
-                  >
-                    <Send className="size-3 shrink-0" />
-                    <span className="truncate">{sendLabel}</span>
-                  </button>
+                  {/* Só com integração de WhatsApp ativa na conta; mesma curva do "Copiar tudo" (board de 08/11/2026). */}
+                  {info.whatsappEnabled && (
+                    <button
+                      type="button"
+                      onClick={sendWhatsapp}
+                      className="inline-flex h-8 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-[10px] bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] px-2 text-[12px] font-bold text-white"
+                    >
+                      <Send className="size-3 shrink-0" />
+                      <span className="truncate">{sendLabel}</span>
+                    </button>
+                  )}
                 </div>
               </>
             )}

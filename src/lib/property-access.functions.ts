@@ -56,6 +56,8 @@ export type PropertyAccessInfo = {
   wifiSsid: string | null;
   wifiPassword: string | null;
   provider: { name: string; phone: string | null; phoneCountry: string | null } | null;
+  /** A conta (dono do imóvel) tem integração de WhatsApp ATIVA (`host_whatsapp_config.status = 'active'`). */
+  whatsappEnabled: boolean;
   /** Passo a passo de CHEGADA (o mesmo do guia) — texto pode ter `[[tag:senhas-acesso]]`. */
   checkinInstructions: string | null;
   checkinNote: string | null;
@@ -114,7 +116,26 @@ export const getPropertyAccessInfo = createServerFn({ method: "POST" })
       }
     }
 
+    // Integração de WhatsApp da conta (board de 08/11/2026): sem ela, o botão "Enviar pelo WhatsApp" não aparece.
+    // Só um booleano sai daqui; a configuração (tokens etc.) nunca é lida para o cliente.
+    let whatsappEnabled = false;
+    if (p.owner_id) {
+      try {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const { data: wa } = await supabaseAdmin
+          .from("host_whatsapp_config")
+          .select("status")
+          .eq("owner_id", p.owner_id)
+          .eq("status", "active")
+          .limit(1);
+        whatsappEnabled = (wa ?? []).length > 0;
+      } catch {
+        whatsappEnabled = false;
+      }
+    }
+
     return {
+      whatsappEnabled,
       gateCode: clean(p.gate_code),
       gateInstructions: clean(p.gate_instructions),
       gateLabel: clean(p.gate_label),

@@ -15,7 +15,6 @@ import {
   Mic,
   Paperclip,
   Plus,
-  StickyNote,
   Video,
   X,
 } from "lucide-react";
@@ -34,6 +33,7 @@ import {
   type RascunhoSituacao,
 } from "@/lib/offline/situation-draft";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AudioPill } from "@/components/records/AudioPill";
 import { AudioRecorderButton, type RecordedAudio } from "@/components/handoff/AudioRecorderButton";
 import { CATEGORY_BY_KEY } from "@/components/dashboard/record-categories";
 import {
@@ -114,6 +114,8 @@ export function DictationField({
   propertyId,
   maxLength,
   multiline,
+  dictation = true,
+  uniformFont = false,
 }: {
   label: string;
   required?: boolean;
@@ -123,6 +125,10 @@ export function DictationField({
   propertyId: string;
   maxLength?: number;
   multiline?: boolean;
+  /** Microfone de ditado dentro do campo (padrão: sim). A "Nova situação" não usa (board de 08/11/2026). */
+  dictation?: boolean;
+  /** Mesma fonte do texto da descrição também no campo de uma linha (board de 08/11/2026). */
+  uniformFont?: boolean;
 }) {
   const transcribeFn = useServerFn(transcribeRecordAudio);
   const [recording, setRecording] = useState(false);
@@ -183,9 +189,14 @@ export function DictationField({
             maxLength={maxLength}
             onChange={(e) => onChange(e.target.value)}
             placeholder={placeholder}
-            className="min-w-0 flex-1 bg-transparent text-[12.5px] font-semibold outline-none placeholder:font-normal placeholder:text-muted-foreground/70"
+            className={`min-w-0 flex-1 bg-transparent outline-none placeholder:text-muted-foreground/70 ${
+              uniformFont
+                ? "text-[12px] leading-relaxed"
+                : "text-[12.5px] font-semibold placeholder:font-normal"
+            }`}
           />
         )}
+        {dictation && (
         <button
           type="button"
           onClick={() => setRecording(true)}
@@ -196,6 +207,7 @@ export function DictationField({
         >
           {busy ? <Loader2 className="size-3.5 animate-spin" /> : <Mic className="size-3.5" />}
         </button>
+        )}
       </div>
 
       {recording && (
@@ -224,6 +236,8 @@ export function RecordSituationSheet({
   initial,
   initialTitle,
   initialExtra,
+  initialDescription,
+  transcribeInitialAudio,
   onSaved,
   owner,
   contextLine,
@@ -246,6 +260,10 @@ export function RecordSituationSheet({
   initialTitle?: string;
   /** Demais arquivos escolhidos junto com o primeiro (seleção múltipla). */
   initialExtra?: DraftItem[];
+  /** Texto digitado no campo do modal "Registros da reserva" — vai INTEIRO para a Descrição (08/11/2026). */
+  initialDescription?: string;
+  /** O áudio inicial veio do microfone do modal: transcrever e pôr o texto na Descrição (o áudio fica salvo). */
+  transcribeInitialAudio?: boolean;
   onSaved: () => void;
 }) {
   const createFn = useServerFn(createRecordSituation);
@@ -330,7 +348,7 @@ export function RecordSituationSheet({
     // Rotina repetitiva (ex.: limpeza): o título já vem preenchido com a
     // categoria; a pessoa pode trocar se quiser.
     setTitle(initialTitle?.trim() ? initialTitle : (meta?.label ?? ""));
-    setDescription("");
+    setDescription(initialDescription?.trim() ?? "");
     setErro(null);
     setRascunho(null);
     grupoRef.current = null;
@@ -341,7 +359,39 @@ export function RecordSituationSheet({
     return () => {
       vivo = false;
     };
-  }, [open, initial, initialTitle, chave]);
+  }, [open, initial, initialTitle, initialDescription, chave]);
+
+  /* MICROFONE DO MODAL (08/11/2026): gravou UMA vez ⇒ o áudio fica salvo como mídia da situação E a transcrição
+     cai na Descrição (somando ao que já houver, nunca substituindo). */
+  const transcribeSheetFn = useServerFn(transcribeRecordAudio);
+  const [transcribing, setTranscribing] = useState(false);
+  useEffect(() => {
+    if (!open || !transcribeInitialAudio || !initial || initial.kind !== "audio") return;
+    let vivo = true;
+    setTranscribing(true);
+    void (async () => {
+      try {
+        const base64 = await blobToBase64(initial.blob);
+        const { text } = await transcribeSheetFn({
+          data: { propertyId, audioBase64: base64, mimeType: initial.mime },
+        });
+        const clean = (text ?? "").trim();
+        if (!vivo) return;
+        if (!clean) {
+          toast.error("Não entendi o áudio para transcrever — ele continua salvo. Escreva a descrição.");
+          return;
+        }
+        setDescription((prev) => (prev.trim() ? `${prev.trim()} ${clean}` : clean));
+      } catch {
+        if (vivo) toast.error("Não consegui transcrever agora — o áudio continua salvo. Escreva a descrição.");
+      } finally {
+        if (vivo) setTranscribing(false);
+      }
+    })();
+    return () => {
+      vivo = false;
+    };
+  }, [open, initial, transcribeInitialAudio, propertyId]);
 
   /* Grava o rascunho a cada respiro. O atraso evita escrever a cada tecla
      digitada no título — e o que realmente precisa sobreviver (os arquivos)
@@ -604,6 +654,15 @@ export function RecordSituationSheet({
       setErro("Falta o título. Escreva em poucas palavras o que aconteceu (ex.: \"Toalha manchada\") e toque em registrar de novo. Suas fotos e vídeos continuam aqui.");
       return;
     }
+    // Descrição obrigatória (board de 08/11/2026).
+    if (!description.trim()) {
+      setErro(
+        transcribing
+          ? "Ainda estou transcrevendo o áudio para a descrição. Aguarde um instante e toque em registrar de novo."
+          : "Falta a descrição. Conte onde, desde quando e o que precisa ser feito, e toque em registrar de novo. Nada do que você anexou foi perdido.",
+      );
+      return;
+    }
     savingLockRef.current = true;
     setTimeout(() => { savingLockRef.current = false; }, 3000);
     setErro(null);
@@ -691,16 +750,13 @@ export function RecordSituationSheet({
         aria-describedby={undefined}
       >
         <DialogHeader className="shrink-0 space-y-0 border-b border-border/50 px-3.5 pb-2.5 pr-12 pt-3.5 text-left">
-          <div className="flex items-center gap-2">
-            <DialogTitle className="ds-card-title min-w-0 flex-1 truncate">
-              Nova situação
-            </DialogTitle>
-            <span
-              className={`shrink-0 rounded-[0.25rem] px-1.5 py-0.5 text-[8.5px] font-extrabold uppercase tracking-[0.05em] ${meta?.tone ?? ""}`}
-            >
-              {meta?.short ?? "Registro"}
-            </span>
-          </div>
+          {/* Etiqueta da categoria ACIMA do título (board de 08/11/2026), no respiro superior. */}
+          <span
+            className={`mb-1 inline-flex w-fit rounded-[0.25rem] px-1.5 py-0.5 text-[8.5px] font-extrabold uppercase tracking-[0.05em] ${meta?.tone ?? ""}`}
+          >
+            {meta?.short ?? "Registro"}
+          </span>
+          <DialogTitle className="ds-card-title min-w-0 truncate">Nova situação</DialogTitle>
           <span className="mt-0.5 block truncate text-[10.5px] text-muted-foreground">
             {propertyLabel}
           </span>
@@ -755,11 +811,12 @@ export function RecordSituationSheet({
             <div className="mb-1.5 flex items-center gap-1.5">
               <span className="ds-eyebrow text-muted-foreground">Mídias</span>
               <span className="ml-auto text-[9.5px] font-semibold tabular-nums text-muted-foreground">
-                {items.length}/{SITUATION_MEDIA_MAX}
+                {items.filter((i) => i.kind !== "audio").length}/{SITUATION_MEDIA_MAX}
               </span>
             </div>
             <div className="flex flex-wrap gap-1.5">
-              {items.map((it) => {
+              {/* Áudio não entra no quadro de mídias: aparece como player logo abaixo da Descrição (08/11/2026). */}
+              {items.filter((i) => i.kind !== "audio").map((it) => {
                 const Icon = KIND_ICON[it.kind];
                 return (
                   <span
@@ -883,6 +940,8 @@ export function RecordSituationSheet({
             )}
           </div>
 
+          {/* Board de 08/11/2026: sem microfone nos campos (o áudio vem do microfone do modal e já chega
+              transcrito), Título com a mesma fonte da Descrição, Descrição obrigatória. */}
           <DictationField
             label="Título"
             required
@@ -891,27 +950,32 @@ export function RecordSituationSheet({
             placeholder="Em poucas palavras, o que houve"
             propertyId={propertyId}
             maxLength={RECORD_TITLE_MAX}
+            dictation={false}
+            uniformFont
           />
 
           <DictationField
             label="Descrição"
+            required
             value={description}
             onChange={setDescription}
-            placeholder="Onde, desde quando, o que precisa ser feito"
+            placeholder={transcribing ? "Transcrevendo o áudio…" : "Onde, desde quando, o que precisa ser feito"}
             propertyId={propertyId}
             multiline
+            dictation={false}
           />
 
-          <p className="flex items-start gap-1.5 text-[9.5px] leading-relaxed text-muted-foreground">
-            <StickyNote className="mt-px size-3 shrink-0" />
-            {/* A faixa de mídias não tem mais microfone, então o texto que
-                comparava os dois deixou de fazer sentido. */}
-            <span>
-              Prefere falar? Toque no microfone do campo —{" "}
-              <b className="font-semibold text-foreground/80">o que você falar vira texto</b> aqui
-              mesmo, e dá para corrigir antes de registrar.
-            </span>
-          </p>
+          {/* O áudio gravado, compacto, no lugar da antiga dica "Prefere falar?". */}
+          {items
+            .filter((i) => i.kind === "audio")
+            .map((it) => (
+              <div
+                key={it.key}
+                className="rounded-full border border-border/60 bg-secondary/30 py-1 pl-1 pr-3"
+              >
+                <AudioPill blob={it.blob} durationMs={it.durationMs} onDelete={() => removeItem(it.key)} />
+              </div>
+            ))}
         </div>
 
         <input
@@ -969,7 +1033,8 @@ export function RecordSituationSheet({
           </div>
         )}
 
-        <div className="flex shrink-0 items-center gap-2 border-t border-border/50 bg-secondary/20 px-3.5 py-2.5">
+        {/* "Descartar" e "Registrar situação" juntos, à direita (board de 08/11/2026). */}
+        <div className="flex shrink-0 items-center justify-end gap-2 border-t border-border/50 bg-secondary/20 px-3.5 py-2.5">
           {/* NUNCA PRENDER NINGUÉM (11/09/2026): antes este botão ficava
               desabilitado durante o envio e o diálogo não fechava, então um
               envio pendurado só saía recarregando a página — e aí perdia
@@ -981,7 +1046,6 @@ export function RecordSituationSheet({
           >
             {saving ? "Cancelar envio" : "Descartar"}
           </button>
-          <span className="flex-1" />
           <button
             type="button"
             disabled={!canSave}
