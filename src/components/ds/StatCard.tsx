@@ -49,7 +49,7 @@ export function StatCard({
           : undefined
       }
     >
-      <div className="flex w-full min-w-0 items-center gap-1.5">
+      <div className="flex w-full min-w-0 items-center justify-center gap-1.5">
         <span
           className="grid size-6 shrink-0 place-items-center rounded-[8px] bg-foreground/[0.05] text-muted-foreground"
           style={iconTone ? { color: iconTone, background: `color-mix(in oklab, ${iconTone} 12%, transparent)` } : undefined}
@@ -57,7 +57,7 @@ export function StatCard({
           <Icon className="size-3.5" strokeWidth={2} />
         </span>
         <span
-          className="ds-eyebrow min-w-0 flex-1 truncate text-[9px] tracking-[0.04em] sm:text-[10px] sm:tracking-[0.08em]"
+          className="ds-eyebrow min-w-0 truncate text-[9px] tracking-[0.04em] sm:text-[10px] sm:tracking-[0.08em]"
           title={label}
         >
           {label}

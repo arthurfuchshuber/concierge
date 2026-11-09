@@ -1279,11 +1279,11 @@ function StatusCell({
           />
         </>
       )}
-      <div className="flex w-full min-w-0 items-center gap-1.5">
+      <div className="flex w-full min-w-0 items-center justify-center gap-1.5">
         <span className="grid size-6 shrink-0 place-items-center rounded-[8px] bg-foreground/[0.05] text-muted-foreground">
           <Icon className="size-3.5" strokeWidth={2} />
         </span>
-        <span className="ds-eyebrow min-w-0 flex-1 truncate text-[9px] tracking-[0.04em] sm:text-[10px] sm:tracking-[0.08em]">
+        <span className="ds-eyebrow min-w-0 truncate text-[9px] tracking-[0.04em] sm:text-[10px] sm:tracking-[0.08em]">
           {label}
         </span>
       </div>
@@ -1350,7 +1350,7 @@ function CategoryCard({
           className="absolute inset-0 bg-foreground/[0.07] shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_14%,transparent)]"
         />
       )}
-      <div className="relative flex w-full min-w-0 items-center gap-1.5">
+      <div className="relative flex w-full min-w-0 items-center justify-center gap-1.5">
         <span
           className="grid size-5 shrink-0 place-items-center rounded-[7px]"
           style={cor ? { background: `${cor}1f`, color: cor } : undefined}
@@ -1358,7 +1358,7 @@ function CategoryCard({
           <Icon className={`size-3 ${cor ? "" : "text-muted-foreground"}`} strokeWidth={2} />
         </span>
         <span
-          className="ds-eyebrow min-w-0 flex-1 truncate text-[8.5px] tracking-[0.04em] text-muted-foreground"
+          className="ds-eyebrow min-w-0 truncate text-[8.5px] tracking-[0.04em] text-muted-foreground"
           title={label}
         >
           {label}

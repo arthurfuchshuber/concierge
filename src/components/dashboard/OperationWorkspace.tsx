@@ -4571,9 +4571,9 @@ function KpiCard({
     shadowTone === "emerald"
       ? "bg-gradient-to-r from-[#7fb79a] to-transparent"
       : shadowTone === "amber"
-        ? "bg-gradient-to-r from-[#c9a962] to-transparent"
+        ? "bg-gradient-to-r from-amber-500 to-transparent dark:from-amber-400"
         : shadowTone === "sky"
-          ? "bg-gradient-to-r from-[#7fb79a] to-transparent"
+          ? "bg-gradient-to-r from-sky-500 to-transparent dark:from-sky-400"
           : null;
   // Refinamento executivo (só nesta página): removido o glow colorido
   // (shadow grande em rgba emerald/amber) — mantém a sombra neutra e fina
@@ -4610,7 +4610,7 @@ function KpiCard({
                  direita, numa pílula neutra. */
               className={`relative flex w-full items-center gap-3 overflow-hidden rounded-[14px] border-0 bg-card px-3.5 py-3 text-left transition hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${shadowClass}${
                 deskTile === "stacked"
-                  ? " lg:grid lg:h-full lg:grid-cols-[auto_1fr] lg:grid-rows-[auto_1fr] lg:content-start lg:items-center lg:gap-x-[7px] lg:gap-y-0 lg:pb-0 lg:pl-[13px] lg:pr-[14px] lg:pt-[11px] lg:border lg:border-[rgba(255,185,0,0.38)] lg:[background-image:linear-gradient(180deg,rgba(255,185,0,0.07),rgba(255,185,0,0)_70%)]"
+                  ? " lg:grid lg:h-full lg:grid-cols-[auto_auto] lg:grid-rows-[auto_1fr] lg:content-start lg:justify-center lg:items-center lg:gap-x-[7px] lg:gap-y-0 lg:pb-0 lg:pl-[13px] lg:pr-[14px] lg:pt-[11px] lg:border lg:border-[rgba(255,185,0,0.38)] lg:[background-image:linear-gradient(180deg,rgba(255,185,0,0.07),rgba(255,185,0,0)_70%)]"
                   : ""
               }`}
             >
@@ -4624,12 +4624,12 @@ function KpiCard({
                 <Icon className={`size-4 ${deskTile === "stacked" ? "lg:size-[14px]" : ""}`} strokeWidth={2.2} />
               </span>
               <span
-                className={`ds-eyebrow min-w-0 flex-1 truncate text-center text-[10.5px] tracking-[0.12em] text-muted-foreground ${deskTile === "stacked" ? "lg:text-left lg:text-[10px] lg:font-extrabold lg:tracking-[0.11em]" : ""}`}
+                className={`ds-eyebrow min-w-0 flex-1 truncate text-center text-[10.5px] tracking-[0.12em] text-muted-foreground ${deskTile === "stacked" ? "lg:flex-none lg:text-[10px] lg:font-extrabold lg:tracking-[0.11em]" : ""}`}
               >
                 {label}
               </span>
               <span
-                className={`grid h-[26px] min-w-[26px] shrink-0 place-items-center rounded-full bg-foreground/[0.06] px-2 font-display text-[14px] font-bold leading-none tabular-nums shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_8%,transparent)] ${deskTile === "stacked" ? "lg:col-span-2 lg:mt-[7px] lg:h-[30px] lg:min-w-0 lg:justify-self-start lg:rounded-none lg:bg-transparent lg:p-0 lg:text-[28px] lg:font-extrabold lg:leading-[30px] lg:tracking-[-0.03em] lg:shadow-none" : ""}`}
+                className={`grid h-[26px] min-w-[26px] shrink-0 place-items-center rounded-full bg-foreground/[0.06] px-2 font-display text-[14px] font-bold leading-none tabular-nums shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_8%,transparent)] ${deskTile === "stacked" ? "lg:col-span-2 lg:mt-1.5 lg:h-[30px] lg:min-w-0 lg:justify-self-center lg:rounded-none lg:bg-transparent lg:p-0 lg:text-[27px] lg:font-bold lg:leading-[30px] lg:tracking-[-0.03em] lg:shadow-none" : ""}`}
               >
                 {loading ? "—" : rows.length}
               </span>
@@ -4675,7 +4675,7 @@ function KpiCard({
                 className={`absolute inset-x-3 top-0 h-[2px] rounded-b-[3px] ${deskTile === "stacked" ? "lg:inset-x-3.5 lg:h-px" : ""} ${topLine}`}
               />
             )}
-            <div className={`flex w-full min-w-0 items-center gap-1.5 ${deskTile === "stacked" ? "lg:gap-[7px]" : deskTile === "inline" ? "lg:flex-1 lg:gap-2.5" : ""}`}>
+            <div className={`flex w-full min-w-0 items-center justify-center gap-1.5 ${deskTile === "stacked" ? "lg:gap-[7px]" : deskTile === "inline" ? "lg:flex-1 lg:justify-start lg:gap-2.5" : ""}`}>
               <span
                 className={`grid size-6 shrink-0 place-items-center rounded-[8px] bg-foreground/[0.05] ${dotClass.replace("bg-", "text-")} ${
                   deskTile === "stacked"
@@ -4689,11 +4689,11 @@ function KpiCard({
               </span>
               {/* Uma única linha — sempre reticências, nunca quebra. */}
               <span
-                className={`ds-eyebrow min-w-0 flex-1 truncate text-[9px] tracking-[0.04em] sm:text-[10px] sm:tracking-[0.08em] ${
+                className={`ds-eyebrow min-w-0 truncate text-[9px] tracking-[0.04em] sm:text-[10px] sm:tracking-[0.08em] ${
                   deskTile === "stacked"
                     ? "lg:font-extrabold lg:tracking-[0.11em]"
                     : deskTile === "inline"
-                      ? "lg:text-[10.5px] lg:font-extrabold lg:tracking-[0.12em]"
+                      ? "lg:flex-1 lg:text-[10.5px] lg:font-extrabold lg:tracking-[0.12em]"
                       : ""
                 }`}
                 title={label}
@@ -4711,7 +4711,7 @@ function KpiCard({
                 valueSizeClass ?? (shadowTone ? "text-[24px] sm:text-[27px]" : "text-[22px] sm:text-[26px]")
               } ${
                 deskTile === "stacked"
-                  ? "lg:mt-[7px] lg:pt-0 lg:text-left lg:text-[28px] lg:font-extrabold lg:leading-[30px]"
+                  ? "lg:mt-1.5 lg:pt-0 lg:text-[27px] lg:leading-[30px]"
                   : deskTile === "inline"
                     ? "lg:w-auto lg:pt-0 lg:text-right lg:text-[24px] lg:font-extrabold lg:leading-6"
                     : ""
@@ -4943,14 +4943,14 @@ function FreePropertiesCard({
           type="button"
           className="ds-3d ds-3d-hover flex h-full w-full flex-col gap-1 rounded-[14px] border-0 bg-card px-2.5 pb-2.5 pt-3 text-left transition hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 lg:h-[54px] lg:flex-row lg:items-center lg:gap-2.5 lg:px-3 lg:py-0"
         >
-          <div className="flex w-full min-w-0 items-center gap-1.5 lg:flex-1 lg:gap-2.5">
+          <div className="flex w-full min-w-0 items-center justify-center gap-1.5 lg:flex-1 lg:justify-start lg:gap-2.5">
             {/* Ícone neutro (mesma cor do texto do rótulo) — só o número
                 grande é que muda de cor conforme o estado. */}
             <span className="grid size-6 shrink-0 place-items-center rounded-[8px] bg-foreground/[0.05] text-muted-foreground lg:size-7">
               <Home className="size-3.5 lg:size-[15px]" strokeWidth={2} />
             </span>
             <span
-              className="ds-eyebrow min-w-0 flex-1 truncate text-[9px] tracking-[0.04em] sm:text-[10px] sm:tracking-[0.08em] lg:text-[10.5px] lg:font-extrabold lg:tracking-[0.12em]"
+              className="ds-eyebrow min-w-0 truncate text-[9px] tracking-[0.04em] sm:text-[10px] sm:tracking-[0.08em] lg:flex-1 lg:text-[10.5px] lg:font-extrabold lg:tracking-[0.12em]"
               title={`Imóveis livres ${dayLabel}`}
             >
               Imóveis livres
@@ -5197,17 +5197,17 @@ function StatDisplayCard({
       onClick={() => setOpen(true)}
       className="ds-3d flex h-full w-full flex-col gap-1 rounded-[14px] border-0 bg-card px-2.5 pb-2.5 pt-3 text-left transition-colors enabled:hover:bg-secondary/40 disabled:cursor-default"
     >
-      <div className="flex w-full min-w-0 items-center gap-1.5">
+      <div className={`relative flex w-full min-w-0 items-center justify-center gap-1.5 ${clickable ? "px-4" : ""}`}>
         <span className="grid size-6 shrink-0 place-items-center rounded-[8px] bg-foreground/[0.05] text-muted-foreground">
           <Icon className="size-3.5" strokeWidth={2} />
         </span>
         <span
-          className="ds-eyebrow min-w-0 flex-1 truncate text-[9px] tracking-[0.04em] sm:text-[10px] sm:tracking-[0.08em]"
+          className="ds-eyebrow min-w-0 truncate text-[9px] tracking-[0.04em] sm:text-[10px] sm:tracking-[0.08em]"
           title={label}
         >
           {label}
         </span>
-        {clickable && <ChevronRight className="size-3.5 shrink-0 text-muted-foreground" />}
+        {clickable && <ChevronRight className="absolute right-0 size-3.5 shrink-0 text-muted-foreground" />}
       </div>
       <div className={`w-full whitespace-nowrap pt-1.5 text-center font-display font-bold leading-none tracking-[-0.03em] tabular-nums ${valueSizeClass}`}>
         {loading ? "—" : value}
@@ -9239,7 +9239,7 @@ function EngagementBars({
       {temCheckin && temCodigos && (
         <span
           aria-hidden="true"
-          className="w-px shrink-0 self-stretch bg-gradient-to-b from-transparent via-foreground/20 to-transparent lg:h-[60px] lg:self-center lg:bg-foreground/10 lg:[background-image:none]"
+          className="w-px shrink-0 self-stretch bg-gradient-to-b from-transparent via-foreground/20 to-transparent lg:h-[78px] lg:self-center lg:bg-foreground/10 lg:[background-image:none]"
         />
       )}
       {temCodigos && (
@@ -9502,7 +9502,7 @@ function RingCell({
   const gid = `ring-${done ? "ok" : "falta"}`;
   const arco = RING_C * Math.max(pct, 3) * 0.01;
   return (
-    <div className="relative flex min-w-0 flex-1 flex-col items-center gap-3 lg:flex-row lg:justify-center lg:gap-3.5">
+    <div className="relative flex min-w-0 flex-1 flex-col items-center gap-3 lg:flex-row lg:justify-center lg:gap-4">
       {breakdown ? (
         <EngagementBreakdownDialog
           label={label}
@@ -9520,10 +9520,10 @@ function RingCell({
           }
         />
       ) : null}
-      <div className="pointer-events-none relative z-[1] size-[78px] shrink-0 lg:size-[56px]">
+      <div className="pointer-events-none relative z-[1] size-[78px] shrink-0 lg:size-[72px]">
         <svg
           viewBox={`0 0 ${RING_D} ${RING_D}`}
-          className={`size-full -rotate-90 ${tone}`}
+          className={`size-full -rotate-90 lg:[&_circle]:[stroke-width:6px] ${tone}`}
           aria-hidden="true"
         >
           <defs>
@@ -9554,21 +9554,21 @@ function RingCell({
           />
         </svg>
         <span className="absolute inset-0 flex items-center justify-center font-display leading-none tabular-nums">
-          <span className="text-[20px] font-bold tracking-[-0.02em] lg:text-[15px] lg:font-extrabold">{value}</span>
-          <span className="ds-faint text-[13px] font-medium lg:text-[10.5px] lg:font-medium">/{total}</span>
+          <span className="text-[20px] font-bold tracking-[-0.02em] lg:text-[20px] lg:font-extrabold">{value}</span>
+          <span className="ds-faint text-[13px] font-medium lg:text-[13px] lg:font-medium">/{total}</span>
         </span>
       </div>
       {/* A frase em UMA linha: no celular ela encolhe para caber inteira na
           metade do card; no computador sobra largura de sobra. */}
-      <div className="pointer-events-none relative z-[1] min-w-0 text-center lg:text-left lg:leading-[19px]">
+      <div className="pointer-events-none relative z-[1] min-w-0 text-center lg:text-left lg:leading-[23px]">
         <p
-          className="min-w-0 truncate text-[10.5px] font-semibold text-muted-foreground lg:text-[14px] lg:font-bold lg:text-foreground"
+          className="min-w-0 truncate text-[10.5px] font-semibold text-muted-foreground lg:text-[17px] lg:font-bold lg:text-foreground"
           title={label}
         >
           {label}
         </p>
         {/* Só no desktop (mockup 09/11/2026): "14 de 18 hóspedes". */}
-        <p className="hidden text-[11.5px] text-muted-foreground lg:block">
+        <p className="hidden text-[13.5px] text-muted-foreground lg:block">
           {value} de {total} {total === 1 ? "hóspede" : "hóspedes"}
         </p>
       </div>
