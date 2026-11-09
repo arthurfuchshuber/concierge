@@ -83,6 +83,8 @@ export interface ComposeInput {
    * Ausente ⇒ o prompt declara `nao_informado`, como antes.
    */
   operational?: { stayAuthorizations?: StayAuthorizations | null; humanOwnership?: HumanOwnershipSnapshot | null; aiPausedByTeam?: boolean } | null;
+  /** Copiloto (09/11/2026): sugestão obrigatória em toda mensagem; `retryNote` = códigos do que barrou a tentativa anterior. */
+  suggest?: { alwaysSuggest?: boolean; retryNote?: string } | null;
   /**
    * B2.5: lote fechado de mensagens consecutivas do hóspede (um turno lógico). As mensagens do lote
    * são marcadas no histórico (`lote_atual`), cada uma com a sua identidade e fronteira; o guard é
@@ -534,7 +536,7 @@ export function composeTurnPrompt(input: ComposeInput, options: ComposeOptions =
 
   let system: string;
   try {
-    system = buildSystemPrompt(it.surface);
+    system = buildSystemPrompt(it.surface, undefined, input.suggest ?? {});
   } catch {
     return { kind: "unavailable", reason: "surface_invalid" };
   }
