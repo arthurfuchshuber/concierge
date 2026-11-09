@@ -164,6 +164,8 @@ function deps(
     ports: ports(),
     provider,
     log: () => {},
+    // bastidores fora deste teste (extrator indisponível ⇒ reserva: sinais da própria decisão, como antes)
+    extractOps: async () => null,
     ...over,
   } as CopilotGenerateDeps & { store: MemoryCopilotStore };
 }
@@ -200,6 +202,56 @@ describe("G2a · sinais operacionais na mesma geração (observação)", () => {
     const p = fakeProvider(okJson({ nada: true }));
     await generateCopilotSuggestion(REQ, deps(p, { ops: ops as never }));
     expect(ops).not.toHaveBeenCalled();
+  });
+});
+
+describe("Bastidores · trabalho próprio, ligado à geração mas independente da resposta (08/11/2026)", () => {
+  const eta = {
+    hospitalityMilestone: null,
+    milestoneQuote: null,
+    guestEtas: [{ card: "checkin" as const, date: "2026-11-04", time: "16:00", evidence: ["hist:guest:h1"], quote: "chego às 16h" }],
+  };
+  it("a resposta FALHA (provedor indisponível) e os bastidores gravam mesmo assim, com os sinais do extrator", async () => {
+    const calls: Array<{ decision: unknown }> = [];
+    const ops = async (i: { decision: unknown }) => {
+      calls.push({ decision: i.decision });
+    };
+    const p = fakeProvider({ kind: "error", error: { code: "bad_request", retryable: false } as never, usage: null, requestId: null });
+    const r = await generateCopilotSuggestion(REQ, deps(p, { ops: ops as never, extractOps: async () => eta }));
+    expect(r.status).toBe("stored");
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.decision).toEqual(eta);
+  });
+  it("resposta válida + bastidores com sinal ⇒ o executor roda UMA vez (o reserva da decisão não repete)", async () => {
+    const calls: unknown[] = [];
+    const ops = async (i: { decision: unknown }) => {
+      calls.push(i.decision);
+    };
+    const p = fakeProvider(okJson(v6()));
+    await generateCopilotSuggestion(REQ, deps(p, { ops: ops as never, extractOps: async () => eta }));
+    expect(calls).toEqual([eta]);
+  });
+  it("extrator indisponível ⇒ reserva: sinais da própria decisão validada, como antes", async () => {
+    const calls: unknown[] = [];
+    const ops = async (i: { decision: unknown }) => {
+      calls.push(i.decision);
+    };
+    const p = fakeProvider(okJson(v6()));
+    await generateCopilotSuggestion(REQ, deps(p, { ops: ops as never, extractOps: async () => null }));
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toMatchObject({ guestEtas: [], milestoneQuote: null });
+  });
+  it("conversa sem estadia (consulta) ⇒ o extrator nem é chamado", async () => {
+    const extract = vi.fn(async () => eta);
+    const p = fakeProvider(okJson(v6()));
+    await generateCopilotSuggestion(
+      REQ,
+      deps(p, {
+        extractOps: extract,
+        ports: (_t, _db, meta) => ({ ...ports()!(_t, _db, meta), loadContext: async () => ctx({ phase: "inquiry", stay: null } as never) }),
+      }),
+    );
+    expect(extract).not.toHaveBeenCalled();
   });
 });
 

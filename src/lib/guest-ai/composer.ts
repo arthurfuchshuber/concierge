@@ -656,13 +656,18 @@ export function composeTurnPrompt(input: ComposeInput, options: ComposeOptions =
     batchRefs.length > 1
       ? `As mensagens ${batchRefs.join(", ")} (lote_atual: true) foram enviadas em sequência pelo mesmo hóspede e formam um único turno. Considere-as em conjunto e produza uma única decisão para todas, estritamente no formato JSON exigido pelas instruções de sistema.`
       : `Responda à mensagem ${last.ref} (atual: true) estritamente no formato JSON exigido pelas instruções de sistema.`;
+  // Ordem pensada para o cache de prompt dos provedores (08/11/2026): o que é ESTÁVEL entre turnos vem primeiro
+  // (dossiê e documento vivo do imóvel, eventos do dia da cidade, perfil do hóspede) e o que muda a cada turno
+  // (contexto com o "agora", histórico, fechamento) vem por último. O prefixo idêntico (instruções de sistema +
+  // dossiê) é reaproveitado pelo provedor a cada nova mensagem da mesma conversa/imóvel: menos custo e menos
+  // latência, sem tirar nada do que o modelo vê.
   const user = [
     preamble,
-    contextBlock,
-    ...(profileBlock ? [profileBlock] : []),
     ...(dossierBlock ? [dossierBlock] : []),
     ...(livingBlock ? [livingBlock] : []),
     ...(eventsBlock ? [eventsBlock] : []),
+    ...(profileBlock ? [profileBlock] : []),
+    contextBlock,
     historyBlock,
     closing,
   ].join("\n\n");

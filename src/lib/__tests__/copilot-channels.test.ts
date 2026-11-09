@@ -279,6 +279,9 @@ describe.each(CHANNELS)("Copiloto · canal $label", ({ surface, session, channel
         }),
         provider: p,
         log: () => {},
+        // bastidores (08/11/2026) fora deste teste: aqui só a sugestão do canal (uma chamada ao Gateway)
+        extractOps: async () => null,
+        ops: async () => undefined,
       },
     );
     expect(r).toMatchObject({ status: "stored", state: "available" });
@@ -466,6 +469,8 @@ describe.each(CHANNELS)(
       }),
       provider: p,
       log: () => {},
+      extractOps: async () => null,
+      ops: async () => undefined,
     });
     const guard = vi.fn(async () => ({
       ok: true as const,

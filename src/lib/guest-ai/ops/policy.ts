@@ -54,7 +54,8 @@ export interface OpsHistoryEntry {
 }
 
 export interface OpsPolicyInput {
-  decision: ModelDecision;
+  /** Só os sinais operacionais (decisão do Copiloto ou extrator dos bastidores). */
+  decision: Pick<ModelDecision, "hospitalityMilestone" | "milestoneQuote" | "guestEtas"> & Partial<ModelDecision>;
   history: readonly OpsHistoryEntry[];
   /** Fase calculada pelo servidor para o turno. */
   phase: StayPhase;

@@ -25,7 +25,7 @@ import {
 import { generateGuestLlm } from "@/lib/guest-ai/llm/gateway.server";
 import type { LlmProvider } from "@/lib/guest-ai/llm/providers/types";
 import type { LlmLogger } from "@/lib/guest-ai/llm/telemetry";
-import { estimateCostUsd, modelSpec } from "@/lib/guest-ai/llm/models";
+import { estimateCostUsd, guestFallbackModel, modelSpec } from "@/lib/guest-ai/llm/models";
 import { COPILOT_MAX_TURN_COST_USD } from "./contracts";
 import type { ExternalHttp, GuestToolContext, MapsHttp, ToolAvailability } from "@/lib/guest-ai/tools/contracts";
 import { executeToolCalls, type ToolCallOutcome } from "@/lib/guest-ai/tools/executor";
@@ -87,6 +87,8 @@ export interface CopilotGeneratorTelemetry {
   /** Chamadas de ferramenta executadas e quantas falharam (prazo, rede, argumento inválido…). */
   readonly toolCalls?: number;
   readonly toolFailures?: number;
+  /** Corrida protegida: o Reserva chegou a disparar em paralelo neste turno. */
+  readonly hedged?: boolean;
 }
 
 /** Foto do hóspede já preparada (Data URL) pela camada de dados, com o id citável do histórico. */
@@ -154,6 +156,8 @@ export interface CopilotGeneratorDeps {
   loadToolContext?: () => Promise<GuestToolContext | null>;
   /** Transporte do Google Maps (testes injetam um falso; produção usa o conector do Maps). */
   toolHttp?: MapsHttp;
+  /** Corrida protegida com o Reserva (padrão: ligada). `false` ⇒ só o Titular, como antes. */
+  hedge?: boolean;
   /** Clima/voos (testes injetam um falso; produção usa `external-http.server.ts`). */
   toolExternal?: ExternalHttp;
   /** Quais ferramentas externas estão configuradas (padrão: lido do ambiente). */
@@ -166,6 +170,23 @@ export interface CopilotGeneratorDeps {
  * resultados viram `indisponivel` (a IA responde sem números) e o teto do turno nunca é ultrapassado.
  */
 export const COPILOT_TOOL_ROUND_RESERVE_TOKENS = 8_000;
+/**
+ * CORRIDA PROTEGIDA (08/11/2026). O Titular é o cérebro principal; se não responder em `hedgeDelayMs`, o Reserva
+ * dispara EM PARALELO com o mesmo pedido e vale a primeira resposta válida (a outra é cancelada). Antes, o Reserva
+ * só entrava depois que o Titular estourava o prazo — e aí já não sobrava tempo (5 de 5 turnos em estadia com
+ * `stage_timeout` em 08/11). Custo: o Reserva é ~4× mais barato; só dispara quando o Titular demora.
+ */
+export const COPILOT_HEDGE_MIN_DELAY_MS = 2_500;
+export const COPILOT_HEDGE_MAX_DELAY_MS = 4_500;
+/** Fração do tempo restante esperada pelo Titular antes de disparar o Reserva. */
+export const COPILOT_HEDGE_FRACTION = 0.35;
+/** Tempo mínimo para valer a pena disparar o Reserva. */
+export const COPILOT_HEDGE_MIN_BUDGET_MS = 3_500;
+
+export function hedgeDelayMs(remainingMs: number): number {
+  return Math.round(Math.min(COPILOT_HEDGE_MAX_DELAY_MS, Math.max(COPILOT_HEDGE_MIN_DELAY_MS, remainingMs * COPILOT_HEDGE_FRACTION)));
+}
+
 /** Tempo do prazo do turno guardado para a 2ª chamada (resposta final) enquanto as ferramentas rodam. */
 export const COPILOT_FINAL_CALL_RESERVE_MS = 6_000;
 
@@ -361,6 +382,7 @@ export function createCopilotGenerator(deps: CopilotGeneratorDeps): CopilotGener
       let usage: LlmUsage = { inputTokens: 0, outputTokens: 0, reasoningTokens: 0, totalTokens: 0, source: "none" };
       let cost = 0;
       let lastModel: string | undefined;
+      let hedged = false;
       const account = (r: Awaited<ReturnType<typeof generateGuestLlm>>, inBound: number) => {
         const u = r.telemetry.usage;
         calls += r.telemetry.attempts;
@@ -388,28 +410,87 @@ export function createCopilotGenerator(deps: CopilotGeneratorDeps): CopilotGener
           costUsd: Math.round(cost * 1e8) / 1e8,
           latencyMs: Math.max(0, Math.round(now() - t0)),
           error,
+          hedged,
         });
       };
-      const call = (messages: LlmMessage[], toolChoice: "auto" | "none" | null) =>
+      type GatewayResult = Awaited<ReturnType<typeof generateGuestLlm>>;
+      const single = (model: string, messages: LlmMessage[], toolChoice: "auto" | "none" | null, sg: AbortSignal) =>
         generateGuestLlm(
           {
             purpose: "guest_reply",
-            model: deps.modelId,
+            model,
             messages,
             maxOutputTokens: outputTokens,
             reasoningEffort: deps.reasoningEffort,
             responseFormat: "json",
             timeoutMs: Math.max(1_000, Math.min(15_000, Math.floor(deps.remainingMs()))),
-            signal,
+            signal: sg,
             traceId: deps.traceId,
             ...(tools.length > 0 && toolChoice ? { tools, toolChoice } : {}),
           },
           { provider: deps.provider, log: deps.log },
         );
+      const hedgeId = deps.hedge === false ? null : guestFallbackModel(deps.modelId);
+      const hedgeSpec = hedgeId ? modelSpec(hedgeId) : null;
+      /** Uma chamada com corrida protegida: Titular; se demorar, Reserva em paralelo; vale a 1ª resposta válida. */
+      const call = async (messages: LlmMessage[], toolChoice: "auto" | "none" | null, inBound: number): Promise<GatewayResult> => {
+        const usable = (r: GatewayResult) => r.ok && (r.finishReason === "stop" || r.finishReason === "tool_calls");
+        // o Reserva só corre se o pior caso das DUAS chamadas couber no teto do turno
+        const hedgeFits =
+          !!hedgeSpec &&
+          cost + estimateCostUsd(spec!, inBound, outputTokens) + estimateCostUsd(hedgeSpec, inBound, outputTokens) <= ceiling;
+        if (!hedgeFits) {
+          const r = await single(deps.modelId, messages, toolChoice, signal);
+          account(r, inBound);
+          return r;
+        }
+        type Run = { who: "primary" | "hedge"; r: GatewayResult; ctrl: AbortController };
+        const ctrls = { primary: new AbortController(), hedge: new AbortController() };
+        const onParent = () => {
+          ctrls.primary.abort();
+          ctrls.hedge.abort();
+        };
+        signal.addEventListener("abort", onParent, { once: true });
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        const run = (who: Run["who"], model: string): Promise<Run> =>
+          single(model, messages, toolChoice, ctrls[who].signal).then((r) => ({ who, r, ctrl: ctrls[who] }));
+        try {
+          const pA = run("primary", deps.modelId);
+          const waited = await Promise.race([
+            pA,
+            new Promise<null>((resolve) => {
+              timer = setTimeout(() => resolve(null), hedgeDelayMs(deps.remainingMs()));
+            }),
+          ]);
+          if (waited || deps.remainingMs() < COPILOT_HEDGE_MIN_BUDGET_MS || signal.aborted) {
+            const a = waited ?? (await pA);
+            account(a.r, inBound);
+            return a.r;
+          }
+          hedged = true;
+          const pB = run("hedge", hedgeId!);
+          const first = await Promise.race([pA, pB]);
+          const other = first.who === "primary" ? pB : pA;
+          if (usable(first.r)) {
+            // vence a primeira válida; a outra é cancelada e o que ela já custou entra na conta
+            (first.who === "primary" ? ctrls.hedge : ctrls.primary).abort();
+            account((await other).r, inBound);
+            account(first.r, inBound);
+            return first.r;
+          }
+          const second = await other;
+          account(first.r, inBound);
+          account(second.r, inBound);
+          if (usable(second.r)) return second.r;
+          return first.who === "primary" ? first.r : second.r;
+        } finally {
+          clearTimeout(timer);
+          signal.removeEventListener("abort", onParent);
+        }
+      };
 
       // 1ª chamada: o modelo responde direto ou pede consultas
-      const first = await call(attached.messages, "auto");
-      account(first, bound);
+      const first = await call(attached.messages, "auto", bound);
       if (!first.ok) {
         settle("failed", first.error.code);
         throw new CopilotGeneratorStop("gateway_failed");
@@ -458,8 +539,7 @@ export function createCopilotGenerator(deps: CopilotGeneratorDeps): CopilotGener
         block("superseded");
       }
       // 2ª chamada: só a resposta final (ferramentas proibidas), com os dados reais consultados
-      const final = await call(second, "none");
-      account(final, messagesTokenBound(second));
+      const final = await call(second, "none", messagesTokenBound(second));
       if (!final.ok || final.finishReason !== "stop") {
         settle("failed", final.ok ? "invalid_response" : final.error.code);
         throw new CopilotGeneratorStop("gateway_failed");

@@ -140,13 +140,15 @@ const NOW = () => new Date("2026-11-10T20:00:00Z");
 const AFTER = { exists: true, status: "done", done_at: "2026-11-10T20:00:01Z" };
 
 describe("G2 · executor: chave e piloto", () => {
-  it("chave: `live`/`on` ⇒ ação real; `shadow` ⇒ registro; qualquer outro valor ⇒ off", () => {
+  it("chave: ausente ou `live`/`on` ⇒ ação real; `shadow` ⇒ registro; qualquer outro valor explícito ⇒ off", () => {
     expect(opsMode({ GUEST_AI_OPS_MODE: "live" })).toBe("live");
     expect(opsMode({ GUEST_AI_OPS_MODE: "on" })).toBe("live");
     expect(opsMode({ GUEST_AI_OPS_MODE: "shadow" })).toBe("shadow");
     for (const v of ["ON", "Live", " live", "Shadow", "1", "true", ""])
       expect(opsMode({ GUEST_AI_OPS_MODE: v }), v).toBe("off");
-    expect(opsMode({})).toBe("off");
+    // 08/11/2026: ausência do segredo não desliga mais os bastidores em silêncio (decisão `live` do titular)
+    expect(opsMode({})).toBe("live");
+    expect(opsMode({ GUEST_AI_OPS_MODE: "off" })).toBe("off");
   });
 
   it("piloto por imóvel: vazio ⇒ todos; lista ⇒ só os listados", () => {
@@ -159,7 +161,7 @@ describe("G2 · executor: chave e piloto", () => {
     const r = fakeRpc();
     const loadState = vi.fn(async () => STATE);
     const apply = vi.fn();
-    expect(await runOps(input(), { env: {}, rpc: r.rpc, loadState, apply })).toEqual({
+    expect(await runOps(input(), { env: { GUEST_AI_OPS_MODE: "off" }, rpc: r.rpc, loadState, apply })).toEqual({
       status: "off",
     });
     // sem sinal do modelo e sem mensagem da equipe no histórico: nem o estado é lido
@@ -548,9 +550,12 @@ describe("G2 · integração com a geração do Copiloto", () => {
   it("a geração chama o executor depois da gravação, com a decisão validada; falha do executor não afeta a sugestão", async () => {
     const src = readFileSync(path.join(ROOT, "copilot/generate.server.ts"), "utf8");
     const store = src.indexOf("const stored = await store.store(");
-    const ops = src.indexOf("deps.ops ?? ((i: OpsRunInput) => runOps(i, { env }))");
+    // Bastidores (08/11/2026): o executor padrão é único (`opsRun`); o extrator próprio roda em paralelo e a decisão
+    // validada da resposta é o reserva, chamado DEPOIS da gravação só se os bastidores não responderam.
+    expect(src).toContain("const opsRun = deps.ops ?? ((i: OpsRunInput) => runOps(i, { env }))");
+    const fallback = src.indexOf("!backstageDone &&");
     expect(store).toBeGreaterThan(0);
-    expect(ops).toBeGreaterThan(store);
+    expect(fallback).toBeGreaterThan(store);
     expect(src).toMatch(
       /outcome\.kind === "reply" \|\| outcome\.kind === "silence" \|\| outcome\.kind === "human_action"/,
     );

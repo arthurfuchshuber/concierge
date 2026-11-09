@@ -333,7 +333,7 @@ export async function runOpsPushScan(admin: Admin, now = new Date()) {
     // ----- atrasos (com base nos cards pendentes da esteira) -----
     const lateCheckoutsByCity = new Map<string, number>();
     let lateCheckouts = 0;
-    // MESMO corte da baixa automática (08/11/2026): late checkout formal (R6) ou horário definido pela
+    // Mesma base de corte da baixa automática (08/11/2026): late checkout formal (R6) ou horário definido pela
     // EQUIPE maior que o oficial. Antes o aviso olhava só o oficial e disparava "Check-Out Atrasado" no
     // mesmo instante em que a baixa automática fechava o card no horário combinado pela equipe.
     // Sem a leitura das autorizações não há como saber o corte: nenhum aviso de saída atrasada na rodada.
@@ -343,13 +343,20 @@ export async function runOpsPushScan(admin: Admin, now = new Date()) {
       if (r.date > today) continue;
       if (isMuted(r)) continue;
       const p = propById.get(r.propertyId);
-      const cut = autoCheckoutTriggerTime({
-        standardTime: r.standardTime ?? p?.checkout_time ?? null,
-        lateCheckout: lateOf!(r),
+      const standardTime = r.standardTime ?? p?.checkout_time ?? null;
+      const lateCheckout = lateOf!(r);
+      // "Atrasado" é depois do horário PERMITIDO, nunca de uma previsão mais cedo (08/11/2026: a baixa
+      // automática passou a acontecer no horário previsto; uma previsão antes do oficial não deixa ninguém
+      // atrasado). Vale o maior entre o corte sem previsão (oficial/late formal) e o da previsão (equipe estende).
+      const base = autoCheckoutTriggerTime({ standardTime, lateCheckout });
+      const forecast = autoCheckoutTriggerTime({
+        standardTime,
+        lateCheckout,
         arrivalTimeOverride: r.arrivalTimeOverride,
         arrivalTimeSource: r.arrivalTimeSource,
       });
-      const limit = cut ? cut[0] * 60 + cut[1] : timeToMinutes(null, DEFAULT_CHECKOUT);
+      const cuts = [base, forecast].filter((c): c is [number, number] => !!c).map((c) => c[0] * 60 + c[1]);
+      const limit = cuts.length > 0 ? Math.max(...cuts) : timeToMinutes(null, DEFAULT_CHECKOUT);
       const lateBy = r.date < today ? 24 * 60 : t.minutes - limit;
       if (lateBy <= 0) continue;
       lateCheckouts++;
