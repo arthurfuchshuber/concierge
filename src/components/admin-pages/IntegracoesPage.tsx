@@ -299,6 +299,9 @@ export function IntegracoesPage() {
               className="relative min-h-[108px] min-w-0 overflow-hidden rounded-[12px] border border-border/70 bg-card py-3.5 pl-[17px] pr-3.5 shadow-sm"
             >
               {act && <span aria-hidden className="absolute inset-y-0 left-0 w-[3px] bg-emerald-500" />}
+              {statusKey === "inativa" && (
+                <span aria-hidden data-testid="inactive-strip" className="absolute inset-y-0 left-0 w-[3px] bg-[#c4c4cc] dark:bg-[#9a9aa2]" />
+              )}
               <div className="flex min-h-[79px] flex-col">
                 <div className="min-w-0">
                   <div className="flex items-center justify-between gap-1.5">
