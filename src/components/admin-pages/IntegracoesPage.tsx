@@ -17,6 +17,8 @@ import {
   Filter,
   Settings2,
   Ellipsis,
+  Landmark,
+  Wallet,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -27,6 +29,8 @@ import { ClicksignPanel } from "@/components/admin-pages/ClicksignPanel";
 import { GoogleCalendarPanel } from "@/components/admin-pages/GoogleCalendarPanel";
 import { INTEGRATION_WINDOW_CLASS } from "@/components/admin-pages/integration-window";
 import { ChannexPanel } from "@/components/admin-pages/ChannexPanel";
+import { AsaasPanel, BancosPanel, bankSummaryRows, useBankConnections } from "@/components/admin-pages/BancosPanel";
+import { asaasItem, onlyBanks } from "@/lib/bank-account-label";
 import { getMyGoogleCalendarStatus } from "@/lib/google-calendar.functions";
 import { getMyWhatsappConfig } from "@/lib/whatsapp.functions";
 import { getMyClicksignConfig } from "@/lib/clicksign.functions";
@@ -50,25 +54,19 @@ type IntegrationConfig = {
   key: string;
   nome: string;
   descricao: string;
-  categoria: "Comunicação" | "Operação" | "Documentos";
+  /** Linha curta sob o nome, nos cards (celular e computador). */
+  subtitulo: string;
+  categoria: "Comunicação" | "Operação" | "Documentos" | "Financeiro";
   icon: typeof MessageCircle;
   detalhe: string;
 };
 
 const INTEGRATIONS: IntegrationConfig[] = [
   {
-    key: "whatsapp",
-    nome: "WhatsApp Business",
-    descricao: "Receba e responda mensagens dos hóspedes direto no Atendimento.",
-    categoria: "Comunicação",
-    icon: MessageCircle,
-    detalhe:
-      "Conecte o número oficial da sua operação para centralizar as conversas dos hóspedes no painel de Atendimento.",
-  },
-  {
     key: "clicksign",
     nome: "ClickSign",
     descricao: "Importe todos os contratos assinados e vincule a proprietários e hóspedes.",
+    subtitulo: "Contratos digitais",
     categoria: "Documentos",
     icon: FileSignature,
     detalhe:
@@ -78,19 +76,51 @@ const INTEGRATIONS: IntegrationConfig[] = [
     key: "gcal",
     nome: "Google Agenda",
     descricao: "Espelhe chegadas, saídas, limpezas, gravações e transcrições da equipe.",
+    subtitulo: "Agendas do Gmail",
     categoria: "Operação",
     icon: CalendarDays,
     detalhe:
       "Conecte a conta Google desta operação (OAuth). Importamos todas as agendas, eventos e os arquivos de gravação e transcrição gerados pelo Google Meet vinculados a cada evento.",
   },
   {
+    key: "bancos",
+    nome: "Bancos",
+    descricao: "Contas bancárias da empresa conectadas via Open Finance.",
+    subtitulo: "Integração bancária",
+    categoria: "Financeiro",
+    icon: Landmark,
+    detalhe:
+      "Conecte as contas da empresa pelo Open Finance para importar saldos e transações, em modo somente leitura.",
+  },
+  {
+    key: "asaas",
+    nome: "Asaas PJ",
+    descricao: "Extrato e transações da conta digital PJ.",
+    subtitulo: "Extrato e transações",
+    categoria: "Financeiro",
+    icon: Wallet,
+    detalhe:
+      "Conta digital PJ do Asaas sincronizada automaticamente pela API: saldo, extrato e transações.",
+  },
+  {
     key: "channex",
     nome: "Channex (Airbnb)",
     descricao: "Importe os anúncios do Airbnb conectados e mantenha os imóveis sincronizados.",
+    subtitulo: "Anúncios do Airbnb",
     categoria: "Operação",
     icon: Home,
     detalhe:
       "Traz para o painel os anúncios do Airbnb conectados via Channex. Cada anúncio vira um imóvel, com tipo de quarto e tarifa padrão em BRL criados automaticamente.",
+  },
+  {
+    key: "whatsapp",
+    nome: "WhatsApp Business",
+    descricao: "Receba e responda mensagens dos hóspedes direto no Atendimento.",
+    subtitulo: "Mensagens dos hóspedes",
+    categoria: "Comunicação",
+    icon: MessageCircle,
+    detalhe:
+      "Conecte o número oficial da sua operação para centralizar as conversas dos hóspedes no painel de Atendimento.",
   },
 ];
 
@@ -154,7 +184,10 @@ export function useIntegrationStatusQueries() {
     staleTime: QUERY_STALE_MS,
     gcTime: QUERY_GC_MS,
   });
-  return { wa, cs, gcal, channex };
+
+  // Bancos e Asaas PJ: só o dono da conta enxerga (nada de dados bancários sob personificação).
+  const banks = useBankConnections(!accountOwnerId);
+  return { wa, cs, gcal, channex, banks };
 }
 
 export function IntegracoesPage() {
@@ -165,16 +198,24 @@ export function IntegracoesPage() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [waOpen, setWaOpen] = useState(false);
 
-  const { wa, cs, gcal, channex } = useIntegrationStatusQueries();
+  const { wa, cs, gcal, channex, banks } = useIntegrationStatusQueries();
   const waActive = false; // WhatsApp em standby (10/11/2026) até a Cloud API oficial da Meta
   const csActive = !!cs.data?.hasToken;
   const gcalActive = !!gcal.data?.connected;
   const channexActive = !!channex.data?.configured;
+  const bankItems = onlyBanks(banks.data?.items ?? []);
+  const bancosActive = bankItems.length > 0;
+  const asaasRow = asaasItem(banks.data?.items ?? []);
+  const asaasActive = !!asaasRow;
+  const bankRows = bankSummaryRows(banks.data?.items ?? [], banks.data?.accounts ?? []);
+  const [bancosOpen, setBancosOpen] = useState(true);
 
   // Primeira carga: até cada consulta responder não sabemos se a integração está ativa.
   // Nunca declarar "inativa"/"Conectar" nesse intervalo (evita o flash e o layout shift).
-  const mobileLoading = (cs.isLoading && !cs.data) || (gcal.isLoading && !gcal.data);
-  const isLoading = mobileLoading || (wa.isLoading && !wa.data) || (channex.isLoading && !channex.data);
+  const mobileLoading =
+    (cs.isLoading && !cs.data) || (gcal.isLoading && !gcal.data) || (banks.isLoading && !banks.data);
+  const isLoading =
+    (cs.isLoading && !cs.data) || (gcal.isLoading && !gcal.data) || (wa.isLoading && !wa.data) || (channex.isLoading && !channex.data);
 
   const items = useMemo(
     () =>
@@ -185,25 +226,32 @@ export function IntegracoesPage() {
         else if (cfg.key === "clicksign") statusKey = csActive ? "ativa" : "inativa";
         else if (cfg.key === "channex") statusKey = channexActive ? "ativa" : "inativa";
         else if (cfg.key === "gcal") statusKey = gcalActive ? "ativa" : "inativa";
+        else if (cfg.key === "bancos") statusKey = bancosActive ? "ativa" : "inativa";
+        else if (cfg.key === "asaas") statusKey = asaasActive ? "ativa" : "inativa";
         return { cfg, statusKey };
-      }).sort(
-        (a, b) =>
-          STATUS_ORDER[a.statusKey] - STATUS_ORDER[b.statusKey] || a.cfg.nome.localeCompare(b.cfg.nome, "pt-BR"),
-      ),
-    [waActive, csActive, gcalActive, channexActive],
+      })
+        // Bancos só para o dono da conta; Asaas PJ só quando a conta já foi sincronizada.
+        .filter(({ cfg }) => (cfg.key === "bancos" ? !accountOwnerId : cfg.key === "asaas" ? !accountOwnerId && asaasActive : true))
+        .sort(
+          (a, b) =>
+            STATUS_ORDER[a.statusKey] - STATUS_ORDER[b.statusKey] || a.cfg.nome.localeCompare(b.cfg.nome, "pt-BR"),
+        ),
+    [waActive, csActive, gcalActive, channexActive, bancosActive, asaasActive, accountOwnerId],
   );
 
+  // Bancos e Asaas PJ: por enquanto só no celular (decisão de 10/11/2026); o computador fica como estava.
+  const deskItems = useMemo(() => items.filter(({ cfg }) => cfg.key !== "bancos" && cfg.key !== "asaas"), [items]);
   const counts = useMemo(
     () => ({
-      todas: items.length,
-      ativas: items.filter((i) => i.statusKey === "ativa").length,
-      inativas: items.filter((i) => i.statusKey === "inativa").length,
-      em_breve: items.filter((i) => i.statusKey === "em_breve").length,
+      todas: deskItems.length,
+      ativas: deskItems.filter((i) => i.statusKey === "ativa").length,
+      inativas: deskItems.filter((i) => i.statusKey === "inativa").length,
+      em_breve: deskItems.filter((i) => i.statusKey === "em_breve").length,
     }),
-    [items],
+    [deskItems],
   );
 
-  const filtered = items.filter(({ cfg, statusKey }) => {
+  const filtered = deskItems.filter(({ cfg, statusKey }) => {
     if (filter === "ativas" && statusKey !== "ativa") return false;
     if (filter === "inativas" && statusKey !== "inativa") return false;
     if (filter === "em_breve" && statusKey !== "em_breve") return false;
@@ -215,7 +263,11 @@ export function IntegracoesPage() {
   // CELULAR — mockup "Proposta · Integrações" (05/11/2026): quadradinhos compactos, sem rótulos de seção;
   // a faixa verde da esquerda marca a conectada. O WhatsApp ainda não aparece (não temos a integração).
   const [panel, setPanel] = useState<string | null>(null);
-  const mobileItems = items.filter(({ cfg }) => cfg.key !== "whatsapp" && cfg.key !== "channex").filter(({ cfg }) => {
+  const mobileItems = items
+    .filter(({ cfg }) => cfg.key !== "whatsapp" && cfg.key !== "channex")
+    // Ativas primeiro; dentro de cada grupo, na ordem dos mockups: ClickSign, Google Agenda, Bancos, Asaas PJ.
+    .sort((a, b) => STATUS_ORDER[a.statusKey] - STATUS_ORDER[b.statusKey] || INTEGRATIONS.indexOf(a.cfg) - INTEGRATIONS.indexOf(b.cfg))
+    .filter(({ cfg }) => {
     const term = q.trim().toLowerCase();
     return !term || `${cfg.nome} ${cfg.descricao} ${cfg.categoria}`.toLowerCase().includes(term);
   });
@@ -234,22 +286,48 @@ export function IntegracoesPage() {
           </span>
         }
       />
-      <div className="grid grid-cols-2 gap-2.5" aria-busy={mobileLoading}>
+      <div className="grid grid-cols-2 items-start gap-2.5" aria-busy={mobileLoading}>
         {mobileLoading
           ? mobileItems.map(({ cfg }) => <IntegrationSkeletonMobile key={cfg.key} />)
           : mobileItems.map(({ cfg, statusKey }) => {
           const act = statusKey === "ativa";
+          const isBancos = cfg.key === "bancos";
+          const canToggle = isBancos && act && bankRows.length > 0;
+          const open = canToggle && bancosOpen;
           return (
             <div
               key={cfg.key}
-              className="relative h-full min-h-[108px] min-w-0 overflow-hidden rounded-[12px] border border-border/70 bg-card py-3.5 pl-[17px] pr-3.5 shadow-sm"
+              className="relative min-h-[108px] min-w-0 overflow-hidden rounded-[12px] border border-border/70 bg-card py-3.5 pl-[17px] pr-3.5 shadow-sm"
             >
               {act && <span aria-hidden className="absolute inset-y-0 left-0 w-[3px] bg-emerald-500" />}
-              <div className="flex h-full flex-col">
+              <div className="flex min-h-[79px] flex-col">
                 <div className="min-w-0">
-                  <div className="truncate font-display text-[12.5px] font-bold leading-[1.3] tracking-[-0.01em] text-foreground">{cfg.nome}</div>
-                  <div className="mt-[3px] h-[14px]" />
+                  <div className="flex items-center justify-between gap-1.5">
+                    <div className="truncate font-display text-[12.5px] font-bold leading-[1.3] tracking-[-0.01em] text-foreground">{cfg.nome}</div>
+                    {canToggle && (
+                      <button
+                        type="button"
+                        aria-label={open ? "Recolher bancos" : "Expandir bancos"}
+                        aria-expanded={open}
+                        onClick={() => setBancosOpen((v) => !v)}
+                        className="-mr-0.5 grid size-4 flex-none cursor-pointer place-items-center text-muted-foreground"
+                      >
+                        <ChevronDown className={cn("size-4 transition-transform", open && "rotate-180")} />
+                      </button>
+                    )}
+                  </div>
+                  <div className="mt-[3px] min-h-[15px] truncate text-[11px] leading-[15px] text-muted-foreground">{cfg.subtitulo}</div>
                 </div>
+                {open && (
+                  <div className="mt-2.5 min-w-0">
+                    {bankRows.map((r, i) => (
+                      <div key={r.id} className={cn("min-w-0", i > 0 && "mt-[9px] border-t border-border/60 pt-[9px]")}>
+                        <div className="truncate text-[11px] font-semibold leading-[14px] text-muted-foreground">{r.name}</div>
+                        {r.account && <div className="mt-0.5 truncate text-[11px] leading-[14px] text-muted-foreground">{r.account}</div>}
+                      </div>
+                    ))}
+                  </div>
+                )}
                 <div className="mt-auto flex items-center gap-1.5 pt-2.5">
                   {act ? (
                     <>
@@ -285,6 +363,10 @@ export function IntegracoesPage() {
             <GoogleCalendarPanel accountOwnerId={accountOwnerId} readOnly={!!accountOwnerId} inWindow />
           ) : panelCfg?.key === "clicksign" ? (
             <ClicksignPanel accountOwnerId={accountOwnerId} readOnly={!!accountOwnerId} inWindow />
+          ) : panelCfg?.key === "bancos" ? (
+            <BancosPanel inWindow />
+          ) : panelCfg?.key === "asaas" ? (
+            <AsaasPanel inWindow />
           ) : null}
         </DialogContent>
       </Dialog>
@@ -335,7 +417,7 @@ export function IntegracoesPage() {
 
       {isLoading ? (
         <div className="grid gap-1.5 sm:grid-cols-2 xl:grid-cols-3" aria-busy>
-          {items.map(({ cfg }) => (
+          {deskItems.map(({ cfg }) => (
             <IntegrationSkeletonDesktop key={cfg.key} />
           ))}
         </div>
