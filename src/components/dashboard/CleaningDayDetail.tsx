@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { centsToReaisInput, parseReaisInputToCents } from "@/components/ui/money-input";
 import { CleaningProviderAvatar, useCleaningProviderName } from "@/components/dashboard/CleaningProviderAvatar";
 import { EDIT_BTN, EDIT_INPUT } from "@/components/dashboard/edit-frame";
-import { WIDE_WINDOW_CLASS, windowTitle } from "@/components/dashboard/wide-window";
+import { FINANCE_WINDOW_CLASS, windowTitle } from "@/components/dashboard/wide-window";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -319,7 +319,7 @@ export function CleaningDayDetail({
 }: Parameters<typeof CleaningDayDetailContent>[0] & { onClose: () => void }) {
   return (
     <Dialog open onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogContent aria-describedby={undefined} className={WIDE_WINDOW_CLASS}>
+      <DialogContent aria-describedby={undefined} className={FINANCE_WINDOW_CLASS}>
         <CleaningDayDetailContent {...props} />
       </DialogContent>
     </Dialog>
@@ -595,11 +595,11 @@ export function CleaningDayDetailContent({
   }
 
   return (
-    <div aria-label={`Detalhe de ${title ?? dayTitle(date)}`} className="flex min-h-0 flex-1 flex-col overflow-hidden">
+    <div aria-label={`Detalhe de ${title ?? dayTitle(date)}`} className="flex min-h-0 flex-1 flex-col overflow-hidden sm:pt-6">
       {/* CABEÇALHO UNIVERSAL DE JANELA AMPLA (07/11/2026, referência: "Check-ins
           amanhã"): sem ícone, título 14px negrito em 1 linha e subtítulo 12px;
           o `pr-14` deixa o "X" oficial (canto superior direito) livre. */}
-      <DialogHeader className="shrink-0 border-b border-border/40 px-4 pb-2.5 pt-3 pr-12 text-left">
+      <DialogHeader className="shrink-0 border-b border-border/40 px-4 pb-2.5 pt-3 pr-12 text-left sm:mx-6">
         <DialogTitle className="truncate text-sm font-bold leading-5 text-foreground" title={heading}>
           {windowTitle(heading)}
         </DialogTitle>
@@ -610,12 +610,12 @@ export function CleaningDayDetailContent({
       {/* Rolagem NATIVA (sem JS mexendo na altura): o iOS não congela e o rodapé nunca sai da tela.
           Anti-corte: `snap-start` nas linhas faz a lista parar numa linha inteira. */}
       {body && (
-        <div className="sg-elegant-scroll min-h-0 flex-1 snap-y snap-proximity overflow-y-auto overscroll-contain touch-pan-y px-4 pb-1 pt-2.5 [scrollbar-gutter:stable]">
+        <div className="sg-elegant-scroll min-h-0 flex-1 snap-y snap-proximity overflow-y-auto overscroll-contain touch-pan-y px-4 pb-1 pt-2.5 sm:mx-6 [scrollbar-gutter:stable]">
           {body}
         </div>
       )}
       {footer && (
-        <div className="flex shrink-0 items-baseline justify-between gap-3 overflow-hidden border-t border-border bg-foreground/[0.03] px-4 py-3.5 [scrollbar-gutter:stable]">
+        <div className="flex shrink-0 items-baseline justify-between gap-3 overflow-hidden border-t border-border bg-foreground/[0.03] px-4 py-3.5 sm:px-10 [scrollbar-gutter:stable]">
           {footer}
         </div>
       )}

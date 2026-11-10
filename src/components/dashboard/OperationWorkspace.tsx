@@ -51,7 +51,7 @@ import {
   type CleaningForecastItem,
   type DayDetailSource,
 } from "@/components/dashboard/CleaningDayDetail";
-import { WIDE_WINDOW_CLASS, windowTitle } from "@/components/dashboard/wide-window";
+import { FINANCE_WINDOW_CLASS, WIDE_WINDOW_CLASS, windowTitle } from "@/components/dashboard/wide-window";
 import { cleaningAdvanceDecision } from "@/lib/cleaning-advance";
 import { CleaningProviderAvatar, useCleaningBoard } from "@/components/dashboard/CleaningProviderAvatar";
 import { PropertyAccessButton } from "@/components/dashboard/PropertyAccessButton";
@@ -5112,7 +5112,7 @@ function CleaningBreakdownContent({ label, breakdown }: { label: string; breakdo
   const sorted = [...breakdown].sort((x, y) => y.totalCents - x.totalCents);
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div ref={screenshotRef} className="sg-elegant-scroll min-h-0 flex-1 overflow-y-auto bg-[var(--panel)] px-4 pt-2.5">
+      <div ref={screenshotRef} className="sg-elegant-scroll min-h-0 flex-1 overflow-y-auto bg-[var(--panel)] px-4 pt-2.5 sm:mx-6">
         <ul>
           {sorted.map((item) => {
             return (
@@ -5136,7 +5136,7 @@ function CleaningBreakdownContent({ label, breakdown }: { label: string; breakdo
           })}
         </ul>
       </div>
-      <div className="flex shrink-0 items-center justify-between gap-3 border-t border-border px-4 py-3">
+      <div className="flex shrink-0 items-center justify-between gap-3 border-t border-border px-4 py-3 sm:px-10">
         <span className="text-[10.5px] font-extrabold uppercase tracking-[0.1em] text-muted-foreground">
           Total · {count} {count === 1 ? "limpeza" : "limpezas"}
         </span>
@@ -5228,7 +5228,7 @@ function StatDisplayCard({
       <Dialog open={open} onOpenChange={setOpen}>
         {/* Janela ampla padrão (07/11/2026): "X" oficial do DialogContent e
             cabeçalho sem ícone, vindos do próprio CleaningDayDetailContent. */}
-        <DialogContent aria-describedby={undefined} className={WIDE_WINDOW_CLASS}>
+        <DialogContent aria-describedby={undefined} className={FINANCE_WINDOW_CLASS}>
           <CleaningDayDetailContent
             date="all"
             title={label}
@@ -5239,10 +5239,10 @@ function StatDisplayCard({
       </Dialog>
       ) : (
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent aria-describedby={undefined} className={WIDE_WINDOW_CLASS}>
+        <DialogContent aria-describedby={undefined} className={FINANCE_WINDOW_CLASS}>
           {/* Cabeçalho universal de janela ampla (07/11/2026): sem ícone, título
               14px e subtítulo 12px; o "X" oficial fica no canto. */}
-          <DialogHeader className="shrink-0 border-b border-border/40 px-4 pb-2.5 pt-3 pr-12 text-left">
+          <DialogHeader className="shrink-0 border-b border-border/40 px-4 pb-2.5 pt-3 pr-12 text-left sm:mx-6 sm:mt-6">
             <DialogTitle className="truncate text-sm font-bold leading-5 text-foreground">{windowTitle(label)}</DialogTitle>
             <div className="text-xs leading-4 text-muted-foreground">
               {value} · {breakdown!.length} {breakdown!.length === 1 ? "imóvel" : "imóveis"}
