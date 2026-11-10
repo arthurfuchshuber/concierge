@@ -5306,6 +5306,8 @@ function CleaningSplitLegend() {
  * para acionar a rolagem.
  */
 const CLEANING_DAY_MIN_PX = 56;
+/** Desktop: coluna mínima menor, para os 7 dias caberem na largura inteira do card (a regra anti-corte continua valendo se ainda não couber). */
+const CLEANING_DAY_MIN_PX_LG = 38;
 
 /** Rótulo curto do eixo horizontal: "08/09". */
 function dayTick(v: string): string {
@@ -5395,7 +5397,7 @@ function CleaningChartFrame({
   const days = data?.length ?? 0;
   const isLg = useIsLg();
   const chartH = isLg ? 232 : 128;
-  const anti = useAntiClipColumns(days, CLEANING_DAY_MIN_PX);
+  const anti = useAntiClipColumns(days, isLg ? CLEANING_DAY_MIN_PX_LG : CLEANING_DAY_MIN_PX);
   const [selected, setSelected] = useState<string | null>(null);
   /** X do dia tocado, nas coordenadas do gráfico (antes da rolagem). */
   const [pickX, setPickX] = useState<number | null>(null);
