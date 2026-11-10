@@ -52,3 +52,18 @@ export function planQualification(
   );
   return { action: "approve", note: null, replicateTo: [...new Set(targets.map((p) => p.id))] };
 }
+
+/**
+ * Escopo ATUAL de uma entrada aprovada, deduzido das réplicas ativas (10/11/2026): sem réplica ⇒ imóvel;
+ * réplicas só na cidade do imóvel de origem enquanto o dono tem imóveis em outras cidades ⇒ cidade; senão ⇒ conta.
+ */
+export function inferScope(origin: PropertyRef, replicaPropertyIds: readonly string[], ownerProperties: readonly PropertyRef[]): LearningScope {
+  if (replicaPropertyIds.length === 0) return "property";
+  const city = normCity(origin.city);
+  const byId = new Map(ownerProperties.map((p) => [p.id, p]));
+  const allSameCity = replicaPropertyIds.every((id) => normCity(byId.get(id)?.city ?? null) === city);
+  const otherCities = ownerProperties.some((p) => p.id !== origin.id && !p.archived && normCity(p.city) !== city);
+  return allSameCity && city !== "" && otherCities ? "city" : "account";
+}
+
+export const SCOPE_LABEL: Record<LearningScope, string> = { property: "Imóvel", city: "Cidade", account: "Conta" };

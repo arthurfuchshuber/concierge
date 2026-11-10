@@ -7,6 +7,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TelemetryKpis } from "@/components/admin/ia/TelemetryKpis";
 import { TelemetryFeed } from "@/components/admin/ia/TelemetryFeed";
 import { TelemetryLearningTools } from "@/components/admin/ia/TelemetryLearningTools";
+import { TelemetryLearningPanels } from "@/components/admin/ia/TelemetryLearningPanels";
 import { TelemetryInspector } from "@/components/admin/ia/TelemetryInspector";
 import { checkIsAdmin } from "@/lib/admin-subs.functions";
 import { friendlyErrorMessage } from "@/lib/friendly-error";
@@ -118,6 +119,8 @@ function AiTelemetryPage() {
         tools={q.data?.tools ?? null}
         loading={q.isLoading}
       />
+
+      <TelemetryLearningPanels />
 
       <TelemetryFeed
         rows={rows}
