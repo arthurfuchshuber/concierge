@@ -4,6 +4,7 @@ import { ownerLabel } from "@/components/dashboard/card-colors";
 import { friendlyErrorMessage } from "@/lib/friendly-error";
 import { ComposerPlusMenu } from "@/components/handoff/ComposerPlusMenu";
 import { LearnedBadge, useConversationLearnings } from "@/components/handoff/LearnedBadge";
+import { DecisionCard, useConversationDecisions } from "@/components/handoff/DecisionCard";
 import { PhoneActionButton } from "@/components/PhoneActionButton";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
@@ -179,6 +180,8 @@ function DeliveryTicks({ status }: { status: string | null | undefined }) {
 export function ConversationView({ conversationId, compact, myUserId, stay, owner }: Props) {
   // selo "IA aprendeu" nas mensagens da equipe que ensinaram um fato do imóvel (10/11/2026)
   const learnedByMessage = useConversationLearnings(conversationId);
+  // decisão humana com 1 clique (10/11/2026): cartão logo abaixo da mensagem do hóspede que a originou
+  const decisions = useConversationDecisions(conversationId);
   const { can, isOwner } = useMyPermissions();
   const canChat = isOwner || can("chat_respond");
   const getFn = useServerFn(getHandoffConversation);
@@ -945,9 +948,23 @@ export function ConversationView({ conversationId, compact, myUserId, stay, owne
                   )}
                 </div>
               </div>
+              {decisions.byMessage.get(m.id) ? (
+                <DecisionCard
+                  decision={decisions.byMessage.get(m.id)!}
+                  conversationId={conversationId}
+                  guestName={guestName}
+                  propertyName={propertyName}
+                />
+              ) : null}
             </Fragment>
           );
         })}
+        {/* decisão cuja mensagem de origem não está na lista carregada: no fim, para nunca sumir */}
+        {decisions.list
+          .filter((d) => !msgs.some((m) => m.id === d.trigger_message_id))
+          .map((d) => (
+            <DecisionCard key={d.id} decision={d} conversationId={conversationId} guestName={guestName} propertyName={propertyName} />
+          ))}
       </div>
 
       {/* Ações da mensagem (segurar para abrir, como no WhatsApp) */}

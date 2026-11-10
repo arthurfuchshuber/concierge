@@ -89,7 +89,19 @@ export interface SlotDeps {
   humanActive?: (turn: unknown, nowIso: string) => Promise<boolean | null>;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   generate?: (req: GuestAiRequest) => Promise<any>;
+  /** Decisão humana pendente na conversa ⇒ silêncio absoluto (10/11/2026). */
+  pendingDecision?: (conversationId: string) => Promise<boolean>;
+  /** Abre a decisão humana para um pedido de exceção (late check-out, entrada antecipada, concessão). */
+  openDecision?: (p: {
+    conversationId: string;
+    triggerMessageId: string;
+    formalChangeRequests: readonly string[];
+    internalQuestion: string | null;
+  }) => Promise<{ opened: boolean; code?: string; reason?: string }>;
 }
+
+/** Urgência do chamado de decisão (push prioritário). */
+export const DECISION_HANDOFF_URGENCY = "high";
 
 export async function requestGuestAiReply(req: GuestAiRequest, deps: SlotDeps = {}): Promise<GuestAiReply | null> {
   const env = deps.env ?? process.env;
@@ -117,6 +129,12 @@ export async function requestGuestAiReply(req: GuestAiRequest, deps: SlotDeps = 
       return toHandoff("", "Não foi possível validar a conversa — responder ao hóspede.", "normal");
     }
     if (!autonomousPropertyAllowed(turn.propertyId, env)) return null;
+
+    // 1b) DECISÃO HUMANA PENDENTE (10/11/2026): enquanto a equipe não decide, a IA não fala nada ao hóspede
+    const pending = deps.pendingDecision
+      ? await deps.pendingDecision(req.conversationId)
+      : await (await import("@/lib/guest-ai-decision.server")).hasPendingDecision(req.conversationId);
+    if (pending) return SILENT;
 
     // 2) equipe atendendo ⇒ a IA não fala por cima do atendente
     const nowIso = new Date((deps.now ?? Date.now)()).toISOString();
@@ -155,7 +173,28 @@ export async function requestGuestAiReply(req: GuestAiRequest, deps: SlotDeps = 
       handoffNeeded: boolean;
       handoffUrgency: string | null;
       internalQuestion: string | null;
+      formalChangeRequests?: string[];
     };
+
+    // 4a) PEDIDO DE EXCEÇÃO (late check-out, entrada antecipada, concessão): a IA não responde nem "vai verificar";
+    //     abre UMA decisão com botões para a equipe (push prioritário) e espera o clique.
+    if ((res.formalChangeRequests ?? []).length > 0) {
+      const open = deps.openDecision
+        ? await deps.openDecision({
+            conversationId: req.conversationId,
+            triggerMessageId: req.messageId,
+            formalChangeRequests: res.formalChangeRequests ?? [],
+            internalQuestion: res.internalQuestion,
+          })
+        : await (await import("@/lib/guest-ai-decision.server")).openHumanDecision({
+            conversationId: req.conversationId,
+            triggerMessageId: req.messageId,
+            formalChangeRequests: res.formalChangeRequests ?? [],
+            internalQuestion: res.internalQuestion,
+          });
+      if (open.opened || open.code === "pending_exists" || open.code === "exists")
+        return toHandoff("", open.reason, DECISION_HANDOFF_URGENCY);
+    }
     const text = (res.text ?? "").trim();
     if (r.state === "available" && text) {
       return res.handoffNeeded

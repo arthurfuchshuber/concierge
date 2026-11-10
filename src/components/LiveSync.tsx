@@ -65,6 +65,8 @@ const TABLES = [
   "ai_precedents","ai_memories","ai_host_corrections","ai_proactive_actions","ai_guest_memory","permission_nodes",
   "poi_categories","poi_tags","sigma_city_faqs","sigma_city_marketplace","sigma_city_packs","sigma_city_recommendations",
   "city_daily_news","guest_ai_copilot_suggestions",
+  // 10/11/2026 — decisão humana com 1 clique (migration 20261110200000_guest_ai_human_decisions.sql).
+  "guest_ai_human_decisions",
 ];
 
 /**
