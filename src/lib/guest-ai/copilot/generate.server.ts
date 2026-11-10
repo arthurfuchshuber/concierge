@@ -169,6 +169,42 @@ export type CopilotGenerateResult =
       detail: string | null;
     };
 
+/**
+ * DISJUNTOR DE RETENTATIVAS (10/11/2026): uma geração reivindicada que morreu sem gravar resultado (Worker
+ * cortado no meio de um stage_timeout) é re-reivindicada pelo banco a cada 90 s — e cada nova reivindicação lia o
+ * Dossiê inteiro de novo (até 7 tentativas em 2 min na mesma conversa). Permitimos UMA recuperação; da 3ª em diante
+ * a mensagem é encerrada como `generation_failed` (`retry_circuit_open`) SEM chamar modelo. Só uma NOVA mensagem
+ * do hóspede (outro `trigger_message_id`) gera de novo.
+ */
+export const COPILOT_MAX_GENERATION_ATTEMPTS = 2;
+
+function failedRecord(suggestionId: string, attempt: number, outcomeCode: string) {
+  return {
+    suggestionId,
+    attempt,
+    state: "generation_failed" as const,
+    text: null,
+    internalQuestion: null,
+    intents: [],
+    strategy: null,
+    handoffNeeded: false,
+    handoffUrgency: null,
+    outcomeKind: "technical_error" as const,
+    outcomeCode,
+    warnings: [],
+    context: {
+      stayPhase: null,
+      reservationLinked: null,
+      historyMessages: null,
+      dossierEntries: null,
+      credentialPolicy: null,
+      senderIdentity: null,
+      humanInCommand: null,
+    },
+    gateway: { modelId: null, inputTokens: null, outputTokens: null, costUsd: 0, latencyMs: null, error: null },
+  };
+}
+
 const defaultSchedule = (fn: () => void, ms: number) => {
   const t = setTimeout(fn, ms);
   return () => clearTimeout(t);
@@ -501,6 +537,11 @@ export async function generateCopilotSuggestion(
       return { status: "skipped", code: "claim_invalid", detail: claim.reason };
     if (claim.kind !== "claimed") return { status: "skipped", code: "claim_failed", detail: null };
     claimed = { suggestionId: claim.suggestionId, attempt: claim.attempt };
+    if (claim.attempt > COPILOT_MAX_GENERATION_ATTEMPTS) {
+      const r = await store.store(failedRecord(claim.suggestionId, claim.attempt, "retry_circuit_open"));
+      if (r.kind === "stale") return { status: "stale", suggestionId: claim.suggestionId };
+      return { status: "stored", suggestionId: claim.suggestionId, state: "generation_failed", code: "retry_circuit_open" };
+    }
 
     // 3) posse humana (só leitura, para o cartão) — nunca veto
     let humanInCommand: boolean | null = null;
@@ -764,37 +805,13 @@ export async function generateCopilotSuggestion(
     // falha inesperada: a sugestão reivindicada não pode ficar "gerando" para sempre
     if (claimed && store) {
       try {
-        await store.store({
-          suggestionId: claimed.suggestionId,
-          attempt: claimed.attempt,
-          state: "generation_failed",
-          text: null,
-          internalQuestion: null,
-          intents: [],
-          strategy: null,
-          handoffNeeded: false,
-          handoffUrgency: null,
-          outcomeKind: "technical_error",
-          outcomeCode: e instanceof CopilotGeneratorStop ? e.code : "internal_error",
-          warnings: [],
-          context: {
-            stayPhase: null,
-            reservationLinked: null,
-            historyMessages: null,
-            dossierEntries: null,
-            credentialPolicy: null,
-            senderIdentity: null,
-            humanInCommand: null,
-          },
-          gateway: {
-            modelId: null,
-            inputTokens: null,
-            outputTokens: null,
-            costUsd: 0,
-            latencyMs: null,
-            error: null,
-          },
-        });
+        await store.store(
+          failedRecord(
+            claimed.suggestionId,
+            claimed.attempt,
+            e instanceof CopilotGeneratorStop ? e.code : "internal_error",
+          ),
+        );
       } catch {
         /* melhor esforço */
       }

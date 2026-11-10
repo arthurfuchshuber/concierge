@@ -265,3 +265,55 @@ describe("Falhas técnicas do Copiloto (09/11/2026)", () => {
     expect(g.telemetry().costUsd).toBeLessThan(0.05);
   });
 });
+
+describe("Copiloto no Gemini Flash: sem corrida paralela (10/11/2026)", () => {
+  const prompt = {
+    system: "Você é o concierge.",
+    messages: [{ role: "user" as const, content: "Que horas é o check-in? Responda em JSON." }],
+    sourceIds: new Set<string>(),
+    promptVersion: "teste",
+  } as unknown as ComposedPrompt;
+  const mkFlash = (provider: unknown) =>
+    createCopilotGenerator({
+      modelId: GUEST_AI_RESERVE_MODEL,
+      maxOutputTokens: 1536,
+      reasoningEffort: "auto",
+      remainingMs: () => 18_000,
+      beforeNetwork: async () => true,
+      traceId: "t",
+      provider: provider as never,
+      log: () => {},
+    });
+
+  it("Flash lento: nenhum segundo modelo é disparado em paralelo", async () => {
+    const calls: string[] = [];
+    const provider = {
+      id: "fake",
+      async complete(req: ProviderRequest): Promise<ProviderOutcome> {
+        calls.push(req.spec.id);
+        await new Promise((r) => setTimeout(r, 120));
+        return okJson({ quem: req.spec.id });
+      },
+    };
+    const g = mkFlash(provider);
+    const text = await g.generate(prompt, new AbortController().signal);
+    expect(JSON.parse(text)).toEqual({ quem: GUEST_AI_RESERVE_MODEL });
+    expect(calls).toEqual([GUEST_AI_RESERVE_MODEL]);
+    expect(g.telemetry()).toMatchObject({ status: "called", hedged: false });
+  });
+
+  it("Flash falha: não escala para o GPT-6 Astra", async () => {
+    const calls: string[] = [];
+    const provider = {
+      id: "fake",
+      async complete(req: ProviderRequest): Promise<ProviderOutcome> {
+        calls.push(req.spec.id);
+        return { kind: "error", error: { code: "bad_request", retryable: false } as never, usage: null, requestId: null };
+      },
+    };
+    const g = mkFlash(provider);
+    await expect(g.generate(prompt, new AbortController().signal)).rejects.toBeTruthy();
+    expect(calls.every((m) => m === GUEST_AI_RESERVE_MODEL)).toBe(true);
+    expect(g.telemetry().hedged).toBe(false);
+  });
+});

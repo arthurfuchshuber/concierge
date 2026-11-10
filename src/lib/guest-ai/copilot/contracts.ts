@@ -6,7 +6,7 @@
  * rotina humana existente, acionada por um usuário autenticado. Estes vocabulários espelham a migration
  * `20261105150000_guest_ai_copilot_suggestions.sql` (o teste `copilot-pg` confere a paridade).
  */
-import { GUEST_AI_DEFAULT_MODEL } from "@/lib/guest-ai/orchestrator/contracts";
+import { GUEST_AI_RESERVE_MODEL } from "@/lib/guest-ai/orchestrator/contracts";
 import { modelSpec } from "@/lib/guest-ai/llm/models";
 import type { GuestSurface } from "@/lib/guest-ai/types";
 
@@ -169,10 +169,17 @@ export class CopilotFlagOffError extends Error {
   }
 }
 
-/** Modelo do Copiloto: `GUEST_AI_COPILOT_MODEL` se estiver no registro; senão o padrão da Guest AI. */
+/**
+ * Modelo do Copiloto: `GUEST_AI_COPILOT_MODEL` se estiver no registro; senão o Gemini Flash (10/11/2026).
+ *
+ * Auditoria de custo: com o Dossiê completo (~20-25 mil tokens de entrada), o GPT-6 Astra levava 11-16 s,
+ * estourava o prazo (stage_timeout / http 499) e a leitura da entrada era faturada mesmo sem resposta. O Flash
+ * respondeu em ~1,9 s por ~170× menos. O Astra segue no catálogo (e pode voltar pela variável), mas o Copiloto
+ * de alto volume roda no Flash por padrão.
+ */
 export function copilotModelId(env: Record<string, string | undefined> = process.env): string {
   const requested = env["GUEST_AI_COPILOT_MODEL"];
-  return requested && modelSpec(requested) ? requested : GUEST_AI_DEFAULT_MODEL;
+  return requested && modelSpec(requested) ? requested : GUEST_AI_RESERVE_MODEL;
 }
 
 /** Teto diário padrão (fail-closed) quando a variável não está configurada ou é inválida. */

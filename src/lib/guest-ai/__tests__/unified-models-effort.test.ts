@@ -56,7 +56,7 @@ describe("catálogo único de modelos", () => {
   it("Titular é o padrão global; Reserva só como reserva e rotina de fundo", () => {
     expect(GUEST_AI_DEFAULT_MODEL).toBe(TITULAR);
     expect(GUEST_AI_RESERVE_MODEL).toBe(RESERVA);
-    expect(copilotModelId({})).toBe(TITULAR);
+    expect(copilotModelId({})).toBe(RESERVA);
     expect(AI_MODELS.contracts).toBe(TITULAR);
     expect(AI_MODELS.internal).toBe(TITULAR);
   });
