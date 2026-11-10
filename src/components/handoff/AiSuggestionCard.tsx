@@ -171,6 +171,18 @@ export interface AiSuggestionCardProps {
   onSent?: () => void;
 }
 
+/** Mensagens que já pediram geração automática nesta sessão do navegador (chave: conversa + mensagem). */
+const autoRequested = new Set<string>();
+const AUTO_REQUESTED_MAX = 500;
+/** Marca a mensagem; devolve `false` se ela já tinha pedido geração antes (nesta sessão). */
+export function markAutoRequested(conversationId: string, messageId: string): boolean {
+  const key = `${conversationId}:${messageId}`;
+  if (autoRequested.has(key)) return false;
+  if (autoRequested.size >= AUTO_REQUESTED_MAX) autoRequested.delete(autoRequested.values().next().value as string);
+  autoRequested.add(key);
+  return true;
+}
+
 export function AiSuggestionCard({
   conversationId,
   latestGuestMessageId,
@@ -198,7 +210,10 @@ export function AiSuggestionCard({
   const enabled = flags.ui;
   const suggestion = q.data?.suggestion ?? null;
 
-  // mensagem nova do hóspede sem sugestão ⇒ pede UMA vez por mensagem (o banco é idempotente com o disparo do canal)
+  // mensagem nova do hóspede sem sugestão ⇒ pede UMA vez por mensagem (o banco é idempotente com o disparo do canal).
+  // DISJUNTOR (10/11/2026): a marca vale para a sessão inteira (não só para esta montagem do cartão) e nunca é
+  // limpa por erro — trocar de conversa e voltar, reabrir a tela ou um erro transitório NÃO pedem de novo. Só uma
+  // NOVA mensagem do hóspede (outro id) dispara geração automática; "Gerar sugestão" continua manual.
   const requested = useRef<string | null>(null);
   const ensure = useMutation({
     mutationFn: () => ensureFn({ data: { conversationId } }),
@@ -209,6 +224,7 @@ export function AiSuggestionCard({
     if (suggestion && suggestion.trigger_message_id === latestGuestMessageId) return;
     if (requested.current === latestGuestMessageId) return;
     requested.current = latestGuestMessageId;
+    if (!markAutoRequested(conversationId, latestGuestMessageId)) return;
     ensure.mutate();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [

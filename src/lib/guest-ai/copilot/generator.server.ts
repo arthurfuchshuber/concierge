@@ -13,6 +13,7 @@
  * Nunca devolve texto de erro do provedor: só códigos fechados (`CopilotGeneratorStop`).
  */
 import type { ComposedPrompt } from "@/lib/guest-ai/orchestrator/contracts";
+import { GUEST_AI_RESERVE_MODEL } from "@/lib/guest-ai/orchestrator/contracts";
 import {
   llmMessageText,
   type LlmContentPart,
@@ -450,7 +451,9 @@ export function createCopilotGenerator(deps: CopilotGeneratorDeps): CopilotGener
           },
           { provider: deps.provider, log: deps.log },
         );
-      const hedgeId = deps.hedge === false ? null : guestFallbackModel(deps.modelId);
+      // Flash como titular (10/11/2026): já responde em ~2 s; corrida paralela ou segunda tentativa só somaria custo.
+      const hedgeId =
+        deps.hedge === false || deps.modelId === GUEST_AI_RESERVE_MODEL ? null : guestFallbackModel(deps.modelId);
       const hedgeSpec = hedgeId ? modelSpec(hedgeId) : null;
       /** Uma chamada com corrida protegida: Titular; se demorar, Reserva em paralelo; vale a 1ª resposta válida. */
       const call = async (messages: LlmMessage[], toolChoice: "auto" | "none" | null, inBound: number): Promise<GatewayResult> => {

@@ -41,7 +41,7 @@ import { copilotRpcFrom, COPILOT_RPC_FUNCTIONS } from "@/lib/guest-ai/data/clien
 import { GuestAiScopeError } from "@/lib/guest-ai/data/scope.server";
 import type { ProviderOutcome, ProviderRequest } from "@/lib/guest-ai/llm/providers/types";
 import { llmMessageText } from "@/lib/guest-ai/llm/contracts";
-import { GUEST_AI_DEFAULT_MODEL } from "@/lib/guest-ai/orchestrator/contracts";
+import { GUEST_AI_DEFAULT_MODEL, GUEST_AI_RESERVE_MODEL } from "@/lib/guest-ai/orchestrator/contracts";
 import type { OwnershipLoad } from "@/lib/guest-ai/data/conversation-ownership.server";
 import { CONV, ctx, history, turn, v6, silence } from "./helpers/b23-chain";
 import { fakeProvider, okJson } from "./helpers/copilot-provider";
@@ -256,6 +256,32 @@ describe("Bastidores · trabalho próprio, ligado à geração mas independente 
 });
 
 describe("Copiloto · geração com a cadeia real e o Gateway real (transporte falso)", () => {
+  it("disjuntor (10/11/2026): 3ª reivindicação da mesma mensagem ⇒ falha encerrada, NENHUMA chamada ao modelo", async () => {
+    const p = fakeProvider(okJson(v6()));
+    const d = deps(p);
+    // simula o banco re-reivindicando uma geração órfã ("generating" há >90 s) pela 3ª vez
+    d.store.claim = async (i: CopilotClaimInput) => {
+      d.store.claims.push(i);
+      d.store.rows.set(`${i.conversationId}:${i.triggerMessageId}`, { id: "s-9", state: "generating", attempt: 3 });
+      return { kind: "claimed" as const, suggestionId: "s-9", attempt: 3, reclaimed: true };
+    };
+    const r = await generateCopilotSuggestion(REQ, d);
+    expect(r).toEqual({ status: "stored", suggestionId: "s-9", state: "generation_failed", code: "retry_circuit_open" });
+    expect(p.calls).toBe(0);
+    expect(d.store.only().result).toMatchObject({ outcomeCode: "retry_circuit_open", gateway: { costUsd: 0 } });
+  });
+  it("disjuntor: a 2ª reivindicação (uma recuperação) ainda gera normalmente", async () => {
+    const p = fakeProvider(okJson(v6()));
+    const d = deps(p);
+    d.store.claim = async (i: CopilotClaimInput) => {
+      d.store.claims.push(i);
+      d.store.rows.set(`${i.conversationId}:${i.triggerMessageId}`, { id: "s-8", state: "generating", attempt: 2 });
+      return { kind: "claimed" as const, suggestionId: "s-8", attempt: 2, reclaimed: true };
+    };
+    const r = await generateCopilotSuggestion(REQ, d);
+    expect(r).toMatchObject({ status: "stored", state: "available" });
+    expect(p.calls).toBe(1);
+  });
   it("resposta válida ⇒ sugestão DISPONÍVEL com texto, intenção, contexto e custo; uma única chamada ao provedor", async () => {
     const p = fakeProvider(okJson(v6()));
     const d = deps(p);
@@ -273,7 +299,7 @@ describe("Copiloto · geração com a cadeia real e o Gateway real (transporte f
       humanInCommand: false,
     });
     expect(res.context.stayPhase).toBeTruthy();
-    expect(res.gateway.modelId).toBe(GUEST_AI_DEFAULT_MODEL);
+    expect(res.gateway.modelId).toBe(GUEST_AI_RESERVE_MODEL);
     expect(res.gateway.inputTokens).toBe(900);
     expect(res.gateway.costUsd).toBeGreaterThan(0);
     // reivindicação com os tetos aprovados e a identidade do TURNO validado (nunca do pedido)
@@ -724,14 +750,12 @@ describe("Copiloto · gerador (limites próprios sobre o Gateway)", () => {
       copilotInputTokenBound({ ...prompt, messages: [{ role: "user", content: 1 as never }] }),
     ).toBe(0);
   });
-  it("modelo: só do registro; padrão da Guest AI", () => {
-    expect(copilotModelId({})).toBe(GUEST_AI_DEFAULT_MODEL);
-    expect(copilotModelId({ GUEST_AI_COPILOT_MODEL: "google/gemini-3.8-flash" })).toBe(
-      "google/gemini-3.8-flash",
-    );
-    // modelo aposentado no catálogo único ⇒ volta ao Titular
-    expect(copilotModelId({ GUEST_AI_COPILOT_MODEL: "google/gemini-3.1-flash-lite" })).toBe(GUEST_AI_DEFAULT_MODEL);
-    expect(copilotModelId({ GUEST_AI_COPILOT_MODEL: "x/y" })).toBe(GUEST_AI_DEFAULT_MODEL);
+  it("modelo: só do registro; padrão do Copiloto é o Gemini Flash (10/11/2026)", () => {
+    expect(copilotModelId({})).toBe(GUEST_AI_RESERVE_MODEL);
+    expect(copilotModelId({ GUEST_AI_COPILOT_MODEL: "openai/gpt-6-astra" })).toBe("openai/gpt-6-astra");
+    // modelo aposentado/desconhecido ⇒ volta ao Flash
+    expect(copilotModelId({ GUEST_AI_COPILOT_MODEL: "google/gemini-3.1-flash-lite" })).toBe(GUEST_AI_RESERVE_MODEL);
+    expect(copilotModelId({ GUEST_AI_COPILOT_MODEL: "x/y" })).toBe(GUEST_AI_RESERVE_MODEL);
     expect(copilotFlags({ GUEST_AI_COPILOT_GENERATION: "1" }).generation).toBe(false);
   });
 });
