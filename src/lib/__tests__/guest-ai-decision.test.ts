@@ -185,11 +185,32 @@ describe("Decisão · slot (silêncio absoluto da IA)", () => {
     expect(r?.reply).toBe("");
   });
 
-  it("late check-out já autorizado ou falha ao abrir (tabela ausente) ⇒ fluxo normal de antes", async () => {
+  it("late check-out já autorizado ou falha ao abrir (tabela ausente) ⇒ responde e AINDA avisa a equipe (alteração formal)", async () => {
     for (const code of ["already_authorized", "error", "not_an_exception"]) {
       const r = await requestGuestAiReply(REQ, slotDeps({ generate: async () => stored(), openDecision: async () => ({ opened: false, code }) }) as never);
-      expect(r, code).toEqual({ reply: "Vou verificar com a equipe!", handoff: false });
+      expect(r, code).toEqual({ reply: "Vou verificar com a equipe!", handoff: true, handoffReason: "Pedido de alteração formal: late check-out", handoffUrgency: "normal" });
     }
+  });
+
+  it("cancelamento/datas/valor: a IA responde ao hóspede E a equipe é SEMPRE avisada, mesmo sem o modelo marcar encaminhamento", async () => {
+    const reply = "Sinto muito pelo imprevisto! O cancelamento é feito pelo próprio Airbnb, em 'Alterar ou cancelar'.";
+    const openDecision = vi.fn(async () => ({ opened: false, code: "not_an_exception" }));
+    const r = await requestGuestAiReply(
+      REQ,
+      slotDeps({ generate: async () => stored({ text: reply, formalChangeRequests: ["cancellation"], handoffNeeded: false }), openDecision }) as never,
+    );
+    expect(r).toEqual({ reply, handoff: true, handoffReason: "Pedido de alteração formal: cancelamento", handoffUrgency: "normal" });
+    const multi = await requestGuestAiReply(
+      REQ,
+      slotDeps({ generate: async () => stored({ text: "ok", formalChangeRequests: ["dates", "price"], handoffNeeded: true, handoffUrgency: "high", internalQuestion: "Hóspede quer mudar as datas; aceitar?" }), openDecision }) as never,
+    );
+    expect(multi).toEqual({ reply: "ok", handoff: true, handoffReason: "Hóspede quer mudar as datas; aceitar?", handoffUrgency: "high" });
+    // sem texto (falha/silêncio) com alteração formal ⇒ encaminha mesmo assim
+    const silent = await requestGuestAiReply(
+      REQ,
+      slotDeps({ generate: async () => ({ status: "stored", state: "no_suggestion", result: { text: null, handoffNeeded: false, handoffUrgency: null, internalQuestion: null, formalChangeRequests: ["guest_count"] } }), openDecision }) as never,
+    );
+    expect(silent).toMatchObject({ reply: "", handoff: true, handoffReason: "Pedido de alteração formal: número de hóspedes" });
   });
 
   it("sem pedido formal ⇒ resposta normal, nenhuma decisão", async () => {
