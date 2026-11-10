@@ -36,7 +36,6 @@ import { useImpersonation, useImpersonationQuerySync } from "@/hooks/useImperson
 import { ROUTE_PERMISSION_LIST, permissionForPath } from "@/lib/permissions/routeAreas";
 import { AccessCheckFailed, AccessDenied } from "@/components/permissions/AreaGate";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useAntiClipWindow } from "@/hooks/useAntiClipWindow";
 
 
 
@@ -118,8 +117,6 @@ const BOTTOM_NAV_SHORT_LABEL: Record<string, string> = {
 };
 
 function AdminLayout() {
-  // Anticorte do menu lateral: se a janela for tão baixa que o menu role, o último item aparece inteiro.
-  const navAntiClipRef = useAntiClipWindow<HTMLElement>();
   const navigate = useNavigate();
   // Clique no push com o app aberto → vai direto ao destino (07/11/2026).
   usePushNavigation();
@@ -353,7 +350,7 @@ function AdminLayout() {
     <div className="min-h-screen bg-background text-foreground flex">
       {/* Sidebar */}
       <aside
-        className={`fixed lg:sticky top-0 left-0 z-40 h-screen shrink-0 border-r border-border bg-surface flex flex-col transition-[transform,width] duration-300 ${open ? "translate-x-0" : "-translate-x-full lg:translate-x-0"} ${collapsed ? "lg:w-[76px]" : "w-72 lg:w-[268px]"}`}
+        className={`fixed lg:sticky top-0 left-0 z-40 h-dvh lg:h-dvh [--nav-h:44px] lg:[--nav-h:clamp(32px,calc((100dvh_-_440px)/10),44px)] shrink-0 border-r border-border bg-surface flex flex-col transition-[transform,width] duration-300 ${open ? "translate-x-0" : "-translate-x-full lg:translate-x-0"} ${collapsed ? "lg:w-[76px]" : "w-72 lg:w-[268px]"}`}
       >
         <div className={`relative border-b border-border flex items-center ${collapsed ? "px-4 py-6 justify-center" : "px-6 py-6 justify-between lg:px-4"}`}>
           <Link to="/admin" className="inline-flex items-center gap-2.5 min-w-0">
@@ -373,7 +370,7 @@ function AdminLayout() {
           </button>
         </div>
 
-        <nav ref={navAntiClipRef} className="flex-1 px-3 py-4 pb-8 space-y-1.5 overflow-y-auto min-h-0">
+        <nav className="flex-1 px-3 py-4 pb-4 space-y-1.5 overflow-y-auto min-h-0">
           {!collapsed && (isAdmin ? (
             <div className="px-1 pb-3 mb-2 border-b border-border/60">
               <ClientSwitcher />
@@ -402,7 +399,7 @@ function AdminLayout() {
                     <Link
                       to={kids[0].to}
                       title={group.label}
-                      className={`flex h-11 items-center justify-center rounded-xl text-sm transition-colors ${
+                      className={`flex h-[var(--nav-h)] items-center justify-center rounded-xl text-sm transition-colors ${
                         hasActive ? "bg-accent/10 text-foreground" : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
                       }`}
                     >
@@ -425,7 +422,7 @@ function AdminLayout() {
                           navigate({ to: kids[0].to });
                         }
                       }}
-                      className={`flex h-11 w-full items-center gap-3 rounded-xl px-3.5 text-left text-sm transition-colors hover:bg-secondary/60 ${
+                      className={`flex h-[var(--nav-h)] w-full items-center gap-3 rounded-xl px-3.5 text-left text-sm transition-colors hover:bg-secondary/60 ${
                         hasActive || isOpen ? "font-bold text-foreground" : "font-semibold text-muted-foreground hover:text-foreground"
                       }`}
                     >
@@ -455,7 +452,7 @@ function AdminLayout() {
                                principais não selecionadas (14px, semibold, cinza);
                                selecionada = fundo cinza quente neutro, negrito e a
                                barrinha de gradiente sobre o fio vertical. */
-                            className={`relative flex h-10 items-center rounded-[10px] px-3 text-sm transition-colors ${
+                            className={`relative flex h-[calc(var(--nav-h)*0.91)] items-center rounded-[10px] px-3 text-sm transition-colors ${
                               active
                                 ? "bg-foreground/[0.06] font-bold text-foreground"
                                 : "font-semibold text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
@@ -490,7 +487,7 @@ function AdminLayout() {
                    com fundo de marca bem fraco, texto cheio e um traço de
                    gradiente na borda esquerda — em vez do bloco branco que
                    invertia a cor do texto. */
-                className={`relative flex items-center gap-3 rounded-xl px-3.5 py-0 h-11 text-sm transition-colors ${collapsed ? "justify-center" : ""} ${
+                className={`relative flex items-center gap-3 rounded-xl px-3.5 py-0 h-[var(--nav-h)] text-sm transition-colors ${collapsed ? "justify-center" : ""} ${
                   active
                     ? "bg-accent/10 font-bold text-foreground"
                     : "font-semibold text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
@@ -537,7 +534,7 @@ function AdminLayout() {
                     key={item.label}
                     to={item.to}
                     title={collapsed ? item.label : undefined}
-                    className={`relative flex items-center gap-3 rounded-xl px-3.5 py-0 h-11 text-sm transition-colors ${collapsed ? "justify-center" : ""} ${
+                    className={`relative flex items-center gap-3 rounded-xl px-3.5 py-0 h-[var(--nav-h)] text-sm transition-colors ${collapsed ? "justify-center" : ""} ${
                       active
                         ? "bg-accent/10 font-bold text-foreground"
                         : "font-semibold text-muted-foreground hover:bg-secondary/60 hover:text-foreground"

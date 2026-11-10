@@ -667,6 +667,8 @@ const EMPTY_CELLS = { halves: [] as CellPart[], stays: [] as never[], junction: 
 const EMPTY_LABELS = { bars: new Map(), singles: new Map(), blocks: new Map() } as const;
 
 export function OperationWorkspace({ view }: { view: OperationView }) {
+  const fitAnchorRef = useRef<HTMLDivElement>(null);
+  const fitRows = useFitRowHeights(fitAnchorRef);
   // Clique no push → `?janela=` → abre a janela certa (07/11/2026).
   const pushWin = usePushWindow();
   const pushSignal = (win: PushWindow) => (pushWin?.win === win ? pushWin.nonce : undefined);
@@ -3641,8 +3643,9 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
               acima, só adicionando estes logo abaixo. */}
             {/* Os MESMOS componentes nas duas janelas e no período
                 personalizado — só a fonte muda (ver `cleaningScreen`). */}
-            <div className="ds-card-grid grid-cols-1 lg:grid-cols-2">
+            <div ref={fitAnchorRef} className="ds-card-grid grid-cols-1 lg:grid-cols-2">
               <CleaningDailyBarChart
+                fitH={fitRows?.charts}
                 title={servicesTexts.barTitle}
                 data={cleaningChartDaily}
                 detail={servicesDetail(cleaningScreen.barDetail)}
@@ -3650,6 +3653,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 series={cleaningScreen.series}
               />
               <CleaningDailyAreaChart
+                fitH={fitRows?.charts}
                 title={servicesTexts.areaTitle}
                 data={cleaningChartDaily}
                 detail={servicesDetail(cleaningScreen.areaDetail)}
@@ -3663,6 +3667,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
             <div className="ds-card-grid grid-cols-1 lg:grid-cols-2 items-stretch">
               <div>
                 <CleaningCostComposition
+                  fitH={fitRows?.bottom}
                   days={cleaningChartDaily?.length ?? 0}
                   cleanCents={limpezaOn ? cleaningScreen.costValue : 0}
                   cleanCount={limpezaOn ? cleaningScreen.countValue : 0}
@@ -3673,6 +3678,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
               </div>
               <div>
                 <CleaningTopProperties
+                  fitH={fitRows?.bottom}
                   days={cleaningChartDaily?.length ?? 0}
                   items={servicesBreakdown}
                   loading={cleaningScreen.trendLoading || (extrasActive && extrasQ.isLoading)}
@@ -5327,6 +5333,55 @@ function useIsLg(): boolean {
   return lg;
 }
 
+/**
+ * ENCAIXE NA TELA (pedido explícito, 10/11/2026): no desktop, em zoom 100%, a
+ * tela de Serviços/Financeiro precisa caber inteira na janela, sem card cortado
+ * embaixo. Mede o espaço que sobra abaixo dos KPIs até a borda da janela e o
+ * reparte entre a linha dos gráficos (maior) e a linha de Composição/Top 5.
+ * Devolve `null` fora do desktop ou antes de medir: aí valem os tamanhos de sempre.
+ * Se nem o mínimo cabe (janela muito baixa), a página rola normalmente.
+ */
+const FIT_PAGE_BOTTOM = 32; // respiro de baixo da página (lg:py-8)
+const FIT_ROW_GAP = 10; // vão entre as duas linhas (ds-card-grid)
+const FIT_CHARTS_MIN = 200;
+const FIT_CHARTS_MAX = 460;
+const FIT_BOTTOM_MIN = 200;
+const FIT_BOTTOM_MAX = 380;
+function useFitRowHeights(anchor: React.RefObject<HTMLElement | null>): { charts: number; bottom: number } | null {
+  const isLg = useIsLg();
+  const [h, setH] = useState<{ charts: number; bottom: number } | null>(null);
+  useEffect(() => {
+    if (!isLg) {
+      setH(null);
+      return;
+    }
+    let frame = 0;
+    const measure = () => {
+      const el = anchor.current;
+      if (!el) return;
+      const top = el.getBoundingClientRect().top + window.scrollY;
+      const avail = window.innerHeight - top - FIT_ROW_GAP - FIT_PAGE_BOTTOM;
+      const charts = Math.round(Math.min(FIT_CHARTS_MAX, Math.max(FIT_CHARTS_MIN, avail * 0.52)));
+      const bottom = Math.round(Math.min(FIT_BOTTOM_MAX, Math.max(FIT_BOTTOM_MIN, avail - charts)));
+      setH((cur) => (cur && cur.charts === charts && cur.bottom === bottom ? cur : { charts, bottom }));
+    };
+    const schedule = () => {
+      if (frame) cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(measure);
+    };
+    measure();
+    window.addEventListener("resize", schedule);
+    const ro = new ResizeObserver(schedule);
+    ro.observe(document.body);
+    return () => {
+      if (frame) cancelAnimationFrame(frame);
+      window.removeEventListener("resize", schedule);
+      ro.disconnect();
+    };
+  }, [isLg, anchor]);
+  return h;
+}
+
 /** Informação à direita do cabeçalho do gráfico — só no desktop. */
 function ChartPeak({ children }: { children: React.ReactNode }) {
   return <span className="hidden text-[11px] font-semibold text-muted-foreground lg:inline">{children}</span>;
@@ -5373,10 +5428,13 @@ function CleaningChartFrame({
   tone,
   legend,
   peak,
+  fitH,
   children,
 }: {
   title: string;
   data: CleaningDailyPoint[] | undefined;
+  /** Altura da linha de gráficos medida para caber na janela (desktop). */
+  fitH?: number;
   /** "Pico: 06/11 · 4 serviços" — à direita do cabeçalho, só no desktop. */
   peak?: React.ReactNode;
   loading: boolean;
@@ -5394,7 +5452,7 @@ function CleaningChartFrame({
 }) {
   const days = data?.length ?? 0;
   const isLg = useIsLg();
-  const chartH = isLg ? 232 : 128;
+  const chartH = isLg ? (fitH ? Math.max(110, fitH - 64) : 232) : 128;
   const anti = useAntiClipColumns(days, isLg ? CLEANING_DAY_MIN_PX_LG : CLEANING_DAY_MIN_PX);
   const [selected, setSelected] = useState<string | null>(null);
   /** X do dia tocado, nas coordenadas do gráfico (antes da rolagem). */
@@ -5493,7 +5551,9 @@ function CleaningDailyBarChart({
   title = "Limpezas por dia",
   detail,
   series = "done",
+  fitH,
 }: {
+  fitH?: number;
   data: CleaningDailyPoint[] | undefined;
   loading: boolean;
   /** A mesma tela serve às duas janelas (últimos 7d / próximos 7d); só o
@@ -5518,6 +5578,7 @@ function CleaningDailyBarChart({
       : null;
   return (
     <CleaningChartFrame
+      fitH={fitH}
       title={title}
       data={data}
       loading={loading}
@@ -5622,7 +5683,9 @@ function CleaningDailyAreaChart({
   title = "Custo total por dia",
   detail,
   series = "done",
+  fitH,
 }: {
+  fitH?: number;
   data: CleaningDailyPoint[] | undefined;
   loading: boolean;
   title?: string;
@@ -5643,6 +5706,7 @@ function CleaningDailyAreaChart({
     peakDay && peakDay.totalCents > 0 ? `Pico: ${centsToBRLShort(peakDay.totalCents)} em ${dayTick(peakDay.date)}` : null;
   return (
     <CleaningChartFrame
+      fitH={fitH}
       title={title}
       data={data}
       loading={loading}
@@ -5781,7 +5845,9 @@ function CleaningTopProperties({
   unit = "limpeza",
   subtitle,
   days = 0,
+  fitH,
 }: {
+  fitH?: number;
   subtitle?: string;
   /** Dias da série atual — mesmo "(N dias)" do card de Custo. */
   days?: number;
@@ -5795,8 +5861,13 @@ function CleaningTopProperties({
 }) {
   const top = (items ?? []).slice(0, 5);
   const maxCount = Math.max(1, ...top.map((i) => i.count));
+  // Encaixe na tela: vão entre as linhas encolhe junto com a altura do card.
+  const listGap = fitH ? Math.round(Math.min(17, Math.max(5, (fitH - 56 - 5 * 16) / 4))) : undefined;
   return (
-    <div className={`${PANEL_SHELL} flex h-full w-full flex-col px-3.5 py-3.5 lg:min-h-[246px] lg:px-5`}>
+    <div
+      className={`${PANEL_SHELL} flex h-full w-full flex-col px-3.5 py-3.5 lg:min-h-[246px] lg:px-5`}
+      style={fitH ? { height: fitH, minHeight: fitH } : undefined}
+    >
       <PanelHeading
         title={days > 0 ? `Top 5 imóveis (${days} ${days === 1 ? "dia" : "dias"})` : "Top 5 imóveis"}
         dotColor={cleaningSeriesColor(series)}
@@ -5811,7 +5882,7 @@ function CleaningTopProperties({
       ) : top.length === 0 ? (
         <div className="py-6 text-center text-xs text-muted-foreground">{unit === "limpeza" ? "Nenhuma limpeza no período." : "Nenhum serviço no período."}</div>
       ) : (
-        <ul className="space-y-1.5 lg:flex lg:flex-1 lg:flex-col lg:justify-center lg:gap-[17px] lg:space-y-0">
+        <ul className="space-y-1.5 lg:flex lg:flex-1 lg:flex-col lg:justify-center lg:gap-[17px] lg:space-y-0" style={listGap ? { gap: listGap } : undefined}>
           {top.map((item, idx) => (
             <li key={item.propertyId} className="flex items-center gap-2 lg:gap-3">
               <span className="hidden w-[18px] shrink-0 text-[11px] font-bold text-muted-foreground lg:block">{idx + 1}</span>
@@ -5877,7 +5948,9 @@ function CleaningCostComposition({
   extraCents,
   extraCount,
   loading,
+  fitH,
 }: {
+  fitH?: number;
   days: number;
   cleanCents: number;
   cleanCount: number;
@@ -5900,8 +5973,12 @@ function CleaningCostComposition({
       <span className="w-[46px] text-right text-xs tabular-nums text-muted-foreground">{pct(cents)}</span>
     </div>
   );
+  const donut = fitH ? Math.round(Math.min(170, Math.max(110, fitH - 76))) : undefined;
   return (
-    <div className={`${PANEL_SHELL} flex h-full w-full flex-col px-3.5 py-3.5 lg:min-h-[246px] lg:px-5`}>
+    <div
+      className={`${PANEL_SHELL} flex h-full w-full flex-col px-3.5 py-3.5 lg:min-h-[246px] lg:px-5`}
+      style={fitH ? { height: fitH, minHeight: fitH } : undefined}
+    >
       <PanelHeading
         title={days > 0 ? `Composição do custo (${days} ${days === 1 ? "dia" : "dias"})` : "Composição do custo"}
         dotColor={CLEANING_DONE_COLOR}
@@ -5915,7 +5992,7 @@ function CleaningCostComposition({
         <div className="py-6 text-center text-xs text-muted-foreground">Nenhum custo no período.</div>
       ) : (
         <div className="flex flex-col items-center gap-0 lg:flex-1 lg:flex-row lg:justify-center lg:gap-[30px] lg:px-2.5">
-          <svg viewBox="0 0 170 170" className="size-[148px] shrink-0 lg:size-[170px]" role="img" aria-label="Composição do custo">
+          <svg viewBox="0 0 170 170" className="size-[148px] shrink-0 lg:size-[170px]" style={donut ? { width: donut, height: donut } : undefined} role="img" aria-label="Composição do custo">
             <g transform="rotate(-90 85 85)">
               <circle cx="85" cy="85" r={R} fill="none" stroke="var(--muted-foreground)" strokeOpacity={0.35} strokeWidth="18" />
               <circle
