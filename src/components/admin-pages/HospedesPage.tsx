@@ -131,7 +131,7 @@ export function HospedesPage({ embedded = false }: { embedded?: boolean } = {}) 
   }
 
   return (
-    <div className={embedded ? "w-full" : "px-6 lg:px-10 py-8 lg:py-10 max-w-7xl mx-auto w-full"}>
+    <div className={embedded ? "w-full" : "px-6 lg:px-10 lg:pl-4 py-8 lg:py-10 max-w-7xl mx-auto w-full"}>
       {!embedded && (
         <div className="mb-8 pb-5 border-b border-border/60">
           <p className="ds-eyebrow mb-2">Formulários de primeiro acesso</p>

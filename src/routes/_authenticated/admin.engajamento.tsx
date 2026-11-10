@@ -145,7 +145,7 @@ function EngagementPage() {
   );
 
   return (
-    <div className="px-6 lg:px-10 py-8 lg:py-10 max-w-[1440px] mx-auto w-full space-y-8">
+    <div className="px-6 lg:px-10 lg:pl-4 py-8 lg:py-10 max-w-[1440px] mx-auto w-full space-y-8">
       <PageHeader
         title={
           <span>

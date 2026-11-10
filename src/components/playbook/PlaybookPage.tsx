@@ -483,7 +483,7 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
   };
 
   return (
-    <div className="ds-dense-fields w-full max-w-[1440px] px-2.5 py-5 sm:px-5 lg:px-8 lg:py-8">
+    <div className="ds-dense-fields w-full max-w-[1440px] px-2.5 py-5 sm:px-5 lg:px-8 lg:pl-4 lg:py-8">
       <div className="flex flex-col gap-6">
         {/* CABEÇALHO NO MOLDE DO DASHBOARD: data, título numa linha, imóvel e
             o nome do proprietário (sem rótulo) + ícone de mensagem, logo abaixo

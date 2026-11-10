@@ -128,7 +128,7 @@ function AtendimentoPage() {
 
   return (
     <div className="h-[calc(100vh-0px)] lg:h-screen flex flex-col">
-      <header className="border-b border-border px-6 lg:px-10 py-8 lg:py-10 shrink-0 space-y-4">
+      <header className="border-b border-border px-6 lg:px-10 lg:pl-4 py-8 lg:py-10 shrink-0 space-y-4">
         <PageHeader
           eyebrow={<span className="text-accent">Central de atendimento</span>}
           title="Atendimento"

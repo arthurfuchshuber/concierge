@@ -741,7 +741,7 @@ export function RecordsWorkspace() {
        Limpeza) — este wrapper é o que dá o respiro lateral, o teto de
        largura e o alinhamento do título com o conteúdo. Sem ele a tela
        nasce colada nas bordas e desalinhada de todo o resto do app. */
-    <div className="w-full max-w-[1440px] px-3.5 py-5 sm:px-5 lg:px-8 lg:py-8">
+    <div className="w-full max-w-[1440px] px-3.5 py-5 sm:px-5 lg:px-8 lg:pl-4 lg:py-8">
       {/* O RESPIRO DA SUBPÁGINA VEM DA REGRA (mockup "Direção A" aprovado,
           18/09/2026). Era `space-y-1.5` — 6px entre TUDO: a barra de abas
           encostava nos cartões, os cartões encostavam no bloco de atenção, e

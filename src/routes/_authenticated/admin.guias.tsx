@@ -584,7 +584,7 @@ function Dashboard() {
     accessFilter === "public" ? "Público" : accessFilter === "pin" ? "PIN" : "Todos";
 
   return (
-    <div className="ds-page w-full max-w-[1440px] px-3.5 py-5 sm:px-5 lg:px-8 lg:py-8">
+    <div className="ds-page w-full max-w-[1440px] px-3.5 py-5 sm:px-5 lg:px-8 lg:pl-4 lg:py-8">
       {readOnly && (
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <Eye className="size-3.5 text-accent shrink-0" />

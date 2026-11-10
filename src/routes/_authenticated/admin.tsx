@@ -350,9 +350,9 @@ function AdminLayout() {
     <div className="min-h-screen bg-background text-foreground flex">
       {/* Sidebar */}
       <aside
-        className={`fixed lg:sticky top-0 left-0 z-40 h-screen shrink-0 border-r border-border bg-surface flex flex-col transition-[transform,width] duration-300 ${open ? "translate-x-0" : "-translate-x-full lg:translate-x-0"} ${collapsed ? "lg:w-[76px]" : "w-72"}`}
+        className={`fixed lg:sticky top-0 left-0 z-40 h-screen shrink-0 border-r border-border bg-surface flex flex-col transition-[transform,width] duration-300 ${open ? "translate-x-0" : "-translate-x-full lg:translate-x-0"} ${collapsed ? "lg:w-[76px]" : "w-72 lg:w-60"}`}
       >
-        <div className={`relative border-b border-border flex items-center ${collapsed ? "px-4 py-6 justify-center" : "px-6 py-6 justify-between"}`}>
+        <div className={`relative border-b border-border flex items-center ${collapsed ? "px-4 py-6 justify-center" : "px-6 py-6 justify-between lg:px-4"}`}>
           <Link to="/admin" className="inline-flex items-center gap-2.5 min-w-0">
             <img src={conciergeLogo} alt="ConciergeIA" className="size-10 rounded-xl object-contain shrink-0" />
             {!collapsed && <div className="font-display text-xl leading-none truncate">ConciergeIA</div>}
@@ -568,13 +568,13 @@ function AdminLayout() {
           <button
             onClick={signOut}
             title={collapsed ? "Sair / Trocar usuário" : undefined}
-            className={`flex items-center gap-3 rounded-xl border border-border bg-secondary/40 text-sm font-semibold transition-colors hover:bg-secondary ${collapsed ? "size-9 justify-center px-0 py-0" : "h-11 min-w-0 flex-1 px-3.5"}`}
+            className={`flex items-center gap-3 rounded-xl border border-border bg-secondary/40 text-sm lg:text-[13px] font-semibold transition-colors hover:bg-secondary ${collapsed ? "size-9 justify-center px-0 py-0" : "h-11 min-w-0 flex-1 px-3.5"}`}
           >
             <LogOut className="size-4 shrink-0" strokeWidth={2} />
             {!collapsed && "Sair / Trocar usuário"}
           </button>
             <ThemeToggle
-              className={`hidden shrink-0 border border-border bg-secondary/40 hover:bg-secondary lg:grid ${collapsed ? "!size-9" : ""}`}
+              className={`hidden shrink-0 lg:grid ${collapsed ? "!size-9 border border-border bg-secondary/40 hover:bg-secondary" : "lg:!w-16 lg:-ml-2 lg:-mr-3 !rounded-none bg-transparent hover:!bg-transparent lg:[&_svg]:!size-[22px]"}`}
             />
           </div>
         </div>
