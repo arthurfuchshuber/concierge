@@ -159,9 +159,6 @@ export function BancosPanel({ inWindow = false, readOnly = false, ownerId = null
             className="mt-2.5 rounded-[14px] border border-border/70 bg-background px-3.5 pb-1 pt-3 first-of-type:mt-3"
           >
             <div className="flex items-start gap-2.5 border-b border-border/70 pb-2.5">
-              <span className="grid size-8 shrink-0 place-items-center rounded-lg border border-border/70 bg-muted text-foreground [&_svg]:size-3.5">
-                <Landmark />
-              </span>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-[13.5px] font-extrabold leading-[17px] text-foreground">
                   {it.connector_name ?? "Banco"}
