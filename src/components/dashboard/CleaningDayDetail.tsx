@@ -352,7 +352,8 @@ export function CleaningDayDetailContent({
   let footer: React.ReactNode = null;
 
   if (source.mode === "forecast") {
-    const rows = source.items.filter((i) => date === "all" || i.date === date);
+    // Linha sem valor (0 ou em branco) NUNCA aparece nas listas do Financeiro (pedido explícito, 10/11/2026).
+    const rows = source.items.filter((i) => (date === "all" || i.date === date) && (i.estimateCents ?? 0) > 0);
     const total = rows.reduce((n, r) => n + r.estimateCents, 0);
     subtitle =
       rows.length === 0
@@ -383,8 +384,9 @@ export function CleaningDayDetailContent({
       </>
     );
   } else {
-    const rows = source.items.filter((i) => date === "all" || i.date === date);
-    const xrows = (source.extras ?? []).filter((i) => date === "all" || i.date === date);
+    // Linha sem valor (0 ou em branco) NUNCA aparece nas listas do Financeiro (pedido explícito, 10/11/2026).
+    const rows = source.items.filter((i) => (date === "all" || i.date === date) && (i.priceCents ?? 0) > 0);
+    const xrows = (source.extras ?? []).filter((i) => (date === "all" || i.date === date) && (i.priceCents ?? 0) > 0);
     const counted = rows.filter((r) => !r.pending);
     const pending = rows.filter((r) => r.pending);
     const extrasTotal = xrows.reduce((n, r) => n + (r.priceCents ?? 0), 0);

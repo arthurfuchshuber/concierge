@@ -11,12 +11,18 @@ const ids = (rs: ArrivalRow[]) => rs.map((r) => r.propertyName);
 const NONE = new Set<string>();
 
 describe("check-ins (pendentes, amanhã, futuros): relógio = previsão de CHECK-IN", () => {
-  it("previsão informada manda; sem previsão usa o horário inicial do imóvel; sem nada vai por último", () => {
+  it("quem tem previsão vem antes de quem não tem; sem previsão segue pelo horário inicial do imóvel; sem nada vai por último", () => {
     const a = row({ propertyName: "A", arrivalTimeOverride: "17:00", propertyCheckinTime: "14:00" });
     const b = row({ propertyName: "B", propertyCheckinTime: "15:00" }); // limite 15:00
     const c = row({ propertyName: "C", guestArrivalTime: "13:00", propertyCheckinTime: "15:00" });
     const d = row({ propertyName: "D" });
-    expect(ids(sortCheckinRowsCore([d, a, b, c], NONE, TODAY))).toEqual(["C", "B", "A", "D"]);
+    expect(ids(sortCheckinRowsCore([d, a, b, c], NONE, TODAY))).toEqual(["C", "A", "B", "D"]);
+  });
+  it("10/11/2026: card SEM previsão de chegada fica sempre abaixo dos com previsão, mesmo com horário inicial mais cedo", () => {
+    const sem = row({ propertyName: "Sem", propertyCheckinTime: "15:00" });
+    const com1 = row({ propertyName: "Com 15h", arrivalTimeOverride: "15:00" });
+    const com2 = row({ propertyName: "Com 18h", arrivalTimeOverride: "18:15" });
+    expect(ids(sortCheckinRowsCore([sem, com2, com1], NONE, TODAY))).toEqual(["Com 15h", "Com 18h", "Sem"]);
   });
   it("o relógio de saída (checkout) NÃO interfere", () => {
     const a = row({ propertyName: "A", propertyCheckinTime: "16:00", propertyCheckoutTime: "08:00" });

@@ -188,8 +188,9 @@ export function sortCleaningRows(rows: ArrivalRow[], checkinRowSources: ArrivalR
  * 1) imóveis já liberados acima dos que ainda têm checkout/limpeza pendente
  *    (`blockedPropertyIds`) — bloqueado nunca compete por horário;
  * 2) dia mais próximo primeiro (só faz diferença em listas de vários dias);
- * 3) horário PREVISTO de chegada → sem previsão, o horário INICIAL de check-in
- *    do imóvel (só para ordenar, nunca gravado como previsão);
+ * 3) quem TEM previsão de chegada vem antes de quem não tem (10/11/2026); depois o
+ *    horário PREVISTO → sem previsão, o horário INICIAL de check-in do imóvel
+ *    (só para ordenar, nunca gravado como previsão);
  * 4) nome do PROPRIETÁRIO A→Z;
  * 5) nome do IMÓVEL A→Z.
  * Proximidade de endereço NÃO entra nos check-ins (pedido de 17/10/2026).
@@ -205,6 +206,11 @@ export function sortCheckinRowsCore(rows: ArrivalRow[], blockedPropertyIds: { ha
     if (rankDiff !== 0) return rankDiff;
     const day = compareLateThenDay(a, b, today);
     if (day !== 0) return day;
+    // SEM previsão de chegada fica SEMPRE abaixo dos que têm previsão (pedido explícito,
+    // 10/11/2026); entre si, valem o horário inicial de check-in do imóvel e o desempate de sempre.
+    const ea = hasExplicitForecast(a, "checkin") ? 0 : 1;
+    const eb = hasExplicitForecast(b, "checkin") ? 0 : 1;
+    if (ea !== eb) return ea - eb;
     const t = compareTimesNullLast(time(a), time(b));
     if (t !== 0) return t;
     return txt(a.ownerName, b.ownerName) || txt(a.propertyName, b.propertyName);

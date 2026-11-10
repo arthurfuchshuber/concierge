@@ -8346,7 +8346,6 @@ function OccupancyPanel({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [searchOpen]);
-  const searchActive = query.length > 0;
   const closeSearch = (clear = true) => {
     setResultsOpen(false);
     if (clear) setQuery("");
@@ -8457,20 +8456,10 @@ function OccupancyPanel({
     }
     searchTargetRef.current = idx;
   }
-  const prevQRef = useRef("");
-  useEffect(() => {
-    const scroller = outerEl?.firstElementChild as HTMLElement | null | undefined;
-    if (!scroller) return;
-    if (!q && !prevQRef.current) return;
-    prevQRef.current = q;
-    const t = setTimeout(() => {
-      const idx = q ? searchTargetRef.current : Math.max(0, dayList.indexOf(todayISO));
-      if (idx === null || idx === undefined) return;
-      scroller.scrollTo({ left: idx * dayW, behavior: "smooth" });
-    }, 250);
-    return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q, outerEl, dayW]);
+  /* DIGITAR NA BUSCA NÃO MEXE NO CALENDÁRIO (pedido explícito, 10/11/2026): antes o quadro rolava
+     sozinho até a 1ª reserva encontrada (ou até o mês digitado) e, ao limpar, voltava para hoje — a data
+     mudava sem o usuário ter rolado. Agora só ele rola: pelo "Hoje", pelo "Período" ou tocando num
+     resultado da lista (que usa `jump`). `searchTargetRef` fica só como referência do último alvo. */
 
   // "Ir para" (ícone de Período): só ROLA até o dia escolhido — sem filtro.
   const [jump, setJump] = useState<{ date: string; n: number } | null>(null);
@@ -8628,7 +8617,7 @@ function OccupancyPanel({
                   <span className="size-[7px] rounded-full bg-current" />
                   Hoje
                 </button>
-              {searchActive ? null : (
+              {(
                 <>
                   <CalendarPeriodButton bare onJump={(d) => setJump({ date: d, n: Date.now() })} />
                   <CalendarFiltersButton
