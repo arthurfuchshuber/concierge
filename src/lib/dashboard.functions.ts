@@ -1,4 +1,5 @@
 import { resolveReservationIdentity, RESERVATION_IDENTITY_COLUMNS } from "@/lib/reservation-identity";
+import { noShowBlocksCheckin } from "@/lib/no-show-block";
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
@@ -1739,21 +1740,21 @@ export async function runAdvanceArrival(
         ]),
       );
 
-      /** A estadia do no-show ainda ocupa o imóvel? Sem data conhecida, não. */
-      const aindaEmCurso = (row: { log_id: string | null; reservation_id: string | null }) => {
+      // Regra única e testada em no-show-block.ts: só trava se a estadia do no-show invade a entrada do novo hóspede.
+      const bloqueia = outrosNoShow.some((row) => {
         const saida =
           (row.reservation_id ? reservaById.get(row.reservation_id)?.checkout_date : null) ??
           (row.log_id ? logById.get(row.log_id)?.checkout_date : null) ??
           null;
-        return !!saida && saida >= today;
-      };
-
-      const bloqueia = outrosNoShow.some((row) => {
-        if (!aindaEmCurso(row)) return false;
-        // Sem reserva vinculada não há como comprovar cancelamento → bloqueia.
-        if (!row.reservation_id) return true;
-        const status = (reservaById.get(row.reservation_id)?.status ?? "").toLowerCase();
-        return !status.includes("cancel");
+        return noShowBlocksCheckin(
+          {
+            checkoutDate: saida,
+            hasReservation: !!row.reservation_id,
+            reservationStatus: row.reservation_id ? (reservaById.get(row.reservation_id)?.status ?? null) : null,
+          },
+          checkinDate,
+          today,
+        );
       });
 
       if (bloqueia) {
