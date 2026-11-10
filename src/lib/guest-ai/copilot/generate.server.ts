@@ -34,6 +34,7 @@ import {
 } from "@/lib/guest-ai/data/client.server";
 import { loadConversationContext } from "@/lib/guest-ai/context/conversation-context.server";
 import { fetchConversationHistory } from "@/lib/guest-ai/data/history.server";
+import { shouldSilenceBareAck } from "@/lib/guest-ai/ack-silence";
 import { fetchGuestImages, type GuestImage } from "@/lib/guest-ai/data/guest-images.server";
 import { fetchGuestProfile } from "@/lib/guest-ai/data/guest-profile.server";
 import { fetchCityEvents } from "@/lib/guest-ai/data/city-events.server";
@@ -115,6 +116,8 @@ export interface CopilotGenerateDeps {
     meta: { onDossierEntries: (n: number) => void; onHistoryMessages: (n: number) => void },
   ) => CopilotPorts;
   generator?: (opts: {
+    /** `low` só na nova tentativa após o raciocínio estourar o teto de saída (10/11/2026). */
+    reasoningEffort?: "low";
     remainingMs: () => number;
     beforeNetwork: () => Promise<boolean>;
     traceId: string;
@@ -166,6 +169,8 @@ export type CopilotGenerateResult =
         outcomeKind: string | null;
         /** Pedidos formais declarados pelo modelo (decisão humana com 1 clique, 10/11/2026). */
         formalChangeRequests?: string[];
+        /** Turno do hóspede é só confirmação/cortesia e não há pergunta nossa pendente (10/11/2026). */
+        bareAckWithoutQuestion?: boolean;
       };
     }
   | { status: "exists"; suggestionId: string; state: string }
@@ -297,6 +302,9 @@ export function refusalCodeWithReason(code: string, structural: readonly string[
 }
 
 /** Desfechos sem texto que valem uma nova tentativa (corrigíveis pelo modelo). Códigos fechados; nada de texto livre. */
+/** Tempo mínimo restante para a nova tentativa com raciocínio `low` após saída truncada. */
+export const TRUNCATED_RETRY_MIN_MS = 6_000;
+
 export function retryReason(o: ChainOutcome): string | null {
   if (o.kind === "silence") return "silence_not_allowed_in_suggestion_mode";
   if (o.kind === "refused") {
@@ -670,15 +678,15 @@ export async function generateCopilotSuggestion(
       if (!o) return null;
       return { origin: o.origin, city: o.city, region: o.region, country: o.country, surface: turn.surface };
     };
-    const makeGenerator = () =>
+    const makeGenerator = (effort?: "low") =>
       deps.generator
-        ? deps.generator({ remainingMs, beforeNetwork, traceId: claimed!.suggestionId, loadVision, loadToolContext })
+        ? deps.generator({ ...(effort ? { reasoningEffort: effort } : {}), remainingMs, beforeNetwork, traceId: claimed!.suggestionId, loadVision, loadToolContext })
         : createCopilotGenerator({
             modelId: copilotModelId(env),
             maxOutputTokens: COPILOT_MAX_OUTPUT_TOKENS,
             minOutputTokens: COPILOT_MIN_OUTPUT_TOKENS,
             // elasticidade nativa: sem tabela por assunto; o modelo dosa o raciocínio, o custo é contido por fora
-            reasoningEffort: COPILOT_REASONING_EFFORT,
+            reasoningEffort: effort ?? COPILOT_REASONING_EFFORT,
             remainingMs,
             beforeNetwork,
             traceId: claimed!.suggestionId,
@@ -734,6 +742,21 @@ export async function generateCopilotSuggestion(
     // telemetria de prazo (10/11/2026): em corte por tempo, registra EM QUE ETAPA estourou (código fixo, sem dados)
     if (outcome.kind === "technical_error")
       console.warn("[copilot] turno interrompido", outcome.code, `etapa=${outcome.stage}`, `restante_ms=${Math.round(remainingMs())}`);
+    // RACIOCÍNIO QUE ESTOUROU O TETO DE SAÍDA (10/11/2026, caso Karen: 4.089 de 4.096 tokens gastos pensando,
+    // 23 s, nenhuma resposta): o padrão segue elástico (`auto`), mas esta falha específica ganha UMA nova
+    // tentativa com raciocínio `low` (curto e rápido), se houver tempo. Nunca em bloqueio de custo/prazo.
+    if (
+      outcome.kind === "technical_error" &&
+      outcome.code === "model_call_failed" &&
+      generator.telemetry().error === "truncated_response" &&
+      remainingMs() > TRUNCATED_RETRY_MIN_MS
+    ) {
+      generator = makeGenerator("low");
+      outcome = await runTurnChain(
+        { turn, traceId: claimed.suggestionId, batch: null, suggest: { alwaysSuggest } },
+        chainDeps,
+      );
+    }
     const rawReason = retryReason(outcome);
     const reason = deps.autonomous && outcome.kind === "silence" ? null : rawReason;
     if (reason && generator.telemetry().status !== "blocked" && remainingMs() > 6_000) {
@@ -823,6 +846,8 @@ export async function generateCopilotSuggestion(
           outcomeKind: projected.outcomeKind,
           formalChangeRequests:
             "decision" in outcome ? [...(outcome.decision.formalChangeRequests ?? [])] : [],
+          bareAckWithoutQuestion: ((h: HistoryResult | null) =>
+            !!h && h.status === "available" && shouldSilenceBareAck(h.entries))(history as HistoryResult | null),
         },
       };
     if (stored.kind === "stale") return { status: "stale", suggestionId: claimed.suggestionId };

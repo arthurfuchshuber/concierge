@@ -116,7 +116,7 @@ describe("raciocínio 100% elástico (sem tabela de esforço por assunto)", () =
   it("o Copiloto chama o modelo em `auto`", () => {
     expect(COPILOT_REASONING_EFFORT).toBe("auto");
     expect(readFileSync("src/lib/guest-ai/copilot/generate.server.ts", "utf8")).toMatch(
-      /reasoningEffort: COPILOT_REASONING_EFFORT/,
+      /reasoningEffort: effort \?\? COPILOT_REASONING_EFFORT/,
     );
   });
 

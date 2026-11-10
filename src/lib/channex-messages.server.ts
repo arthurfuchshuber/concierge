@@ -41,9 +41,9 @@ async function hasConfirmedReservation(
   admin: any,
   propertyId: string,
   m: Inbound,
-): Promise<{ ok: boolean; checkin: string | null; checkout: string | null; bookingId: string | null; code: string | null }> {
+): Promise<{ ok: boolean; checkin: string | null; checkout: string | null; bookingId: string | null; code: string | null; pendingBookingId?: string | null }> {
   const today = new Date().toISOString().slice(0, 10);
-  const no = { ok: false, checkin: null, checkout: null, bookingId: null, code: null };
+  const no: { ok: false; checkin: null; checkout: null; bookingId: null; code: null; pendingBookingId?: string | null } = { ok: false, checkin: null, checkout: null, bookingId: null, code: null };
   let bookingId = m.bookingId;
   let otaThreadId: string | null = null;
   if (m.threadId) {
@@ -90,7 +90,69 @@ async function hasConfirmedReservation(
       };
     }
   }
-  return no;
+  // a conversa da Channex já aponta para uma reserva que ainda não chegou ao nosso banco (corrida de webhooks)
+  return bookingId ? { ...no, pendingBookingId: bookingId } : no;
+}
+
+/** Código da reserva já gravada no banco para um booking da Channex (só banco, sem rede). */
+async function codeForBooking(admin: any, propertyId: string, bookingId: string): Promise<string | null> {
+  const { data: rows } = await admin
+    .from("property_reservations")
+    .select("guest_contacts, guest_hint, status")
+    .eq("property_id", propertyId)
+    .eq("external_uid", bookingId)
+    .limit(1);
+  const r = (rows ?? [])[0] as { guest_contacts?: { code?: unknown } | null; guest_hint?: unknown; status?: string } | undefined;
+  if (r && r.status === "confirmed") return str(r.guest_contacts?.code) ?? str(r.guest_hint);
+  const { data: legacy } = await admin
+    .from("reservas")
+    .select("status, codigo_reserva_channex")
+    .eq("channex_booking_id", bookingId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (legacy && legacy.status !== "cancelled") return str(legacy.codigo_reserva_channex)?.replace(/^ABB-/i, "") ?? null;
+  return null;
+}
+
+/**
+ * VÍNCULO NA CHEGADA DA RESERVA (10/11/2026, caso Karen): a mensagem do hóspede pode chegar ANTES da reserva
+ * (o "Sim" chegou 19 s antes do booking). Quando a reserva é gravada, as conversas do Airbnb do mesmo imóvel
+ * ainda sem vínculo (últimos 7 dias, até 5) são conferidas na Channex: a que aponta para este booking é ligada
+ * pelo CÓDIGO da reserva (regra de sempre). Nunca lança.
+ */
+export async function linkAirbnbConversationsForBooking(
+  admin: any,
+  p: { propertyId: string; bookingId: string; code: string | null; otaThreadId?: string | null },
+): Promise<number> {
+  try {
+    if (!p.code) return 0;
+    const since = new Date(Date.now() - 7 * 86_400_000).toISOString();
+    const { data: convs } = await admin
+      .from("property_chat_conversations")
+      .select("id, guest_session_id")
+      .eq("property_id", p.propertyId)
+      .is("reservation_id", null)
+      .like("guest_session_id", "airbnb:%")
+      .gte("last_message_at", since)
+      .order("last_message_at", { ascending: false })
+      .limit(5);
+    let linked = 0;
+    const link = await import("@/lib/chat/conversation-link.server");
+    for (const c of (convs ?? []) as Array<{ id: string; guest_session_id: string }>) {
+      const threadId = c.guest_session_id.slice("airbnb:".length);
+      const t = await channex<{ data?: any }>(`/message_threads/${threadId}`).catch(() => null);
+      const threadBooking = str(t?.data?.relationships?.booking?.data?.id);
+      const otaThread = str(t?.data?.attributes?.ota_message_thread_id);
+      const same = (threadBooking && threadBooking === p.bookingId) || (!!p.otaThreadId && otaThread === p.otaThreadId);
+      if (!same) continue;
+      if (await link.linkConversationByCode(admin, { conversationId: c.id, propertyId: p.propertyId, code: p.code })) linked++;
+    }
+    return linked;
+  } catch (e) {
+    console.error("[channex-messages] vínculo na chegada da reserva falhou", e);
+    return 0;
+  }
 }
 
 type Inbound = {
@@ -562,7 +624,15 @@ export async function handleChannexMessage(payload: unknown): Promise<void> {
   try {
     const link = await import("@/lib/chat/conversation-link.server");
     const res = await hasConfirmedReservation(admin, listing.property_id, m).catch(() => null);
-    if (res?.code) await link.linkConversationByCode(admin, { conversationId: convId, propertyId: listing.property_id, code: res.code });
+    let code = res?.code ?? null;
+    // a conversa já aponta para uma reserva que ainda não chegou (corrida de webhooks): espera um pouco por ela
+    // ANTES de chamar a IA, para nunca tratar um hóspede confirmado como consulta (caso Karen, 10/11/2026)
+    if (!code && res?.pendingBookingId) {
+      const { waitForReservationCode } = await import("@/lib/chat/reservation-wait");
+      const bookingId = res.pendingBookingId;
+      code = await waitForReservationCode(() => codeForBooking(admin, listing.property_id, bookingId));
+    }
+    if (code) await link.linkConversationByCode(admin, { conversationId: convId, propertyId: listing.property_id, code });
   } catch (e) {
     console.error("[channex-messages] vínculo falhou", e);
   }
