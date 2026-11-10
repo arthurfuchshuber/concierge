@@ -179,12 +179,58 @@ const SOURCE_LABEL: Record<LearningSource, string> = {
   guest_confirmation: "confirmação do hóspede",
 };
 
+// ─────────────── a mais recente prevalece (10/11/2026) ───────────────
+
+/** Palavras que não identificam o OBJETO de um fato (artigos, preposições, verbos de ligação, advérbios de tempo). */
+const THEME_STOPWORDS = new Set(
+  ("o a os as um uma uns umas de do da dos das no na nos nas em ao aos à às para pra por pelo pela pelos pelas com " +
+    "sem e ou que se é são esta está estão fica ficam tem têm usa usam agora sempre também já foi ser estar ter " +
+    "deve devem pode podem precisa precisam basta quando onde como mais menos muito pouco este esta esse essa isso " +
+    "seu sua seus suas nosso nossa todo toda todos todas cada").split(" "),
+);
+
+/**
+ * TEMA de um fato: categoria + os DOIS primeiros termos de conteúdo (sem acento, minúsculas; termos com hífen
+ * ficam inteiros: "ar-condicionado", "wi-fi"). Ex.: "O Wi-Fi da varanda depende do repetidor" e "O Wi-Fi da
+ * varanda agora usa o roteador novo" ⇒ mesmo tema (equipamentos · wi-fi varanda). Regra simples e previsível;
+ * dois fatos distintos sobre o mesmo objeto e o mesmo cômodo contam como o mesmo tema.
+ */
+export function learningThemeKey(category: string, statement: string): string {
+  const words = statement
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .split(/[^a-z0-9-]+/)
+    .map((w) => w.replace(/^-+|-+$/g, ""))
+    .filter((w) => w.length > 1 && !THEME_STOPWORDS.has(w));
+  return `${category}::${words.slice(0, 2).join(" ")}`;
+}
+
+/**
+ * A MAIS RECENTE APROVADA PREVALECE: por imóvel e tema, fica só a entrada com `decided_at` mais recente; as
+ * anteriores do mesmo tema saem do Documento Vivo (prompt e visualização). Sem data de decisão = mais antiga.
+ */
+export function latestPerTheme<T extends { category: string; statement: string; decidedAt: string | null }>(
+  items: readonly T[],
+): T[] {
+  const sorted = [...items].sort((a, b) => (b.decidedAt ?? "").localeCompare(a.decidedAt ?? ""));
+  const seen = new Set<string>();
+  const out: T[] = [];
+  for (const it of sorted) {
+    const k = learningThemeKey(it.category, it.statement);
+    if (seen.has(k)) continue;
+    seen.add(k);
+    out.push(it);
+  }
+  return out;
+}
+
 /**
  * Documento Vivo de UM imóvel: só entradas aprovadas e não revogadas daquele imóvel, por categoria, cada
  * uma com origem, quem aprovou e quando (transparência). Entradas de outro imóvel são ignoradas.
  */
 export function renderLivingDocument(propertyId: string, entries: readonly LearningEntry[]): string {
-  const mine = entries.filter((e) => e.propertyId === propertyId && e.status === "approved");
+  const mine = latestPerTheme(entries.filter((e) => e.propertyId === propertyId && e.status === "approved"));
   if (mine.length === 0) return "";
   const out: string[] = [];
   for (const cat of LEARNING_CATEGORIES) {
@@ -220,7 +266,7 @@ export type LivingDocumentLoad =
  * profundidade: uma frase aprovada nunca leva segredo ao modelo).
  */
 export function normalizeLivingRows(propertyId: string, rows: readonly unknown[]): LivingDocumentItem[] {
-  const out: LivingDocumentItem[] = [];
+  const valid: Array<LivingDocumentItem & { decidedAt: string | null }> = [];
   for (const raw of rows) {
     const r = (raw ?? {}) as Record<string, unknown>;
     if (r["property_id"] !== propertyId || typeof r["id"] !== "string") continue;
@@ -231,14 +277,17 @@ export function normalizeLivingRows(propertyId: string, rows: readonly unknown[]
     const statement = typeof r["statement"] === "string" ? norm(r["statement"]) : "";
     if (statement.length < LEARNING_STATEMENT_MIN || statement.length > LEARNING_STATEMENT_MAX) continue;
     if (SECRET_SCRUBBER.scan(statement).status !== "safe") continue;
-    out.push({
+    valid.push({
       id: r["id"],
       category: category as LearningCategory,
       statement,
       source: source as LearningSource,
       approvedAt: typeof r["decided_at"] === "string" ? r["decided_at"].slice(0, 10) : null,
+      decidedAt: typeof r["decided_at"] === "string" ? r["decided_at"] : null,
     });
-    if (out.length >= LIVING_DOCUMENT_MAX) break;
   }
-  return out;
+  // a mais recente aprovada de cada tema prevalece; as antigas do mesmo tema nunca chegam ao modelo
+  return latestPerTheme(valid)
+    .slice(0, LIVING_DOCUMENT_MAX)
+    .map(({ decidedAt: _d, ...item }) => item);
 }

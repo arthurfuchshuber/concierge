@@ -344,9 +344,11 @@ describe("G1 · estáticos", () => {
     ).toEqual([]);
   });
 
-  it("slot da IA continua devolvendo null", () => {
+  // 10/11/2026: condução autônoma ligada pelo titular — o slot só responde com a chave exata ligada.
+  it("slot da IA: sem GUEST_AI_AUTONOMOUS=on devolve null (fail-closed)", () => {
     const slot = read("src/lib/guest-ai/slot.server.ts");
     const body = slot.slice(slot.indexOf("export async function requestGuestAiReply"));
-    expect(body).toMatch(/\{\s*return null;\s*\}/);
+    expect(body).toMatch(/if \(!autonomousEnabled\(env\)\) return null;/);
+    expect(slot).toMatch(/env\["GUEST_AI_AUTONOMOUS"\] === "on"/);
   });
 });

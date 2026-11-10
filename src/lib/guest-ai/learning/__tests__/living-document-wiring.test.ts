@@ -57,10 +57,12 @@ describe("Documento Vivo no prompt (Etapa 4)", () => {
     }
   });
 
-  it("o sistema explica o bloco: complementa o dossiê, nunca concede nada", () => {
+  it("desempate (10/11/2026): o bloco vivo prevalece sobre o dossiê em fatos físicos, nunca em D9, valores ou horários oficiais", () => {
     const sys = buildSystemPrompt("guide_chat");
     expect(sys).toContain(`<${LIVING_DOCUMENT_TAG}>`);
-    expect(sys).toMatch(/em divergência, vale o dossiê/);
+    expect(sys).toMatch(/localização de itens, instruções de uso ou características físicas[\s\S]{0,120}prevalece sobre a informação cadastral estática/);
+    expect(sys).toMatch(/NUNCA alcança senhas e códigos, a janela de liberação de credenciais, o veto por não comparecimento, valores financeiros/);
+    expect(sys).toMatch(/nunca concede horário, desconto, credencial ou exceção/);
   });
 });
 

@@ -117,9 +117,12 @@ describe("F0 · fronteira de dados (varredura estática do módulo guest-ai/)", 
     expect(ctxLoader).not.toMatch(LEGACY);
   });
 
-  it("F2-B · B1: slot.server.ts byte a byte igual ao da main (homologada)", () => {
-    const hash = createHash("sha256").update(readFileSync(path.join(ROOT, "slot.server.ts"))).digest("hex");
-    expect(hash).toBe("39228fefe061fa64fa46e19242e2dc21b3078ab668ac5e354a27413f8b212917");
+  // 10/11/2026: o titular ligou a condução autônoma — o slot deixa de ser `return null` fixo, mas segue
+  // DESLIGADO por padrão (só `GUEST_AI_AUTONOMOUS=on`) e sem acesso direto ao gateway nem ao banco.
+  it("slot: desligado por padrão (sem GUEST_AI_AUTONOMOUS=on devolve null)", async () => {
+    const { requestGuestAiReply } = await import("@/lib/guest-ai/slot.server");
+    for (const env of [{}, { GUEST_AI_AUTONOMOUS: "ON" }, { GUEST_AI_AUTONOMOUS: "true" }, { GUEST_AI_AUTONOMOUS: " on" }])
+      await expect(requestGuestAiReply({ surface: "guide_chat" as never, conversationId: "c", messageId: "m" }, { env })).resolves.toBeNull();
   });
 
   it("F2-A · gateway isolado: rede só no transporte do Lovable; sem src/lib/llm; sem banco, contexto ou credenciais", () => {
@@ -171,7 +174,7 @@ describe("F0 · fronteira de dados (varredura estática do módulo guest-ai/)", 
     ]);
   });
 
-  it("F2-A · o slot continua desligado: não importa o gateway e devolve fallback humano (null)", async () => {
+  it("F2-A · o slot não importa o gateway e, desligado, devolve fallback humano (null)", async () => {
     const slot = code(path.join(ROOT, "slot.server.ts"));
     expect(slot).not.toMatch(/llm|generateGuestLlm|buildGuestContext/);
     const { requestGuestAiReply } = await import("@/lib/guest-ai/slot.server");

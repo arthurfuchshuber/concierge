@@ -8,6 +8,8 @@ import { describe, expect, it } from "vitest";
 import {
   evaluateCandidate,
   isOneOff,
+  learningThemeKey,
+  normalizeLivingRows,
   renderLivingDocument,
   reviewCandidate,
   type LearningCandidateInput,
@@ -122,5 +124,57 @@ describe("fronteiras (SQL aplicado pelo titular em 08/11/2026)", () => {
     const review = readFileSync(path.resolve(root, "../guest-ai-learning.functions.ts"), "utf8");
     expect(review).toMatch(/guest_ai_learning_review/);
     expect(review).not.toMatch(/supabaseAdmin|client\.server/);
+  });
+});
+
+describe("a mais recente aprovada prevalece (10/11/2026)", () => {
+  const row = (id: string, statement: string, decided_at: string, category = "equipamentos") => ({
+    id,
+    property_id: "p1",
+    category,
+    statement,
+    source: "incident_resolved",
+    decided_at,
+  });
+
+  it("regra aprovada hoje substitui a anterior conflitante do mesmo tema no prompt", () => {
+    const items = normalizeLivingRows("p1", [
+      row("old", "O Wi-Fi da varanda depende do repetidor branco da sala.", "2026-10-01T10:00:00Z"),
+      row("new", "O Wi-Fi da varanda agora usa o roteador novo do corredor.", "2026-11-10T09:00:00Z"),
+    ]);
+    expect(items.map((i) => i.id)).toEqual(["new"]);
+  });
+
+  it("vence pela data de decisão, não pela ordem de chegada das linhas", () => {
+    const items = normalizeLivingRows("p1", [
+      row("new", "O Wi-Fi da varanda agora usa o roteador novo do corredor.", "2026-11-10T09:00:00Z"),
+      row("old", "O Wi-Fi da varanda depende do repetidor branco da sala.", "2026-10-01T10:00:00Z"),
+    ].reverse());
+    expect(items.map((i) => i.id)).toEqual(["new"]);
+  });
+
+  it("temas diferentes convivem (outro objeto, outro cômodo ou outra categoria)", () => {
+    const items = normalizeLivingRows("p1", [
+      row("a", "O ar-condicionado do quarto liga pelo controle branco.", "2026-11-01T10:00:00Z"),
+      row("b", "O ar-condicionado da sala liga pelo controle preto.", "2026-11-02T10:00:00Z"),
+      row("c", "O Wi-Fi da varanda depende do repetidor branco da sala.", "2026-11-03T10:00:00Z"),
+      row("d", "O Wi-Fi da varanda depende do repetidor branco da sala.", "2026-11-04T10:00:00Z", "manutencao"),
+    ]);
+    expect(items.map((i) => i.id).sort()).toEqual(["a", "b", "c", "d"]);
+  });
+
+  it("chave de tema: sem acento, minúsculas, termos com hífen inteiros", () => {
+    expect(learningThemeKey("equipamentos", "O Wi-Fi da Varanda depende…")).toBe("equipamentos::wi-fi varanda");
+    expect(learningThemeKey("equipamentos", "A cafeteira elétrica fica na cozinha")).toBe("equipamentos::cafeteira eletrica");
+  });
+
+  it("na visualização (renderLivingDocument) só aparece a mais recente do tema", () => {
+    const base = { propertyId: "p1", category: "equipamentos" as const, source: "incident_resolved" as const, evidenceRefs: ["m"], status: "approved" as const, createdAt: "2026-10-01T00:00:00Z", decidedBy: "u", history: [] };
+    const txt = renderLivingDocument("p1", [
+      { ...base, id: "old", statement: "O Wi-Fi da varanda depende do repetidor branco da sala.", decidedAt: "2026-10-01T10:00:00Z" },
+      { ...base, id: "new", statement: "O Wi-Fi da varanda agora usa o roteador novo do corredor.", decidedAt: "2026-11-10T09:00:00Z" },
+    ]);
+    expect(txt).toContain("roteador novo");
+    expect(txt).not.toContain("repetidor branco");
   });
 });

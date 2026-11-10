@@ -1240,6 +1240,16 @@ export const sendHandoffMessage = createServerFn({ method: "POST" })
     // núcleo único de envio humano (servidor; também usado pelo Copiloto para a sugestão APROVADA)
     const { sendHumanMessageToConversation } = await import("@/lib/handoff-send.server");
     await sendHumanMessageToConversation(supabase, userId, data);
+    // AUTO-APRENDIZADO (10/11/2026): fato do imóvel dito pela equipe ao hóspede entra no Documento Vivo (governança
+    // por exceção). Segundo plano: nunca atrasa nem derruba o envio. Nota interna não ensina nada.
+    if (!data.internalNote && process.env["GUEST_AI_LEARNING_EXTRACTOR"] === "on") {
+      const { runInBackground } = await import("@/lib/background.server");
+      const input = { conversationId: data.conversationId, userId, content: data.content };
+      await runInBackground(async () => {
+        const { learnFromTeamMessage } = await import("@/lib/guest-ai-learning/silent.server");
+        await learnFromTeamMessage(input);
+      });
+    }
     return { ok: true };
   });
 
@@ -1367,8 +1377,68 @@ export const deleteHandoffMessage = createServerFn({ method: "POST" })
       .delete()
       .eq("id", data.messageId);
     if (error) throw new Error(error.message);
+    // Mensagem da EQUIPE apagada ⇒ o que ela ensinou sai do Documento Vivo na hora (melhor esforço).
+    if (msg.sender_type === "human") {
+      try {
+        const { closeLearningForDeletedMessage } = await import("@/lib/guest-ai-learning/silent.server");
+        await closeLearningForDeletedMessage({ messageId: data.messageId, userId });
+      } catch {
+        /* nunca derruba a exclusão */
+      }
+    }
+    // AUDITORIA (10/11/2026): mensagem da IA apagada pela equipe vira só uma MÉTRICA (evento sem o texto).
+    // Mensagens são pontuais: nada disso gera regra, contra-exemplo ou aprendizado para o prompt.
+    if (msg.sender_type === "ai") {
+      try {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const { logSystemEvent } = await import("@/lib/audit/events.server");
+        const { data: conv } = await supabaseAdmin
+          .from("property_chat_conversations")
+          .select("property_id")
+          .eq("id", data.conversationId)
+          .maybeSingle();
+        await logSystemEvent(supabaseAdmin, aiMessageDeletedEvent({
+          userId,
+          conversationId: data.conversationId,
+          propertyId: (conv as { property_id?: string | null } | null)?.property_id ?? null,
+          messageId: data.messageId,
+          channel: msg.channel ?? null,
+        }));
+      } catch {
+        /* auditoria nunca derruba a exclusão */
+      }
+    }
     return { ok: true };
   });
+
+/** Evento de auditoria da exclusão de mensagem da IA (sem conteúdo da mensagem). */
+export function aiMessageDeletedEvent(i: {
+  userId: string;
+  conversationId: string;
+  propertyId: string | null;
+  messageId: string;
+  channel: string | null;
+}) {
+  return {
+    userId: i.userId,
+    actorType: "USER" as const,
+    actorId: i.userId,
+    eventType: AI_MESSAGE_DELETED_EVENT,
+    eventCategory: "AI_DECISION" as const,
+    entityType: "property_chat_message",
+    entityId: i.messageId,
+    action: "delete",
+    description: "Mensagem da IA apagada pela equipe",
+    source: "handoff",
+    channel: i.channel,
+    conversationId: i.conversationId,
+    propertyId: i.propertyId,
+    metadata: { sender_type: "ai" },
+    severity: "notice" as const,
+    result: "success" as const,
+  };
+}
+export const AI_MESSAGE_DELETED_EVENT = "ai_message_deleted_by_team";
 
 // -------- Count of pending handoffs (for badge/dock) --------
 

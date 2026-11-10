@@ -86,7 +86,9 @@ describe("B2.2 · nada de produção usa a capacidade multipropriedade ou o guar
     // Bastidores (08/11/2026): o extrator dos sinais operacionais varre o texto do histórico com o guard REAL. Lista nominal.
     path.join(ROOT, "copilot/ops-extractor.server.ts"),
     // Extrator do aprendizado (10/11/2026): saneia a conversa com o guard REAL ANTES do modelo. Lista nominal.
-    path.join(SRC, "lib/guest-ai-learning/extractor.ts")]));
+    path.join(SRC, "lib/guest-ai-learning/extractor.ts"),
+    // Aprendizado da equipe e divergências (10/11/2026): saneiam texto com o guard REAL. Lista nominal.
+    path.join(SRC, "lib/guest-ai-learning/team-learning.ts"), path.join(SRC, "lib/guest-ai-learning/divergence.ts")]));
   // B2.4: `shadow/telemetry.ts` só lê a VERSÃO da resolução de autoridade; proibido em produção (b24-isolation).
   it("nenhum arquivo fora dos módulos B2.2/composer importa dossiê, autorização de candidato ou secret-scrub", () => {
     const importers = prod

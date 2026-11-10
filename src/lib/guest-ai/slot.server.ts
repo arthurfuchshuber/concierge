@@ -11,12 +11,9 @@
  * RE-DERIVADO e validado no backend por `guest-ai/data/scope.server.ts`. Nenhum
  * identificador vindo do cliente é aceito sem essa validação.
  *
- * F0/F1 NÃO ligam nada: sem LLM, sem resposta automática. `requestGuestAiReply`
- * continua devolvendo `null` e cada canal segue o FALLBACK existente (conversa vai
- * para `needs_human` + push à equipe). O Context Engine (`context/builder.server.ts`)
- * e o Policy Engine (`policy/`) já existem e são testados, mas ainda NÃO são
- * chamados daqui: isso será decidido na fase seguinte, para não somar consultas ao
- * caminho de cada mensagem sem que haja um consumidor.
+ * 10/11/2026: o titular ligou a CONDUÇÃO AUTÔNOMA (ver `requestGuestAiReply` abaixo), atrás da chave
+ * `GUEST_AI_AUTONOMOUS=on`. Desligada, devolve `null` e cada canal segue o FALLBACK de sempre (conversa vai
+ * para `needs_human` + push à equipe).
  */
 import type { GuestSurface } from "@/lib/guest-ai/types";
 
@@ -44,9 +41,130 @@ export type GuestAiReply = {
 export const NO_AI_HANDOFF_REASON = "Atendimento automático indisponível — responder ao hóspede.";
 
 /**
- * Devolve `null` enquanto nenhuma implementação de IA estiver instalada.
- * Os canais tratam `null` como "encaminhar à equipe".
+ * CONDUÇÃO AUTÔNOMA EM TEMPO REAL (10/11/2026, diretriz do titular).
+ *
+ * FAIL-CLOSED: só responde com `GUEST_AI_AUTONOMOUS=on` (exatamente). Desligado (ou imóvel fora de
+ * `GUEST_AI_AUTONOMOUS_PROPERTIES`, quando a lista existir) ⇒ `null`, e cada canal segue o fallback de sempre
+ * (fila humana + push). Ligado:
+ *  1. valida o turno no backend (`validateTurnScope`); escopo recusado ⇒ encaminha à equipe;
+ *  2. equipe atendendo a conversa (posse/pausa humana) ⇒ `{ reply: "", handoff: false }` — a IA não fala por
+ *     cima do atendente;
+ *  3. roda a MESMA cadeia do Copiloto (`generateCopilotSuggestion` em modo autônomo): Gemini Flash, Dossiê,
+ *     Documento Vivo, ferramentas (Maps, clima, voos), validadores e D9 — uma resposta por mensagem, teto diário
+ *     de custo e telemetria em /admin/ia;
+ *  4. resposta aprovada ⇒ texto + encaminhamento pedido pela decisão; silêncio legítimo ⇒ nada; falha, recusa
+ *     ou teto ⇒ encaminha à equipe. Nunca lança.
  */
-export async function requestGuestAiReply(_req: GuestAiRequest): Promise<GuestAiReply | null> {
-  return null;
+export function autonomousEnabled(env: Record<string, string | undefined> = process.env): boolean {
+  return env["GUEST_AI_AUTONOMOUS"] === "on";
+}
+
+/** Lista opcional de imóveis (UUIDs separados por vírgula). Sem lista ⇒ todos; lista inválida ⇒ nenhum. */
+export function autonomousPropertyAllowed(propertyId: string, env: Record<string, string | undefined> = process.env): boolean {
+  const raw = env["GUEST_AI_AUTONOMOUS_PROPERTIES"];
+  if (raw === undefined || raw.trim() === "") return true;
+  const ids = raw.split(",").map((x) => x.trim()).filter(Boolean);
+  return ids.includes(propertyId);
+}
+
+export const AUTONOMOUS_HANDOFF_REASON = "Encaminhado para atendimento humano.";
+
+const SILENT: GuestAiReply = Object.freeze({ reply: "", handoff: false });
+
+function toHandoff(text: string | null | undefined, reason?: string | null, urgency?: string | null): GuestAiReply {
+  return {
+    reply: (text ?? "").trim(),
+    handoff: true,
+    handoffReason: reason?.trim() || AUTONOMOUS_HANDOFF_REASON,
+    handoffUrgency: urgency || "normal",
+  };
+}
+
+export interface SlotDeps {
+  env?: Record<string, string | undefined>;
+  now?: () => number;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  validate?: (req: GuestAiRequest) => Promise<any>;
+  /** `true` = equipe atendendo agora (a IA se cala); `null` = leitura incerta. */
+  humanActive?: (turn: unknown, nowIso: string) => Promise<boolean | null>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  generate?: (req: GuestAiRequest) => Promise<any>;
+}
+
+export async function requestGuestAiReply(req: GuestAiRequest, deps: SlotDeps = {}): Promise<GuestAiReply | null> {
+  const env = deps.env ?? process.env;
+  if (!autonomousEnabled(env)) return null;
+  try {
+    // 1) escopo validado no backend (fail-closed)
+    let turn: { propertyId: string };
+    try {
+      turn = deps.validate
+        ? await deps.validate(req)
+        : await (async () => {
+            const { validateTurnScope } = await import("@/lib/guest-ai/data/scope.server");
+            const { getGuestAiDb } = await import("@/lib/guest-ai/data/client.server");
+            return validateTurnScope(
+              {
+                surface: req.surface,
+                conversationId: req.conversationId,
+                messageId: req.messageId,
+                expectedOwnerId: req.expectedOwnerId ?? null,
+              },
+              { db: await getGuestAiDb() },
+            );
+          })();
+    } catch {
+      return toHandoff("", "Não foi possível validar a conversa — responder ao hóspede.", "normal");
+    }
+    if (!autonomousPropertyAllowed(turn.propertyId, env)) return null;
+
+    // 2) equipe atendendo ⇒ a IA não fala por cima do atendente
+    const nowIso = new Date((deps.now ?? Date.now)()).toISOString();
+    const human = deps.humanActive
+      ? await deps.humanActive(turn, nowIso)
+      : await (async () => {
+          const { loadConversationOwnership } = await import("@/lib/guest-ai/data/conversation-ownership.server");
+          const { deriveHumanOwnership } = await import("@/lib/guest-ai/orchestrator/case-ownership");
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const own = await loadConversationOwnership(turn as any, { nowIso });
+          if (own.status === "identified" || own.status === "none") return deriveHumanOwnership(own.row, nowIso).aiPausedByTeam;
+          return null;
+        })();
+    if (human === true) return SILENT;
+    // leitura incerta da posse: não arrisca falar por cima de alguém
+    if (human === null) return toHandoff("", "Não foi possível confirmar quem está atendendo — responder ao hóspede.", "normal");
+
+    // 3) a cadeia completa (modo autônomo)
+    const r = deps.generate
+      ? await deps.generate(req)
+      : await (await import("@/lib/guest-ai/copilot/generate.server")).generateCopilotSuggestion(
+          {
+            surface: req.surface,
+            conversationId: req.conversationId,
+            messageId: req.messageId,
+            expectedOwnerId: req.expectedOwnerId ?? null,
+          },
+          { autonomous: true },
+        );
+
+    // 4) projeção para o canal
+    if (r?.status === "skipped" && r.code === "superseded_by_newer_message") return SILENT; // a mensagem mais nova responde
+    if (r?.status !== "stored" || !r.result) return toHandoff("", undefined, "normal");
+    const res = r.result as {
+      text: string | null;
+      handoffNeeded: boolean;
+      handoffUrgency: string | null;
+      internalQuestion: string | null;
+    };
+    const text = (res.text ?? "").trim();
+    if (r.state === "available" && text) {
+      return res.handoffNeeded
+        ? toHandoff(text, res.internalQuestion, res.handoffUrgency)
+        : { reply: text, handoff: false };
+    }
+    if (r.state === "no_suggestion" && !res.handoffNeeded) return SILENT; // silêncio legítimo
+    return toHandoff(text, res.internalQuestion, res.handoffUrgency);
+  } catch {
+    return toHandoff("", undefined, "normal");
+  }
 }
