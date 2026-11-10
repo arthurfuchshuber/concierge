@@ -60,7 +60,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { reopenHandoffConversation } from "@/lib/handoff.functions";
-import { sendWhatsappFromConversation, getMyWhatsappConfig } from "@/lib/whatsapp.functions";
+import { sendWhatsappFromConversation } from "@/lib/whatsapp.functions";
+import { WHATSAPP_STANDBY_MESSAGE } from "@/lib/whatsapp-standby";
 import { translateMessage } from "@/lib/translate.functions";
 import { detectLanguage, userLanguage, LANG_NAMES } from "@/lib/lang-detect";
 import { TagMentionTextarea, type TagMentionItem } from "@/components/tags/TagMentionTextarea";
@@ -132,7 +133,7 @@ function fmtCheckin(iso: string | null) {
  * OS TIQUINHOS DO WHATSAPP (pedido explícito, 10/09/2026).
  *
  * O canal já guardava o recibo em `property_chat_messages.delivery_status` —
- * o webhook da Sinch escreve `sent`, `delivered`, `read` ou `failed` — mas
+ * o webhook do provedor escreve `sent`, `delivered`, `read` ou `failed` — mas
  * nada disso aparecia na tela: o atendente mandava a mensagem e não sabia se
  * ela tinha chegado.
  *
@@ -247,20 +248,8 @@ export function ConversationView({ conversationId, compact, myUserId, stay, owne
   const deleteFn = useServerFn(deleteHandoffMessage);
   const reopenFn = useServerFn(reopenHandoffConversation);
   const sendWaFn = useServerFn(sendWhatsappFromConversation);
-  const waCfgFn = useServerFn(getMyWhatsappConfig);
-  const waCfgQ = useQuery({
-    queryKey: ["my-whatsapp-config"],
-    queryFn: async () => {
-      try {
-        return await waCfgFn();
-      } catch {
-        return null;
-      }
-    },
-    staleTime: 5 * 60_000,
-    retry: false,
-  });
-  const waIntegrated = waCfgQ.data?.status === "active";
+  // WhatsApp em STANDBY (10/11/2026): sem integração ativa até a Cloud API oficial da Meta.
+  const waIntegrated = false;
 
   // Tradução de mensagens do hóspede para o idioma do sistema do atendente.
   const myLang = useMemo(() => userLanguage(), []);
@@ -339,10 +328,15 @@ export function ConversationView({ conversationId, compact, myUserId, stay, owne
   };
 
   const send = useMutation({
-    mutationFn: async () =>
-      channel === "whatsapp" && !note
-        ? sendWaFn({ data: { conversationId, text: text.trim() } })
-        : sendFn({ data: { conversationId, content: text.trim(), internalNote: note } }),
+    mutationFn: async () => {
+      if (channel === "whatsapp" && !note) {
+        // standby: nada é enviado; avisa em vez de falhar em silêncio
+        const r = await sendWaFn({ data: { conversationId, text: text.trim() } });
+        if (!r.ok) throw new Error(WHATSAPP_STANDBY_MESSAGE);
+        return r;
+      }
+      return sendFn({ data: { conversationId, content: text.trim(), internalNote: note } });
+    },
     onSuccess: () => {
       setText("");
       invalidateAll();

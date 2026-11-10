@@ -289,7 +289,7 @@ export function FloatingHandoffDock({ launcher = true }: { launcher?: boolean } 
   // Proactive-contact entry: any card can dispatch `handoff-dock:open` with a
   // guest hint. We open the dock and try to focus the matching conversation so
   // the existing chat surface (which already routes to WhatsApp when the
-  // Sinch integration is configured) becomes the single entry point.
+  // WhatsApp integration is active; standby since 10/11/2026) becomes the single entry point.
   useEffect(() => {
     if (!allowed) return;
     const handler = async (ev: Event) => {

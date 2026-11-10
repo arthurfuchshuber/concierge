@@ -1,6 +1,7 @@
-// Server-only helpers for WhatsApp Business via Sinch Conversations API.
+// Server-only helpers for WhatsApp (criptografia de credenciais e telefone). Desde 10/11/2026 o canal está em
+// STANDBY: a integração Sinch foi removida e o WhatsApp volta só pela Cloud API oficial da Meta, em etapa futura.
 // Never import this file from client-reachable modules at module scope.
-import { createCipheriv, createDecipheriv, randomBytes, createHash, timingSafeEqual, createHmac } from "node:crypto";
+import { createCipheriv, createDecipheriv, randomBytes, createHash } from "node:crypto";
 
 function key(): Buffer {
   const raw = process.env.WHATSAPP_ENCRYPTION_KEY;
@@ -26,94 +27,6 @@ export function decryptToken(payload: string): string {
   return dec.toString("utf8");
 }
 
-// ----- Sinch Conversations API -----
-// Docs: https://developers.sinch.com/docs/conversation/
-const SINCH_BASE = "https://us.conversation.api.sinch.com/v1";
-
-export type SinchConfig = {
-  projectId: string; // aka "project id" for Sinch
-  appId: string;
-  token: string;
-  senderNumber: string; // E.164 without +
-};
-
-/**
- * Send an outbound WhatsApp text message via Sinch Conversations.
- * Returns the Sinch message id (used to correlate delivery receipts).
- */
-export async function sinchSendText(cfg: SinchConfig, opts: {
-  toE164: string; // digits only, no +
-  text: string;
-}): Promise<{ messageId: string }> {
-  const url = `${SINCH_BASE}/projects/${cfg.projectId}/messages:send`;
-  const body = {
-    app_id: cfg.appId,
-    recipient: { identified_by: { channel_identities: [{ channel: "WHATSAPP", identity: opts.toE164 }] } },
-    message: { text_message: { text: opts.text } },
-    channel_priority_order: ["WHATSAPP"],
-  };
-  const res = await fetch(url, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${cfg.token}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body),
-  });
-  const raw = await res.text();
-  if (!res.ok) throw new Error(`Sinch ${res.status}: ${raw}`);
-  let json: { message_id?: string } = {};
-  try { json = JSON.parse(raw); } catch { /* ignore */ }
-  return { messageId: json.message_id ?? "" };
-}
-
-/**
- * Verify Sinch webhook HMAC signature.
- * Sinch sends a `x-sinch-webhook-signature` header (HMAC-SHA256 base64 of raw body).
- */
-export function verifySinchSignature(rawBody: string, signature: string | null, webhookSecret: string): boolean {
-  if (!signature) return false;
-  const expected = createHmac("sha256", webhookSecret).update(rawBody).digest("base64");
-  const a = Buffer.from(signature);
-  const b = Buffer.from(expected);
-  if (a.length !== b.length) return false;
-  return timingSafeEqual(a, b);
-}
-
-/**
- * Given a phone in international format ("+5511987654321" or "5511987654321"),
- * return only digits, no +.
- */
 export function normalizePhone(raw: string): string {
   return raw.replace(/[^\d]/g, "");
-}
-
-/**
- * Envia texto pelo WhatsApp conectado da conta (`host_whatsapp_config`).
- * Usado pelo webhook (pedido de código da reserva) e por envios da equipe.
- * Retorna o id externo da mensagem.
- */
-export async function sendTenantWhatsappText(params: {
-  tenantId: string;
-  toPhone: string;
-  text: string;
-}): Promise<{ messageId: string }> {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { data: cfg } = await supabaseAdmin
-    .from("host_whatsapp_config")
-    .select("sender_number, service_plan_id, app_id, api_token_encrypted")
-    .eq("owner_id", params.tenantId)
-    .maybeSingle();
-  if (!cfg?.api_token_encrypted || !cfg.service_plan_id || !cfg.app_id || !cfg.sender_number) {
-    throw new Error("WhatsApp não conectado para esta conta");
-  }
-  return sinchSendText(
-    {
-      projectId: cfg.service_plan_id as string,
-      appId: cfg.app_id as string,
-      token: decryptToken(cfg.api_token_encrypted as string),
-      senderNumber: cfg.sender_number as string,
-    },
-    { toE164: normalizePhone(params.toPhone), text: params.text },
-  );
 }

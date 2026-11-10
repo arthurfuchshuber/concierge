@@ -166,7 +166,7 @@ export function IntegracoesPage() {
   const [waOpen, setWaOpen] = useState(false);
 
   const { wa, cs, gcal, channex } = useIntegrationStatusQueries();
-  const waActive = !!wa.data?.senderNumber;
+  const waActive = false; // WhatsApp em standby (10/11/2026) até a Cloud API oficial da Meta
   const csActive = !!cs.data?.hasToken;
   const gcalActive = !!gcal.data?.connected;
   const channexActive = !!channex.data?.configured;
