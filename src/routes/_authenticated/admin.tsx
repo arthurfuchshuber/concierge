@@ -36,6 +36,7 @@ import { useImpersonation, useImpersonationQuerySync } from "@/hooks/useImperson
 import { ROUTE_PERMISSION_LIST, permissionForPath } from "@/lib/permissions/routeAreas";
 import { AccessCheckFailed, AccessDenied } from "@/components/permissions/AreaGate";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useUiScale } from "@/lib/ui-scale";
 
 
 
@@ -117,6 +118,8 @@ const BOTTOM_NAV_SHORT_LABEL: Record<string, string> = {
 };
 
 function AdminLayout() {
+  // Escala proporcional da tela (desktop): a interface inteira cabe na janela do usuário.
+  useUiScale();
   const navigate = useNavigate();
   // Clique no push com o app aberto → vai direto ao destino (07/11/2026).
   usePushNavigation();
