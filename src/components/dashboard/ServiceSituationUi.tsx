@@ -21,7 +21,7 @@ import { toast } from "sonner";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Popover, PopoverTrigger } from "@/components/ui/popover";
 import { FILTER_PANEL_CLASS, FILTER_PANEL_OFFSET, FitPopoverContent } from "@/components/dashboard/filter-panel";
-import { ACTION_BUTTON_TONE, ACTION_ICON, ACTION_SEGMENT } from "@/components/dashboard/panel-chrome";
+import { ACTION_BUTTON_TONE, ACTION_ICON, ACTION_ICON_LABELED, ACTION_LABEL, ACTION_SEGMENT } from "@/components/dashboard/panel-chrome";
 import { ManualCleaningHost, useCanCreateCleaning } from "@/components/dashboard/ManualCleaningButton";
 import { RecordSituationSheet } from "@/components/dashboard/RecordSituationSheet";
 import { Choice, PickList, PropertyPickRow, Step, TrailDialog, ddmm, norm } from "@/components/dashboard/TrailParts";
@@ -462,13 +462,13 @@ export function SituationFilterSegment({
           data-action-wide
           className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE} max-lg:hidden lg:w-auto lg:gap-1.5 lg:px-3`}
         >
-          <Layers className={ACTION_ICON} />
+          <Layers className={ACTION_ICON_LABELED} />
           {value ? (
             <span className="max-w-[160px] truncate rounded-full bg-accent/[0.14] px-[9px] py-[3px] text-[11px] font-bold text-accent">
               {label}
             </span>
           ) : (
-            <span className="whitespace-nowrap text-xs">Todos os serviços</span>
+            <span className={ACTION_LABEL}>Todos os serviços</span>
           )}
         </button>
       </PopoverTrigger>

@@ -176,6 +176,8 @@ import {
   ACTION_SEGMENT,
   ACTION_BUTTON_TONE,
   ACTION_ICON,
+  ACTION_ICON_LABELED,
+  ACTION_LABEL,
 } from "@/components/dashboard/panel-chrome";
 import {
   FILTER_PANEL_CLASS,
@@ -670,6 +672,8 @@ const EMPTY_LABELS = { bars: new Map(), singles: new Map(), blocks: new Map() } 
 export function OperationWorkspace({ view }: { view: OperationView }) {
   const fitAnchorRef = useRef<HTMLDivElement>(null);
   const fitRows = useFitRowHeights(fitAnchorRef);
+  // Desktop: "Imóveis livres" e "Em estadia" moram na barra de busca do calendário.
+  const isLgPage = useIsLg();
   // Clique no push → `?janela=` → abre a janela certa (07/11/2026).
   const pushWin = usePushWindow();
   const pushSignal = (win: PushWindow) => (pushWin?.win === win ? pushWin.nonce : undefined);
@@ -3179,8 +3183,8 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                              status do mockup de 25/09/2026 saiu. */
                           className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE} lg:w-auto lg:gap-1.5 lg:px-3`}
                         >
-                          <CurrentIcon className={ACTION_ICON} />
-                          <span className="whitespace-nowrap">{current.label}</span>
+                          <CurrentIcon className={ACTION_ICON_LABELED} />
+                          <span className={ACTION_LABEL}>{current.label}</span>
                           {/* Selo SEMPRE dourado, igual ao de "Pendências" —
                               pedido explícito,
                               25/09/2026: "sempre dourado, igual Pendências",
@@ -3219,6 +3223,13 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 min={view === "limpeza" ? cleaningDemandBounds?.min : null}
                 max={null}
                 defaultChip={view === "limpeza" ? "Últimos 7 dias" : undefined}
+                /* Atalho do padrão da página (09/11/2026): Serviços = "7 Dias"
+                   (hoje + 6 anteriores); Kanban = "Hoje". */
+                shortcut={{
+                  label: view === "limpeza" ? "7 Dias" : "Hoje",
+                  active: !periodRange,
+                  onSelect: () => setPeriodRange(null),
+                }}
               />
               <CalendarFiltersButton
                 compactTrigger
@@ -3481,6 +3492,34 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 providerSubtitles={providerSubtitles}
                 hasCustomFilters={hasCustomFilters}
                 onClearAllFilters={clearAllFilters}
+                leading={
+                  isLgPage ? (
+                    <>
+                      <FreePropertiesCard
+                        bar
+                        loading={occupancyQ.isLoading}
+                        properties={freeProperties}
+                        day={occStart}
+                        valueSizeClass={opBigSize}
+                        onRefresh={() => occupancyQ.refetch()}
+                      />
+                      <KpiCard
+                        deskTile="bar"
+                        label="Em Estadia"
+                        openSignal={pushSignal("estadia")}
+                        rows={stayRows}
+                        icon={BedDouble}
+                        tone="primary-soft"
+                        loading={checkinListQ.isLoading}
+                        onRefresh={() => checkinListQ.refetch()}
+                        rangeLabel={rangeLabel[range]}
+                        pinnedIds={pinnedRowIds}
+                        cardProps={arrivalGroupPropsFor("stay", stayRows)}
+                        valueSizeClass={opBigSize}
+                      />
+                    </>
+                  ) : undefined
+                }
               />
             </div>
 
@@ -3498,6 +3537,9 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 logo na sequência"). No celular `contents` some com o invólucro
                 e os dois voltam a ser dois itens da grade, meia largura cada,
                 exatamente como eram. */}
+            {/* No computador os dois moram na barra de busca do calendário
+                (mockup 09/11/2026); aqui só no celular. */}
+            {!isLgPage ? (
             <div className="contents lg:order-7 lg:col-span-4 lg:col-start-1 lg:grid lg:grid-cols-2 lg:gap-[var(--ds-grid-gap)]">
               <div className="order-10 col-span-1">
                 <KpiCard
@@ -3525,6 +3567,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 />
               </div>
             </div>
+            ) : null}
           </div>
 
         </div>
@@ -4482,9 +4525,11 @@ function KpiCard({
    * Só no DESKTOP (`lg:`), mockups 09/11/2026 — o celular não muda:
    *  · "stacked": rótulo em cima (ícone sem caixa) e número 28px embaixo,
    *    alinhado à esquerda, em cartão de 66px;
-   *  · "inline": faixa de 54px — ícone em caixa, rótulo e número à direita.
+   *  · "inline": faixa de 54px — ícone em caixa, rótulo e número à direita;
+   *  · "bar": peça da barra de busca do calendário (09/11/2026): ícone puro,
+   *    rótulo e número na mesma linha, separada da vizinha por um fio vertical.
    */
-  deskTile?: "stacked" | "inline";
+  deskTile?: "stacked" | "inline" | "bar";
   /** Tamanho compartilhado por todos os números da página (ver `kpiSizeClass`). */
   valueSizeClass?: string;
   label: string;
@@ -4598,7 +4643,16 @@ function KpiCard({
       }}
     >
       <DialogTrigger asChild>
-        {compact ? (
+        {deskTile === "bar" ? (
+          <button
+            type="button"
+            className="flex h-full items-center gap-2 whitespace-nowrap border-r border-border/50 px-[22px] text-left transition-colors hover:bg-foreground/[0.04] focus:outline-none focus-visible:bg-foreground/[0.06]"
+          >
+            <Icon className="size-3 shrink-0 text-muted-foreground" strokeWidth={2.2} />
+            <span className="ds-eyebrow text-[12px] font-extrabold leading-none tracking-[0.12em]">{label}</span>
+            <span className="font-display text-sm font-bold leading-none tabular-nums">{loading ? "—" : rows.length}</span>
+          </button>
+        ) : compact ? (
           highlight === "amber" ? (
             <button
               type="button"
@@ -4905,7 +4959,10 @@ function FreePropertiesCard({
   onRefresh,
   day,
   valueSizeClass = "text-[30px] sm:text-[34px]",
+  bar,
 }: {
+  /** Peça da barra de busca do calendário (desktop, 09/11/2026) — mesma anatomia do KpiCard "bar". */
+  bar?: boolean;
   valueSizeClass?: string;
   loading: boolean;
   properties: FreeProperty[];
@@ -4932,8 +4989,23 @@ function FreePropertiesCard({
       }}
     >
       <DialogTrigger asChild>
-        {/* Mesmo cartão dos números (padrão "A · Noite"): título ao lado do
-            ícone, número no meio, data no canto inferior direito. */}
+        {bar ? (
+          <button
+            type="button"
+            title={`Imóveis livres ${dayLabel}`}
+            className="flex h-full items-center gap-2 whitespace-nowrap border-r border-border/50 px-[22px] text-left transition-colors hover:bg-foreground/[0.04] focus:outline-none focus-visible:bg-foreground/[0.06]"
+          >
+            <Home className="size-3 shrink-0 text-muted-foreground" strokeWidth={2.2} />
+            <span className="ds-eyebrow text-[12px] font-extrabold leading-none tracking-[0.12em]">Imóveis livres</span>
+            <span
+              className={`font-display text-sm font-bold leading-none tabular-nums ${hasFree ? "text-red-500 dark:text-red-400" : "text-foreground"}`}
+            >
+              {loading ? "—" : properties.length}
+            </span>
+          </button>
+        ) : (
+        /* Mesmo cartão dos números (padrão "A · Noite"): título ao lado do
+            ícone, número no meio, data no canto inferior direito. */
         <button
           type="button"
           className="ds-3d ds-3d-hover flex h-full w-full flex-col gap-1 rounded-[14px] border-0 bg-card px-2.5 pb-2.5 pt-3 text-left transition hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 lg:h-[54px] lg:flex-row lg:items-center lg:gap-2.5 lg:px-3 lg:py-0"
@@ -4952,6 +5024,7 @@ function FreePropertiesCard({
           </div>
           {/* Etiqueta de data removida (22/10/2026): mesma altura dos demais cartões de número. */}
         </button>
+        )}
       </DialogTrigger>
       {/* Casca "Grafite Quente" — mesmo padrão do `KpiCard` logo acima
           (pedido explícito, 23/09/2026: design padrão em todo tooltip do
@@ -6283,13 +6356,15 @@ function CalendarPeriodButton({ onJump, bare }: { onJump: (startISO: string) => 
           type="button"
           title="Ir para uma data"
           aria-label="Ir para uma data ou período"
+          data-action-wide={bare ? "" : undefined}
           className={
             bare
-              ? "relative grid h-full place-items-center bg-transparent text-foreground/70 transition-colors hover:text-foreground data-[state=open]:text-foreground"
+              ? "relative flex h-full items-center justify-center gap-1.5 bg-transparent text-sm font-semibold leading-none text-foreground/70 transition-colors hover:text-foreground data-[state=open]:text-foreground max-lg:min-w-12 lg:w-auto"
               : "relative grid size-9 shrink-0 place-items-center rounded-[0.3rem] border-0 bg-foreground/[0.07] text-foreground/70 transition-colors hover:text-foreground data-[state=open]:bg-foreground/[0.13] data-[state=open]:text-foreground sm:size-8"
           }
         >
-          <CalendarRange className="size-[15px] opacity-80" strokeWidth={2} />
+          <CalendarRange className={`opacity-80 ${bare ? "size-[15px] lg:size-[13px]" : "size-[15px]"}`} strokeWidth={2} />
+          {bare ? <span className="hidden whitespace-nowrap lg:inline">Período</span> : null}
         </button>
       </PopoverTrigger>
       <FitPopoverContent
@@ -7153,7 +7228,10 @@ function OccupancyPanel({
   providerSubtitles,
   hasCustomFilters,
   onClearAllFilters,
+  leading,
 }: {
+  /** Peças à esquerda da busca (desktop): "Imóveis livres" e "Em estadia" (mockup 09/11/2026). */
+  leading?: React.ReactNode;
   loading: boolean;
   start: string;
   days: number;
@@ -8526,6 +8604,7 @@ function OccupancyPanel({
           <SearchActionRow
             className="min-w-0 flex-1"
             variant="bleed"
+            leading={leading}
             value={query}
             onChange={(v) => {
               setQuery(v);
@@ -8542,11 +8621,11 @@ function OccupancyPanel({
                   type="button"
                   data-action-wide
                   onClick={() => scrollToToday()}
-                  className="hidden h-full items-center justify-center gap-1.5 text-[12px] font-semibold text-foreground/90 transition-colors hover:bg-secondary/60 lg:inline-flex"
+                  className="hidden h-full items-center justify-center gap-1.5 text-sm font-semibold leading-none text-foreground/70 transition-colors hover:text-foreground lg:inline-flex"
                   title="Rolar para o dia vigente"
                   aria-label="Rolar calendário para o dia de hoje"
                 >
-                  <span className="size-1.5 rounded-full bg-primary" />
+                  <span className="size-[7px] rounded-full bg-current" />
                   Hoje
                 </button>
               {searchActive ? null : (

@@ -711,6 +711,7 @@ export function RecordsWorkspace() {
         onChange={setPeriod}
         min={q.data?.bounds?.min ?? null}
         max={q.data?.bounds?.max ?? null}
+        shortcut={{ label: "Todo o período", active: !period, onSelect: () => setPeriod(null) }}
       />
       {/* "+ REGISTRO" (04/10/2026): o mesmo "+" da Limpeza, para registrar
                   sem depender de um checkout — ligado só ao imóvel ou a uma reserva. */}
@@ -773,7 +774,7 @@ export function RecordsWorkspace() {
             placeholder="Buscar por imóvel, proprietário…"
             actions={recordActions}
           />
-          <div className="ds-card-grid grid-cols-2">
+          <div className="ds-card-grid grid-cols-2 lg:grid-cols-4">
             {STATUS_CELLS.map((c) => (
               <StatusCell
                 key={c.key}

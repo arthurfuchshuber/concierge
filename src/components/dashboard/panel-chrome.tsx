@@ -190,12 +190,21 @@ export const ACTION_BAR =
 
 /** Cada metade da peça. Sem fundo e sem borda: quem tem casca é a barra. */
 export const ACTION_SEGMENT =
-  "relative flex flex-1 items-center justify-center gap-2 px-3 text-[12px] font-bold transition-colors lg:w-[var(--ds-action-h-lg)] lg:flex-none lg:gap-0 lg:px-0";
+  "relative flex flex-1 items-center justify-center gap-2 px-3 text-[12px] font-bold leading-none transition-colors lg:w-[var(--ds-action-h-lg)] lg:flex-none lg:gap-0 lg:px-0";
 
 /** O tom padrão (cinza que acende no hover). Um botão ligado troca por outro. */
 export const ACTION_BUTTON_TONE = "text-muted-foreground hover:text-foreground";
 
 /** Tamanho do ícone dentro de um botão de ação. */
 export const ACTION_ICON = "size-[15px] shrink-0";
+
+/**
+ * BOTÃO COM TEXTO NO COMPUTADOR (pedido explícito, 09/11/2026): a letra
+ * maiúscula tem a MESMA ALTURA do ícone ao lado, de cima a baixo — texto de
+ * 14px (maiúscula ≈ 10px) com ícone de 13px (traço visível ≈ 10,8px). Só vale
+ * no desktop (`lg:`); no celular os botões continuam só com o ícone de 15px.
+ */
+export const ACTION_ICON_LABELED = "size-[15px] shrink-0 lg:size-[13px]";
+export const ACTION_LABEL = "whitespace-nowrap text-sm font-semibold leading-none";
 
 /* As peças dos quadrantes de Filtros moram em `filter-panel.tsx`. */

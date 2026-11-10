@@ -10,7 +10,7 @@ import {
   FilterPeriodCalendar,
   FitPopoverContent,
 } from "@/components/dashboard/filter-panel";
-import { ACTION_BUTTON_TONE, ACTION_ICON, ACTION_SEGMENT } from "@/components/dashboard/panel-chrome";
+import { ACTION_BUTTON_TONE, ACTION_ICON_LABELED, ACTION_LABEL, ACTION_SEGMENT } from "@/components/dashboard/panel-chrome";
 
 export type QuickPeriod = { start: string; end: string };
 
@@ -40,6 +40,7 @@ export function PeriodQuickFilterButton({
   min,
   max,
   defaultChip,
+  shortcut,
 }: {
   value: QuickPeriod | null;
   onChange: (next: QuickPeriod | null) => void;
@@ -48,6 +49,13 @@ export function PeriodQuickFilterButton({
   max?: string | null;
   /** Atalho "padrão" (ex.: "Últimos 7 dias") que limpa o período. */
   defaultChip?: string;
+  /**
+   * ATALHO À ESQUERDA DO "PERÍODO" (09/11/2026, só no computador): o padrão da
+   * página num clique — "Hoje" no Kanban, "7 Dias" em Serviços (hoje + 6 dias
+   * anteriores), "Todo o período" nos Registros. Ligado (bolinha cheia) quando
+   * nenhum período foi escolhido; clicar limpa o período e volta ao padrão.
+   */
+  shortcut?: { label: string; active: boolean; onSelect: () => void };
 }) {
   const [open, setOpen] = useState(false);
   const [anchor, setAnchor] = useState<Date | null>(null);
@@ -66,6 +74,24 @@ export function PeriodQuickFilterButton({
   };
 
   return (
+    <>
+    {shortcut ? (
+      <button
+        type="button"
+        data-action-wide
+        onClick={shortcut.onSelect}
+        title={`Voltar ao padrão: ${shortcut.label}`}
+        aria-label={`Período padrão: ${shortcut.label}`}
+        aria-pressed={shortcut.active}
+        className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE} max-lg:hidden lg:w-auto lg:gap-1.5 lg:px-3`}
+      >
+        <span
+          aria-hidden="true"
+          className={`size-[7px] shrink-0 rounded-full ${shortcut.active ? "bg-current" : "border border-current"}`}
+        />
+        <span className={ACTION_LABEL}>{shortcut.label}</span>
+      </button>
+    ) : null}
     <Popover
       open={open}
       onOpenChange={(next) => {
@@ -79,9 +105,12 @@ export function PeriodQuickFilterButton({
           type="button"
           title={value ? `Período ${ddmm(value.start)} a ${ddmm(value.end)}` : "Filtrar por período"}
           aria-label={value ? `Período ${ddmm(value.start)} a ${ddmm(value.end)}` : "Filtrar por período"}
-          className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE}`}
+          data-action-wide
+          className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE} max-lg:min-w-12 lg:w-auto lg:gap-1.5 lg:px-3`}
         >
-          <CalendarRange className={ACTION_ICON} />
+          <CalendarRange className={ACTION_ICON_LABELED} />
+          {/* "Período" por extenso, só no computador (09/11/2026). */}
+          <span className={`hidden lg:inline ${ACTION_LABEL}`}>Período</span>
           {value ? (
             <>
               <span className="lg:hidden">{`${ddmm(value.start)} a ${ddmm(value.end)}`}</span>
@@ -139,5 +168,6 @@ export function PeriodQuickFilterButton({
         />
       </FitPopoverContent>
     </Popover>
+    </>
   );
 }
