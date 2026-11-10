@@ -1649,10 +1649,3 @@ html {
     animation: none;
   }
 }
-
-/* Escala proporcional da interface (src/lib/ui-scale.ts): ícones com tamanho
-   numérico (atributo width/height) não passam pelo CSS, então acompanham a
-   escala aqui. Ícones dimensionados por classe (size-4, w-5…) já escalam em rem. */
-html[data-ui-scaled] svg.lucide:not([class*="size-"]):not([class*="w-"]):not([class*="h-"]) {
-  zoom: var(--ui-scale, 1);
-}

@@ -59,7 +59,7 @@ function SigmaPacksIndex() {
   }
 
   return (
-    <div className="max-w-[1440px] mx-auto w-full px-6 lg:px-10 lg:pl-4 py-8 lg:py-10 space-y-6">
+    <div className="max-w-none mx-auto w-full px-6 lg:px-10 lg:pl-4 py-8 lg:py-10 space-y-6">
       <PageHeader
         title={<span className="inline-flex items-center gap-2"><Star className="size-5 text-amber-400" /> Recomendações</span>}
         subtitle="Curadoria por cidade que qualquer anfitrião pode importar em 1 clique para o guia dele."

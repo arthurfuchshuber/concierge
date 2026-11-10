@@ -54,7 +54,7 @@ function SigmaPackEditor() {
   }
 
   return (
-    <div className="max-w-[1440px] mx-auto w-full px-6 lg:px-10 lg:pl-4 py-8 lg:py-10 space-y-8">
+    <div className="max-w-none mx-auto w-full px-6 lg:px-10 lg:pl-4 py-8 lg:py-10 space-y-8">
       <PageDateRow
         back={
           <Link to="/admin/recomendacoes-sigma" className={PAGE_BACK_CLASS}>

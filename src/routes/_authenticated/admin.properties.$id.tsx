@@ -1542,7 +1542,7 @@ function PropertyEditor() {
   const propertyAddressLine = [form.property.address, form.property.city].filter((v) => (v ?? "").trim()).join(", ") || null;
 
   return (
-    <div className="ds-dense-fields ds-presence-fields px-2.5 sm:px-5 lg:px-8 lg:pl-4 py-5 lg:py-8 max-w-[1440px] w-full">
+    <div className="ds-dense-fields ds-presence-fields px-2.5 sm:px-5 lg:px-8 lg:pl-4 py-5 lg:py-8 max-w-none w-full">
       {readOnly ? (
         <EditorNotice tone="amber" icon={Lock} className="mb-5">
           Você tem acesso apenas para visualizar este guia. A edição está bloqueada.

@@ -36,7 +36,6 @@ import { useImpersonation, useImpersonationQuerySync } from "@/hooks/useImperson
 import { ROUTE_PERMISSION_LIST, permissionForPath } from "@/lib/permissions/routeAreas";
 import { AccessCheckFailed, AccessDenied } from "@/components/permissions/AreaGate";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useUiScale } from "@/lib/ui-scale";
 import { useAntiClipWindow } from "@/hooks/useAntiClipWindow";
 
 
@@ -119,8 +118,6 @@ const BOTTOM_NAV_SHORT_LABEL: Record<string, string> = {
 };
 
 function AdminLayout() {
-  // Escala proporcional da tela (desktop): a interface inteira cabe na janela do usuário.
-  useUiScale();
   // Anticorte do menu lateral: se a janela for tão baixa que o menu role, o último item aparece inteiro.
   const navAntiClipRef = useAntiClipWindow<HTMLElement>();
   const navigate = useNavigate();
@@ -356,7 +353,6 @@ function AdminLayout() {
     <div className="min-h-screen bg-background text-foreground flex">
       {/* Sidebar */}
       <aside
-        data-ui-fit-sidebar
         className={`fixed lg:sticky top-0 left-0 z-40 h-screen shrink-0 border-r border-border bg-surface flex flex-col transition-[transform,width] duration-300 ${open ? "translate-x-0" : "-translate-x-full lg:translate-x-0"} ${collapsed ? "lg:w-[76px]" : "w-72 lg:w-[268px]"}`}
       >
         <div className={`relative border-b border-border flex items-center ${collapsed ? "px-4 py-6 justify-center" : "px-6 py-6 justify-between lg:px-4"}`}>

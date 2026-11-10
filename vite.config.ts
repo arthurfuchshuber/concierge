@@ -6,7 +6,6 @@
 // You can pass additional config via defineConfig({ vite: { ... }, etc... }) if needed.
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 import { mcpPlugin } from "@lovable.dev/mcp-js/stacks/tanstack/vite";
-import pxToRem from "./postcss-px-to-rem.mjs";
 
 export default defineConfig({
   tanstackStart: {
@@ -27,8 +26,6 @@ export default defineConfig({
 
   vite: {
     plugins: [mcpPlugin()],
-    // Escala proporcional da interface: todo px do CSS vira rem (ver src/lib/ui-scale.ts).
-    css: { postcss: { plugins: [pxToRem()] } },
     define: {
       // Identificador único por build: usado para recarregar automaticamente
       // as abas abertas quando uma nova versão entra no ar.

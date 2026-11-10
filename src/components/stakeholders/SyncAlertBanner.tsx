@@ -77,7 +77,7 @@ export function SyncAlertBanner() {
   return (
     <>
       {show ? (
-        <div className="w-full max-w-[1440px] px-3.5 pt-5 sm:px-5 lg:px-8 lg:pl-4 lg:pt-8">
+        <div className="w-full max-w-none px-3.5 pt-5 sm:px-5 lg:px-8 lg:pl-4 lg:pt-8">
           <div
             role="status"
             className="ds-atencao grid grid-cols-[auto_minmax(0,1fr)] items-center gap-3 rounded-[var(--win-radius)] bg-[color-mix(in_oklab,currentColor_9%,transparent)] px-3.5 py-3 shadow-[inset_0_0_0_1px_color-mix(in_oklab,currentColor_30%,transparent)] sm:grid-cols-[auto_minmax(0,1fr)_auto]"

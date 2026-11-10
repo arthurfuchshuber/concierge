@@ -63,7 +63,7 @@ function AdministrativoPage() {
       <div
         className={`${
           mobileHead ? "px-[14px] pt-5 pb-0 lg:px-10 lg:pl-4 lg:pt-10 lg:pb-2" : "px-6 lg:px-10 lg:pl-4 pt-8 lg:pt-10 pb-2"
-        } max-w-[1440px] mx-auto w-full`}
+        } max-w-none mx-auto w-full`}
       >
         {mobileHead ? (
           <div className="flex flex-col gap-1.5 lg:hidden">
@@ -92,7 +92,7 @@ function AdministrativoPage() {
         }
         className="w-full"
       >
-        <div className={`${mobileHead ? "px-[14px] pt-5 lg:pt-0 lg:px-10 lg:pl-4" : "px-6 lg:px-10 lg:pl-4"} max-w-[1440px] mx-auto w-full`}>
+        <div className={`${mobileHead ? "px-[14px] pt-5 lg:pt-0 lg:px-10 lg:pl-4" : "px-6 lg:px-10 lg:pl-4"} max-w-none mx-auto w-full`}>
           {/* Celular: barra `ds-tabs` do Dashboard (fatias iguais de 44px, sem ícones). */}
           <nav className="ds-tabs lg:hidden" aria-label="Administrativo">
             {tabsMobile.map((t) => {
@@ -130,7 +130,7 @@ function AdministrativoPage() {
         <div
           className={`${
             mobileHead ? "px-[14px] pb-28 lg:px-10 lg:pl-4 lg:pb-16" : "px-6 lg:px-10 lg:pl-4 pb-16"
-          } max-w-[1440px] mx-auto w-full pt-6`}
+          } max-w-none mx-auto w-full pt-6`}
         >
           <TabsContent value="perfil" className="mt-0">
             <MeuPerfilPage />

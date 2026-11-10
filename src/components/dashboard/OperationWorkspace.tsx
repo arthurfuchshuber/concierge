@@ -3266,7 +3266,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     /* PADRÃO "A · NOITE" (mockup aprovado, 17/09/2026): respiro lateral de
        14px no celular, um pouco mais de ar entre os blocos (10px) e o halo
        roxo bem fraco no topo — o mesmo efeito da landing. */
-    <div ref={pageRef} className="ds-page relative w-full max-w-[1440px] px-3.5 py-5 sm:px-5 lg:px-8 lg:pl-4 lg:py-8">
+    <div ref={pageRef} className="ds-page relative w-full max-w-none px-3.5 py-5 sm:px-5 lg:px-8 lg:pl-4 lg:py-8">
       <div aria-hidden className="ds-page-halo" />
       <OperationShell
         view={view}
