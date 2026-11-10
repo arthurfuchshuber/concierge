@@ -147,11 +147,20 @@ export const SURFACE_LABEL: Record<TelemetrySurface, string> = {
   guide_chat: "Guia",
 };
 
+/**
+ * Rótulo do modelo no feed e no inspetor. Desde a PR #60 (10/11/2026) o Gemini Flash é o TITULAR do Copiloto;
+ * o GPT-6 Astra só aparece numa sugestão em contingência (ex.: variável `GUEST_AI_COPILOT_MODEL`), como reserva.
+ */
 export function modelLabel(id: string | null): string {
   if (!id) return "—";
-  if (id === TITULAR_MODEL) return "Astra";
-  if (id === RESERVE_MODEL) return "Flash (reserva)";
+  if (id === RESERVE_MODEL) return "Flash (titular)";
+  if (id === TITULAR_MODEL) return "Astra (reserva)";
   return id;
+}
+
+/** O mesmo rótulo sem o papel entre parênteses (cartões e linhas compactas). */
+export function modelShortLabel(id: string | null): string {
+  return modelLabel(id).replace(/\s*\((titular|reserva)\)$/, "");
 }
 
 export interface TelemetryKpis {

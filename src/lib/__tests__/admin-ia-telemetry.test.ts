@@ -22,6 +22,7 @@ import {
   isOscillation,
   matchesFilter,
   modelLabel,
+  modelShortLabel,
   utcDayStart,
   type OpsRow,
   type SuggestionRow,
@@ -228,8 +229,14 @@ describe("formatação", () => {
     expect(formatRowCost(0.0123)).toBe("$ 0.0123");
   });
   it("rótulos de modelo e intervalos do Ao vivo", () => {
-    expect(modelLabel(TITULAR_MODEL)).toBe("Astra");
-    expect(modelLabel(RESERVE_MODEL)).toBe("Flash (reserva)");
+    // PR #60: o Flash é o titular do Copiloto; o Astra só aparece em contingência, como reserva
+    expect(modelLabel(RESERVE_MODEL)).toBe("Flash (titular)");
+    expect(modelLabel(TITULAR_MODEL)).toBe("Astra (reserva)");
+    expect(modelLabel(null)).toBe("—");
+    expect(modelLabel("x/outro")).toBe("x/outro");
+    expect(modelShortLabel(RESERVE_MODEL)).toBe("Flash");
+    expect(modelShortLabel(TITULAR_MODEL)).toBe("Astra");
+    expect(modelShortLabel(null)).toBe("—");
     expect(LIVE_INTERVALS.map((i) => [i.label, i.ms])).toEqual([
       ["Pausar", 0],
       ["5s", 5000],
