@@ -8476,7 +8476,21 @@ function OccupancyPanel({
             onInputFocus={() => setResultsOpen(true)}
             inputRef={searchInputRef}
             actions={
-              searchActive ? undefined : (
+              <>
+                {/* Só no desktop: o "Hoje" mora aqui, à esquerda dos botões de período/filtro
+                    (no tablet/celular continua no cabeçalho da coluna "Imóvel"). */}
+                <button
+                  type="button"
+                  data-action-wide
+                  onClick={() => scrollToToday()}
+                  className="hidden items-center justify-center gap-1.5 text-[12px] font-semibold text-foreground/90 transition-colors hover:bg-secondary/60 lg:inline-flex"
+                  title="Rolar para o dia vigente"
+                  aria-label="Rolar calendário para o dia de hoje"
+                >
+                  <span className="size-1.5 rounded-full bg-primary" />
+                  Hoje
+                </button>
+              {searchActive ? null : (
                 <>
                   <CalendarPeriodButton bare onJump={(d) => setJump({ date: d, n: Date.now() })} />
                   <CalendarFiltersButton
@@ -8500,7 +8514,8 @@ function OccupancyPanel({
                     onClearAll={onClearAllFilters}
                   />
                 </>
-              )
+              )}
+              </>
             }
           />
         </div>
@@ -8612,7 +8627,7 @@ function OccupancyPanel({
                             <button
                               type="button"
                               onClick={() => scrollToToday()}
-                              className="mr-1 inline-flex shrink-0 items-center gap-1 rounded-md bg-primary/10 px-2 py-1 text-[11px] font-semibold text-primary transition-colors hover:bg-primary/20"
+                              className="mr-1 inline-flex shrink-0 items-center gap-1 rounded-md bg-primary/10 px-2 py-1 text-[11px] font-semibold text-primary transition-colors hover:bg-primary/20 lg:hidden"
                               title="Rolar para o dia vigente"
                               aria-label="Rolar calendário para o dia de hoje"
                             >
