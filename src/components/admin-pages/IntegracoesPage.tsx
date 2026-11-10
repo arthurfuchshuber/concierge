@@ -230,13 +230,11 @@ export function IntegracoesPage() {
         else if (cfg.key === "asaas") statusKey = asaasActive ? "ativa" : "inativa";
         return { cfg, statusKey };
       })
-        // Bancos só para o dono da conta; Asaas PJ só quando a conta já foi sincronizada.
-        .filter(({ cfg }) => (cfg.key === "bancos" ? !accountOwnerId : cfg.key === "asaas" ? !accountOwnerId && asaasActive : true))
         .sort(
           (a, b) =>
             STATUS_ORDER[a.statusKey] - STATUS_ORDER[b.statusKey] || a.cfg.nome.localeCompare(b.cfg.nome, "pt-BR"),
         ),
-    [waActive, csActive, gcalActive, channexActive, bancosActive, asaasActive, accountOwnerId],
+    [waActive, csActive, gcalActive, channexActive, bancosActive, asaasActive],
   );
 
   // Bancos e Asaas PJ: por enquanto só no celular (decisão de 10/11/2026); o computador fica como estava.
@@ -364,9 +362,9 @@ export function IntegracoesPage() {
           ) : panelCfg?.key === "clicksign" ? (
             <ClicksignPanel accountOwnerId={accountOwnerId} readOnly={!!accountOwnerId} inWindow />
           ) : panelCfg?.key === "bancos" ? (
-            <BancosPanel inWindow />
+            <BancosPanel inWindow readOnly={!!accountOwnerId} />
           ) : panelCfg?.key === "asaas" ? (
-            <AsaasPanel inWindow />
+            <AsaasPanel inWindow readOnly={!!accountOwnerId} />
           ) : null}
         </DialogContent>
       </Dialog>

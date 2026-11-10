@@ -49,13 +49,14 @@ export function useBankConnections(enabled = true) {
 }
 
 /** Janela "Bancos": conectar, atualizar e desconectar as instituições do Open Finance. */
-export function BancosPanel({ inWindow = false }: { inWindow?: boolean }) {
+/** `readOnly`: vendo outra conta — não consulta nem conecta bancos da sessão logada. */
+export function BancosPanel({ inWindow = false, readOnly = false }: { inWindow?: boolean; readOnly?: boolean }) {
   const qc = useQueryClient();
   const tokenFn = useServerFn(getBankConnectToken);
   const syncFn = useServerFn(syncBankConnection);
   const disconnectFn = useServerFn(disconnectBank);
   const [busy, setBusy] = useState<string | null>(null);
-  const q = useBankConnections();
+  const q = useBankConnections(!readOnly);
 
   async function connect(itemId?: string) {
     setBusy(itemId ?? "new");
@@ -119,13 +120,11 @@ export function BancosPanel({ inWindow = false }: { inWindow?: boolean }) {
       subtitle={`Open Finance · ${items.length} ${items.length === 1 ? "instituição" : "instituições"}`}
       bodyDeps={[items.length, accounts.length]}
       footer={
-        <PrimaryAction
-          icon={<Plus />}
-          onClick={() => connect()}
-          disabled={busy === "new"}
-        >
-          Conectar banco
-        </PrimaryAction>
+        readOnly ? undefined : (
+          <PrimaryAction icon={<Plus />} onClick={() => connect()} disabled={busy === "new"}>
+            Conectar banco
+          </PrimaryAction>
+        )
       }
     >
       {q.isLoading ? <p className="py-3 text-xs text-muted-foreground">Carregando…</p> : null}
@@ -168,8 +167,8 @@ export function BancosPanel({ inWindow = false }: { inWindow?: boolean }) {
 }
 
 /** Janela "Asaas PJ": leitura da conta sincronizada pela API (não há o que conectar pelo painel). */
-export function AsaasPanel({ inWindow = false }: { inWindow?: boolean }) {
-  const q = useBankConnections();
+export function AsaasPanel({ inWindow = false, readOnly = false }: { inWindow?: boolean; readOnly?: boolean }) {
+  const q = useBankConnections(!readOnly);
   const item = asaasItem(q.data?.items ?? []);
   const accounts = (q.data?.accounts ?? []).filter((a) => a.malvo_item_id === item?.malvo_item_id);
   const when = item?.last_synced_at
@@ -190,7 +189,7 @@ export function AsaasPanel({ inWindow = false }: { inWindow?: boolean }) {
           </div>
         ))
       ) : (
-        <p className="py-3 text-xs text-muted-foreground">Sem dados da conta ainda.</p>
+        <p className="py-3 text-xs text-muted-foreground">Ainda sem dados do Asaas PJ nesta conta.</p>
       )}
       <p className="pb-3 pt-1 text-[11px] text-muted-foreground">
         {when ? `Última atualização: ${when}. ` : ""}Os dados chegam automaticamente pela API do Asaas.

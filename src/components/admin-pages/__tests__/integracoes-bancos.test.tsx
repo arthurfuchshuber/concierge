@@ -3,7 +3,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor, cleanup, fireEvent } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
-const { bankData } = vi.hoisted(() => ({
+const { bankData, state } = vi.hoisted(() => ({
+  state: { empty: false, impersonating: false },
   bankData: {
     items: [
       { malvo_item_id: "btg", connector_name: "BTG Pactual Empresas", status: "UPDATED", environment: "PRODUCTION" },
@@ -25,12 +26,14 @@ vi.mock("@/lib/clicksign.functions", () => ({ getMyClicksignConfig: () => Promis
 vi.mock("@/lib/google-calendar.functions", () => ({ getMyGoogleCalendarStatus: () => Promise.resolve({ connected: true }) }));
 vi.mock("@/lib/channex.functions", () => ({ getChannexStatus: () => Promise.resolve({ configured: false }) }));
 vi.mock("@/lib/malvo.functions", () => ({
-  listBankConnections: () => Promise.resolve(bankData),
+  listBankConnections: () => Promise.resolve(state.empty ? { items: [], accounts: [], transactions: 0 } : bankData),
   getBankConnectToken: vi.fn(),
   syncBankConnection: vi.fn(),
   disconnectBank: vi.fn(),
 }));
-vi.mock("@/hooks/useImpersonation", () => ({ useImpersonation: () => ({ impersonation: null }) }));
+vi.mock("@/hooks/useImpersonation", () => ({
+  useImpersonation: () => ({ impersonation: state.impersonating ? { userId: "other", name: "Outra", email: null } : null }),
+}));
 vi.mock("@/components/admin-pages/WhatsappBusinessPage", () => ({ WhatsappBusinessPage: () => null }));
 vi.mock("@/components/admin-pages/ClicksignPanel", () => ({ ClicksignPanel: () => null }));
 vi.mock("@/components/admin-pages/GoogleCalendarPanel", () => ({ GoogleCalendarPanel: () => null }));
@@ -45,7 +48,11 @@ function renderPage() {
 }
 
 describe("IntegracoesPage (celular) — Bancos e Asaas PJ", () => {
-  beforeEach(() => cleanup());
+  beforeEach(() => {
+    cleanup();
+    state.empty = false;
+    state.impersonating = false;
+  });
 
   it("mostra subtítulos em todos os cards e as contas dos bancos, sem a etiqueta 'Ativa'", async () => {
     renderPage();
@@ -70,5 +77,24 @@ describe("IntegracoesPage (celular) — Bancos e Asaas PJ", () => {
     expect(screen.getByLabelText("Expandir bancos")).toBeTruthy();
     fireEvent.click(screen.getByLabelText("Expandir bancos"));
     expect(screen.getByText("BTG Pactual Empresas")).toBeTruthy();
+  });
+
+  it("sem nenhum dado, Bancos e Asaas PJ aparecem mesmo assim (inativos, com 'Conectar')", async () => {
+    state.empty = true;
+    renderPage();
+    await waitFor(() => expect(screen.queryAllByTestId("integration-skeleton")).toHaveLength(0));
+    expect(screen.getByText("Bancos")).toBeTruthy();
+    expect(screen.getByText("Asaas PJ")).toBeTruthy();
+    expect(screen.queryByLabelText("Recolher bancos")).toBeNull();
+    expect(screen.getAllByText("Conectar").length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("vendo outra conta, os cards continuam visíveis mas sem os dados bancários da sessão logada", async () => {
+    state.impersonating = true;
+    renderPage();
+    await waitFor(() => expect(screen.queryAllByTestId("integration-skeleton")).toHaveLength(0));
+    expect(screen.getByText("Bancos")).toBeTruthy();
+    expect(screen.getByText("Asaas PJ")).toBeTruthy();
+    expect(screen.queryByText("BTG Pactual Empresas")).toBeNull();
   });
 });
