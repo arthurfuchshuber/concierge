@@ -4327,7 +4327,14 @@ type CardPrediction = {
  * NÃO existe mais limite de "N cards visíveis" — ele fez as janelas de
  * Checkouts/Check-ins/Fila de Limpeza voltarem a abrir curtas (2 cards),
  * ignorando os 75%. O teto é só a altura da tela. */
-function useWholeCardsMaxHeight(key: unknown, maxItems?: number) {
+function useWholeCardsMaxHeight(
+  key: unknown,
+  maxItems?: number,
+  /** Encaixe na janela (desktop, pedido de 10/11/2026): a lista termina numa linha INTEIRA
+   * que ainda deixa `reserve` px (legenda, cards de baixo, respiro) até a borda da tela;
+   * nunca menos que `minItems` linhas. */
+  fit?: { reserve: number; minItems: number },
+) {
   // Callback ref em state: o conteúdo vive num portal (Dialog) e só monta
   // quando abre — assim o cálculo dispara exatamente quando o nó aparece.
   const [node, setNode] = useState<HTMLDivElement | null>(null);
@@ -4392,7 +4399,14 @@ function useWholeCardsMaxHeight(key: unknown, maxItems?: number) {
       const total = bottoms[bottoms.length - 1];
       // TETO POR QUANTIDADE (pedido explícito, 21/10/2026 — calendário de ocupação: 8 imóveis):
       // além do teto de altura, a lista termina na borda inferior do N-ésimo card (sempre inteiro).
-      const limitedBottom = maxItems !== undefined && bottoms.length > maxItems ? bottoms[maxItems - 1] : undefined;
+      let limitedBottom = maxItems !== undefined && bottoms.length > maxItems ? bottoms[maxItems - 1] : undefined;
+      if (fit && !win && window.matchMedia("(min-width: 1024px)").matches) {
+        const room = window.innerHeight - node.getBoundingClientRect().top - fit.reserve;
+        const fitting = bottoms.filter((b) => b <= room).pop();
+        const floor = bottoms[Math.min(fit.minItems, bottoms.length) - 1];
+        const fitBottom = Math.max(fitting ?? 0, floor);
+        if (fitBottom < (limitedBottom ?? total)) limitedBottom = fitBottom;
+      }
       if (limitedBottom === undefined && total <= cap) {
         setMaxHeight(undefined);
         return;
@@ -8330,7 +8344,7 @@ function OccupancyPanel({
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shownProperties, byProperty, textTokens]);
-  const list = useWholeCardsMaxHeight(`${shownProperties.length}:${loading}:${dayW}`, 8);
+  const list = useWholeCardsMaxHeight(`${shownProperties.length}:${loading}:${dayW}`, 8, { reserve: 160, minItems: 3 });
 
   // ROLAGEM EM UM EIXO SÓ (pedido explícito, 17/10/2026: "o calendário não
   // pode ficar deslizando na diagonal — ou desce/sobe, ou vai para os lados").
