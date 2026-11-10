@@ -72,6 +72,12 @@ describe("IntegracoesPage (celular) — Bancos e Asaas PJ", () => {
     expect(screen.queryByText("Ativa")).toBeNull();
   });
 
+  it("cards inativos ganham a faixa cinza lateral", async () => {
+    renderPage();
+    await waitFor(() => expect(screen.queryAllByTestId("integration-skeleton")).toHaveLength(0));
+    expect(screen.queryAllByTestId("inactive-strip").length).toBeGreaterThan(0);
+  });
+
   it("a seta expande e recolhe a lista de bancos (abre recolhida)", async () => {
     renderPage();
     await waitFor(() => expect(screen.getByLabelText("Expandir bancos")).toBeTruthy());
