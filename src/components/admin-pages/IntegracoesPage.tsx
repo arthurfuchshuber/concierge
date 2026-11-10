@@ -16,11 +16,10 @@ import {
   Landmark,
   Wallet,
 } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { ClicksignPanel } from "@/components/admin-pages/ClicksignPanel";
 import { GoogleCalendarPanel } from "@/components/admin-pages/GoogleCalendarPanel";
 import { INTEGRATION_WINDOW_CLASS } from "@/components/admin-pages/integration-window";
-import { ChannexPanel } from "@/components/admin-pages/ChannexPanel";
 import { AsaasPanel, BancosPanel, bankSummaryRows, useBankConnections } from "@/components/admin-pages/BancosPanel";
 import { asaasItem, onlyBanks } from "@/lib/bank-account-label";
 import { getMyGoogleCalendarStatus } from "@/lib/google-calendar.functions";
@@ -224,7 +223,7 @@ export function IntegracoesPage() {
   // a faixa verde da esquerda marca a conectada. O WhatsApp ainda não aparece (não temos a integração).
   const [panel, setPanel] = useState<string | null>(null);
   const mobileItems = items
-    .filter(({ cfg }) => cfg.key !== "whatsapp")
+    .filter(({ cfg }) => cfg.key !== "whatsapp" && cfg.key !== "channex")
     // Ativas primeiro; dentro de cada grupo, na ordem dos mockups: ClickSign, Google Agenda, Bancos, Asaas PJ.
     .sort((a, b) => STATUS_ORDER[a.statusKey] - STATUS_ORDER[b.statusKey] || INTEGRATIONS.indexOf(a.cfg) - INTEGRATIONS.indexOf(b.cfg))
     .filter(({ cfg }) => {
@@ -258,7 +257,6 @@ export function IntegracoesPage() {
             <div
               key={cfg.key}
               className={cn(
-                cfg.key === "channex" && "hidden lg:block",
                 "relative min-h-[108px] min-w-0 overflow-hidden rounded-[12px] border border-border/70 bg-card py-3.5 pl-[17px] pr-3.5 shadow-sm",
               )}
             >
@@ -325,14 +323,6 @@ export function IntegracoesPage() {
           ) : panelCfg?.key === "asaas" ? (
             <AsaasPanel inWindow readOnly={!canManage} ownerId={accountOwnerId} />
           ) : null}
-        </DialogContent>
-      </Dialog>
-      <Dialog open={panelCfg?.key === "channex"} onOpenChange={(v) => !v && setPanel(null)}>
-        <DialogContent aria-describedby={undefined} className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="font-display text-xl">{panelCfg?.nome}</DialogTitle>
-          </DialogHeader>
-          <ChannexPanel />
         </DialogContent>
       </Dialog>
     </div>
