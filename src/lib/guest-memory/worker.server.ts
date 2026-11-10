@@ -33,6 +33,8 @@ import {
   type StayMemoryResult,
   type StaySummary,
 } from "./contracts";
+import type { ExtractInput, ExtractResult } from "@/lib/guest-ai-learning/extractor.server";
+import type { TranscriptSpeaker } from "@/lib/guest-ai-learning/extractor";
 import {
   buildStayMemoryPrompt,
   deriveStayFacts,
@@ -166,7 +168,21 @@ export interface GuestMemoryCycleDeps {
   limit?: number;
   modelId?: string;
   log?: (event: Record<string, unknown>) => void;
+  /**
+   * Aprendizado contínuo (10/11/2026): depois que a memória da estadia é GRAVADA (uma vez por estadia, pela
+   * posse exclusiva), propõe candidatos `pending` a partir da conversa. Falha aqui nunca afeta a memória.
+   */
+  learning?: (input: ExtractInput) => Promise<ExtractResult>;
 }
+
+const LEARNING_SPEAKER: Record<StaySpeaker, TranscriptSpeaker> = {
+  hospede_titular: "guest",
+  acompanhante: "guest",
+  equipe: "team",
+  nota_interna_equipe: "internal_note",
+  sistema: "system",
+  desconhecido: "other",
+};
 
 export interface GuestMemoryCycleResult {
   status: "off" | "ran";
@@ -177,6 +193,8 @@ export interface GuestMemoryCycleResult {
   notClaimed: number;
   stoppedBy: "none" | "run_budget" | "daily_budget";
   costUsd: number;
+  /** Custo das extrações de aprendizado (separado do custo da memória). */
+  learningCostUsd: number;
 }
 
 /** Processa um lote de estadias. Nunca lança por falha de uma estadia; erros viram códigos fechados. */
@@ -192,6 +210,7 @@ export async function runGuestMemoryCycle(
     notClaimed: 0,
     stoppedBy: "none",
     costUsd: 0,
+    learningCostUsd: 0,
   };
   // FAIL-CLOSED: nada é consultado, adquirido ou chamado sem configuração explícita e válida
   const cfg = guestMemoryConfig(deps.env ?? process.env, deps.limit);
@@ -342,11 +361,32 @@ export async function runGuestMemoryCycle(
         result: memory,
       });
       await done(rec === "recorded" || rec === "exists" ? "done" : "failed", rec);
+      if (rec === "recorded" && m.messages.length > 0) {
+        try {
+          const learn =
+            deps.learning ??
+            (async (i: ExtractInput) =>
+              (await import("@/lib/guest-ai-learning/extractor.server")).extractAndProposeLearnings(i, {
+                env: deps.env,
+                provider: deps.provider,
+              }));
+          const lr = await learn({
+            trigger: "checkout_done",
+            propertyId: stay.propertyId,
+            messages: m.messages.map((x) => ({ id: x.id, speaker: LEARNING_SPEAKER[x.speaker] ?? "other", text: x.text })),
+            traceId: stay.reservationId,
+          });
+          result.learningCostUsd += lr.costUsd;
+        } catch {
+          /* aprendizado é melhor esforço: nunca derruba a memória */
+        }
+      }
     } catch {
       await done("failed", "internal_error");
     }
   }
   result.costUsd = Math.round(result.costUsd * 1e6) / 1e6;
+  result.learningCostUsd = Math.round(result.learningCostUsd * 1e6) / 1e6;
   return result;
 }
 

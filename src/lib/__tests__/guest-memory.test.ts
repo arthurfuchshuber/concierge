@@ -3,7 +3,8 @@
  * avaliação interna, guard de segredos), fatos objetivos de horário, montagem com teto de custo e o ciclo
  * completo (idempotência, sem conversa, falhas isoladas, desligamento). Sem rede: transporte falso.
  */
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import type { ExtractInput } from "@/lib/guest-ai-learning/extractor.server";
 import {
   ASSESSMENT_DIMENSIONS,
   StayMemoryOutputError,
@@ -452,6 +453,36 @@ describe("Memória pós-checkout · ciclo", () => {
     expect(s.finishes).toEqual([["r1", "done", "recorded"]]);
     expect(s.attempts[0]).toMatchObject({ reserved: 0.02, outcome: "done" });
     expect(s.attempts[0]!.spent!).toBeGreaterThan(0);
+  });
+
+  it("aprendizado (10/11/2026): só depois da memória GRAVADA, uma vez por estadia, com o imóvel da estadia", async () => {
+    const s = new MemoryStore();
+    s.pendingList = [stay("r1")];
+    s.materials.set("r1", material(CONV));
+    const learning = vi.fn(async (_i: ExtractInput) => ({ status: "done" as const, reason: null, proposed: 1, duplicates: 0, refused: {}, costUsd: 0.001 }));
+    const p = provider([okJson(output())]);
+    const r = await runGuestMemoryCycle({ store: s, provider: p, env: ON, log: () => {}, learning });
+    await runGuestMemoryCycle({ store: s, provider: p, env: ON, log: () => {}, learning });
+    expect(learning).toHaveBeenCalledTimes(1);
+    expect(learning.mock.calls[0]![0]).toMatchObject({ trigger: "checkout_done", propertyId: stay("r1").propertyId, traceId: "r1" });
+    expect(r.learningCostUsd).toBe(0.001);
+    expect(s.finishes).toEqual([["r1", "done", "recorded"]]);
+  });
+
+  it("aprendizado que falha nunca derruba a memória", async () => {
+    const s = new MemoryStore();
+    s.pendingList = [stay("r1")];
+    s.materials.set("r1", material(CONV));
+    const r = await runGuestMemoryCycle({
+      store: s,
+      provider: provider([okJson(output())]),
+      env: ON,
+      log: () => {},
+      learning: async () => {
+        throw new Error("x");
+      },
+    });
+    expect(r).toMatchObject({ recorded: 1, failed: 0 });
   });
 
   it("idempotente: estadia já resumida ⇒ nenhuma chamada ao modelo; concluída nunca é readquirida", async () => {

@@ -82,6 +82,8 @@ const ONE_OFF: readonly RegExp[] = [
   /\b[A-Z0-9]{8,12}\b/, // código de reserva (HMXXXXXXXX)
   /\b(hoje|ontem|amanh[ãa]|agora h[áa] pouco|nesta (estadia|reserva|semana)|este h[óo]spede|esse h[óo]spede|a h[óo]spede)\b/i,
   /\b(?:[Ss]ra?|[Ss]enhora?|[Dd]ona|[Ss]eu)\.?\s+[A-ZÁÉÍÓÚ][a-zà-ú]+/, // tratamento + nome
+  // preferência/pedido de UM hóspede nunca vira regra do imóvel (10/11/2026)
+  /\b(prefere|preferiu|preferem|gostaria|gosta(va)?\s+de|pediu|pediram|solicitou|solicitaram)\b/i,
 ];
 
 export function isOneOff(statement: string): boolean {
