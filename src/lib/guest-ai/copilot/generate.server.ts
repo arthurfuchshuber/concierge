@@ -60,6 +60,7 @@ import { runOps, type OpsRunInput } from "@/lib/guest-ai/ops/executor.server";
 import { extractOpsSignals, type OpsExtractorInput, type OpsSignals } from "./ops-extractor.server";
 import {
   COPILOT_DEADLINE_MS,
+  COPILOT_STAGE_MAX_MS,
   COPILOT_MAX_OUTPUT_TOKENS,
   COPILOT_MAX_TURN_COST_USD,
   COPILOT_MIN_OUTPUT_TOKENS,
@@ -714,7 +715,8 @@ export async function generateCopilotSuggestion(
       loadLivingDocument: ports.loadLivingDocument,
       generate: (prompt, sg) => generator.generate(prompt, sg), // `generator` é trocado na nova tentativa (cada um serve a 1 chamada)
       guard: SECRET_SCRUBBER,
-      stageTimeoutMs: Math.max(1_000, Math.min(15_000, Math.floor(remainingMs()))),
+      stageTimeoutMs: Math.max(1_000, Math.min(COPILOT_STAGE_MAX_MS, Math.floor(remainingMs()))),
+      turnDeadlineMs: Math.max(1_000, Math.min(COPILOT_STAGE_MAX_MS, Math.floor(remainingMs()))),
       signal: controller.signal,
       now,
       schedule,
@@ -729,6 +731,9 @@ export async function generateCopilotSuggestion(
       { turn, traceId: claimed.suggestionId, batch: null, suggest: { alwaysSuggest } },
       chainDeps,
     );
+    // telemetria de prazo (10/11/2026): em corte por tempo, registra EM QUE ETAPA estourou (código fixo, sem dados)
+    if (outcome.kind === "technical_error")
+      console.warn("[copilot] turno interrompido", outcome.code, `etapa=${outcome.stage}`, `restante_ms=${Math.round(remainingMs())}`);
     const rawReason = retryReason(outcome);
     const reason = deps.autonomous && outcome.kind === "silence" ? null : rawReason;
     if (reason && generator.telemetry().status !== "blocked" && remainingMs() > 6_000) {

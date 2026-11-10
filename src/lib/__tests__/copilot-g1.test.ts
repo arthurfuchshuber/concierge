@@ -168,7 +168,8 @@ describe("G1 · R2: trabalho em segundo plano nunca fica solto", () => {
     expect(gen2).toHaveBeenCalledTimes(1);
     // sem waitUntil a resposta do canal nunca fica presa na janela de respiro
     expect(sleep2).not.toHaveBeenCalled();
-    expect(gen2).toHaveBeenCalledWith(expect.anything(), { env });
+    // sem respiro: o prazo dos bastidores continua 25 s (waitUntil ~30 s); só o slot ganhou 30 s de cadeia
+    expect(gen2).toHaveBeenCalledWith(expect.anything(), { env, deadlineMs: 25_000 });
 
     const gen3 = vi.fn();
     await triggerCopilotSuggestion(req, {}, { generate: gen3 as never });

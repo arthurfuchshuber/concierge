@@ -75,6 +75,8 @@ export const TURN_CHAIN_VERSION = "chain.2026-11-03.3";
 export const STRUCTURAL_VALIDATOR_VERSION = "structural.2026-11-03.3";
 /** Prazo padrão de cada etapa assíncrona (leitura e modelo). O turno inteiro respeita o teto de 15 s (`TURN_MAX_DEADLINE_MS`). */
 export const CHAIN_STAGE_TIMEOUT_MS = 5_000;
+/** Teto absoluto que um chamador pode pedir para o turno inteiro (Copiloto/slot, 10/11/2026). */
+export const TURN_DEADLINE_CEILING_MS = 30_000;
 
 // Conferência de tipos em compilação: o espelho do validador semântico = o estado do dossiê.
 type _AvailabilityMirror = AvailabilityState["status"] extends AvailabilityStatus ? (AvailabilityStatus extends AvailabilityState["status"] ? true : never) : never;
@@ -332,6 +334,8 @@ export interface ChainDeps {
   loadConversationOwnership?: (turn: ValidatedTurn, signal: AbortSignal) => Promise<ConversationOwnershipRow | null>;
   budget?: BudgetConfig;
   stageTimeoutMs?: number;
+  /** Teto TOTAL do turno (padrão `TURN_MAX_DEADLINE_MS`, 15 s; o Copiloto pede até 30 s). */
+  turnDeadlineMs?: number;
   /** B2.5 — cancelamento externo: aborta a etapa em curso e encerra em `stage_aborted` (sem texto). */
   signal?: AbortSignal;
   now?: () => number;
@@ -533,7 +537,11 @@ export async function runTurnChain(input: ChainInput, deps: ChainDeps): Promise<
   };
   const started = now();
   const schedule = deps?.schedule ?? defaultSchedule;
-  const stageTimeout = Math.max(1, Math.min(CHAIN_STAGE_TIMEOUT_MS * 3, Math.floor(deps?.stageTimeoutMs ?? CHAIN_STAGE_TIMEOUT_MS)));
+  const turnDeadline = Math.max(1, Math.min(TURN_DEADLINE_CEILING_MS, Math.floor(deps?.turnDeadlineMs ?? TURN_MAX_DEADLINE_MS)));
+  const stageTimeout = Math.max(
+    1,
+    Math.min(Math.max(CHAIN_STAGE_TIMEOUT_MS * 3, turnDeadline), Math.floor(deps?.stageTimeoutMs ?? CHAIN_STAGE_TIMEOUT_MS)),
+  );
   const traceId = typeof input?.traceId === "string" && TRACE.test(input.traceId) ? input.traceId : null;
   const completed: ChainStageId[] = [];
   let decisionVersion: DecisionContractVersion | null = null;
@@ -634,7 +642,7 @@ export async function runTurnChain(input: ChainInput, deps: ChainDeps): Promise<
   const step = async <T>(fn: (signal: AbortSignal) => Promise<T>): Promise<T> => {
     if (controller.signal.aborted || external?.aborted) throw new StageAborted();
     // Prazo da etapa limitado ao que resta do teto TOTAL do turno (15 s).
-    const remaining = Math.floor(TURN_MAX_DEADLINE_MS - (now() - started));
+    const remaining = Math.floor(turnDeadline - (now() - started));
     if (remaining <= 0) {
       controller.abort("turn_deadline");
       throw new StageTimeout();

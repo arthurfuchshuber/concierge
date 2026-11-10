@@ -142,3 +142,8 @@ Ordem de execução no builder: validar escopo → estado → D9 → se negado, 
 ## Decisão humana com 1 clique (10/11/2026)
 - O slot consulta `hasPendingDecision` logo depois do escopo: pendente ⇒ `{ reply: "", handoff: false }` sem gerar. Depois da geração, `formalChangeRequests` com `late_checkout`/`early_checkin`/`other_conditions` ⇒ `openHumanDecision` e encaminhamento `high` SEM texto (o texto do modelo é descartado). Late check-out já formal no card, falha ou tabela ausente ⇒ projeção normal.
 - A escrita (abrir, decidir, ação no card, resposta, entrega) fica FORA deste módulo (`src/lib/guest-ai-decision*.ts`), como a porta `apply`. A resposta pós-clique é o 4º chamador nominal do Gateway (`guest-ai-decision-reply.server.ts`). D9 intocada: nenhuma credencial é lida para o hóspede.
+
+## Prazo de 30 s com raciocínio elástico (titular, 10/11/2026)
+- Auditoria: ~50% dos turnos do Airbnb cortados em 15 s (`stage_timeout`); o Flash em `auto` gastava 500–1.100 tokens de raciocínio e 7–10 s por chamada sobre ~21–24 mil tokens. Decisão: manter o raciocínio elástico e dar mais tempo.
+- Cadeia do turno até `COPILOT_STAGE_MAX_MS` (30 s; `turnDeadlineMs` da `turn-chain`, teto `TURN_DEADLINE_CEILING_MS`), chamada ao Gateway até 30 s (`LIMITS.maxTimeoutMs`; sem `timeoutMs` o padrão continua 15 s para os demais chamadores), prazo total da geração `COPILOT_DEADLINE_MS` = 40 s. Os bastidores (`trigger.server.ts`, `waitUntil` ~30 s) mantêm 25 s (`COPILOT_BACKSTAGE_DEADLINE_MS`).
+- Corte por tempo registra a etapa no log (`[copilot] turno interrompido stage_timeout etapa=<id>`).

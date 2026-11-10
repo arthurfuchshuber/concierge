@@ -27,7 +27,7 @@ import { generateGuestLlm } from "@/lib/guest-ai/llm/gateway.server";
 import type { LlmProvider } from "@/lib/guest-ai/llm/providers/types";
 import type { LlmLogger } from "@/lib/guest-ai/llm/telemetry";
 import { estimateCostUsd, guestFallbackModel, modelSpec } from "@/lib/guest-ai/llm/models";
-import { COPILOT_MAX_TURN_COST_USD } from "./contracts";
+import { COPILOT_MAX_TURN_COST_USD, COPILOT_STAGE_MAX_MS } from "./contracts";
 import type { ExternalHttp, GuestToolContext, MapsHttp, ToolAvailability } from "@/lib/guest-ai/tools/contracts";
 import { executeToolCalls, type ToolCallOutcome } from "@/lib/guest-ai/tools/executor";
 import { toolSpecsFor } from "@/lib/guest-ai/tools/registry";
@@ -444,7 +444,7 @@ export function createCopilotGenerator(deps: CopilotGeneratorDeps): CopilotGener
             maxOutputTokens: outputTokens,
             reasoningEffort: deps.reasoningEffort,
             responseFormat: "json",
-            timeoutMs: Math.max(1_000, Math.min(15_000, Math.floor(deps.remainingMs()))),
+            timeoutMs: Math.max(1_000, Math.min(COPILOT_STAGE_MAX_MS, Math.floor(deps.remainingMs()))),
             signal: sg,
             traceId: deps.traceId,
             ...(tools.length > 0 && toolChoice ? { tools, toolChoice } : {}),

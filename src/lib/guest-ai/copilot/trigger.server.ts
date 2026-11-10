@@ -18,7 +18,7 @@
 import { backgroundAvailable, runInBackground } from "@/lib/background.server";
 import {
   COPILOT_BURST_QUIET_MS,
-  COPILOT_DEADLINE_MS,
+  COPILOT_BACKSTAGE_DEADLINE_MS,
   copilotFlagOn,
   type CopilotGenerationRequest,
 } from "./contracts";
@@ -56,7 +56,9 @@ export function triggerCopilotSuggestion(
           expectedOwnerId: req.expectedOwnerId ?? null,
         },
         // o respiro sai do orçamento total do segundo plano (o Worker dá ~30 s depois da resposta)
-        wait ? { env, deadlineMs: COPILOT_DEADLINE_MS - COPILOT_BURST_QUIET_MS } : { env },
+        wait
+          ? { env, deadlineMs: COPILOT_BACKSTAGE_DEADLINE_MS - COPILOT_BURST_QUIET_MS }
+          : { env, deadlineMs: COPILOT_BACKSTAGE_DEADLINE_MS },
       );
       if (r.status === "skipped" && r.code !== "superseded_by_newer_message")
         console.warn("[copilot] geração não concluída", r.code, r.detail ?? "");

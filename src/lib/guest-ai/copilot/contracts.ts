@@ -73,8 +73,19 @@ export const COPILOT_SENDER_IDENTITY_STATES = [
  */
 export const COPILOT_MAX_TURN_COST_USD = 0.15;
 
-/** Prazo total da geração (contexto + Gateway ≤ 15 s + validação). Nada bloqueia o atendimento humano. */
-export const COPILOT_DEADLINE_MS = 25_000;
+/**
+ * PRAZOS (titular, 10/11/2026 — auditoria: ~50% dos turnos do Airbnb eram cortados em 15 s com o raciocínio
+ * elástico do Flash levando 7–10 s por chamada sobre ~21–24 mil tokens): a cadeia do turno ganha até 30 s
+ * (`COPILOT_STAGE_MAX_MS`), mantendo o raciocínio em `auto`. O prazo total da resposta ao hóspede (slot, inline
+ * no canal) cobre leitura + 30 s de cadeia + validação. Nada bloqueia o atendimento humano.
+ */
+export const COPILOT_STAGE_MAX_MS = 30_000;
+export const COPILOT_DEADLINE_MS = 40_000;
+/**
+ * Bastidores (disparo do Copiloto em segundo plano, `waitUntil` do Worker: ~30 s depois da resposta) seguem com
+ * o prazo antigo, para nunca serem cortados pela plataforma no meio de uma gravação.
+ */
+export const COPILOT_BACKSTAGE_DEADLINE_MS = 25_000;
 /**
  * Respiro antes de gerar (Pilar 4 do refinamento de hospitalidade, 06/11/2026): mensagens em rajada ("Oi" /
  * "Tudo bem?" / "Qual a senha do wifi?") viram UMA resposta. Cada mensagem espera esta janela em segundo plano;
