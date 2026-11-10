@@ -143,10 +143,10 @@ describe("B2.1 · System Prompt — determinismo e isolamento de dados", () => {
 describe("B2.1 · System Prompt — silêncio, intenções, interlocutor/titular e marcos (diretriz §6–§9)", () => {
   const sys = buildSystemPrompt("whatsapp");
   it("silêncio é resultado legítimo e explícito, com exceções e regra da dúvida", () => {
-    expect(sys).toMatch(/a resposta certa é não responder: shouldReply false, strategy silence e reply vazio/);
-    expect(sys).toMatch(/Silêncio é um resultado legítimo, não um erro/);
-    expect(sys).toMatch(/não deve ser trocado por uma cortesia automática/);
-    expect(sys).toMatch(/Na dúvida razoável, responda/);
+    // 09/11/2026: o padrão passou a ser RESPONDER; o silêncio é exceção explícita e estreita
+    expect(sys).toMatch(/Seu padrão é RESPONDER/);
+    expect(sys).toMatch(/O silêncio é a exceção: use shouldReply false, strategy silence e reply vazio SOMENTE/);
+    expect(sys).toMatch(/Na dúvida, mesmo razoável, responda/);
   });
   it("intenções interpretadas pelo contexto inteiro (não por palavra-chave) e sem conceder autorização", () => {
     expect(sys).toMatch(/considerando a conversa inteira, não palavras isoladas/);

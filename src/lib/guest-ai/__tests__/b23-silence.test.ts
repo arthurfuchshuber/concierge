@@ -76,8 +76,13 @@ describe("B2.3 · silêncio NÃO permitido quando há necessidade", () => {
 });
 
 describe("B2.3 · integridade de shouldReply:false", () => {
-  it("silêncio com texto, com estratégia diferente ou com compromisso ⇒ recusa sem texto", async () => {
-    for (const bad of [silence({ reply: "De nada!" }), silence({ strategy: "answer" }), silence({ commitments: ["x"], commitmentKinds: ["team_relay"] })]) {
+  it("silêncio com texto pronto ⇒ vira resposta (texto nunca é descartado por rótulo incoerente; 09/11/2026)", async () => {
+    const { r } = await run(silence({ reply: "De nada!" }));
+    expect(r.kind).toBe("reply");
+    if (r.kind === "reply") expect(r.strategy).toBe("answer");
+  });
+  it("silêncio com estratégia diferente ou com compromisso ⇒ recusa sem texto", async () => {
+    for (const bad of [silence({ strategy: "answer" }), silence({ commitments: ["x"], commitmentKinds: ["team_relay"] })]) {
       const { r, h } = await run(bad);
       expect(r.kind).toBe("refused");
       expect(textKeys(r)).toEqual([]);

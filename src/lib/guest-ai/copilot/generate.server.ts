@@ -233,6 +233,29 @@ const uniq = (w: CopilotWarning[]): CopilotWarning[] => [...new Set(w)];
  */
 export const GUIDE_TEMPLATE_SYNTAX = /\[\[\s*(info|tag)\s*:/i;
 
+/**
+ * Bloqueio estrutural/semântico grava QUAL regra barrou (09/11/2026: 3 mensagens simples foram barradas e o motivo
+ * não ficava registrado). O código continua casando com o CHECK do banco (`^[a-z][a-z0-9_]{0,63}$`), sem migration.
+ */
+export function refusalCodeWithReason(code: string, structural: readonly string[] = [], semantic: readonly string[] = []): string {
+  const reason = code === "structural_block" ? structural[0] : code === "semantic_block" ? semantic[0] : undefined;
+  if (!reason) return code;
+  const out = `${code}_${reason}`.toLowerCase().replace(/[^a-z0-9_]/g, "_");
+  return /^[a-z][a-z0-9_]{0,63}$/.test(out) ? out : code;
+}
+
+/** Desfechos sem texto que valem uma nova tentativa (corrigíveis pelo modelo). Códigos fechados; nada de texto livre. */
+export function retryReason(o: ChainOutcome): string | null {
+  if (o.kind === "silence") return "silence_not_allowed_in_suggestion_mode";
+  if (o.kind === "refused") {
+    const c = o.code as string;
+    if (c === "structural_block") return `structural_block ${o.audit.structuralBlocks.join(" ")}`.slice(0, 190).toLowerCase();
+    if (c === "semantic_block") return `semantic_block ${o.audit.semanticBlocks.join(" ")}`.slice(0, 190).toLowerCase();
+    if (c.startsWith("parse_")) return c;
+  }
+  return null;
+}
+
 /** Projeção do desfecho da cadeia para a linha do banco (só o texto final da sugestão é texto livre). */
 export function projectOutcome(
   outcome: ChainOutcome,
@@ -380,7 +403,7 @@ export function projectOutcome(
         state: "generation_failed",
         text: null,
         outcomeKind: "refused",
-        outcomeCode: outcome.code,
+        outcomeCode: refusalCodeWithReason(outcome.code, a.structuralBlocks, a.semanticBlocks),
         warnings: uniq(warnings),
       };
     case "technical_error":
@@ -590,23 +613,25 @@ export async function generateCopilotSuggestion(
       if (!o) return null;
       return { origin: o.origin, city: o.city, region: o.region, country: o.country, surface: turn.surface };
     };
-    const generator = deps.generator
-      ? deps.generator({ remainingMs, beforeNetwork, traceId: claimed.suggestionId, loadVision, loadToolContext })
-      : createCopilotGenerator({
-          modelId: copilotModelId(env),
-          maxOutputTokens: COPILOT_MAX_OUTPUT_TOKENS,
-          minOutputTokens: COPILOT_MIN_OUTPUT_TOKENS,
-          // elasticidade nativa: sem tabela por assunto; o modelo dosa o raciocínio, o custo é contido por fora
-          reasoningEffort: COPILOT_REASONING_EFFORT,
-          remainingMs,
-          beforeNetwork,
-          traceId: claimed.suggestionId,
-          provider: deps.provider,
-          log: deps.log,
-          loadVision,
-          loadToolContext,
-          toolHttp: deps.toolHttp,
-        });
+    const makeGenerator = () =>
+      deps.generator
+        ? deps.generator({ remainingMs, beforeNetwork, traceId: claimed!.suggestionId, loadVision, loadToolContext })
+        : createCopilotGenerator({
+            modelId: copilotModelId(env),
+            maxOutputTokens: COPILOT_MAX_OUTPUT_TOKENS,
+            minOutputTokens: COPILOT_MIN_OUTPUT_TOKENS,
+            // elasticidade nativa: sem tabela por assunto; o modelo dosa o raciocínio, o custo é contido por fora
+            reasoningEffort: COPILOT_REASONING_EFFORT,
+            remainingMs,
+            beforeNetwork,
+            traceId: claimed!.suggestionId,
+            provider: deps.provider,
+            log: deps.log,
+            loadVision,
+            loadToolContext,
+            toolHttp: deps.toolHttp,
+          });
+    let generator = makeGenerator();
     const chainDeps: ChainDeps = {
       loadContext: async (t, sg) => {
         const ctx = await ports.loadContext(t, sg);
@@ -631,17 +656,30 @@ export async function generateCopilotSuggestion(
       loadGuestProfile: ports.loadGuestProfile,
       loadCityEvents: ports.loadCityEvents,
       loadLivingDocument: ports.loadLivingDocument,
-      generate: (prompt, sg) => generator.generate(prompt, sg),
+      generate: (prompt, sg) => generator.generate(prompt, sg), // `generator` é trocado na nova tentativa (cada um serve a 1 chamada)
       guard: SECRET_SCRUBBER,
       stageTimeoutMs: Math.max(1_000, Math.min(15_000, Math.floor(remainingMs()))),
       signal: controller.signal,
       now,
       schedule,
     };
-    const outcome = await runTurnChain(
-      { turn, traceId: claimed.suggestionId, batch: null },
+    // SUGESTÃO EM 100% DAS MENSAGENS (pedido de 09/11/2026): o roteiro exige texto sempre; se mesmo assim a 1ª
+    // tentativa vier sem texto por motivo corrigível (silêncio, incoerência de campos, bloqueio de validação),
+    // faz UMA nova tentativa dizendo ao modelo o que corrigir (só códigos fechados). Credenciais (D9), guard,
+    // escopo e falhas técnicas NÃO são recontadas aqui.
+    let outcome = await runTurnChain(
+      { turn, traceId: claimed.suggestionId, batch: null, suggest: { alwaysSuggest: true } },
       chainDeps,
     );
+    const reason = retryReason(outcome);
+    if (reason && generator.telemetry().status !== "blocked" && remainingMs() > 6_000) {
+      generator = makeGenerator();
+      const second = await runTurnChain(
+        { turn, traceId: claimed.suggestionId, batch: null, suggest: { alwaysSuggest: true, retryNote: reason } },
+        chainDeps,
+      );
+      if (second.kind === "reply" || retryReason(second) === null) outcome = second;
+    }
     const g = generator.telemetry();
     const projected = projectOutcome(outcome, {
       surface: turn.surface,

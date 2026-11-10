@@ -538,7 +538,7 @@ describe("Copiloto · geração com a cadeia real e o Gateway real (transporte f
     const res = d.store.only().result!;
     expect(res.state).toBe("generation_failed");
     expect(res.text).toBeNull();
-    expect(res.outcomeCode).toBe("semantic_block");
+    expect(res.outcomeCode).toMatch(/^semantic_block/);
     expect(res.warnings).toContain("unauthorized_commitment");
   });
 
