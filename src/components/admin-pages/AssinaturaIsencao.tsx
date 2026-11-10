@@ -26,42 +26,53 @@ export function IsencaoBanner({ view, busy, onUpdateCard }: { view: View; busy: 
   const sub = ok
     ? `Você não paga mensalidade. Mantenha um cartão válido: conferimos todo dia 20 (próxima em ${fmtDayMonth(view.nextCardCheckAt)}).`
     : "Mesmo isenta, a conta precisa de um cartão válido. Atualize o cartão para regularizar.";
+  const action = ok ? (
+    <span
+      className="shrink-0 rounded-full text-[10.5px] font-extrabold tracking-[0.06em]"
+      style={{ background: accent, color: INK, padding: "4px 11px" }}
+    >
+      ISENTA
+    </span>
+  ) : (
+    <button
+      type="button"
+      onClick={onUpdateCard}
+      disabled={busy}
+      className="inline-flex h-9 shrink-0 cursor-pointer items-center gap-2 rounded-full bg-gradient-to-br from-brand-purple to-brand-magenta text-[12.5px] font-bold text-white disabled:opacity-60"
+      style={{ padding: "0 16px" }}
+    >
+      {busy ? <Loader2 className="size-3.5 animate-spin" /> : null}
+      {status === "failed" ? "Atualizar cartão" : "Cadastrar cartão"}
+    </button>
+  );
+  // Selo/botão fica no canto superior direito enquanto o texto cabe ao lado; quando não cabe, desce
+  // para o canto inferior direito e o texto usa a largura toda (mockup aprovado, 10/11/2026).
   return (
     <div
       role={ok ? "status" : "alert"}
-      className="relative flex min-w-0 items-center gap-3 overflow-hidden rounded-[12px] py-3 pl-[20px] pr-[14px]"
+      className="relative min-w-0 overflow-hidden rounded-[12px] py-3 pl-[20px] pr-[14px]"
       style={{
+        display: "flex",
+        flexWrap: "wrap",
+        alignItems: "flex-start",
+        gap: "10px 12px",
         background: `color-mix(in oklab, ${accent} 15%, var(--surface-elevated))`,
         boxShadow: `inset 0 0 0 1.5px ${accent}`,
       }}
     >
       <span aria-hidden="true" className="absolute inset-y-0 left-0" style={{ width: 5, background: accent }} />
-      <span className="grid shrink-0 place-items-center rounded-[10px]" style={{ width: 38, height: 38, background: accent, color: INK }}>
-        {ok ? <Gift className="size-[18px]" strokeWidth={2.2} /> : <TriangleAlert className="size-[18px]" strokeWidth={2.2} />}
-      </span>
-      <div className="min-w-0 flex-1">
-        <div className="text-[15px] font-bold leading-[1.3]">{title}</div>
-        <p className="mt-0.5 text-[12.5px] font-medium leading-[1.4] text-muted-foreground">{sub}</p>
-      </div>
-      {ok ? (
-        <span
-          className="shrink-0 rounded-full text-[10.5px] font-extrabold tracking-[0.06em]"
-          style={{ background: accent, color: INK, padding: "4px 11px" }}
-        >
-          ISENTA
+      <div className="flex min-w-0 items-start gap-3" style={{ flex: "1 1 auto" }}>
+        <span className="grid shrink-0 place-items-center rounded-[10px]" style={{ width: 38, height: 38, background: accent, color: INK }}>
+          {ok ? <Gift className="size-[18px]" strokeWidth={2.2} /> : <TriangleAlert className="size-[18px]" strokeWidth={2.2} />}
         </span>
-      ) : (
-        <button
-          type="button"
-          onClick={onUpdateCard}
-          disabled={busy}
-          className="inline-flex h-9 shrink-0 cursor-pointer items-center gap-2 rounded-full bg-gradient-to-br from-brand-purple to-brand-magenta text-[12.5px] font-bold text-white disabled:opacity-60"
-          style={{ padding: "0 16px" }}
-        >
-          {busy ? <Loader2 className="size-3.5 animate-spin" /> : null}
-          {status === "failed" ? "Atualizar cartão" : "Cadastrar cartão"}
-        </button>
-      )}
+        <div className="min-w-0" style={{ flex: "1 1 auto" }}>
+          <div className="text-[15px] font-bold leading-[1.3]">{title}</div>
+          <p className="mt-0.5 text-[12.5px] font-medium leading-[1.4] text-muted-foreground">{sub}</p>
+        </div>
+      </div>
+      <div className="shrink-0" style={{ marginLeft: "auto" }}>
+        {action}
+      </div>
     </div>
   );
 }
