@@ -45,7 +45,7 @@ export function AccountSwitcher() {
           <Building2 className="size-4 shrink-0 text-primary" />
           <div className="flex-1 min-w-0">
             <div className="text-[10px] uppercase tracking-wider text-muted-foreground leading-none">Empresa ativa</div>
-            <div className="text-sm truncate mt-0.5">{activeLabel}</div>
+            <div className="text-sm break-words mt-0.5">{activeLabel}</div>
           </div>
           {totalOptions > 1 && <ChevronDown className="size-4 shrink-0 opacity-60" />}
         </button>
