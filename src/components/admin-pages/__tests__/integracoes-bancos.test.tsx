@@ -62,6 +62,9 @@ describe("IntegracoesPage (celular) — Bancos e Asaas PJ", () => {
     expect(screen.getByText("Contratos digitais")).toBeTruthy();
     expect(screen.getByText("Agendas do Gmail")).toBeTruthy();
     expect(screen.getByText("Extrato e transações")).toBeTruthy();
+    // abre recolhido: as contas só aparecem depois de expandir
+    expect(screen.queryByText("BTG Pactual Empresas")).toBeNull();
+    fireEvent.click(await screen.findByLabelText("Expandir bancos"));
     expect(screen.getByText("BTG Pactual Empresas")).toBeTruthy();
     expect(screen.getByText("Ag. 0050 · 00877408-7")).toBeTruthy();
     expect(screen.getByText("Nubank Empresas")).toBeTruthy();
@@ -69,14 +72,14 @@ describe("IntegracoesPage (celular) — Bancos e Asaas PJ", () => {
     expect(screen.queryByText("Ativa")).toBeNull();
   });
 
-  it("a seta recolhe e expande a lista de bancos", async () => {
+  it("a seta expande e recolhe a lista de bancos (abre recolhida)", async () => {
     renderPage();
-    await waitFor(() => expect(screen.getByLabelText("Recolher bancos")).toBeTruthy());
-    fireEvent.click(screen.getByLabelText("Recolher bancos"));
+    await waitFor(() => expect(screen.getByLabelText("Expandir bancos")).toBeTruthy());
     expect(screen.queryByText("BTG Pactual Empresas")).toBeNull();
-    expect(screen.getByLabelText("Expandir bancos")).toBeTruthy();
     fireEvent.click(screen.getByLabelText("Expandir bancos"));
     expect(screen.getByText("BTG Pactual Empresas")).toBeTruthy();
+    fireEvent.click(screen.getByLabelText("Recolher bancos"));
+    expect(screen.queryByText("BTG Pactual Empresas")).toBeNull();
   });
 
   it("sem nenhum dado, Bancos e Asaas PJ aparecem mesmo assim (inativos, com 'Conectar')", async () => {

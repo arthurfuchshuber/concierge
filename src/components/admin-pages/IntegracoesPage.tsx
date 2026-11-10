@@ -208,7 +208,8 @@ export function IntegracoesPage() {
   const asaasRow = asaasItem(banks.data?.items ?? []);
   const asaasActive = !!asaasRow;
   const bankRows = bankSummaryRows(banks.data?.items ?? [], banks.data?.accounts ?? []);
-  const [bancosOpen, setBancosOpen] = useState(true);
+  // Todos os cards abrem recolhidos (pedido 10/11/2026): a lista de bancos só aparece ao tocar na seta.
+  const [bancosOpen, setBancosOpen] = useState(false);
 
   // Primeira carga: até cada consulta responder não sabemos se a integração está ativa.
   // Nunca declarar "inativa"/"Conectar" nesse intervalo (evita o flash e o layout shift).
