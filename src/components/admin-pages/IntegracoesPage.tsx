@@ -1,5 +1,7 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useMyPermissions } from "@/hooks/useMyPermissions";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useServerFn } from "@tanstack/react-start";
 import {
@@ -177,6 +179,10 @@ export function IntegracoesPage() {
   const [q, setQ] = useState("");
 
   const { cs, gcal, channex, banks } = useIntegrationStatusQueries();
+  // Todos veem os cards e as informações; só titular/administrador conecta, edita ou desconecta.
+  const { isOwner } = useMyPermissions();
+  const { isAdmin } = useIsAdmin();
+  const canManage = isOwner || isAdmin;
   const waActive = false; // WhatsApp em standby (10/11/2026) até a Cloud API oficial da Meta
   const csActive = !!cs.data?.hasToken;
   const gcalActive = !!gcal.data?.connected;
@@ -311,13 +317,13 @@ export function IntegracoesPage() {
       <Dialog open={!!panelCfg} onOpenChange={(v) => !v && setPanel(null)}>
         <DialogContent aria-describedby={undefined} className={INTEGRATION_WINDOW_CLASS}>
           {panelCfg?.key === "gcal" ? (
-            <GoogleCalendarPanel accountOwnerId={accountOwnerId} readOnly={!!accountOwnerId} inWindow />
+            <GoogleCalendarPanel accountOwnerId={accountOwnerId} readOnly={!!accountOwnerId || !canManage} inWindow />
           ) : panelCfg?.key === "clicksign" ? (
-            <ClicksignPanel accountOwnerId={accountOwnerId} readOnly={!!accountOwnerId} inWindow />
+            <ClicksignPanel accountOwnerId={accountOwnerId} readOnly={!!accountOwnerId || !canManage} inWindow />
           ) : panelCfg?.key === "bancos" ? (
-            <BancosPanel inWindow ownerId={accountOwnerId} />
+            <BancosPanel inWindow readOnly={!canManage} ownerId={accountOwnerId} />
           ) : panelCfg?.key === "asaas" ? (
-            <AsaasPanel inWindow readOnly={!!accountOwnerId} ownerId={accountOwnerId} />
+            <AsaasPanel inWindow readOnly={!canManage} ownerId={accountOwnerId} />
           ) : null}
         </DialogContent>
       </Dialog>
