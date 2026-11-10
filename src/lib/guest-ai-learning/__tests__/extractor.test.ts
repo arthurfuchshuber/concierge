@@ -56,13 +56,16 @@ const out = (...c: Array<{ categoria: string; fato: string; evidencias: string[]
 const WIFI = { categoria: "equipamentos", fato: "O Wi-Fi da varanda depende do repetidor branco atrás da TV da sala.", evidencias: ["m2", "m3"], confirmacao_hospede: true };
 
 describe("1) candidato válido nasce PENDENTE pela RPC existente", () => {
-  it("propõe via guest_ai_learning_propose com o imóvel do gatilho e a evidência real", async () => {
+  it("propõe via guest_ai_learning_propose com o imóvel do gatilho e a evidência real, e aprova na hora", async () => {
     const f = fakeDb();
+    const approve = vi.fn(async () => true);
     const r = await extractAndProposeLearnings(
       { trigger: "checkout_done", propertyId: P1, messages: CONV, traceId: "t" },
-      { env: ON, provider: provider(out(WIFI)), propose: (c) => proposeLearningCandidate(c, { db: f.db }), log: () => {} },
+      { env: ON, provider: provider(out(WIFI)), propose: (c) => proposeLearningCandidate(c, { db: f.db }), approve, log: () => {} },
     );
-    expect(r).toMatchObject({ status: "done", proposed: 1, duplicates: 0 });
+    expect(r).toMatchObject({ status: "done", proposed: 1, approved: 1, duplicates: 0 });
+    // governança por exceção (10/11/2026): entra aprovado na hora, em nome do dono do imóvel do gatilho
+    expect(approve).toHaveBeenCalledWith("entry-1", P1);
     expect(f.calls).toHaveLength(1);
     expect(f.calls[0]!.fn).toBe("guest_ai_learning_propose");
     expect(f.calls[0]!.args).toEqual({

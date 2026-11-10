@@ -5,8 +5,8 @@
  * Única via para criar um candidato: passa pelas travas puras de `evaluateCandidate` (fato ENCERRADO,
  * mesmo imóvel da evidência, categoria fechada, nunca pontual, nunca segredo) e só então chama o RPC
  * `guest_ai_learning_propose` (EXECUTE só `service_role`; dono derivado do imóvel no banco; duplicata
- * ignorada pelo índice de dedupe). O candidato nasce `pending`: NADA entra no prompt até a revisão
- * humana aprovar (`reviewLearningEntry`, em `guest-ai-learning.functions.ts`).
+ * ignorada pelo índice de dedupe). O candidato nasce `pending` e, desde 10/11/2026 (governança por exceção),
+ * os extratores o aprovam na hora (`guest-ai-learning/silent.server.ts`); quem discorda clica em Desfazer.
  */
 import { evaluateCandidate, type CandidateRefusal, type LearningCandidateInput } from "@/lib/guest-ai/learning/learning";
 

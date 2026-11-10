@@ -2,7 +2,8 @@
  * APRENDIZADO CONTÍNUO · execução do EXTRATOR (Etapa 3 da tranche final, 10/11/2026).
  *
  * UMA chamada ao Gemini Flash por situação encerrada → validação (`parseLearningOutput`) → cada candidato
- * passa por `proposeLearningCandidate` (travas puras + RPC `guest_ai_learning_propose`) e nasce `pending`.
+ * passa por `proposeLearningCandidate` (travas puras + RPC `guest_ai_learning_propose`) e, desde 10/11/2026,
+ * é APROVADO na hora em nome do dono do imóvel (governança por exceção: quem discorda clica em Desfazer).
  *
  * - FAIL-CLOSED: só roda com `GUEST_AI_LEARNING_EXTRACTOR=on` (exatamente). Desligado = nada é lido nem chamado.
  * - ISOLAMENTO: o imóvel vem de quem chama (derivado do banco); o modelo nunca escolhe imóvel.
@@ -46,6 +47,8 @@ export interface ExtractDeps {
   env?: Record<string, string | undefined>;
   provider?: LlmProvider;
   propose?: (c: LearningCandidateInput) => Promise<ProposeResult>;
+  /** Aprovação automática (governança por exceção). Padrão: em nome do dono do imóvel. */
+  approve?: (entryId: string, propertyId: string) => Promise<boolean>;
   log?: (e: Record<string, unknown>) => void;
 }
 
@@ -53,6 +56,8 @@ export interface ExtractResult {
   status: "off" | "skipped" | "failed" | "done";
   reason: string | null;
   proposed: number;
+  /** quantas das propostas já entraram aprovadas */
+  approved: number;
   duplicates: number;
   refused: Record<string, number>;
   costUsd: number;
@@ -62,7 +67,7 @@ const bound = (msgs: readonly { content: unknown }[]) =>
   msgs.reduce((n, m) => n + new TextEncoder().encode(typeof m.content === "string" ? m.content : "").length, 0) + 16;
 
 export async function extractAndProposeLearnings(input: ExtractInput, deps: ExtractDeps = {}): Promise<ExtractResult> {
-  const res: ExtractResult = { status: "done", reason: null, proposed: 0, duplicates: 0, refused: {}, costUsd: 0 };
+  const res: ExtractResult = { status: "done", reason: null, proposed: 0, approved: 0, duplicates: 0, refused: {}, costUsd: 0 };
   const log = deps.log ?? ((e) => console.info("[guest-ai-learning]", JSON.stringify(e)));
   const end = (status: ExtractResult["status"], reason: string | null) => {
     res.status = status;
@@ -107,8 +112,15 @@ export async function extractAndProposeLearnings(input: ExtractInput, deps: Extr
         evidence: { source: c.source, propertyId: input.propertyId, refs: c.refs, closed: true },
       });
       if (r.ok) {
-        if (r.duplicate) res.duplicates += 1;
-        else res.proposed += 1;
+        if (r.duplicate || !r.id) res.duplicates += 1;
+        else {
+          res.proposed += 1;
+          // 100% automático (10/11/2026): entra aprovado; quem discorda clica em Desfazer
+          const approve =
+            deps.approve ??
+            (async (id: string, pid: string) => (await import("./silent.server")).autoApproveForOwner(id, pid));
+          if (await approve(r.id, input.propertyId)) res.approved += 1;
+        }
       } else res.refused[r.code] = (res.refused[r.code] ?? 0) + 1;
     }
     return end("done", null);

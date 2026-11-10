@@ -112,11 +112,11 @@ describe("auto-aprendizado: mensagem da equipe", () => {
     expect(a.t.guest_ai_learning_entries![0]).toMatchObject({ property_id: "p1", status: "approved", decided_by: "staff", decision_note: AUTO_APPROVED_NOTE, evidence_refs: ["h1"] });
     expect(a.t.guest_ai_learning_events!.map((e) => e["status"])).toEqual(["approved"]);
   });
-  it("atendente SEM permissão ⇒ fica pendente (mesma regra da revisão)", async () => {
+  it("governança por exceção: qualquer atendente ⇒ aprovado na hora em nome dele (sem fila manual)", async () => {
     const a = fakeAdmin({ owner: "dono" });
     const r = await run(a, { fatos: [FERRO] });
-    expect(r).toMatchObject({ approved: 0, pending: 1 });
-    expect(a.t.guest_ai_learning_entries![0]!["status"]).toBe("pending");
+    expect(r).toMatchObject({ approved: 1, pending: 0 });
+    expect(a.t.guest_ai_learning_entries![0]).toMatchObject({ status: "approved", decided_by: "staff" });
   });
   it("fato da estadia (temporalidade 'estadia') não vira regra do imóvel", async () => {
     const a = fakeAdmin({ owner: "dono", ai_train: ["staff"] });
@@ -181,5 +181,17 @@ describe("prompt e parser do aprendizado da equipe", () => {
     const r = parseTeamLearningOutput({ fatos: [{ ...FERRO, escopo: "planeta" }, { ...FERRO, temporalidade: "estadia" }, { categoria: "x", fato: "y" }] });
     expect(r.facts.map((f) => f.scope)).toEqual(["property"]);
     expect(r).toMatchObject({ ephemeral: 1, dropped: 1 });
+  });
+});
+
+describe("extrator de situações encerradas: aprovação automática em nome do dono", () => {
+  it("autoApproveForOwner aprova o pendente com o dono do imóvel como autor", async () => {
+    const { autoApproveForOwner, AUTO_LEARN_NOTE } = await import("../silent.server");
+    const a = fakeAdmin({ owner: "dono" });
+    a.t.guest_ai_learning_entries!.push({ id: "x1", property_id: "p1", status: "pending", decided_by: null, decided_at: null, evidence_refs: ["m"] });
+    expect(await autoApproveForOwner("x1", "p1", { admin: a })).toBe(true);
+    expect(a.t.guest_ai_learning_entries![0]).toMatchObject({ status: "approved", decided_by: "dono", decision_note: AUTO_LEARN_NOTE });
+    // já decidido: não aprova de novo
+    expect(await autoApproveForOwner("x1", "p1", { admin: a })).toBe(false);
   });
 });
