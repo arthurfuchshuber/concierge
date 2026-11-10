@@ -14,7 +14,7 @@ export function PlanLockCard({
   bullets,
   currentPlan,
   ctaLabel = "Ativar assinatura",
-  ctaHref = "/admin/administrativo?tab=assinatura",
+  ctaHref = "/admin/administrativo?tab=perfil",
   className,
 }: {
   title: string;

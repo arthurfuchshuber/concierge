@@ -3,28 +3,18 @@ import { useQuery } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useServerFn } from "@tanstack/react-start";
 import {
-  Search,
   MessageCircle,
   CalendarDays,
   FileSignature,
   ChevronDown,
-  CheckCircle2,
-  XCircle,
-  Clock,
   Plug,
-  Sparkles,
   Home,
   Filter,
   Settings2,
-  Ellipsis,
   Landmark,
   Wallet,
 } from "lucide-react";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { WhatsappBusinessPage } from "@/components/admin-pages/WhatsappBusinessPage";
 import { ClicksignPanel } from "@/components/admin-pages/ClicksignPanel";
 import { GoogleCalendarPanel } from "@/components/admin-pages/GoogleCalendarPanel";
 import { INTEGRATION_WINDOW_CLASS } from "@/components/admin-pages/integration-window";
@@ -126,15 +116,6 @@ const INTEGRATIONS: IntegrationConfig[] = [
 
 const COMING_SOON = new Set<string>([]);
 
-type FilterKey = "todas" | "ativas" | "inativas" | "em_breve";
-
-const FILTERS: Array<{ key: FilterKey; label: string; icon: typeof Plug }> = [
-  { key: "todas", label: "Todas", icon: Plug },
-  { key: "ativas", label: "Ativas", icon: CheckCircle2 },
-  { key: "inativas", label: "Inativas", icon: XCircle },
-  { key: "em_breve", label: "Em breve", icon: Clock },
-];
-
 // Cache quente: navegar entre as abas do Administrativo reaproveita o resultado sem piscar nem refetch.
 const QUERY_STALE_MS = 5 * 60 * 1000;
 const QUERY_GC_MS = 30 * 60 * 1000;
@@ -194,11 +175,8 @@ export function IntegracoesPage() {
   const { impersonation } = useImpersonation();
   const accountOwnerId = impersonation?.userId ?? null;
   const [q, setQ] = useState("");
-  const [filter, setFilter] = useState<FilterKey>("todas");
-  const [expanded, setExpanded] = useState<string | null>(null);
-  const [waOpen, setWaOpen] = useState(false);
 
-  const { wa, cs, gcal, channex, banks } = useIntegrationStatusQueries();
+  const { cs, gcal, channex, banks } = useIntegrationStatusQueries();
   const waActive = false; // WhatsApp em standby (10/11/2026) até a Cloud API oficial da Meta
   const csActive = !!cs.data?.hasToken;
   const gcalActive = !!gcal.data?.connected;
@@ -215,8 +193,6 @@ export function IntegracoesPage() {
   // Nunca declarar "inativa"/"Conectar" nesse intervalo (evita o flash e o layout shift).
   const mobileLoading =
     (cs.isLoading && !cs.data) || (gcal.isLoading && !gcal.data) || (banks.isLoading && !banks.data);
-  const isLoading =
-    (cs.isLoading && !cs.data) || (gcal.isLoading && !gcal.data) || (wa.isLoading && !wa.data) || (channex.isLoading && !channex.data);
 
   const items = useMemo(
     () =>
@@ -238,32 +214,11 @@ export function IntegracoesPage() {
     [waActive, csActive, gcalActive, channexActive, bancosActive, asaasActive],
   );
 
-  // Bancos e Asaas PJ: por enquanto só no celular (decisão de 10/11/2026); o computador fica como estava.
-  const deskItems = useMemo(() => items.filter(({ cfg }) => cfg.key !== "bancos" && cfg.key !== "asaas"), [items]);
-  const counts = useMemo(
-    () => ({
-      todas: deskItems.length,
-      ativas: deskItems.filter((i) => i.statusKey === "ativa").length,
-      inativas: deskItems.filter((i) => i.statusKey === "inativa").length,
-      em_breve: deskItems.filter((i) => i.statusKey === "em_breve").length,
-    }),
-    [deskItems],
-  );
-
-  const filtered = deskItems.filter(({ cfg, statusKey }) => {
-    if (filter === "ativas" && statusKey !== "ativa") return false;
-    if (filter === "inativas" && statusKey !== "inativa") return false;
-    if (filter === "em_breve" && statusKey !== "em_breve") return false;
-    const term = q.trim().toLowerCase();
-    if (!term) return true;
-    return `${cfg.nome} ${cfg.descricao} ${cfg.categoria}`.toLowerCase().includes(term);
-  });
-
   // CELULAR — mockup "Proposta · Integrações" (05/11/2026): quadradinhos compactos, sem rótulos de seção;
   // a faixa verde da esquerda marca a conectada. O WhatsApp ainda não aparece (não temos a integração).
   const [panel, setPanel] = useState<string | null>(null);
   const mobileItems = items
-    .filter(({ cfg }) => cfg.key !== "whatsapp" && cfg.key !== "channex")
+    .filter(({ cfg }) => cfg.key !== "whatsapp")
     // Ativas primeiro; dentro de cada grupo, na ordem dos mockups: ClickSign, Google Agenda, Bancos, Asaas PJ.
     .sort((a, b) => STATUS_ORDER[a.statusKey] - STATUS_ORDER[b.statusKey] || INTEGRATIONS.indexOf(a.cfg) - INTEGRATIONS.indexOf(b.cfg))
     .filter(({ cfg }) => {
@@ -274,7 +229,7 @@ export function IntegracoesPage() {
 
   return (
     <>
-    <div className="ds-stack lg:hidden">
+    <div className="ds-stack">
       <SearchActionRow
         value={q}
         onChange={setQ}
@@ -285,7 +240,7 @@ export function IntegracoesPage() {
           </span>
         }
       />
-      <div className="grid grid-cols-2 items-start gap-2.5" aria-busy={mobileLoading}>
+      <div className="grid grid-cols-2 items-start gap-2.5 lg:grid-cols-4" aria-busy={mobileLoading}>
         {mobileLoading
           ? mobileItems.map(({ cfg }) => <IntegrationSkeletonMobile key={cfg.key} />)
           : mobileItems.map(({ cfg, statusKey }) => {
@@ -296,7 +251,10 @@ export function IntegracoesPage() {
           return (
             <div
               key={cfg.key}
-              className="relative min-h-[108px] min-w-0 overflow-hidden rounded-[12px] border border-border/70 bg-card py-3.5 pl-[17px] pr-3.5 shadow-sm"
+              className={cn(
+                cfg.key === "channex" && "hidden lg:block",
+                "relative min-h-[108px] min-w-0 overflow-hidden rounded-[12px] border border-border/70 bg-card py-3.5 pl-[17px] pr-3.5 shadow-sm",
+              )}
             >
               {act && <span aria-hidden className="absolute inset-y-0 left-0 w-[3px] bg-emerald-500" />}
               {statusKey === "inativa" && (
@@ -336,15 +294,6 @@ export function IntegracoesPage() {
                       <ActionButton full icon={<Settings2 className="size-3" strokeWidth={2.2} />} onClick={() => setPanel(cfg.key)}>
                         Gerenciar
                       </ActionButton>
-                      <button
-                        type="button"
-                        aria-label="Mais opções"
-                        title="Mais opções"
-                        onClick={() => setPanel(cfg.key)}
-                        className="grid size-7 flex-none cursor-pointer place-items-center rounded-[8px] border border-border/60 bg-muted text-[11.5px] font-medium text-foreground transition-colors hover:bg-muted/80"
-                      >
-                        <Ellipsis className="size-3.5" strokeWidth={2} />
-                      </button>
                     </>
                   ) : (
                     <ActionButton kind="primary" full className="bg-primary text-primary-foreground hover:bg-primary/90" icon={<Plug className="size-3" strokeWidth={2.2} />} onClick={() => setPanel(cfg.key)}>
@@ -372,134 +321,12 @@ export function IntegracoesPage() {
           ) : null}
         </DialogContent>
       </Dialog>
-    </div>
-    <div className="hidden w-full space-y-5 lg:block">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="relative sm:w-80">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-          <Input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Buscar integração..."
-            className="pl-9 rounded-full"
-            autoComplete="off"
-          />
-        </div>
-        <div className="ds-scroll-x gap-1.5">
-          {FILTERS.map((f) => {
-            const Icon = f.icon;
-            const active = filter === f.key;
-            return (
-              <button
-                key={f.key}
-                type="button"
-                onClick={() => setFilter(f.key)}
-                className={cn(
-                  "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-all",
-                  active
-                    ? "bg-primary text-primary-foreground border-primary shadow-sm"
-                    : "bg-card border-border text-muted-foreground hover:text-foreground",
-                )}
-              >
-                <Icon className="size-3.5" />
-                {f.label}
-                <span
-                  className={cn(
-                    "ml-0.5 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1.5 text-[10px] font-semibold",
-                    active ? "bg-primary-foreground/20" : "bg-muted",
-                  )}
-                >
-                  {isLoading ? "–" : counts[f.key]}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {isLoading ? (
-        <div className="grid gap-1.5 sm:grid-cols-2 xl:grid-cols-3" aria-busy>
-          {deskItems.map(({ cfg }) => (
-            <IntegrationSkeletonDesktop key={cfg.key} />
-          ))}
-        </div>
-      ) : filtered.length === 0 ? (
-        <p className="py-16 text-center text-sm text-muted-foreground">
-          Nenhuma integração encontrada com esses filtros.
-        </p>
-      ) : (
-        <div className="grid gap-1.5 sm:grid-cols-2 xl:grid-cols-3">
-          {filtered.map(({ cfg, statusKey }) => {
-            const Icon = cfg.icon;
-            const isOpen = expanded === cfg.key;
-            return (
-              <div
-                key={cfg.key}
-                className={cn(
-                  "ds-surface border bg-card p-4 transition-all",
-                  isOpen ? "border-primary/30 shadow-[0_8px_30px_-12px_hsl(var(--primary)/0.35)]" : "border-border",
-                  statusKey === "em_breve" && "opacity-80",
-                )}
-              >
-                <button
-                  type="button"
-                  onClick={() => setExpanded(isOpen ? null : cfg.key)}
-                  className="flex w-full items-center gap-3 text-left"
-                >
-                  <span
-                    className={cn(
-                      "grid size-10 shrink-0 place-items-center rounded-xl",
-                      statusKey === "ativa" ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground",
-                    )}
-                  >
-                    <Icon className="size-5" />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="ds-card-title truncate leading-tight">{cfg.nome}</p>
-                    <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                      <StatusBadge status={statusKey} />
-                    </div>
-                  </div>
-                  <ChevronDown
-                    className={cn("size-4 shrink-0 text-muted-foreground transition-transform", isOpen && "rotate-180")}
-                  />
-                </button>
-
-                {isOpen && (
-                  <div className="mt-3 space-y-3 border-t border-border pt-3">
-                    <p className="ds-card-desc">{cfg.detalhe}</p>
-
-                    {statusKey === "em_breve" ? (
-                      <div className="flex items-center gap-2 rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground">
-                        <Sparkles className="size-4 shrink-0 text-amber-500" />
-                        Em desenvolvimento — estará disponível em breve.
-                      </div>
-                    ) : cfg.key === "whatsapp" ? (
-                      <Button size="sm" className="h-8 rounded-full text-xs" onClick={() => setWaOpen(true)}>
-                        <Plug className="mr-1 size-3.5" />
-                        {waActive ? "Gerenciar conexão" : "Conectar"}
-                      </Button>
-                    ) : cfg.key === "channex" ? (
-                      <ChannexPanel />
-                    ) : cfg.key === "gcal" ? (
-                      <GoogleCalendarPanel accountOwnerId={accountOwnerId} readOnly={!!accountOwnerId} />
-                    ) : (
-                      <ClicksignPanel accountOwnerId={accountOwnerId} readOnly={!!accountOwnerId} />
-                    )}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      <Dialog open={waOpen} onOpenChange={setWaOpen}>
-        <DialogContent className="max-w-lg">
+      <Dialog open={panelCfg?.key === "channex"} onOpenChange={(v) => !v && setPanel(null)}>
+        <DialogContent aria-describedby={undefined} className="max-w-lg">
           <DialogHeader>
-            <DialogTitle className="font-display text-xl">WhatsApp Business</DialogTitle>
+            <DialogTitle className="font-display text-xl">{panelCfg?.nome}</DialogTitle>
           </DialogHeader>
-          <WhatsappBusinessPage accountOwnerId={accountOwnerId} readOnly={!!accountOwnerId} />
+          <ChannexPanel />
         </DialogContent>
       </Dialog>
     </div>
@@ -526,43 +353,3 @@ function IntegrationSkeletonMobile() {
   );
 }
 
-// Mesma casca do card desktop recolhido (ícone 40px + título + categoria/selo).
-function IntegrationSkeletonDesktop() {
-  return (
-    <div data-testid="integration-skeleton" aria-hidden className="ds-surface border border-border bg-card p-4">
-      <div className="flex w-full items-center gap-3">
-        <Skeleton className="size-10 shrink-0 rounded-xl" />
-        <div className="min-w-0 flex-1">
-          <Skeleton className="h-4 w-2/3 rounded-[4px]" />
-          <Skeleton className="mt-1.5 h-[18px] w-1/2 rounded-[4px]" />
-        </div>
-        <Skeleton className="size-4 shrink-0 rounded-[4px]" />
-      </div>
-    </div>
-  );
-}
-
-function StatusBadge({ status }: { status: StatusKey }) {
-  if (status === "ativa") {
-    return (
-      <Badge className="gap-1 border-0 bg-emerald-500/15 px-2 py-0 text-[10px] text-emerald-600 hover:bg-emerald-500/20 dark:text-emerald-400">
-        <CheckCircle2 className="size-2.5" /> Ativa
-      </Badge>
-    );
-  }
-  if (status === "em_breve") {
-    return (
-      <Badge
-        variant="outline"
-        className="gap-1 border-amber-500/30 bg-amber-500/10 px-2 py-0 text-[10px] text-amber-600 dark:text-amber-400"
-      >
-        <Clock className="size-2.5" /> Em breve
-      </Badge>
-    );
-  }
-  return (
-    <Badge variant="secondary" className="gap-1 px-2 py-0 text-[10px]">
-      <XCircle className="size-2.5" /> Não conectada
-    </Badge>
-  );
-}
