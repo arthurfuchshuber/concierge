@@ -36,11 +36,11 @@ const brl = (v: number | null) =>
 export const BANK_CONNECTIONS_KEY = ["bank-connections"] as const;
 
 /** Conexões e contas (cache compartilhado). Só o dono da conta enxerga; sob personificação fica desligada. */
-export function useBankConnections(enabled = true) {
+export function useBankConnections(enabled = true, ownerId: string | null = null) {
   const list = useServerFn(listBankConnections);
   return useQuery({
-    queryKey: BANK_CONNECTIONS_KEY,
-    queryFn: () => list(),
+    queryKey: [...BANK_CONNECTIONS_KEY, ownerId],
+    queryFn: () => list({ data: { ownerId } }),
     enabled,
     retry: false,
     staleTime: 5 * 60 * 1000,
@@ -50,13 +50,13 @@ export function useBankConnections(enabled = true) {
 
 /** Janela "Bancos": conectar, atualizar e desconectar as instituições do Open Finance. */
 /** `readOnly`: vendo outra conta — não consulta nem conecta bancos da sessão logada. */
-export function BancosPanel({ inWindow = false, readOnly = false }: { inWindow?: boolean; readOnly?: boolean }) {
+export function BancosPanel({ inWindow = false, readOnly = false, ownerId = null }: { inWindow?: boolean; readOnly?: boolean; ownerId?: string | null }) {
   const qc = useQueryClient();
   const tokenFn = useServerFn(getBankConnectToken);
   const syncFn = useServerFn(syncBankConnection);
   const disconnectFn = useServerFn(disconnectBank);
   const [busy, setBusy] = useState<string | null>(null);
-  const q = useBankConnections(!readOnly);
+  const q = useBankConnections(true, ownerId);
 
   async function connect(itemId?: string) {
     setBusy(itemId ?? "new");
@@ -167,8 +167,8 @@ export function BancosPanel({ inWindow = false, readOnly = false }: { inWindow?:
 }
 
 /** Janela "Asaas PJ": leitura da conta sincronizada pela API (não há o que conectar pelo painel). */
-export function AsaasPanel({ inWindow = false, readOnly = false }: { inWindow?: boolean; readOnly?: boolean }) {
-  const q = useBankConnections(!readOnly);
+export function AsaasPanel({ inWindow = false, readOnly = false, ownerId = null }: { inWindow?: boolean; readOnly?: boolean; ownerId?: string | null }) {
+  const q = useBankConnections(true, ownerId);
   const item = asaasItem(q.data?.items ?? []);
   const accounts = (q.data?.accounts ?? []).filter((a) => a.malvo_item_id === item?.malvo_item_id);
   const when = item?.last_synced_at
