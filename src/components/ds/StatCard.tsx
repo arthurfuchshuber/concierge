@@ -1,6 +1,53 @@
 import type { ElementType, ReactNode } from "react";
 
 /**
+ * CABEÇALHO DO CARTÃO DE NÚMERO (pedido do cliente, 09/11/2026, "para todo o
+ * sistema"): o TÍTULO fica centralizado no cartão sem contar o ícone; o ícone
+ * é puro (sem caixinha de fundo) e fica colado à esquerda do título, fora do
+ * cálculo do centro. As laterais reservam o espaço do ícone dos dois lados
+ * (px-5), então o título longo reticencia sem invadir o ícone.
+ */
+export function StatHead({
+  icon: Icon,
+  label,
+  title,
+  iconClassName = "text-muted-foreground",
+  iconTone,
+  labelClassName = "",
+  className = "",
+  inlineLg = false,
+}: {
+  icon: ElementType;
+  label: ReactNode;
+  title?: string;
+  iconClassName?: string;
+  iconTone?: string;
+  labelClassName?: string;
+  className?: string;
+  /** No computador o cartão vira linha (ícone à esquerda, título ao lado, número à direita). */
+  inlineLg?: boolean;
+}) {
+  return (
+    <div className={`flex w-full min-w-0 justify-center px-5 ${inlineLg ? "lg:flex-1 lg:justify-start lg:px-0" : ""} ${className}`}>
+      <span className={`relative min-w-0 max-w-full ${inlineLg ? "lg:flex lg:flex-1 lg:items-center lg:gap-2.5" : ""}`}>
+        <Icon
+          aria-hidden="true"
+          className={`absolute right-full top-1/2 mr-1.5 size-3.5 -translate-y-1/2 ${inlineLg ? "lg:static lg:mr-0 lg:size-[15px] lg:translate-y-0" : ""} ${iconClassName}`}
+          style={iconTone ? { color: iconTone } : undefined}
+          strokeWidth={2}
+        />
+        <span
+          className={`ds-eyebrow block min-w-0 truncate text-[9px] tracking-[0.04em] sm:text-[10px] sm:tracking-[0.08em] ${inlineLg ? "lg:flex-1" : ""} ${labelClassName}`}
+          title={title}
+        >
+          {label}
+        </span>
+      </span>
+    </div>
+  );
+}
+
+/**
  * CARTÃO DE NÚMERO — o padrão da Limpeza/Operacional, num lugar só.
  *
  * Ícone em caixinha + rótulo em caixa alta numa linha só + número grande
@@ -49,20 +96,7 @@ export function StatCard({
           : undefined
       }
     >
-      <div className="flex w-full min-w-0 items-center justify-center gap-1.5">
-        <span
-          className="grid size-6 shrink-0 place-items-center rounded-[8px] bg-foreground/[0.05] text-muted-foreground"
-          style={iconTone ? { color: iconTone, background: `color-mix(in oklab, ${iconTone} 12%, transparent)` } : undefined}
-        >
-          <Icon className="size-3.5" strokeWidth={2} />
-        </span>
-        <span
-          className="ds-eyebrow min-w-0 truncate text-[9px] tracking-[0.04em] sm:text-[10px] sm:tracking-[0.08em]"
-          title={label}
-        >
-          {label}
-        </span>
-      </div>
+      <StatHead icon={Icon} label={label} title={label} iconTone={iconTone} />
       <div
         className={`w-full pt-1.5 text-center font-display font-bold leading-none tracking-[-0.03em] tabular-nums ${
           size === "sm" ? "text-[18px] sm:text-[21px]" : "text-[21px] sm:text-[24px]"

@@ -130,6 +130,7 @@ import {
   Building2 as PropertyFilterIcon,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { StatHead } from "@/components/ds/StatCard";
 import { toast } from "sonner";
 import { CleaningApprovalPanel, CLEANING_APPROVALS_KEY } from "@/components/dashboard/CleaningApprovalPanel";
 import { cancelarEtapa, enfileirarEtapa, semPendentes } from "@/lib/offline/stage-outbox";
@@ -4680,32 +4681,21 @@ function KpiCard({
                 className={`absolute inset-x-3 top-0 h-[2px] rounded-b-[3px] ${deskTile === "stacked" ? "lg:inset-x-3.5 lg:h-px" : ""} ${topLine}`}
               />
             )}
-            <div className={`flex w-full min-w-0 items-center justify-center gap-1.5 ${deskTile === "stacked" ? "lg:gap-[7px]" : deskTile === "inline" ? "lg:flex-1 lg:justify-start lg:gap-2.5" : ""}`}>
-              <span
-                className={`grid size-6 shrink-0 place-items-center rounded-[8px] bg-foreground/[0.05] ${dotClass.replace("bg-", "text-")} ${
-                  deskTile === "stacked"
-                    ? "lg:size-auto lg:rounded-none lg:bg-transparent"
-                    : deskTile === "inline"
-                      ? "lg:size-7"
-                      : ""
-                }`}
-              >
-                <Icon className={`size-3.5 ${deskTile === "inline" ? "lg:size-[15px]" : ""}`} strokeWidth={2} />
-              </span>
-              {/* Uma única linha — sempre reticências, nunca quebra. */}
-              <span
-                className={`ds-eyebrow min-w-0 truncate text-[9px] tracking-[0.04em] sm:text-[10px] sm:tracking-[0.08em] ${
-                  deskTile === "stacked"
-                    ? "lg:font-extrabold lg:tracking-[0.11em]"
-                    : deskTile === "inline"
-                      ? "lg:flex-1 lg:text-[10.5px] lg:font-extrabold lg:tracking-[0.12em]"
-                      : ""
-                }`}
-                title={label}
-              >
-                {label}
-              </span>
-            </div>
+            <StatHead
+              inlineLg={deskTile === "inline"}
+              icon={Icon}
+              label={label}
+              title={label}
+              iconClassName={dotClass.replace("bg-", "text-")}
+              className={deskTile === "stacked" ? "lg:px-5" : ""}
+              labelClassName={
+                deskTile === "stacked"
+                  ? "lg:font-extrabold lg:tracking-[0.11em]"
+                  : deskTile === "inline"
+                    ? "lg:text-[10.5px] lg:font-extrabold lg:tracking-[0.12em]"
+                    : ""
+              }
+            />
             {/* Pedido explícito (19/09/2026): o NÚMERO volta a ter cor —
                 mas só quando é maior que zero, e só a cor que o mesmo estado
                 já tem no calendário (chegada pendente = azul `sky-400`,
@@ -4948,19 +4938,13 @@ function FreePropertiesCard({
           type="button"
           className="ds-3d ds-3d-hover flex h-full w-full flex-col gap-1 rounded-[14px] border-0 bg-card px-2.5 pb-2.5 pt-3 text-left transition hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 lg:h-[54px] lg:flex-row lg:items-center lg:gap-2.5 lg:px-3 lg:py-0"
         >
-          <div className="flex w-full min-w-0 items-center justify-center gap-1.5 lg:flex-1 lg:justify-start lg:gap-2.5">
-            {/* Ícone neutro (mesma cor do texto do rótulo) — só o número
-                grande é que muda de cor conforme o estado. */}
-            <span className="grid size-6 shrink-0 place-items-center rounded-[8px] bg-foreground/[0.05] text-muted-foreground lg:size-7">
-              <Home className="size-3.5 lg:size-[15px]" strokeWidth={2} />
-            </span>
-            <span
-              className="ds-eyebrow min-w-0 truncate text-[9px] tracking-[0.04em] sm:text-[10px] sm:tracking-[0.08em] lg:flex-1 lg:text-[10.5px] lg:font-extrabold lg:tracking-[0.12em]"
-              title={`Imóveis livres ${dayLabel}`}
-            >
-              Imóveis livres
-            </span>
-          </div>
+          <StatHead
+            inlineLg
+            icon={Home}
+            label="Imóveis livres"
+            title={`Imóveis livres ${dayLabel}`}
+            labelClassName="lg:text-[10.5px] lg:font-extrabold lg:tracking-[0.12em]"
+          />
           <div
             className={`w-full pt-1.5 text-center font-display font-bold tabular-nums leading-none whitespace-nowrap ${valueSizeClass} lg:w-auto lg:pt-0 lg:text-right lg:text-[24px] lg:font-extrabold lg:leading-6 ${hasFree ? "text-red-500 dark:text-red-400" : "text-foreground"}`}
           >

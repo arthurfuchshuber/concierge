@@ -112,6 +112,7 @@ import { CATEGORY_BY_KEY, MODE_LABEL, fmtDayLabel } from "@/components/dashboard
 import { PENDING_CATEGORIES } from "@/lib/record-pending";
 import { VideoFrame } from "@/components/dashboard/VideoFrame";
 import { useAntiClipRows } from "@/hooks/useAntiClipRows";
+import { StatHead } from "@/components/ds/StatCard";
 import { stableMediaUrl, warmImages } from "@/lib/stable-media-url";
 import { listTaskLinkOptions, restoreTask, setTaskStatus } from "@/lib/tasks.functions";
 import {
@@ -1279,14 +1280,7 @@ function StatusCell({
           />
         </>
       )}
-      <div className="flex w-full min-w-0 items-center justify-center gap-1.5">
-        <span className="grid size-6 shrink-0 place-items-center rounded-[8px] bg-foreground/[0.05] text-muted-foreground">
-          <Icon className="size-3.5" strokeWidth={2} />
-        </span>
-        <span className="ds-eyebrow min-w-0 truncate text-[9px] tracking-[0.04em] sm:text-[10px] sm:tracking-[0.08em]">
-          {label}
-        </span>
-      </div>
+      <StatHead icon={Icon} label={label} />
       <div
         className={`w-full pt-1.5 text-center font-display text-[21px] font-bold leading-none tracking-[-0.03em] tabular-nums ${
           open > 0 || loading ? "" : "text-muted-foreground"

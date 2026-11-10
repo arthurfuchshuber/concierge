@@ -224,9 +224,11 @@ export function AssinaturaDesktop({
 function Stat({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
     <>
-      <div className="flex min-w-0 items-center justify-center gap-1.5">
-        <span className="grid size-6 shrink-0 place-items-center rounded-[8px] bg-foreground/[0.05] text-muted-foreground/50">{icon}</span>
-        <span className="whitespace-nowrap text-[10px] font-bold uppercase tracking-[0.06em] text-[var(--faint)]">{label}</span>
+      <div className="flex min-w-0 justify-center px-5">
+        <span className="relative min-w-0 max-w-full">
+          <span className="absolute right-full top-1/2 mr-1.5 grid -translate-y-1/2 place-items-center text-muted-foreground/50">{icon}</span>
+          <span className="block whitespace-nowrap text-[10px] font-bold uppercase tracking-[0.06em] text-[var(--faint)]">{label}</span>
+        </span>
       </div>
       <div className="mt-[10px] whitespace-nowrap text-center font-display text-[15px] font-semibold tabular-nums">{value}</div>
     </>
