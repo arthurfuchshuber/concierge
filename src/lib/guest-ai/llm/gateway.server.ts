@@ -195,7 +195,7 @@ export function validateLlmRequest(req: LlmRequest): ValidatedRequest | null {
     if (typeof req.temperature !== "number" || !Number.isFinite(req.temperature) || req.temperature < 0 || req.temperature > 2) return null;
     temperature = req.temperature;
   }
-  let timeoutMs: number = LIMITS.maxTimeoutMs;
+  let timeoutMs: number = LIMITS.defaultTimeoutMs;
   if (req.timeoutMs !== undefined) {
     if (typeof req.timeoutMs !== "number" || !Number.isFinite(req.timeoutMs)) return null;
     timeoutMs = Math.min(LIMITS.maxTimeoutMs, Math.max(LIMITS.minTimeoutMs, Math.floor(req.timeoutMs)));

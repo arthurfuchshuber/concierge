@@ -71,6 +71,21 @@ export const AUTONOMOUS_HANDOFF_REASON = "Encaminhado para atendimento humano.";
 
 const SILENT: GuestAiReply = Object.freeze({ reply: "", handoff: false });
 
+const FORMAL_CHANGE_LABEL: Record<string, string> = {
+  dates: "datas",
+  guest_count: "número de hóspedes",
+  price: "valor",
+  cancellation: "cancelamento",
+  early_checkin: "entrada antecipada",
+  late_checkout: "late check-out",
+  other_conditions: "condições da reserva",
+};
+/** Motivo do chamado para pedidos de alteração formal ("Pedido de alteração formal: cancelamento"). */
+export function formalChangeReason(kinds: readonly string[]): string {
+  const labels = [...new Set(kinds.map((k) => FORMAL_CHANGE_LABEL[k] ?? "condições da reserva"))];
+  return `Pedido de alteração formal: ${labels.join(", ")}`;
+}
+
 function toHandoff(text: string | null | undefined, reason?: string | null, urgency?: string | null): GuestAiReply {
   return {
     reply: (text ?? "").trim(),
@@ -195,14 +210,17 @@ export async function requestGuestAiReply(req: GuestAiRequest, deps: SlotDeps = 
       if (open.opened || open.code === "pending_exists" || open.code === "exists")
         return toHandoff("", open.reason, DECISION_HANDOFF_URGENCY);
     }
+    // 4b) ALTERAÇÃO FORMAL (titular, 10/11/2026): cancelamento, datas, valor, nº de hóspedes ou condições
+    //     NUNCA ficam só com a IA: a resposta ao hóspede segue, mas a equipe é SEMPRE avisada (push).
+    const formal = res.formalChangeRequests ?? [];
+    const mustHandoff = res.handoffNeeded || formal.length > 0;
+    const reason = res.internalQuestion?.trim() || (formal.length > 0 ? formalChangeReason(formal) : null);
     const text = (res.text ?? "").trim();
     if (r.state === "available" && text) {
-      return res.handoffNeeded
-        ? toHandoff(text, res.internalQuestion, res.handoffUrgency)
-        : { reply: text, handoff: false };
+      return mustHandoff ? toHandoff(text, reason, res.handoffUrgency) : { reply: text, handoff: false };
     }
-    if (r.state === "no_suggestion" && !res.handoffNeeded) return SILENT; // silêncio legítimo
-    return toHandoff(text, res.internalQuestion, res.handoffUrgency);
+    if (r.state === "no_suggestion" && !mustHandoff) return SILENT; // silêncio legítimo
+    return toHandoff(text, reason, res.handoffUrgency);
   } catch {
     return toHandoff("", undefined, "normal");
   }
