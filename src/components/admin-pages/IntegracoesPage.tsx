@@ -185,8 +185,8 @@ export function useIntegrationStatusQueries() {
     gcTime: QUERY_GC_MS,
   });
 
-  // Bancos e Asaas PJ: só o dono da conta enxerga (nada de dados bancários sob personificação).
-  const banks = useBankConnections(!accountOwnerId);
+  // Bancos e Asaas PJ: status da conta em tela (mesma resolução das demais integrações).
+  const banks = useBankConnections(true, accountOwnerId);
   return { wa, cs, gcal, channex, banks };
 }
 
@@ -362,9 +362,9 @@ export function IntegracoesPage() {
           ) : panelCfg?.key === "clicksign" ? (
             <ClicksignPanel accountOwnerId={accountOwnerId} readOnly={!!accountOwnerId} inWindow />
           ) : panelCfg?.key === "bancos" ? (
-            <BancosPanel inWindow readOnly={!!accountOwnerId} />
+            <BancosPanel inWindow readOnly={!!accountOwnerId} ownerId={accountOwnerId} />
           ) : panelCfg?.key === "asaas" ? (
-            <AsaasPanel inWindow readOnly={!!accountOwnerId} />
+            <AsaasPanel inWindow readOnly={!!accountOwnerId} ownerId={accountOwnerId} />
           ) : null}
         </DialogContent>
       </Dialog>

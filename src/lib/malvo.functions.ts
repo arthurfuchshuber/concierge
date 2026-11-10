@@ -7,8 +7,16 @@ import { z } from "zod";
 
 export const listBankConnections = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    const { supabase, userId } = context;
+  .inputValidator((raw: unknown) => z.object({ ownerId: z.string().uuid().nullish() }).parse(raw ?? {}))
+  .handler(async ({ data: input, context }) => {
+    // Mesma resolução de conta das demais integrações (titular, membro ativo ou admin SaaS):
+    // o status de Bancos/Asaas PJ tem que refletir a conta que está na tela.
+    const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
+    const userId = await resolveAuthorizedAccountOwnerId(context.supabase, context.userId, input.ownerId);
+    const supabase =
+      userId === context.userId
+        ? context.supabase
+        : ((await import("@/integrations/supabase/client.server")).supabaseAdmin as unknown as typeof context.supabase);
     const [{ data: items }, { data: accounts }] = await Promise.all([
       supabase
         .from("malvo_items")
