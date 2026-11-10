@@ -29,6 +29,12 @@ export type SubscriptionInfo = {
   adminNotes: string | null;
   features: PlanFeatures;
   billing: BillingSummary | null;
+  /** Conta isenta: acesso liberado manualmente, sem cobrança na Stripe. */
+  isExempt: boolean;
+  /** Início da liberação manual (base do extrato de contas isentas). */
+  subscriptionSince: string | null;
+  /** Cartão obrigatório: resultado da última verificação (dia 20) ou do último cadastro. */
+  cardCheck: { status: "ok" | "failed" | "missing"; checkedAt: string | null; failureMessage: string | null };
 };
 
 /* Último usuário conhecido (compartilhado entre montagens). Sem isso, toda montagem começava com
@@ -113,6 +119,9 @@ export function useSubscription(opts?: { impersonateUserId?: string | null }) {
     adminNotes: sub?.adminNotes ?? null,
     features: hasAccess && data ? data.features : NO_FEATURES,
     billing: data?.billing ?? null,
+    isExempt: !!sub?.isManual && !sub?.hasStripeBilling && hasAccess,
+    subscriptionSince: sub?.createdAt ?? null,
+    cardCheck: data?.cardCheck ?? { status: "missing", checkedAt: null, failureMessage: null },
   };
 
   return { ...query, info };

@@ -29,7 +29,37 @@ export const monthLabel = (iso: string | Date) => {
   return `${MESES[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
 };
 
-export type Fatura = { id: string; titulo: string; sub: string; valor: string; cor: string; url: string | null };
+export type Fatura = {
+  id: string;
+  titulo: string;
+  sub: string;
+  valor: string;
+  cor: string;
+  url: string | null;
+  /** Conta isenta: fatura que já passou (valor riscado, selo "Isenta"). */
+  riscada?: boolean;
+};
+
+/** Cinza do traço lateral das faturas isentas que já passaram. */
+const MUTED = "#8a8a93";
+
+/** Próximo vencimento (dia âncora, 00:00 de Brasília) a partir de agora. */
+export function nextAnchor(anchorDay: number, from = new Date()): Date {
+  const b = brt(from);
+  let y = b.getUTCFullYear();
+  let m = b.getUTCMonth();
+  if (b.getUTCDate() >= anchorDay) m += 1;
+  if (m > 11) {
+    m = 0;
+    y += 1;
+  }
+  return new Date(Date.UTC(y, m, anchorDay, 3, 0, 0));
+}
+
+/** Próximo dia 20 (verificação do cartão), em Brasília. */
+export function nextCardCheck(from = new Date()): Date {
+  return nextAnchor(20, from);
+}
 
 export function buildAssinatura(info: SubscriptionInfo, payments: PaymentRow[]) {
   const b = info.billing;
@@ -39,7 +69,10 @@ export function buildAssinatura(info: SubscriptionInfo, payments: PaymentRow[]) 
   const custom = !!b?.custom;
   const courtesy = !!b?.courtesy;
   const courtesyUntil = b?.courtesyUntil ?? null;
-  const nextChargeAt = b?.nextChargeAt ?? null;
+  const exempt = info.isExempt;
+  const anchorDay = b?.anchorDay ?? 25;
+  // Conta isenta não tem fatura na Stripe: mostra o próximo vencimento como valor previsto.
+  const nextChargeAt = b?.nextChargeAt ?? (exempt && qtd > 0 ? nextAnchor(anchorDay).toISOString() : null);
 
   // Faixa atual (tabela oficial) ou a condição negociada.
   const bandIdx = qtd <= 29 ? 0 : qtd <= 39 ? 1 : qtd <= 49 ? 2 : 3;
@@ -58,6 +91,29 @@ export function buildAssinatura(info: SubscriptionInfo, payments: PaymentRow[]) 
       cor: AMBER,
       url: null,
     });
+  }
+  if (exempt && qtd > 0 && info.subscriptionSince) {
+    // Meses já vencidos desde a isenção: o valor segue visível, riscado (estimado pelo valor atual).
+    const since = Date.parse(info.subscriptionSince);
+    const cursor = nextAnchor(anchorDay);
+    const past: Date[] = [];
+    for (let i = 0; i < 6; i++) {
+      const b0 = brt(cursor);
+      const d = new Date(Date.UTC(b0.getUTCFullYear(), b0.getUTCMonth() - 1 - i, anchorDay, 3, 0, 0));
+      if (d.getTime() <= since || d.getTime() > Date.now()) continue;
+      past.push(d);
+    }
+    for (const d of past) {
+      faturas.push({
+        id: `isenta-${d.toISOString()}`,
+        titulo: `Fatura ${monthLabel(d)}`,
+        sub: `Isenta em ${fmtDate(d)} · ${qtd} ${qtd === 1 ? "anúncio" : "anúncios"}`,
+        valor: courtesy ? "Cortesia" : brl(monthly),
+        cor: MUTED,
+        url: null,
+        riscada: true,
+      });
+    }
   }
   for (const p of payments) {
     const paid = p.status === "paid";
@@ -81,6 +137,10 @@ export function buildAssinatura(info: SubscriptionInfo, payments: PaymentRow[]) 
     courtesyUntil,
     nextChargeAt,
     paused: info.billingPaused,
+    exempt,
+    cardCheck: info.cardCheck,
+    /** Próxima verificação do cartão (todo dia 20). */
+    nextCardCheckAt: nextCardCheck().toISOString(),
     minUnits: b?.minUnits ?? 3,
     anchorDay: b?.anchorDay ?? 25,
     band,

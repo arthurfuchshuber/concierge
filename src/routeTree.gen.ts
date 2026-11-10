@@ -73,6 +73,7 @@ import { Route as AuthenticatedAdminRecomendacoesSigmaIndexRouteImport } from '.
 import { Route as AuthenticatedAdminRecomendacoesSigmaCityKeyRouteImport } from './routes/_authenticated/admin.recomendacoes-sigma.$cityKey'
 import { Route as ApiPublicCronAutoCheckoutRouteImport } from './routes/api/public/cron.auto-checkout'
 import { Route as ApiPublicCronBillingSyncRouteImport } from './routes/api/public/cron.billing-sync'
+import { Route as ApiPublicCronCardCheckRouteImport } from './routes/api/public/cron.card-check'
 import { Route as ApiPublicCronChannexAriRetryRouteImport } from './routes/api/public/cron.channex-ari-retry'
 import { Route as ApiPublicCronConversationRemindersRouteImport } from './routes/api/public/cron.conversation-reminders'
 import { Route as ApiPublicCronGuestMemoryRouteImport } from './routes/api/public/cron.guest-memory'
@@ -444,6 +445,12 @@ const ApiPublicCronBillingSyncRoute =
     path: '/api/public/cron/billing-sync',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicCronCardCheckRoute =
+  ApiPublicCronCardCheckRouteImport.update({
+    id: '/api/public/cron/card-check',
+    path: '/api/public/cron/card-check',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicCronChannexAriRetryRoute =
   ApiPublicCronChannexAriRetryRouteImport.update({
     id: '/api/public/cron/channex-ari-retry',
@@ -602,6 +609,7 @@ export interface FileRoutesByFullPath {
   '/admin/recomendacoes-sigma/$cityKey': typeof AuthenticatedAdminRecomendacoesSigmaCityKeyRoute
   '/api/public/cron/auto-checkout': typeof ApiPublicCronAutoCheckoutRoute
   '/api/public/cron/billing-sync': typeof ApiPublicCronBillingSyncRoute
+  '/api/public/cron/card-check': typeof ApiPublicCronCardCheckRoute
   '/api/public/cron/channex-ari-retry': typeof ApiPublicCronChannexAriRetryRoute
   '/api/public/cron/conversation-reminders': typeof ApiPublicCronConversationRemindersRoute
   '/api/public/cron/guest-memory': typeof ApiPublicCronGuestMemoryRoute
@@ -681,6 +689,7 @@ export interface FileRoutesByTo {
   '/admin/recomendacoes-sigma/$cityKey': typeof AuthenticatedAdminRecomendacoesSigmaCityKeyRoute
   '/api/public/cron/auto-checkout': typeof ApiPublicCronAutoCheckoutRoute
   '/api/public/cron/billing-sync': typeof ApiPublicCronBillingSyncRoute
+  '/api/public/cron/card-check': typeof ApiPublicCronCardCheckRoute
   '/api/public/cron/channex-ari-retry': typeof ApiPublicCronChannexAriRetryRoute
   '/api/public/cron/conversation-reminders': typeof ApiPublicCronConversationRemindersRoute
   '/api/public/cron/guest-memory': typeof ApiPublicCronGuestMemoryRoute
@@ -765,6 +774,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/recomendacoes-sigma/$cityKey': typeof AuthenticatedAdminRecomendacoesSigmaCityKeyRoute
   '/api/public/cron/auto-checkout': typeof ApiPublicCronAutoCheckoutRoute
   '/api/public/cron/billing-sync': typeof ApiPublicCronBillingSyncRoute
+  '/api/public/cron/card-check': typeof ApiPublicCronCardCheckRoute
   '/api/public/cron/channex-ari-retry': typeof ApiPublicCronChannexAriRetryRoute
   '/api/public/cron/conversation-reminders': typeof ApiPublicCronConversationRemindersRoute
   '/api/public/cron/guest-memory': typeof ApiPublicCronGuestMemoryRoute
@@ -849,6 +859,7 @@ export interface FileRouteTypes {
     | '/admin/recomendacoes-sigma/$cityKey'
     | '/api/public/cron/auto-checkout'
     | '/api/public/cron/billing-sync'
+    | '/api/public/cron/card-check'
     | '/api/public/cron/channex-ari-retry'
     | '/api/public/cron/conversation-reminders'
     | '/api/public/cron/guest-memory'
@@ -928,6 +939,7 @@ export interface FileRouteTypes {
     | '/admin/recomendacoes-sigma/$cityKey'
     | '/api/public/cron/auto-checkout'
     | '/api/public/cron/billing-sync'
+    | '/api/public/cron/card-check'
     | '/api/public/cron/channex-ari-retry'
     | '/api/public/cron/conversation-reminders'
     | '/api/public/cron/guest-memory'
@@ -1011,6 +1023,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/recomendacoes-sigma/$cityKey'
     | '/api/public/cron/auto-checkout'
     | '/api/public/cron/billing-sync'
+    | '/api/public/cron/card-check'
     | '/api/public/cron/channex-ari-retry'
     | '/api/public/cron/conversation-reminders'
     | '/api/public/cron/guest-memory'
@@ -1067,6 +1080,7 @@ export interface RootRouteChildren {
   OauthGoogleCalendarReturnRoute: typeof OauthGoogleCalendarReturnRoute
   ApiPublicCronAutoCheckoutRoute: typeof ApiPublicCronAutoCheckoutRoute
   ApiPublicCronBillingSyncRoute: typeof ApiPublicCronBillingSyncRoute
+  ApiPublicCronCardCheckRoute: typeof ApiPublicCronCardCheckRoute
   ApiPublicCronChannexAriRetryRoute: typeof ApiPublicCronChannexAriRetryRoute
   ApiPublicCronConversationRemindersRoute: typeof ApiPublicCronConversationRemindersRoute
   ApiPublicCronGuestMemoryRoute: typeof ApiPublicCronGuestMemoryRoute
@@ -1536,6 +1550,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicCronBillingSyncRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/cron/card-check': {
+      id: '/api/public/cron/card-check'
+      path: '/api/public/cron/card-check'
+      fullPath: '/api/public/cron/card-check'
+      preLoaderRoute: typeof ApiPublicCronCardCheckRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/cron/channex-ari-retry': {
       id: '/api/public/cron/channex-ari-retry'
       path: '/api/public/cron/channex-ari-retry'
@@ -1802,6 +1823,7 @@ const rootRouteChildren: RootRouteChildren = {
   OauthGoogleCalendarReturnRoute: OauthGoogleCalendarReturnRoute,
   ApiPublicCronAutoCheckoutRoute: ApiPublicCronAutoCheckoutRoute,
   ApiPublicCronBillingSyncRoute: ApiPublicCronBillingSyncRoute,
+  ApiPublicCronCardCheckRoute: ApiPublicCronCardCheckRoute,
   ApiPublicCronChannexAriRetryRoute: ApiPublicCronChannexAriRetryRoute,
   ApiPublicCronConversationRemindersRoute:
     ApiPublicCronConversationRemindersRoute,

@@ -16,6 +16,8 @@ vi.mock("@/lib/billing/billing.functions", () => ({
   createPortalSession: vi.fn(),
   getAccountPaymentMethod: vi.fn(),
   listMyPayments: vi.fn(),
+  refreshCardCheck: vi.fn(),
+  startCardSetup: vi.fn(),
 }));
 vi.mock("@/components/pricing/ListingPricing", async (orig) => ({
   ...(await orig<typeof import("@/components/pricing/ListingPricing")>()),
@@ -31,6 +33,7 @@ const baseInfo = {
   plan: null, status: null, cancelAtPeriodEnd: false, currentPeriodEnd: null, trialEndsAt: null,
   isTrialing: false, isPastDue: false, billingPaused: false, maxGuides: 0, maxGuidesOverride: null,
   adminNotes: null, features: {},
+  isExempt: false, subscriptionSince: null, cardCheck: { status: "missing", checkedAt: null, failureMessage: null },
 };
 
 function show(state: Record<string, unknown>) {
@@ -60,13 +63,14 @@ describe("AssinaturaPage — sem flash de 'Sem Assinatura Ativa'", () => {
     expect(screen.getByText("Cadastrar cartão e assinar")).toBeTruthy();
   });
 
-  it("com Stripe mostra as telas reais; manual mostra o aviso de acesso liberado", () => {
+  it("com Stripe mostra as telas reais; conta isenta mostra a mesma tela (com a faixa de isenção)", () => {
     show({ info: { ...baseInfo, hasStripeBilling: true, isActive: true } });
     expect(screen.getByText("mobile")).toBeTruthy();
     expect(screen.queryByText("Sem Assinatura Ativa")).toBeNull();
     cleanup();
-    show({ info: { ...baseInfo, isManual: true, isActive: true } });
-    expect(screen.getByText("Isento de pagamento pelo ConciergeIA.")).toBeTruthy();
+    show({ info: { ...baseInfo, isManual: true, isActive: true, isExempt: true } });
+    expect(screen.getByText("mobile")).toBeTruthy();
+    expect(screen.queryByText("Sem Assinatura Ativa")).toBeNull();
   });
 
   it("em erro não declara 'sem assinatura': oferece tentar novamente", () => {
@@ -76,7 +80,7 @@ describe("AssinaturaPage — sem flash de 'Sem Assinatura Ativa'", () => {
   });
 
   it("dentro do Administrativo não repete o título 'Assinatura'", () => {
-    sub.current = { refetch: vi.fn(), isPending: false, isError: false, info: { ...baseInfo, isManual: true, isActive: true } };
+    sub.current = { refetch: vi.fn(), isPending: false, isError: false, info: { ...baseInfo, isManual: true, isActive: true, isExempt: true } };
     const { container } = render(
       <QueryClientProvider client={new QueryClient()}>
         <AssinaturaPage embedded />

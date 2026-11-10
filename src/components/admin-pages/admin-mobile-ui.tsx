@@ -23,12 +23,13 @@ const TONE: Record<Tone, string> = {
 };
 
 /** Etiqueta (pílula) de 18px: sempre na cor do status em questão. */
-export function Tag({ tone = "neutral", icon, children }: { tone?: Tone; icon?: ReactNode; children: ReactNode }) {
+export function Tag({ tone = "neutral", icon, className, children }: { tone?: Tone; icon?: ReactNode; className?: string; children: ReactNode }) {
   return (
     <span
       className={cn(
         "box-border inline-flex h-[18px] shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-[7px] text-[10px] font-bold",
         TONE[tone],
+        className,
       )}
     >
       {icon}

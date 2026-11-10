@@ -6,6 +6,7 @@ import { Tag, SAGE } from "@/components/admin-pages/admin-mobile-ui";
 import { PRICE_BANDS } from "@/components/pricing/ListingPricing";
 import { ImoveisCobradosDialog } from "./ImoveisCobradosDialog";
 import { brl, fmtDate, type buildAssinatura } from "./assinatura-data";
+import { CardCheckTag, IsencaoBanner, IsentaPill } from "./AssinaturaIsencao";
 
 /**
  * Assinatura no desktop (mockup aprovado "Proposta-Assinatura-Desktop", 05/11/2026): valor do mês
@@ -20,18 +21,20 @@ export function AssinaturaDesktop({
   view,
   paymentMethod,
   onOpenPortal,
+  busy = false,
 }: {
   view: ReturnType<typeof buildAssinatura>;
   paymentMethod: PaymentMethodSummary | null;
   onOpenPortal: () => void;
+  busy?: boolean;
 }) {
   const [janela, setJanela] = useState(false);
   const [faixas, setFaixas] = useState(false);
   const brand = (paymentMethod?.brand ?? "").toUpperCase();
   const pct = view.bandCap ? Math.min(100, (view.qtd / view.bandCap) * 100) : 100;
 
-  return (
-    <div className="hidden min-w-0 flex-col gap-[10px] lg:flex">
+  const cartao = (
+    <>
       <div className={CARD}>
         {paymentMethod ? (
           <div className="flex min-w-0 items-start gap-[10px]">
@@ -67,6 +70,7 @@ export function AssinaturaDesktop({
                     </div>
                   </PopoverContent>
                 </Popover>
+                <CardCheckTag view={view} />
               </div>
               {paymentMethod.expiryMonth && paymentMethod.expiryYear ? (
                 <p className="text-[12px] font-medium leading-[1.45] text-muted-foreground">
@@ -85,10 +89,22 @@ export function AssinaturaDesktop({
             </button>
           </div>
         ) : (
-          <p className="py-1 text-center text-[12px] text-[var(--faint)]">Nenhum cartão cadastrado.</p>
+          <div className="flex items-center justify-center gap-3 py-1">
+            <p className="text-center text-[12px] text-[var(--faint)]">Nenhum cartão cadastrado.</p>
+            {view.exempt ? (
+              <button type="button" onClick={onOpenPortal} disabled={busy} className="inline-flex h-7 cursor-pointer items-center gap-1.5 rounded-full bg-foreground/[0.07] px-3 text-[11.5px] font-bold">
+                <CreditCard className="size-3.5" strokeWidth={2} />
+                Cadastrar cartão
+              </button>
+            ) : null}
+          </div>
         )}
       </div>
 
+    </>
+  );
+  const valor = (
+    <>
       <section className="flex min-w-0 flex-col gap-[14px] rounded-[14px] bg-card px-[14px] pb-3 pt-4 shadow-[inset_0_1px_0_rgba(246,243,239,0.07),inset_0_0_0_1px_rgba(255,255,255,0.07),0_10px_24px_-16px_rgba(0,0,0,0.9)]">
         <div className="text-center">
           <div className="text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground">Valor do Mês</div>
@@ -119,6 +135,10 @@ export function AssinaturaDesktop({
         </div>
       </section>
 
+    </>
+  );
+  const plano = (
+    <>
       <div className={CARD}>
         {view.custom ? (
           <div className="min-w-0">
@@ -183,6 +203,10 @@ export function AssinaturaDesktop({
         )}
       </div>
 
+    </>
+  );
+  const extrato = (
+    <>
       <div className="flex min-w-0 items-center gap-3">
         <span className="h-px flex-1 bg-[linear-gradient(270deg,color-mix(in_oklab,var(--foreground)_16%,transparent),transparent)]" />
         <span className="whitespace-nowrap text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--faint)]">
@@ -200,7 +224,12 @@ export function AssinaturaDesktop({
               <div className="flex h-[18px] min-w-0 items-center justify-between gap-[10px]">
                 <div className="min-w-0 truncate text-[13.5px] font-bold leading-[1.3]">{f.titulo}</div>
                 <div className="flex shrink-0 items-center gap-2">
-                  <span className="whitespace-nowrap font-display text-[14px] font-bold tabular-nums">{f.valor}</span>
+                  {f.riscada ? <IsentaPill /> : null}
+                  <span
+                    className={`whitespace-nowrap font-display text-[14px] font-bold tabular-nums ${f.riscada ? "line-through opacity-55" : ""}`}
+                  >
+                    {f.valor}
+                  </span>
                   {f.url ? (
                     <a href={f.url} target="_blank" rel="noopener noreferrer" aria-label="Ver Recibo" title="Ver Recibo" className="flex size-[18px] items-center justify-center text-muted-foreground">
                       <FileText className="size-4" strokeWidth={2} />
@@ -214,6 +243,26 @@ export function AssinaturaDesktop({
         </div>
       )}
 
+    </>
+  );
+
+  return (
+    <div className="hidden min-w-0 flex-col gap-[10px] lg:flex">
+      {/* Conta isenta: faixa no topo, depois Valor do Mês e só então o cartão (mockup aprovado, 10/11/2026). */}
+      {view.exempt ? (
+        <>
+          <IsencaoBanner view={view} busy={busy} onUpdateCard={onOpenPortal} />
+          {valor}
+          {cartao}
+        </>
+      ) : (
+        <>
+          {cartao}
+          {valor}
+        </>
+      )}
+      {plano}
+      {extrato}
       <ImoveisCobradosDialog open={janela} onOpenChange={setJanela} />
     </div>
   );

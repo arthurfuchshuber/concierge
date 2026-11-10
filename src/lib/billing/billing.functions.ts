@@ -107,9 +107,15 @@ export const getAccountBilling = createServerFn({ method: "POST" })
     const { loadBillingTerms } = await import("@/lib/billing/billing-terms.server");
     const { loadConnectedListings } = await import("@/lib/billing/connected-listings.server");
     const L = await import("@/lib/billing/listing-billing");
-    const [terms, listings] = await Promise.all([
+    const [terms, listings, cardRow] = await Promise.all([
       loadBillingTerms(supabaseAdmin, ownerId),
       loadConnectedListings(supabaseAdmin, ownerId),
+      (supabaseAdmin as any)
+        .from("account_card_checks")
+        .select("status, checked_at, failure_message")
+        .eq("user_id", ownerId)
+        .maybeSingle()
+        .then((r: any) => (r?.data ?? null) as { status: string; checked_at: string | null; failure_message: string | null } | null),
     ]);
     const count = listings.length;
     const sub = match ? toBillingSubscription(match) : null;
@@ -126,6 +132,12 @@ export const getAccountBilling = createServerFn({ method: "POST" })
       status: plan.status,
       maxGuides: plan.maxGuides,
       features: plan.features as PlanFeatures,
+      /** Cartão obrigatório: resultado da última verificação (dia 20) ou do último cadastro. */
+      cardCheck: {
+        status: (cardRow?.status === "ok" || cardRow?.status === "failed" ? cardRow.status : "missing") as "ok" | "failed" | "missing",
+        checkedAt: cardRow?.checked_at ?? null,
+        failureMessage: cardRow?.failure_message ?? null,
+      },
       billing: {
         activeListings: count,
         billedUnits: count > 0 ? L.billedUnits(count, terms) : 0,
@@ -362,7 +374,15 @@ async function customerOf(ownerId: string): Promise<{ customer: string | null; s
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
-  return { customer: data?.stripe_customer_id ?? null, subscription: data?.stripe_subscription_id ?? null };
+  if (data?.stripe_customer_id) return { customer: data.stripe_customer_id as string, subscription: data.stripe_subscription_id ?? null };
+  // Conta isenta: o cliente na Stripe existe só para guardar o cartão obrigatório.
+  const { data: card } = await (supabaseAdmin as any)
+    .from("account_card_checks")
+    .select("stripe_customer_id")
+    .eq("user_id", ownerId)
+    .eq("environment", env)
+    .maybeSingle();
+  return { customer: card?.stripe_customer_id ?? null, subscription: null };
 }
 
 /** Extrato da conta: faturas da Stripe (anuladas por pausa de cobrança ficam de fora). */
@@ -429,4 +449,58 @@ export const getAccountPaymentMethod = createServerFn({ method: "POST" })
     } catch {
       return { paymentMethod: null };
     }
+  });
+
+
+/**
+ * Cadastro ou troca do cartão de uma conta SEM assinatura na Stripe (conta isenta): abre a página
+ * hospedada da Stripe só para salvar o cartão. Ao voltar, `refreshCardCheck` confere o cartão.
+ */
+export const startCardSetup = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { ownerId?: string | null; returnPath?: string } | undefined) =>
+    z
+      .object({
+        ownerId: z.string().uuid().nullish(),
+        returnPath: z.string().regex(/^\/[A-Za-z0-9/_\-?=&.]*$/).max(200).optional(),
+      })
+      .optional()
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const ownerId = await ownerFor(context, data?.ownerId);
+    await assertTitularOrAdmin(context, ownerId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { stripeRequest, stripeEnv } = await import("@/lib/billing/stripe.server");
+    const customer = await ensureStripeCustomer(ownerId);
+    // Guarda o cliente já agora: o retorno e o webhook o encontram sem depender da assinatura.
+    await (supabaseAdmin as any)
+      .from("account_card_checks")
+      .upsert({ user_id: ownerId, environment: stripeEnv(), stripe_customer_id: customer }, { onConflict: "user_id", ignoreDuplicates: true });
+    const base = data?.returnPath ?? "/admin/administrativo?tab=perfil";
+    const sep = base.includes("?") ? "&" : "?";
+    const session = await stripeRequest<{ url: string }>("POST", "/checkout/sessions", {
+      mode: "setup",
+      customer,
+      currency: "brl",
+      payment_method_types: ["card"],
+      locale: "pt-BR",
+      success_url: await originUrl(`${base}${sep}card=ok`),
+      cancel_url: await originUrl(base),
+      metadata: { app: "conciergeia", purpose: "card_check", user_id: ownerId },
+    });
+    return { url: session.url };
+  });
+
+/** Confere o cartão da conta agora (volta do cadastro) e devolve o resultado. */
+export const refreshCardCheck = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { ownerId?: string | null } | undefined) => OwnerInput.parse(d))
+  .handler(async ({ data, context }) => {
+    const ownerId = await ownerFor(context, data?.ownerId);
+    await assertTitularOrAdmin(context, ownerId);
+    const { customer } = await customerOf(ownerId);
+    if (!customer) return { status: "missing" as const };
+    const { checkAccountCard } = await import("@/lib/billing/card-check.server");
+    return { status: await checkAccountCard(ownerId, customer) };
   });
