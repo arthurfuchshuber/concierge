@@ -18,7 +18,7 @@ export interface WhatsappSendResult {
 
 /**
  * ROTINA ÚNICA de envio humano pelo WhatsApp oficial (Sinch). É o corpo de `sendWhatsappFromConversation`,
- * extraído para que o Copiloto (`copilot.functions.ts`) envie a sugestão APROVADA pela mesma rotina —
+ * extraído (historicamente também para o envio da sugestão do Copiloto, removido em 10/11/2026) —
  * permissão, telefone DESTA conversa, configuração da conta, expansão de tags, gravação e pausa da IA — sem
  * nenhum mecanismo paralelo. Autoria: `userId` vem SEMPRE da sessão autenticada do chamador.
  */

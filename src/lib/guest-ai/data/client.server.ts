@@ -27,7 +27,7 @@ export interface RpcCapableClient {
  * COPILOTO (diretriz de 05/11/2026) — ÚNICA porta de escrita do módulo, de LISTA FECHADA: só as RPCs de
  * GERAÇÃO da migration `20261105150000_guest_ai_copilot_suggestions` (EXECUTE só service_role). As ações do
  * atendente (editar, descartar, enviar) NÃO passam por aqui: correm com o cliente da SESSÃO do usuário
- * (`copilot.functions.ts`), para que a autoria seja `auth.uid()`. Só o adaptador `copilot/store.server.ts` usa esta porta.
+ * (removidas com o cartão de sugestão em 10/11/2026). Só o adaptador `copilot/store.server.ts` usa esta porta.
  */
 export const COPILOT_RPC_FUNCTIONS = ["copilot_claim_generation", "copilot_generation_state", "copilot_store_result", "copilot_purge_expired"] as const;
 export type CopilotRpcFunction = (typeof COPILOT_RPC_FUNCTIONS)[number];

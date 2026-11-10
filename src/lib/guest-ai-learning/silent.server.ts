@@ -111,7 +111,7 @@ async function replicate(
   const { data: origin } = await admin.from("properties").select("id, owner_id, city, archived_at").eq("id", entry.property_id).maybeSingle();
   if (!origin?.owner_id) return 0;
   const { data: rows } = await admin.from("properties").select("id, owner_id, city, archived_at").eq("owner_id", origin.owner_id).limit(500);
-  const plan = planQualification({ temporality: "permanent", scope, origin: propRef(origin) }, ((rows ?? []) as Array<Record<string, unknown>>).map(propRef));
+  const plan = planQualification({ scope, origin: propRef(origin) }, ((rows ?? []) as Array<Record<string, unknown>>).map(propRef));
   const propose = deps.propose ?? ((c: LearningCandidateInput) => proposeLearningCandidate(c, { db: admin }));
   let n = 0;
   for (const pid of plan.replicateTo) {

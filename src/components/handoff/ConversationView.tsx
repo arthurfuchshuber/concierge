@@ -3,7 +3,6 @@ import { GuideViewers, StayLines, StayTag, buildStayView, shortAgo, stayBarClass
 import { ownerLabel } from "@/components/dashboard/card-colors";
 import { friendlyErrorMessage } from "@/lib/friendly-error";
 import { ComposerPlusMenu } from "@/components/handoff/ComposerPlusMenu";
-import { AiSuggestionCard } from "@/components/handoff/AiSuggestionCard";
 import { LearnedBadge, useConversationLearnings } from "@/components/handoff/LearnedBadge";
 import { PhoneActionButton } from "@/components/PhoneActionButton";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
@@ -506,16 +505,6 @@ export function ConversationView({ conversationId, compact, myUserId, stay, owne
       })
     : NO_MESSAGE_ACTIONS;
   const msgs = q.data?.messages ?? [];
-  /* COPILOTO (05/11/2026): a mensagem mais recente do HÓSPEDE é a referência da "Sugestão da IA" —
-   * o cartão pede/acompanha a sugestão desta mensagem e avisa quando chega uma mais nova. */
-  const latestGuestMessageId = useMemo(() => {
-    const list = q.data?.messages ?? [];
-    for (let i = list.length - 1; i >= 0; i--) {
-      const m = list[i] as { id?: string; sender_type?: string };
-      if (m?.sender_type === "guest" && m.id) return m.id;
-    }
-    return null;
-  }, [q.data?.messages]);
   // POR ONDE o hóspede está falando agora: canal da última mensagem dele.
   const liveChannel = (() => {
     const lastGuest = [...msgs].reverse().find((m) => (m as { role: string }).role === "user") as
@@ -1120,16 +1109,6 @@ export function ConversationView({ conversationId, compact, myUserId, stay, owne
             Administrativo → Permissões.
           </span>
         </div>
-      )}
-      {/* COPILOTO: rascunho da IA para a equipe aprovar — acima do campo de resposta, nunca na lista de mensagens.
-          Visível a quem pode responder; "Enviar ao Hóspede" só para quem pode compor (responsável/anfitrião). */}
-      {status !== "resolved" && canChat && (
-        <AiSuggestionCard
-          conversationId={conversationId}
-          latestGuestMessageId={latestGuestMessageId}
-          canSend={canCompose}
-          onSent={invalidateAll}
-        />
       )}
       {status !== "resolved" &&
         canChat &&
