@@ -207,3 +207,46 @@ export const qualifyLearningEntry = createServerFn({ method: "POST" })
     }
     return out;
   });
+
+// -------- Governança por exceção: desfazer e ajustar escopo (10/11/2026) --------
+
+const SILENT_ERRORS: Record<string, string> = {
+  not_found: REVIEW_ERRORS.not_found,
+  not_authorized: REVIEW_ERRORS.not_authorized,
+  invalid_transition: "Só um aprendizado ativo pode ter o escopo ajustado.",
+};
+const silentError = (e: unknown) => {
+  const m = e instanceof Error ? e.message : "";
+  return new Error(SILENT_ERRORS[m] ?? "Não foi possível concluir a ação.");
+};
+
+/** Desfazer com 1 clique: a entrada (e as réplicas) saem do Documento Vivo na hora. */
+export const undoLearningEntry = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }): Promise<{ closed: number }> => {
+    const { undoLearning } = await import("@/lib/guest-ai-learning/silent.server");
+    try {
+      return { closed: await undoLearning({ entryId: data.id, userId: context.userId }) };
+    } catch (e) {
+      throw silentError(e);
+    }
+  });
+
+/** Ajustar escopo: imóvel, cidade (mesma conta) ou todos os imóveis da conta. */
+export const updateLearningEntryScope = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z.object({ id: z.string().uuid(), scope: z.enum(["property", "city", "account"]) }).parse(d),
+  )
+  .handler(async ({ data, context }): Promise<{ removed: number; replicated: number }> => {
+    const { setLearningScope } = await import("@/lib/guest-ai-learning/silent.server");
+    try {
+      return await setLearningScope({ entryId: data.id, userId: context.userId, scope: data.scope });
+    } catch (e) {
+      throw silentError(e);
+    }
+  });
+
+/** Reverter ao Dossiê (painel de divergências): mesmo efeito do desfazer — a entrada sai do Documento Vivo. */
+export const revertLearningEntry = undoLearningEntry;

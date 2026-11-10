@@ -1240,6 +1240,16 @@ export const sendHandoffMessage = createServerFn({ method: "POST" })
     // núcleo único de envio humano (servidor; também usado pelo Copiloto para a sugestão APROVADA)
     const { sendHumanMessageToConversation } = await import("@/lib/handoff-send.server");
     await sendHumanMessageToConversation(supabase, userId, data);
+    // AUTO-APRENDIZADO (10/11/2026): fato do imóvel dito pela equipe ao hóspede entra no Documento Vivo (governança
+    // por exceção). Segundo plano: nunca atrasa nem derruba o envio. Nota interna não ensina nada.
+    if (!data.internalNote && process.env["GUEST_AI_LEARNING_EXTRACTOR"] === "on") {
+      const { runInBackground } = await import("@/lib/background.server");
+      const input = { conversationId: data.conversationId, userId, content: data.content };
+      await runInBackground(async () => {
+        const { learnFromTeamMessage } = await import("@/lib/guest-ai-learning/silent.server");
+        await learnFromTeamMessage(input);
+      });
+    }
     return { ok: true };
   });
 
@@ -1367,6 +1377,15 @@ export const deleteHandoffMessage = createServerFn({ method: "POST" })
       .delete()
       .eq("id", data.messageId);
     if (error) throw new Error(error.message);
+    // Mensagem da EQUIPE apagada ⇒ o que ela ensinou sai do Documento Vivo na hora (melhor esforço).
+    if (msg.sender_type === "human") {
+      try {
+        const { closeLearningForDeletedMessage } = await import("@/lib/guest-ai-learning/silent.server");
+        await closeLearningForDeletedMessage({ messageId: data.messageId, userId });
+      } catch {
+        /* nunca derruba a exclusão */
+      }
+    }
     // AUDITORIA (10/11/2026): mensagem da IA apagada pela equipe vira só uma MÉTRICA (evento sem o texto).
     // Mensagens são pontuais: nada disso gera regra, contra-exemplo ou aprendizado para o prompt.
     if (msg.sender_type === "ai") {

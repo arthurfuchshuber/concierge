@@ -388,3 +388,90 @@ export const getAiTelemetryDetail = createServerFn({ method: "GET" })
       })),
     };
   });
+
+// -------- Divergências com o Dossiê (10/11/2026) --------
+
+export interface DivergenceRow {
+  entryId: string;
+  propertyName: string;
+  dossierLabel: string;
+  dossierExcerpt: string;
+  livingStatement: string;
+  decidedAt: string | null;
+  decidedByName: string | null;
+}
+
+/**
+ * Aprendizados ATIVOS do Documento Vivo (já com "a mais recente prevalece") que falam do mesmo objeto que um
+ * trecho do dossiê do imóvel. Somente leitura, só admin do SaaS. Trechos saneados; campos de credencial fora.
+ */
+export const getAiDivergences = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<DivergenceRow[]> => {
+    await assertSaasAdmin(context.supabase, context.userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const admin = supabaseAdmin as Db;
+    const { latestPerTheme } = await import("@/lib/guest-ai/learning/learning");
+    const { findDossierDivergences, CREDENTIAL_FIELD } = await import("@/lib/guest-ai-learning/divergence");
+
+    const { data: eRaw, error } = await admin
+      .from("guest_ai_learning_entries")
+      .select("id, property_id, category, statement, decided_at, decided_by")
+      .eq("status", "approved")
+      .order("decided_at", { ascending: false })
+      .limit(500);
+    if (error) throw new Error("Não foi possível ler o Documento Vivo.");
+    const all = ((eRaw ?? []) as Array<Record<string, unknown>>).map((r) => ({
+      id: String(r["id"]),
+      propertyId: String(r["property_id"]),
+      category: String(r["category"]),
+      statement: String(r["statement"]),
+      decidedAt: (r["decided_at"] as string | null) ?? null,
+      decidedBy: (r["decided_by"] as string | null) ?? null,
+    }));
+    // "a mais recente prevalece" vale POR IMÓVEL: só a entrada efetiva de cada tema entra na comparação
+    const byProperty = new Map<string, typeof all>();
+    for (const e of all) byProperty.set(e.propertyId, [...(byProperty.get(e.propertyId) ?? []), e]);
+    const entries = [...byProperty.values()].flatMap((list) => latestPerTheme(list));
+    const pids = [...new Set(entries.map((e) => e.propertyId))];
+    if (pids.length === 0) return [];
+
+    const [pb, man, faq, props] = await Promise.all([
+      admin.from("property_playbook_entries").select("property_id, field_key, value, note, custom_label").in("property_id", pids),
+      admin.from("property_manual_items").select("property_id, title, description, body").in("property_id", pids),
+      admin.from("property_faqs").select("property_id, question, answer").in("property_id", pids),
+      admin.from("properties").select("id, name").in("id", pids),
+    ]);
+    const passages: Array<{ propertyId: string; label: string; text: string }> = [];
+    for (const r of (pb.data ?? []) as Array<Record<string, unknown>>) {
+      const key = String(r["field_key"] ?? "");
+      if (CREDENTIAL_FIELD.test(key) || CREDENTIAL_FIELD.test(String(r["custom_label"] ?? ""))) continue;
+      const text = [r["value"], r["note"]].filter((x) => typeof x === "string" && x.trim()).join(" · ");
+      if (text) passages.push({ propertyId: String(r["property_id"]), label: `Playbook · ${String(r["custom_label"] || key)}`, text });
+    }
+    for (const r of (man.data ?? []) as Array<Record<string, unknown>>) {
+      const text = [r["title"], r["description"], r["body"]].filter((x) => typeof x === "string" && x.trim()).join(" · ");
+      if (text) passages.push({ propertyId: String(r["property_id"]), label: `Manual · ${String(r["title"] ?? "")}`, text });
+    }
+    for (const r of (faq.data ?? []) as Array<Record<string, unknown>>) {
+      const text = [r["question"], r["answer"]].filter((x) => typeof x === "string" && x.trim()).join(" · ");
+      if (text) passages.push({ propertyId: String(r["property_id"]), label: "Perguntas frequentes", text });
+    }
+    const found = findDossierDivergences(entries, passages);
+    const names = new Map(((props.data ?? []) as Array<{ id: string; name: string }>).map((p) => [p.id, p.name]));
+    const authors = [...new Set(found.map((d) => d.decidedBy).filter((x): x is string => !!x))];
+    const who = new Map<string, string>();
+    if (authors.length) {
+      const { data } = await admin.from("profiles").select("id, full_name").in("id", authors);
+      for (const p of (data ?? []) as Array<{ id: string; full_name: string | null }>) if (p.full_name) who.set(p.id, p.full_name);
+    }
+    return found.map((d) => ({
+      entryId: d.entryId,
+      propertyName: names.get(d.propertyId) ?? "Imóvel",
+      dossierLabel: d.dossierLabel,
+      dossierExcerpt: d.dossierExcerpt,
+      livingStatement: d.livingStatement,
+      decidedAt: d.decidedAt,
+      decidedByName: d.decidedBy ? (who.get(d.decidedBy) ?? null) : null,
+    }));
+  });

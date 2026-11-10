@@ -298,6 +298,11 @@ describe("guardas estáticas da tela e do servidor", () => {
         "property_chat_conversations",
         "guest_ai_learning_entries",
         "ai_system_events",
+        // divergências com o dossiê (10/11/2026): trechos do cadastro do imóvel e nome de quem ensinou
+        "property_playbook_entries",
+        "property_manual_items",
+        "property_faqs",
+        "profiles",
       ]),
     );
     expect(fns).toMatch(/context_dossier_entries/);
@@ -406,7 +411,9 @@ describe("Etapa 4 (10/11/2026) · aprendizado contínuo e ferramentas", () => {
   it("a leitura do servidor só pede status, origem e data do aprendizado (nunca o texto do fato) e segue somente leitura", () => {
     const src = readFileSync(path.resolve(__dirname, "../admin-ia-telemetry.functions.ts"), "utf8");
     expect(src).toContain('.select("status, source, created_at")');
-    expect(src).not.toMatch(/guest_ai_learning_entries[\s\S]{0,200}statement/);
+    // a visão geral (getAiTelemetry) nunca lê o texto do fato; só o painel de divergências o mostra
+    const overview = src.slice(src.indexOf("export const getAiTelemetry"), src.indexOf("export interface TelemetryDetail"));
+    expect(overview).not.toMatch(/guest_ai_learning_entries[\s\S]{0,200}statement/);
     expect(src).not.toMatch(/\.(insert|update|upsert|delete)\(/);
     // único RPC permitido: a verificação de papel de administrador
     expect([...src.matchAll(/\.rpc\("([a-z_]+)"/g)].map((m) => m[1])).toEqual(["has_role"]);
