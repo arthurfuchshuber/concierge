@@ -21,7 +21,7 @@ import {
   syncedLabel,
 } from "@/lib/bank-account-label";
 import { cn } from "@/lib/utils";
-import { IntegrationShell } from "@/components/admin-pages/integration-window";
+import { IntegrationShell, PrimaryAction } from "@/components/admin-pages/integration-window";
 
 declare global {
   interface Window {
@@ -122,15 +122,9 @@ export function BancosPanel({ inWindow = false, readOnly = false, ownerId = null
       bodyDeps={[items.length, accounts.length]}
       footer={
         readOnly ? undefined : (
-          <button
-            type="button"
-            onClick={() => connect()}
-            disabled={busy === "new"}
-            className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-[12px] bg-foreground text-[13px] font-bold text-background transition-opacity hover:opacity-90 disabled:opacity-60"
-          >
-            <Plus className="size-4" strokeWidth={2.2} />
+          <PrimaryAction icon={<Plus strokeWidth={2.2} />} onClick={() => connect()} disabled={busy === "new"}>
             Conectar banco
-          </button>
+          </PrimaryAction>
         )
       }
     >
