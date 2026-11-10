@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode }
 import { ChevronDown, Expand, X } from "lucide-react";
 import { CORNER_CLOSE_CLASS } from "@/components/ui/corner-close";
 import { ConversationView } from "@/components/handoff/ConversationView";
+import { isDecisionHandoffReason } from "@/lib/guest-ai-decision";
 import { ChannelLogo, channelOf, type ChatChannel } from "@/components/handoff/ChannelLogo";
 import { PhoneActionButton } from "@/components/PhoneActionButton";
 import { useManualOverlayLayer } from "@/lib/global-overlay-store";
@@ -289,7 +290,7 @@ export function QuickChatBubbles({
 
           {fan ? (
             <div className="mt-2.5 flex items-center justify-between gap-2">
-              <AttentionPill>Atendimento</AttentionPill>
+              <AttentionPill>{isDecisionHandoffReason(selected.reason) ? "Decisão pendente" : "Atendimento"}</AttentionPill>
               <span className="text-[11.5px] font-semibold tabular-nums text-muted-foreground">
                 {ordinalLabel(rank + 1)}
                 {phrase ? ` · ${phrase}` : ""}
@@ -297,7 +298,9 @@ export function QuickChatBubbles({
             </div>
           ) : (
             <div className="mt-2.5">
-              <AttentionPill>Precisa de atendimento</AttentionPill>
+              <AttentionPill>
+                {isDecisionHandoffReason(selected.reason) ? "Decisão pendente" : "Precisa de atendimento"}
+              </AttentionPill>
             </div>
           )}
 

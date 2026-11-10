@@ -163,6 +163,8 @@ export type CopilotGenerateResult =
         handoffUrgency: string | null;
         internalQuestion: string | null;
         outcomeKind: string | null;
+        /** Pedidos formais declarados pelo modelo (decisão humana com 1 clique, 10/11/2026). */
+        formalChangeRequests?: string[];
       };
     }
   | { status: "exists"; suggestionId: string; state: string }
@@ -814,6 +816,8 @@ export async function generateCopilotSuggestion(
           handoffUrgency: projected.handoffUrgency,
           internalQuestion: projected.internalQuestion,
           outcomeKind: projected.outcomeKind,
+          formalChangeRequests:
+            "decision" in outcome ? [...(outcome.decision.formalChangeRequests ?? [])] : [],
         },
       };
     if (stored.kind === "stale") return { status: "stale", suggestionId: claimed.suggestionId };

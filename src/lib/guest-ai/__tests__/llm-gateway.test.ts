@@ -388,7 +388,9 @@ describe("F2-A · isolamento no repositório", () => {
       // Tool calling (07/11/2026): só os TIPOS do gateway (declaração de ferramenta e chamada) — lista nominal
       /guest-ai[\\/]tools[\\/](contracts\.ts|executor\.ts|registry\.ts)$/,
       // Extrator do aprendizado (10/11/2026): tipo da mensagem (pedido) e a chamada ao Gateway — lista nominal
-      /lib[\\/]guest-ai-learning[\\/](extractor\.ts|extractor\.server\.ts|team-learning\.ts|silent\.server\.ts)$/]; // B3.3: Shadow (tipos + gerador emitido)
+      /lib[\\/]guest-ai-learning[\\/](extractor\.ts|extractor\.server\.ts|team-learning\.ts|silent\.server\.ts)$/,
+      // Decisão humana com 1 clique (10/11/2026): a resposta ÚNICA da IA depois do clique — lista nominal
+      /lib[\\/]guest-ai-decision-reply\.server\.ts$/]; // B3.3: Shadow (tipos + gerador emitido)
     expect(offenders.filter((f) => !allowed.some((re) => re.test(f))).map((f) => path.relative(SRC, f))).toEqual([]);
   });
   it("o gateway convencional do SaaS (src/lib/llm) não importa o do Guest AI", () => {

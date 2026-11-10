@@ -138,3 +138,7 @@ Ordem de execução no builder: validar escopo → estado → D9 → se negado, 
 
 ## Auto-aprendizado 100% automático (10/11/2026, governança por exceção)
 - Todo aprendizado entra `approved` na hora: mensagem da equipe ⇒ em nome do atendente (qualquer papel); situação encerrada (checkout, atendimento resolvido) ⇒ em nome do dono do imóvel (`autoApproveForOwner`). Sem fila, sem aprovação manual: `listLearningEntries`/`reviewLearningEntry` foram removidos. A equipe só intervém com Desfazer/escopo (`/admin/ia` e selo do chat), que exigem dono, admin ou `ai_train`.
+
+## Decisão humana com 1 clique (10/11/2026)
+- O slot consulta `hasPendingDecision` logo depois do escopo: pendente ⇒ `{ reply: "", handoff: false }` sem gerar. Depois da geração, `formalChangeRequests` com `late_checkout`/`early_checkin`/`other_conditions` ⇒ `openHumanDecision` e encaminhamento `high` SEM texto (o texto do modelo é descartado). Late check-out já formal no card, falha ou tabela ausente ⇒ projeção normal.
+- A escrita (abrir, decidir, ação no card, resposta, entrega) fica FORA deste módulo (`src/lib/guest-ai-decision*.ts`), como a porta `apply`. A resposta pós-clique é o 4º chamador nominal do Gateway (`guest-ai-decision-reply.server.ts`). D9 intocada: nenhuma credencial é lida para o hóspede.

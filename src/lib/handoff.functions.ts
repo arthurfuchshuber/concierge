@@ -1195,6 +1195,11 @@ export const resolveHandoffConversation = createServerFn({ method: "POST" })
       })
       .eq("id", data.conversationId);
     if (error) throw new Error(error.message);
+    // DECISÃO HUMANA (10/11/2026): conversa encerrada ⇒ a decisão pendente expira e libera o silêncio da IA
+    {
+      const { expirePendingDecisions } = await import("@/lib/guest-ai-decision.server");
+      await expirePendingDecisions(data.conversationId);
+    }
     // APRENDIZADO CONTÍNUO (10/11/2026): atendimento encerrado pela equipe ⇒ propõe candidatos `pending`
     // em segundo plano (desligado sem GUEST_AI_LEARNING_EXTRACTOR=on; nunca atrasa nem derruba o encerramento)
     if (process.env["GUEST_AI_LEARNING_EXTRACTOR"] === "on") {
