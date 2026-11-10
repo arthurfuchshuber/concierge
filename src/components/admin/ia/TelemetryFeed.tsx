@@ -8,6 +8,7 @@ import {
   formatMs,
   formatRowCost,
   modelLabel,
+  modelShortLabel,
   type FeedFilter,
 } from "@/lib/admin-ia-telemetry";
 import type { TelemetryFeedRow } from "@/lib/admin-ia-telemetry.functions";
@@ -153,7 +154,7 @@ export function TelemetryFeed({
                       <OutcomeChip outcome={r.outcome} code={r.outcomeCode} />
                     </span>
                     <span className="shrink-0 truncate text-[11.5px] tabular-nums text-muted-foreground">
-                      {modelLabel(r.modelId).replace(" (reserva)", "")} · {formatMs(r.latencyMs)} ·{" "}
+                      {modelShortLabel(r.modelId)} · {formatMs(r.latencyMs)} ·{" "}
                       {formatRowCost(r.costUsd)}
                     </span>
                   </span>

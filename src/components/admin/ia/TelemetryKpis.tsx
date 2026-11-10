@@ -7,7 +7,7 @@ import {
   formatPct,
   formatSeconds,
   formatUsd,
-  modelLabel,
+  modelShortLabel,
   modelNote,
   type TelemetryKpis as Kpis,
   type TelemetrySurface,
@@ -55,7 +55,7 @@ export function TelemetryKpis({ kpis, loading }: { kpis: Kpis | null; loading: b
           label="Modelo"
           icon={Bot}
           loading={loading}
-          value={k ? modelLabel(k.activeModel).replace(" (reserva)", "") : "—"}
+          value={k ? modelShortLabel(k.activeModel) : "—"}
           note={k ? modelNote(k) : null}
         />
         <StatCard
