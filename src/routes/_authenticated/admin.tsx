@@ -571,7 +571,7 @@ function AdminLayout() {
             className={`flex items-center gap-3 rounded-xl border border-border bg-secondary/40 text-sm lg:text-[13px] font-semibold transition-colors hover:bg-secondary ${collapsed ? "size-9 justify-center px-0 py-0" : "h-11 min-w-0 flex-1 px-3.5"}`}
           >
             <LogOut className="size-4 shrink-0" strokeWidth={2} />
-            {!collapsed && "Sair / Trocar usuário"}
+            {!collapsed && <span className="min-w-0 truncate whitespace-nowrap">Sair / Trocar usuário</span>}
           </button>
             <ThemeToggle
               className={`hidden shrink-0 lg:grid ${collapsed ? "!size-9 border border-border bg-secondary/40 hover:bg-secondary" : "lg:!w-16 lg:-ml-2 lg:-mr-3 !rounded-none bg-transparent hover:!bg-transparent lg:[&_svg]:!size-[22px]"}`}
