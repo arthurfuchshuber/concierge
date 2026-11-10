@@ -74,6 +74,13 @@ export async function handleStripeEvent(evt: StripeEvent): Promise<void> {
 
   switch (evt.type) {
     case "checkout.session.completed": {
+      if (obj.mode === "setup" && obj.metadata?.purpose === "card_check" && obj.metadata?.user_id && obj.customer) {
+        // Cartão cadastrado pela página de cartão obrigatório: confere e grava o resultado.
+        const { checkAccountCard } = await import("@/lib/billing/card-check.server");
+        const customerId = typeof obj.customer === "string" ? obj.customer : obj.customer.id;
+        await checkAccountCard(obj.metadata.user_id as string, customerId);
+        return;
+      }
       if (obj.mode !== "subscription" || !obj.subscription) return;
       const subId = typeof obj.subscription === "string" ? obj.subscription : obj.subscription.id;
       const sub = await retrieveSubscription(subId);
@@ -98,6 +105,26 @@ export async function handleStripeEvent(evt: StripeEvent): Promise<void> {
     case "invoice.payment_action_required": {
       const subId = invoiceSubscriptionId(obj);
       if (subId) await upsertSubscriptionFromStripe(await retrieveSubscription(subId));
+      return;
+    }
+    case "payment_method.attached": {
+      // Cartão novo (troca depois de um pagamento recusado): tenta quitar a fatura em aberto na hora,
+      // para a janela de "pagamento recusado" sair sem esperar a próxima tentativa automática.
+      const customerId = typeof obj.customer === "string" ? obj.customer : obj.customer?.id;
+      if (!customerId) return;
+      const open = await stripeRequest<{ data: Array<{ id: string; attempt_count?: number }> }>("GET", "/invoices", {
+        customer: customerId,
+        status: "open",
+        limit: 5,
+      });
+      for (const inv of open.data) {
+        if (!inv.attempt_count) continue;
+        try {
+          await stripeRequest("POST", `/invoices/${encodeURIComponent(inv.id)}/pay`, { payment_method: obj.id });
+        } catch {
+          // Cartão novo também recusado: a janela continua até um cartão válido.
+        }
+      }
       return;
     }
     default:

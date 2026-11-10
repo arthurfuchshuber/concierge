@@ -28,6 +28,7 @@ import { ForcePasswordChangeDialog } from "@/components/admin/ForcePasswordChang
 import { CancellationReviewDialog } from "@/components/stakeholders/CancellationReviewDialog";
 import { SyncRequiredGate } from "@/components/stakeholders/SyncRequiredGate";
 import { FullConnectGate } from "@/components/stakeholders/FullConnectGate";
+import { PagamentoRecusadoGate } from "@/components/admin/PagamentoRecusadoGate";
 
 import { listMyPendingInvites } from "@/lib/pending-invites.functions";
 import { useAreaAccess } from "@/lib/permissions/useAreaAccess";
@@ -620,6 +621,7 @@ function AdminLayout() {
               obrigatório já cobre o painel enquanto a conta e a consulta resolvem — sem piscada no F5. */}
           <SyncRequiredGate />
           <FullConnectGate />
+          <PagamentoRecusadoGate />
           <PushNotificationBanner />
           {resolvingAccount || (routePermission && areaAccess.loading) ? (
             <div className="mx-auto w-full max-w-7xl space-y-3 px-4 py-10">

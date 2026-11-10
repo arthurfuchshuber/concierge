@@ -7,6 +7,7 @@ import { Tag, SAGE } from "@/components/admin-pages/admin-mobile-ui";
 import { PRICE_BANDS } from "@/components/pricing/ListingPricing";
 import { ImoveisCobradosDialog } from "./ImoveisCobradosDialog";
 import { brl, fmtDate, type buildAssinatura } from "./assinatura-data";
+import { CardCheckTag, IsencaoBanner, IsentaPill } from "./AssinaturaIsencao";
 
 /**
  * Assinatura no celular (mockups aprovados, 05/11/2026). Cobrança por anúncio na Stripe: todos os
@@ -19,10 +20,12 @@ export function AssinaturaMobile({
   view,
   paymentMethod,
   onOpenPortal,
+  busy = false,
 }: {
   view: ReturnType<typeof buildAssinatura>;
   paymentMethod: PaymentMethodSummary | null;
   onOpenPortal: () => void;
+  busy?: boolean;
 }) {
   const [aba, setAba] = useState<Aba>("plano");
   const [janela, setJanela] = useState(false);
@@ -44,6 +47,7 @@ export function AssinaturaMobile({
 
   return (
     <div className="flex flex-col gap-3 lg:hidden">
+      {view.exempt ? <IsencaoBanner view={view} busy={busy} onUpdateCard={onOpenPortal} /> : null}
       {/* Um cartão só: valor, abas em texto e o conteúdo da aba */}
       <section className={`${PANEL_SHELL} px-4 pb-3.5 pt-[18px]`}>
         <div className="pb-[18px] pt-1.5 text-center">
@@ -182,6 +186,11 @@ export function AssinaturaMobile({
                 <div className="truncate text-[13.5px] font-bold leading-[1.3] tabular-nums">
                   {brand ? brand.charAt(0) + brand.slice(1).toLowerCase() : "Cartão"} •••• {paymentMethod.last4 ?? "----"}
                 </div>
+                {view.exempt ? (
+                  <div className="mt-1">
+                    <CardCheckTag view={view} />
+                  </div>
+                ) : null}
                 {paymentMethod.expiryMonth && paymentMethod.expiryYear ? (
                   <p className="text-[12px] font-medium leading-[1.45] text-muted-foreground">
                     Expira em {String(paymentMethod.expiryMonth).padStart(2, "0")}/{paymentMethod.expiryYear}
@@ -223,7 +232,15 @@ export function AssinaturaMobile({
               </button>
             </div>
           ) : (
-            <p className="text-center text-[12px] text-[var(--faint)]">Nenhum cartão cadastrado.</p>
+            <div className="flex flex-col items-center gap-3">
+              <p className="text-center text-[12px] text-[var(--faint)]">Nenhum cartão cadastrado.</p>
+              {view.exempt ? (
+                <button type="button" onClick={onOpenPortal} disabled={busy} className="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full bg-foreground/[0.07] px-4 text-[12.5px] font-bold">
+                  <CreditCard className="size-3.5" strokeWidth={2} />
+                  Cadastrar cartão
+                </button>
+              ) : null}
+            </div>
           )}
         </div>
       )}
@@ -242,7 +259,12 @@ export function AssinaturaMobile({
                     <p className="text-[11.5px] font-medium leading-[1.45] tabular-nums text-[var(--faint)]">{f.sub}</p>
                   </div>
                 </div>
-                <span className="whitespace-nowrap font-display text-[14px] font-bold tabular-nums">{f.valor}</span>
+                {f.riscada ? <IsentaPill /> : null}
+                <span
+                  className={`whitespace-nowrap font-display text-[14px] font-bold tabular-nums ${f.riscada ? "line-through opacity-55" : ""}`}
+                >
+                  {f.valor}
+                </span>
                 {f.url ? (
                   <a
                     href={f.url}
