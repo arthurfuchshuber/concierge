@@ -1195,6 +1195,16 @@ export const resolveHandoffConversation = createServerFn({ method: "POST" })
       })
       .eq("id", data.conversationId);
     if (error) throw new Error(error.message);
+    // APRENDIZADO CONTÍNUO (10/11/2026): atendimento encerrado pela equipe ⇒ propõe candidatos `pending`
+    // em segundo plano (desligado sem GUEST_AI_LEARNING_EXTRACTOR=on; nunca atrasa nem derruba o encerramento)
+    if (process.env["GUEST_AI_LEARNING_EXTRACTOR"] === "on") {
+      const { runInBackground } = await import("@/lib/background.server");
+      const conversationId = data.conversationId;
+      await runInBackground(async () => {
+        const { learnFromResolvedConversation } = await import("@/lib/guest-ai-learning/extractor.server");
+        await learnFromResolvedConversation(conversationId);
+      });
+    }
     return { ok: true };
   });
 
