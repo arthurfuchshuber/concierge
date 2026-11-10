@@ -17,7 +17,7 @@ type Props = {
   size?: number;
   /** exibe o número por extenso ao lado do ícone (fichas/detalhes) */
   showNumber?: boolean;
-  /** sem telefone: mostra o ícone apagado em vez de sumir */
+  /** @deprecated sem contato o ícone sempre some; mantido só para não quebrar chamadas antigas. */
   alwaysShow?: boolean;
   /** Menu "rico" da ficha do proprietário (mockup C1): WhatsApp, Ligar e E-mail, cada um com o contato embaixo. */
   rich?: boolean;
@@ -34,25 +34,13 @@ export function PhoneActionButton({
   className,
   size = 14,
   showNumber = false,
-  alwaysShow = false,
   rich = false,
   email = null,
 }: Props) {
-  if (!phone && !(rich && email)) {
-    if (!alwaysShow) return null;
-    return (
-      <span
-        title="Sem telefone cadastrado"
-        aria-label="Sem telefone cadastrado"
-        className={cn(
-          "inline-flex shrink-0 items-center justify-center p-1.5 text-muted-foreground/40",
-          className,
-        )}
-      >
-        <MessageCircle style={{ width: size, height: size }} />
-      </span>
-    );
-  }
+  // Sem contato disponível (telefone ou, no menu rico, e-mail): o ícone some por
+  // completo — nada de ícone apagado (pedido explícito, 09/11/2026). `alwaysShow`
+  // ficou só por compatibilidade com as telas antigas e não faz mais efeito.
+  if (!phone && !(rich && email)) return null;
   const waNumber = phone ? toWhatsappNumber(phone, country) : "";
   const label = (phone ? formatIntlPhone(phone, country) || phone : email) ?? "";
 
