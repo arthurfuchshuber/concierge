@@ -97,32 +97,19 @@ export const COPILOT_MAX_OUTPUT_TOKENS = 4_096;
 export const COPILOT_MIN_OUTPUT_TOKENS = 1_536;
 
 /**
- * TRÊS CONTROLES INDEPENDENTES (não existe chave única que ligue tudo). Cada um só vale com o literal `on`;
- * ausente, vazio ou qualquer outro valor ⇒ desligado. Lidos SEMPRE no servidor, a cada chamada:
- *  - `GUEST_AI_COPILOT_UI`: o cartão existe e o atendente pode ver/editar/descartar sugestões já gravadas;
- *  - `GUEST_AI_COPILOT_GENERATION`: o servidor pode reivindicar e gerar sugestões (chamada ao Gateway);
- *  - `GUEST_AI_COPILOT_SEND`: o servidor aceita enviar uma sugestão aprovada pela rotina humana.
- * Geração e envio NÃO dependem da UI ligada e vice-versa: cada porta confere a sua própria chave. A interface
- * só recebe o estado para se adaptar; nenhuma decisão de bloqueio é tomada no navegador.
+ * Chave da GERAÇÃO (motor da IA: slot autônomo, bastidores e telemetria). Desde 10/11/2026 o cartão de sugestão e
+ * o envio pela equipe foram removidos; as antigas chaves de interface e de envio não existem mais.
  */
 export const COPILOT_FLAG_ENV = {
-  ui: "GUEST_AI_COPILOT_UI",
   generation: "GUEST_AI_COPILOT_GENERATION",
-  send: "GUEST_AI_COPILOT_SEND",
 } as const;
 export type CopilotFlag = keyof typeof COPILOT_FLAG_ENV;
 export interface CopilotFlags {
-  ui: boolean;
   generation: boolean;
-  send: boolean;
 }
 
 export function copilotFlags(env: Record<string, string | undefined> = process.env): CopilotFlags {
-  return {
-    ui: env[COPILOT_FLAG_ENV.ui] === "on",
-    generation: env[COPILOT_FLAG_ENV.generation] === "on",
-    send: env[COPILOT_FLAG_ENV.send] === "on",
-  };
+  return { generation: env[COPILOT_FLAG_ENV.generation] === "on" };
 }
 
 export const copilotFlagOn = (

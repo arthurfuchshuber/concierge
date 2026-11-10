@@ -2,7 +2,7 @@
  * NÚCLEO ÚNICO de envio humano (chat do guia e Airbnb) — o corpo de `sendHandoffMessage`, só servidor.
  * Fica fora de `handoff.functions.ts` porque aquele arquivo também é importado pelo cliente (stubs das server
  * functions): uma função exportada lá carregaria `client.server`/`channex-messages.server` para o bundle do
- * navegador. `sendHandoffMessage` e o Copiloto (`copilot-send.server.ts`) o carregam por import dinâmico.
+ * navegador. `sendHandoffMessage` o carrega por import dinâmico.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { pausePatch } from "@/lib/chat/pause";
@@ -30,7 +30,7 @@ export interface HumanSendResult {
 
 /**
  * ROTINA ÚNICA de envio humano (chat do guia e Airbnb). É o corpo de `sendHandoffMessage`, extraído para que
- * o Copiloto (`copilot.functions.ts`) envie a sugestão APROVADA pela mesma rotina — permissão, bloqueio por
+ * (historicamente) o envio da sugestão do Copiloto usasse a mesma rotina — permissão, bloqueio por
  * responsável, expansão de tags, entrega, pausa da IA e push — sem nenhum mecanismo paralelo de envio.
  * Autoria: `userId` vem SEMPRE da sessão autenticada do chamador.
  */

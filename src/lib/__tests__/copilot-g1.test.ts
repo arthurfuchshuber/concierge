@@ -17,12 +17,6 @@ import {
   runInBackground,
   withRequestLifecycle,
 } from "@/lib/background.server";
-import { COPILOT_ACTOR_RPC, copilotActorRpc } from "@/lib/copilot-actor-rpc.server";
-import {
-  discardCopilotSuggestionCore,
-  editCopilotSuggestionCore,
-} from "@/lib/copilot-actions.server";
-import { sendCopilotSuggestionCore } from "@/lib/copilot-send.server";
 import { triggerCopilotSuggestion } from "@/lib/guest-ai/copilot/trigger.server";
 
 const SRC = path.resolve(__dirname, "..", "..");
@@ -62,111 +56,7 @@ const deferred = () => {
   return { promise, resolve };
 };
 
-describe("G1 · D2: RPCs do atendente com ator explícito pelo servidor", () => {
-  it("copilotActorRpc: injeta p_actor; ator ausente/malformado ⇒ nenhuma chamada; erro do banco ⇒ código fechado", async () => {
-    const r = recordingDb({ copilot_actor_edit: { result: "edited" } });
-    await copilotActorRpc(r.db, COPILOT_ACTOR_RPC.edit, ACTOR, {
-      p_suggestion_id: SID,
-      p_text: "x",
-    });
-    expect(r.calls).toEqual([
-      { fn: "copilot_actor_edit", args: { p_actor: ACTOR, p_suggestion_id: SID, p_text: "x" } },
-    ]);
-    for (const bad of ["", "u", "not-a-uuid", null, undefined, `${ACTOR} `]) {
-      const z = recordingDb();
-      await expect(
-        copilotActorRpc(z.db, COPILOT_ACTOR_RPC.edit, bad as never, { p_suggestion_id: SID }),
-      ).rejects.toThrow("copilot_actor_invalid");
-      expect(z.calls).toEqual([]);
-    }
-    // o argumento do chamador não sobrescreve o ator da sessão
-    const o = recordingDb();
-    await copilotActorRpc(o.db, COPILOT_ACTOR_RPC.discard, ACTOR, { p_actor: "outro" });
-    expect(o.calls[0]!.args.p_actor).toBe(ACTOR);
-    const failing = {
-      rpc: async () => ({ data: null, error: { message: "permission denied for function x" } }),
-    };
-    await expect(copilotActorRpc(failing, COPILOT_ACTOR_RPC.discard, ACTOR, {})).rejects.toThrow(
-      "copilot_rpc_failed:copilot_actor_discard",
-    );
-  });
-
-  it("editar e descartar: só o cliente do servidor chama RPC, com o ator da sessão", async () => {
-    const env = { GUEST_AI_COPILOT_UI: "on" };
-    const r = recordingDb({
-      copilot_actor_edit: { result: "edited" },
-      copilot_actor_discard: { result: "discarded" },
-    });
-    const session = sessionClient();
-    await editCopilotSuggestionCore(
-      session,
-      ACTOR,
-      { suggestionId: SID, text: "Às 15h." },
-      { env, actorDb: r.db },
-    );
-    await discardCopilotSuggestionCore(
-      session,
-      ACTOR,
-      { suggestionId: SID },
-      { env, actorDb: r.db },
-    );
-    expect(r.calls.map((c) => [c.fn, c.args.p_actor])).toEqual([
-      ["copilot_actor_edit", ACTOR],
-      ["copilot_actor_discard", ACTOR],
-    ]);
-  });
-
-  it("envio: reivindicação, encerramento e reconciliação pelo servidor com o ator da sessão", async () => {
-    const r = recordingDb({
-      copilot_actor_claim_send: {
-        result: "claimed",
-        send_token: "5e000000-0000-4000-8000-000000000005",
-        text: "Às 15h.",
-        conversation_id: CONV,
-        property_id: "p1",
-        tenant_id: "t1",
-        surface: "guide_chat",
-        trigger_message_id: MSG,
-      },
-      copilot_actor_finish_send: { result: "invalid", reason: "message_mismatch" },
-      copilot_actor_reconcile_send: { result: "reconciled_sent", sent_message_id: "m-real" },
-    });
-    const session = sessionClient();
-    const sendHuman = vi.fn(async () => ({
-      ok: true as const,
-      messageId: "m-x",
-      channel: "web" as const,
-      externalId: null,
-    }));
-    const out = await sendCopilotSuggestionCore(
-      session,
-      ACTOR,
-      { suggestionId: SID },
-      {
-        env: { GUEST_AI_COPILOT_SEND: "on" },
-        actorDb: r.db,
-        sendHuman: sendHuman as never,
-        guard: (async () => ({
-          ok: true,
-          surface: "guide_chat",
-          turn: {},
-          senderChannelId: null,
-          senderSource: null,
-        })) as never,
-      },
-    );
-    // id recusado pelo banco (message_mismatch) ⇒ reconcilia pelo autor/instante; nunca reenvia
-    expect(out).toEqual({ status: "sent", messageId: "m-real" });
-    expect(sendHuman).toHaveBeenCalledTimes(1);
-    expect((sendHuman.mock.calls[0] as unknown[])[0]).toBe(session); // a rotina humana do canal usa a SESSÃO
-    expect(r.calls.map((c) => c.fn)).toEqual([
-      "copilot_actor_claim_send",
-      "copilot_actor_finish_send",
-      "copilot_actor_reconcile_send",
-    ]);
-    expect(new Set(r.calls.map((c) => c.args.p_actor))).toEqual(new Set([ACTOR]));
-  });
-});
+// G1 · D2 (RPCs de editar/descartar/enviar sugestão com ator) removido em 10/11/2026 junto com o cartão de sugestão.
 
 describe("G1 · R2: trabalho em segundo plano nunca fica solto", () => {
   it("resolveWaitUntil: Request do nitro, ctx.waitUntil, ctx.context.waitUntil; ausente ⇒ null", () => {
