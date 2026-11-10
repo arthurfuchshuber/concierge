@@ -121,9 +121,10 @@ describe("fronteiras (SQL aplicado pelo titular em 08/11/2026)", () => {
     const propose = readFileSync(path.resolve(root, "../guest-ai-learning.server.ts"), "utf8");
     expect(propose).toMatch(/evaluateCandidate\(input\)/);
     expect(propose).toMatch(/guest_ai_learning_propose/);
-    const review = readFileSync(path.resolve(root, "../guest-ai-learning.functions.ts"), "utf8");
-    expect(review).toMatch(/guest_ai_learning_review/);
-    expect(review).not.toMatch(/supabaseAdmin|client\.server/);
+    // governança por exceção (10/11/2026): sem revisão manual; as ações da tela (desfazer/escopo) delegam ao servidor
+    const fns = readFileSync(path.resolve(root, "../guest-ai-learning.functions.ts"), "utf8");
+    expect(fns).not.toMatch(/listLearningEntries|reviewLearningEntry|qualifyLearningEntry/);
+    expect(fns).not.toMatch(/supabaseAdmin|client\.server/);
   });
 });
 

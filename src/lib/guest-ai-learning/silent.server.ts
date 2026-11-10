@@ -2,9 +2,9 @@
  * AUTO-APRENDIZADO SILENCIOSO · governança por exceção (10/11/2026) — servidor.
  *
  * - `learnFromTeamMessage`: depois que um atendente envia uma mensagem ao hóspede, extrai fatos duradouros
- *   (Gemini Flash, ≤ US$ 0,005), propõe pela RPC de sempre e APROVA NA HORA em nome do atendente quando ele pode
- *   aprovar (dono, admin ou permissão `ai_train`, a mesma regra da RPC de revisão). Sem permissão ⇒ fica
- *   pendente. Escopo cidade/conta ⇒ réplica aprovada nos imóveis do MESMO dono. Fato de estadia ⇒ não vira regra.
+ *   (Gemini Flash, ≤ US$ 0,005), propõe pela RPC de sempre e APROVA NA HORA em nome do atendente (governança por
+ *   exceção, 10/11/2026: 100% automático, sem fila nem aprovação manual; quem discorda clica em Desfazer).
+ *   Escopo cidade/conta ⇒ réplica aprovada nos imóveis do MESMO dono. Fato de estadia ⇒ não vira regra.
  * - `closeLearningForDeletedMessage`: mensagem da equipe apagada ⇒ os aprendizados que ela gerou (e as réplicas)
  *   saem do Documento Vivo na hora (aprovado ⇒ revogado; pendente ⇒ recusado).
  * - `setLearningScope` / `undoLearning`: ajustar escopo e desfazer (1 clique), com a mesma checagem de permissão.
@@ -200,7 +200,6 @@ export async function learnFromTeamMessage(
     res.refused = parsed.dropped;
     if (parsed.facts.length === 0) return end("done", null);
 
-    const may = await canApprove(admin, input.userId, (prop.owner_id as string | null) ?? null);
     const propose = deps.propose ?? ((c: LearningCandidateInput) => proposeLearningCandidate(c, { db: admin }));
     const now = (deps.now ?? (() => new Date()))();
     for (const f of parsed.facts) {
@@ -216,7 +215,7 @@ export async function learnFromTeamMessage(
         continue;
       }
       if (!r.id) continue; // duplicata (já existe pendente/aprovado igual)
-      if (may && (await decideAs(admin, r.id, "pending", "approved", input.userId, AUTO_APPROVED_NOTE, now))) {
+      if (await decideAs(admin, r.id, "pending", "approved", input.userId, AUTO_APPROVED_NOTE, now)) {
         res.approved += 1;
         res.replicated += await replicate(
           admin,
@@ -311,4 +310,21 @@ export async function setLearningScope(
   for (const r of (reps ?? []) as Array<{ id: string; status: string }>) if (await closeEntry(admin, r, input.userId, `Escopo ajustado: ${input.scope}`, now)) removed += 1;
   const replicated = await replicate(admin, e, input.scope, input.userId, true, deps);
   return { removed, replicated };
+}
+
+export const AUTO_LEARN_NOTE = "Aprendido automaticamente (governança por exceção)";
+
+/**
+ * Aprovação automática de um candidato recém-proposto pelo extrator de situações encerradas (checkout ou
+ * atendimento resolvido): sem atendente na origem, a decisão fica em nome do DONO do imóvel. Nunca lança.
+ */
+export async function autoApproveForOwner(entryId: string, propertyId: string, deps: SilentDeps = {}): Promise<boolean> {
+  try {
+    const admin = await getAdmin(deps);
+    const { data: prop } = await admin.from("properties").select("owner_id").eq("id", propertyId).maybeSingle();
+    if (!prop?.owner_id) return false;
+    return await decideAs(admin, entryId, "pending", "approved", String(prop.owner_id), AUTO_LEARN_NOTE, (deps.now ?? (() => new Date()))());
+  } catch {
+    return false;
+  }
 }

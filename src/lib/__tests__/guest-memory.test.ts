@@ -459,7 +459,7 @@ describe("Memória pós-checkout · ciclo", () => {
     const s = new MemoryStore();
     s.pendingList = [stay("r1")];
     s.materials.set("r1", material(CONV));
-    const learning = vi.fn(async (_i: ExtractInput) => ({ status: "done" as const, reason: null, proposed: 1, duplicates: 0, refused: {}, costUsd: 0.001 }));
+    const learning = vi.fn(async (_i: ExtractInput) => ({ status: "done" as const, reason: null, proposed: 1, approved: 1, duplicates: 0, refused: {}, costUsd: 0.001 }));
     const p = provider([okJson(output())]);
     const r = await runGuestMemoryCycle({ store: s, provider: p, env: ON, log: () => {}, learning });
     await runGuestMemoryCycle({ store: s, provider: p, env: ON, log: () => {}, learning });
