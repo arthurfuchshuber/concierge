@@ -8,6 +8,7 @@ import {
   formatSeconds,
   formatUsd,
   modelLabel,
+  modelNote,
   type TelemetryKpis as Kpis,
   type TelemetrySurface,
 } from "@/lib/admin-ia-telemetry";
@@ -55,13 +56,7 @@ export function TelemetryKpis({ kpis, loading }: { kpis: Kpis | null; loading: b
           icon={Bot}
           loading={loading}
           value={k ? modelLabel(k.activeModel).replace(" (reserva)", "") : "—"}
-          note={
-            k
-              ? k.reserveUsesToday
-                ? `reserva usada ${k.reserveUsesToday}× hoje`
-                : "sem reserva hoje"
-              : null
-          }
+          note={k ? modelNote(k) : null}
         />
         <StatCard
           label="Assertividade"

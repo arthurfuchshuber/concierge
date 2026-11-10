@@ -315,3 +315,84 @@ export function cardSnapshotRows(
   if (late) out.push({ label: "Late checkout", value: late.slice(0, 5) });
   return out.length ? out : [{ label: "Etapa", value: "Sem dados" }];
 }
+
+/* ---------- aprendizado contínuo e ferramentas (Etapa 4, 10/11/2026) ---------- */
+
+export type LearningStatusKey = "pending" | "approved" | "rejected" | "revoked";
+export type LearningSourceKey = "checkout_done" | "incident_resolved" | "guest_confirmation";
+
+/** Linha mínima de `guest_ai_learning_entries` (sem o texto do fato: a tela só conta). */
+export interface LearningRow {
+  status: string;
+  source: string;
+  createdAt: string;
+}
+
+export interface LearningKpis {
+  /** todas as propostas já registradas (qualquer data) */
+  total: number;
+  pending: number;
+  approved: number;
+  rejected: number;
+  revoked: number;
+  /** propostas criadas na janela da telemetria (14 dias) */
+  proposedWindow: number;
+  /** aprovadas ÷ decididas (aprovadas + rejeitadas); null sem decisões */
+  approvalPct: number | null;
+  bySource: Record<LearningSourceKey, number>;
+}
+
+/** Contagens do aprendizado. Status/origem desconhecidos entram só no total (nunca quebram a tela). */
+export function computeLearningKpis(rows: readonly LearningRow[], opts: { nowMs: number; windowDays?: number }): LearningKpis {
+  const since = opts.nowMs - (opts.windowDays ?? TELEMETRY_WINDOW_DAYS) * 86_400_000;
+  const k: LearningKpis = {
+    total: rows.length,
+    pending: 0,
+    approved: 0,
+    rejected: 0,
+    revoked: 0,
+    proposedWindow: 0,
+    approvalPct: null,
+    bySource: { checkout_done: 0, incident_resolved: 0, guest_confirmation: 0 },
+  };
+  for (const r of rows) {
+    if (r.status === "pending" || r.status === "approved" || r.status === "rejected" || r.status === "revoked") k[r.status] += 1;
+    if (r.source in k.bySource) k.bySource[r.source as LearningSourceKey] += 1;
+    const t = Date.parse(r.createdAt);
+    if (Number.isFinite(t) && t >= since) k.proposedWindow += 1;
+  }
+  k.approvalPct = pct(k.approved, k.approved + k.rejected);
+  return k;
+}
+
+/**
+ * Ferramentas externas (clima, voos, Places/Routes): o banco NÃO registra as execuções hoje (só existem na
+ * memória do turno). Sem migration, a tela mostra "sem registro" em vez de inventar números. A proposta de
+ * persistência (SQL) está no relatório da Etapa 4.
+ */
+export interface ToolKpis {
+  available: false;
+  reason: "not_persisted";
+}
+export const TOOL_KPIS_UNAVAILABLE: ToolKpis = Object.freeze({ available: false, reason: "not_persisted" });
+
+export const LEARNING_STATUS_LABEL: Record<LearningStatusKey, string> = {
+  pending: "Pendentes",
+  approved: "Aprovadas",
+  rejected: "Rejeitadas",
+  revoked: "Revogadas",
+};
+export const LEARNING_SOURCE_LABEL: Record<LearningSourceKey, string> = {
+  checkout_done: "Checkout",
+  incident_resolved: "Atendimento resolvido",
+  guest_confirmation: "Confirmação do hóspede",
+};
+
+/**
+ * Nota do cartão "Modelo" (10/11/2026): o Copiloto roda no Gemini Flash como TITULAR; contar "reserva usada"
+ * para ele enganava. Só quando o titular é outro (ex.: Astra pela variável) o Flash é contado como reserva.
+ */
+export function modelNote(k: Pick<TelemetryKpis, "activeModel" | "reserveUsesToday">): string {
+  if (k.activeModel === RESERVE_MODEL) return "titular do Copiloto";
+  return k.reserveUsesToday ? `reserva usada ${k.reserveUsesToday}× hoje` : "sem reserva hoje";
+}
