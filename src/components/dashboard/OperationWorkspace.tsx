@@ -111,7 +111,6 @@ import {
   Users,
   Eraser,
   Filter,
-  ChevronRight,
   ChevronLeft,
   Camera,
   LayoutGrid,
@@ -5197,7 +5196,7 @@ function StatDisplayCard({
       onClick={() => setOpen(true)}
       className="ds-3d flex h-full w-full flex-col gap-1 rounded-[14px] border-0 bg-card px-2.5 pb-2.5 pt-3 text-left transition-colors enabled:hover:bg-secondary/40 disabled:cursor-default"
     >
-      <div className={`relative flex w-full min-w-0 items-center justify-center gap-1.5 ${clickable ? "px-4" : ""}`}>
+      <div className={`relative flex w-full min-w-0 items-center justify-center gap-1.5`}>
         <span className="grid size-6 shrink-0 place-items-center rounded-[8px] bg-foreground/[0.05] text-muted-foreground">
           <Icon className="size-3.5" strokeWidth={2} />
         </span>
@@ -5207,7 +5206,6 @@ function StatDisplayCard({
         >
           {label}
         </span>
-        {clickable && <ChevronRight className="absolute right-0 size-3.5 shrink-0 text-muted-foreground" />}
       </div>
       <div className={`w-full whitespace-nowrap pt-1.5 text-center font-display font-bold leading-none tracking-[-0.03em] tabular-nums ${valueSizeClass}`}>
         {loading ? "—" : value}
