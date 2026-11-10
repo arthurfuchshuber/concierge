@@ -18,7 +18,7 @@ export const listBankConnections = createServerFn({ method: "GET" })
         .order("created_at"),
       supabase
         .from("malvo_accounts")
-        .select("malvo_account_id, malvo_item_id, name, marketing_name, type, subtype, number, balance, currency_code, balance_updated_at")
+        .select("malvo_account_id, malvo_item_id, name, marketing_name, type, subtype, number, bank_data, balance, currency_code, balance_updated_at")
         .eq("account_owner_id", userId),
     ]);
     const { count } = await supabase

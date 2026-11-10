@@ -14,11 +14,18 @@ vi.mock("@/lib/whatsapp.functions", () => ({ getMyWhatsappConfig: deferred("wa")
 vi.mock("@/lib/clicksign.functions", () => ({ getMyClicksignConfig: deferred("cs") }));
 vi.mock("@/lib/google-calendar.functions", () => ({ getMyGoogleCalendarStatus: deferred("gcal") }));
 vi.mock("@/lib/channex.functions", () => ({ getChannexStatus: deferred("channex") }));
+vi.mock("@/lib/malvo.functions", () => ({
+  listBankConnections: () => Promise.resolve({ items: [], accounts: [], transactions: 0 }),
+  getBankConnectToken: vi.fn(),
+  syncBankConnection: vi.fn(),
+  disconnectBank: vi.fn(),
+}));
 vi.mock("@/hooks/useImpersonation", () => ({ useImpersonation: () => ({ impersonation: null }) }));
 vi.mock("@/components/admin-pages/WhatsappBusinessPage", () => ({ WhatsappBusinessPage: () => null }));
 vi.mock("@/components/admin-pages/ClicksignPanel", () => ({ ClicksignPanel: () => null }));
 vi.mock("@/components/admin-pages/GoogleCalendarPanel", () => ({ GoogleCalendarPanel: () => null }));
 vi.mock("@/components/admin-pages/ChannexPanel", () => ({ ChannexPanel: () => null }));
+vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 import { IntegracoesPage, useIntegrationStatusQueries } from "../IntegracoesPage";
 
