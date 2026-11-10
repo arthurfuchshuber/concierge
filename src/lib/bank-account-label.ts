@@ -47,3 +47,57 @@ export const onlyBanks = <T extends BankItemLike>(items: T[]): T[] =>
 
 export const asaasItem = <T extends BankItemLike>(items: T[]): T | null =>
   items.find((i) => i.malvo_item_id === ASAAS_ITEM_ID) ?? null;
+
+// ---- Janela "Bancos" / "Asaas PJ" (mockup aprovado 10/11/2026) ----
+
+export type BankAccountRow = BankAccountLike & {
+  name?: string | null;
+  marketing_name?: string | null;
+  balance?: number | string | null;
+};
+
+export const isCreditCard = (a: BankAccountLike) =>
+  (a.type ?? "").toUpperCase() === "CREDIT" || (a.subtype ?? "").toUpperCase() === "CREDIT_CARD";
+
+/** Título da linha: "Cartão PME GOLD", "Conta corrente", "Poupança". */
+export function accountTitle(a: BankAccountRow): string {
+  if (isCreditCard(a)) return a.marketing_name ?? a.name ?? "Cartão";
+  const sub = (a.subtype ?? "").toUpperCase();
+  if (sub === "SAVINGS_ACCOUNT") return "Poupança";
+  if (sub === "CHECKING_ACCOUNT" || (a.type ?? "").toUpperCase() === "BANK") return "Conta corrente";
+  return a.marketing_name ?? a.name ?? "Conta";
+}
+
+/** Subtítulo: cartão → "final 9366"; conta → "Ag. 0050 · 00877408-7". */
+export function accountDetail(a: BankAccountRow): string | null {
+  if (isCreditCard(a)) {
+    const last4 = (a.number ?? "").replace(/\D/g, "").slice(-4);
+    return last4 ? `final ${last4}` : null;
+  }
+  return formatBankAccount(a);
+}
+
+const num = (v: number | string | null | undefined) => (v == null || v === "" ? 0 : Number(v) || 0);
+
+/** Totais do quadro de destaque: saldo só das contas (cartão de crédito não entra). */
+export function summarizeBanks(accounts: BankAccountRow[]) {
+  const contas = accounts.filter((a) => !isCreditCard(a));
+  return {
+    saldo: contas.reduce((s, a) => s + num(a.balance), 0),
+    contas: contas.length,
+    cartoes: accounts.length - contas.length,
+  };
+}
+
+/** "Sincronizado hoje" / "Sincronizado em 08/11"; null quando não há data. */
+export function syncedLabel(iso: string | null | undefined, now: Date = new Date()): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  const same = d.toDateString() === now.toDateString();
+  return same
+    ? "Sincronizado hoje"
+    : `Sincronizado em ${d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}`;
+}
+
+export const plural = (n: number, um: string, varios: string) => `${n} ${n === 1 ? um : varios}`;

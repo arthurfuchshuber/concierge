@@ -247,10 +247,13 @@ export function IntegrationShell({
   footer,
   bodyDeps,
   children,
+  icon,
 }: {
   inWindow: boolean;
   title: string;
   subtitle?: ReactNode;
+  /** Ícone no cabeçalho da janela (janelas Bancos e Asaas PJ, mockup 10/11/2026). */
+  icon?: ReactNode;
   toggles?: ReactNode;
   /** Linha fixa entre os botões suaves e a lista (ex.: "3 Selecionados"). */
   above?: ReactNode;
@@ -262,11 +265,27 @@ export function IntegrationShell({
   return (
     <>
       {inWindow ? (
-        <DialogHeader className="shrink-0 px-4 pr-12 pt-3 text-left">
-          <DialogTitle className="truncate text-sm font-bold leading-6">{title}</DialogTitle>
-          {subtitle ? (
-            <div className="!mt-0 truncate text-xs leading-5 text-muted-foreground">{subtitle}</div>
-          ) : null}
+        <DialogHeader className={cn("shrink-0 px-4 pr-12 text-left", icon ? "pt-4" : "pt-3")}>
+          {icon ? (
+            <div className="flex min-w-0 items-center gap-3">
+              <span className="grid size-10 shrink-0 place-items-center rounded-[10px] border border-border/70 bg-muted text-foreground [&_svg]:size-4">
+                {icon}
+              </span>
+              <div className="min-w-0">
+                <DialogTitle className="truncate text-base font-extrabold leading-5">{title}</DialogTitle>
+                {subtitle ? (
+                  <div className="!mt-0.5 truncate text-[11.5px] leading-[15px] text-muted-foreground">{subtitle}</div>
+                ) : null}
+              </div>
+            </div>
+          ) : (
+            <>
+              <DialogTitle className="truncate text-sm font-bold leading-6">{title}</DialogTitle>
+              {subtitle ? (
+                <div className="!mt-0 truncate text-xs leading-5 text-muted-foreground">{subtitle}</div>
+              ) : null}
+            </>
+          )}
         </DialogHeader>
       ) : null}
       {toggles ? (

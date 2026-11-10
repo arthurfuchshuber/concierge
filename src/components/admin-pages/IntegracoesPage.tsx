@@ -321,11 +321,11 @@ export function IntegracoesPage() {
                   <div className="mt-[3px] min-h-[15px] truncate text-[11px] leading-[15px] text-muted-foreground">{cfg.subtitulo}</div>
                 </div>
                 {open && (
-                  <div className="mt-2.5 min-w-0">
+                  <div className="mt-2.5 min-w-0 border-t border-border/60 pt-2">
                     {bankRows.map((r, i) => (
-                      <div key={r.id} className={cn("min-w-0", i > 0 && "mt-[9px] border-t border-border/60 pt-[9px]")}>
-                        <div className="truncate text-[11px] font-semibold leading-[14px] text-muted-foreground">{r.name}</div>
-                        {r.account && <div className="mt-0.5 truncate text-[11px] leading-[14px] text-muted-foreground">{r.account}</div>}
+                      <div key={r.id} className={cn("min-w-0", i === 0 ? "pb-[9px] pt-0.5" : "border-t border-border/60 pb-0.5 pt-[9px]")}>
+                        <div className="truncate text-[11.5px] font-bold leading-[15px] text-foreground">{r.name}</div>
+                        {r.account && <div className="mt-0.5 truncate text-[10.5px] leading-[14px] tabular-nums text-muted-foreground">{r.account}</div>}
                       </div>
                     ))}
                   </div>
