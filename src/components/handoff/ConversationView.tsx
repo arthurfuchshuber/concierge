@@ -4,6 +4,7 @@ import { ownerLabel } from "@/components/dashboard/card-colors";
 import { friendlyErrorMessage } from "@/lib/friendly-error";
 import { ComposerPlusMenu } from "@/components/handoff/ComposerPlusMenu";
 import { AiSuggestionCard } from "@/components/handoff/AiSuggestionCard";
+import { LearnedBadge, useConversationLearnings } from "@/components/handoff/LearnedBadge";
 import { PhoneActionButton } from "@/components/PhoneActionButton";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
@@ -176,6 +177,8 @@ function DeliveryTicks({ status }: { status: string | null | undefined }) {
 }
 
 export function ConversationView({ conversationId, compact, myUserId, stay, owner }: Props) {
+  // selo "IA aprendeu" nas mensagens da equipe que ensinaram um fato do imóvel (10/11/2026)
+  const learnedByMessage = useConversationLearnings(conversationId);
   const { can, isOwner } = useMyPermissions();
   const canChat = isOwner || can("chat_respond");
   const getFn = useServerFn(getHandoffConversation);
@@ -937,6 +940,9 @@ export function ConversationView({ conversationId, compact, myUserId, stay, owne
                     {!isGuest && !isNote && <DeliveryTicks status={m.delivery_status} />}
                   </div>
                 </div>
+                {m.sender_type === "human" && !isNote && learnedByMessage.get(m.id) ? (
+                  <LearnedBadge learning={learnedByMessage.get(m.id)!} conversationId={conversationId} />
+                ) : null}
                 <div className="flex items-center gap-2">
                   {canTranslate && (
                     <button

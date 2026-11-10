@@ -394,6 +394,9 @@ export const getAiTelemetryDetail = createServerFn({ method: "GET" })
 export interface DivergenceRow {
   entryId: string;
   propertyName: string;
+  ownerName: string | null;
+  ownerPhone: string | null;
+  ownerPhoneCountry: string | null;
   dossierLabel: string;
   dossierExcerpt: string;
   livingStatement: string;
@@ -440,7 +443,7 @@ export const getAiDivergences = createServerFn({ method: "GET" })
       admin.from("property_playbook_entries").select("property_id, field_key, value, note, custom_label").in("property_id", pids),
       admin.from("property_manual_items").select("property_id, title, description, body").in("property_id", pids),
       admin.from("property_faqs").select("property_id, question, answer").in("property_id", pids),
-      admin.from("properties").select("id, name").in("id", pids),
+      loadProperties(admin, pids),
     ]);
     const passages: Array<{ propertyId: string; label: string; text: string }> = [];
     for (const r of (pb.data ?? []) as Array<Record<string, unknown>>) {
@@ -458,7 +461,6 @@ export const getAiDivergences = createServerFn({ method: "GET" })
       if (text) passages.push({ propertyId: String(r["property_id"]), label: "Perguntas frequentes", text });
     }
     const found = findDossierDivergences(entries, passages);
-    const names = new Map(((props.data ?? []) as Array<{ id: string; name: string }>).map((p) => [p.id, p.name]));
     const authors = [...new Set(found.map((d) => d.decidedBy).filter((x): x is string => !!x))];
     const who = new Map<string, string>();
     if (authors.length) {
@@ -467,11 +469,74 @@ export const getAiDivergences = createServerFn({ method: "GET" })
     }
     return found.map((d) => ({
       entryId: d.entryId,
-      propertyName: names.get(d.propertyId) ?? "Imóvel",
+      propertyName: props.get(d.propertyId)?.name ?? "Imóvel",
+      ownerName: props.get(d.propertyId)?.ownerName ?? null,
+      ownerPhone: props.get(d.propertyId)?.ownerPhone ?? null,
+      ownerPhoneCountry: props.get(d.propertyId)?.ownerPhoneCountry ?? null,
       dossierLabel: d.dossierLabel,
       dossierExcerpt: d.dossierExcerpt,
       livingStatement: d.livingStatement,
       decidedAt: d.decidedAt,
       decidedByName: d.decidedBy ? (who.get(d.decidedBy) ?? null) : null,
     }));
+  });
+
+// -------- Aprendidos recentemente (10/11/2026) --------
+
+export interface RecentLearningRow {
+  entryId: string;
+  statement: string;
+  propertyName: string;
+  ownerName: string | null;
+  ownerPhone: string | null;
+  ownerPhoneCountry: string | null;
+  decidedAt: string | null;
+  decidedByName: string | null;
+  scope: "property" | "city" | "account";
+  replicas: number;
+}
+
+/** Aprendizados aprovados na janela (só os de origem; réplicas entram como contagem). Só admin, só leitura. */
+export const getRecentLearnings = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<RecentLearningRow[]> => {
+    await assertSaasAdmin(context.supabase, context.userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const admin = supabaseAdmin as Db;
+    const since = new Date(Date.now() - TELEMETRY_WINDOW_DAYS * 86_400_000).toISOString();
+    const { data: raw, error } = await admin
+      .from("guest_ai_learning_entries")
+      .select("id, property_id, statement, decided_at, decided_by, evidence_refs")
+      .eq("status", "approved")
+      .gte("decided_at", since)
+      .order("decided_at", { ascending: false })
+      .limit(200);
+    if (error) throw new Error("Não foi possível ler os aprendizados.");
+    const { isReplica, scopesFor } = await import("@/lib/guest-ai-learning/views.server");
+    const rows = ((raw ?? []) as Array<Record<string, unknown>>).filter((r) => !isReplica(r["evidence_refs"])).slice(0, 50);
+    if (rows.length === 0) return [];
+    const scopes = await scopesFor(admin, rows.map((r) => ({ id: String(r["id"]), propertyId: String(r["property_id"]) })));
+    const pids = [...new Set(rows.map((r) => String(r["property_id"])))];
+    const props = await loadProperties(admin, pids);
+    const authors = [...new Set(rows.map((r) => r["decided_by"]).filter((x): x is string => typeof x === "string"))];
+    const who = new Map<string, string>();
+    if (authors.length) {
+      const { data } = await admin.from("profiles").select("id, full_name").in("id", authors);
+      for (const p of (data ?? []) as Array<{ id: string; full_name: string | null }>) if (p.full_name) who.set(p.id, p.full_name);
+    }
+    return rows.map((r) => {
+      const sc = scopes.get(String(r["id"])) ?? { scope: "property" as const, replicas: 0 };
+      return {
+        entryId: String(r["id"]),
+        statement: String(r["statement"]),
+        propertyName: props.get(String(r["property_id"]))?.name ?? "Imóvel",
+        ownerName: props.get(String(r["property_id"]))?.ownerName ?? null,
+        ownerPhone: props.get(String(r["property_id"]))?.ownerPhone ?? null,
+        ownerPhoneCountry: props.get(String(r["property_id"]))?.ownerPhoneCountry ?? null,
+        decidedAt: (r["decided_at"] as string | null) ?? null,
+        decidedByName: typeof r["decided_by"] === "string" ? (who.get(r["decided_by"]) ?? null) : null,
+        scope: sc.scope,
+        replicas: sc.replicas,
+      };
+    });
   });

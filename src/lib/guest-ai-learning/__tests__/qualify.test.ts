@@ -29,3 +29,16 @@ describe("qualificação do aprendizado (temporalidade e abrangência)", () => {
     expect(planQualification({ temporality: "permanent", scope: "account", origin: P("p1", null, "Foz") }, props).replicateTo).toEqual([]);
   });
 });
+
+import { inferScope, SCOPE_LABEL } from "../qualify";
+describe("escopo atual deduzido das réplicas", () => {
+  it("sem réplica ⇒ imóvel; só mesma cidade ⇒ cidade; outras cidades ⇒ conta", () => {
+    expect(inferScope(origin, [], props)).toBe("property");
+    expect(inferScope(origin, ["p2"], props)).toBe("city");
+    expect(inferScope(origin, ["p2", "p3"], props)).toBe("account");
+    expect(SCOPE_LABEL.city).toBe("Cidade");
+  });
+  it("dono com imóveis numa cidade só: réplica para todos conta como conta", () => {
+    expect(inferScope(origin, ["p2"], [origin, P("p2", "dono", "Foz do Iguaçu")])).toBe("account");
+  });
+});
