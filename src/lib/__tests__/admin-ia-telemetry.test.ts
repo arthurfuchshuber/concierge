@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   BRL_PER_USD,
@@ -11,6 +12,10 @@ import {
   classifyOutcome,
   filterFeedRows,
   computeKpis,
+  computeLearningKpis,
+  LEARNING_SOURCE_LABEL,
+  LEARNING_STATUS_LABEL,
+  TOOL_KPIS_UNAVAILABLE,
   formatBrl,
   formatRowCost,
   formatUsd,
@@ -291,6 +296,7 @@ describe("guardas estáticas da tela e do servidor", () => {
         "property_owners",
         "property_chat_messages",
         "property_chat_conversations",
+        "guest_ai_learning_entries",
       ]),
     );
     expect(fns).toMatch(/context_dossier_entries/);
@@ -333,5 +339,76 @@ describe("guardas estáticas da tela e do servidor", () => {
       expect(src).toMatch(/<OwnerLine/);
       expect(src).not.toMatch(/Propriet[aá]rio\(a\)|Pr: /);
     }
+  });
+});
+
+describe("Etapa 4 (10/11/2026) · aprendizado contínuo e ferramentas", () => {
+  const NOW = Date.parse("2026-11-10T12:00:00Z");
+  const row = (status: string, source: string, daysAgo: number) => ({
+    status,
+    source,
+    createdAt: new Date(NOW - daysAgo * 86_400_000).toISOString(),
+  });
+
+  it("conta por status e origem, janela de 14 dias e taxa de aprovação", () => {
+    const k = computeLearningKpis(
+      [
+        row("pending", "checkout_done", 1),
+        row("pending", "incident_resolved", 2),
+        row("approved", "guest_confirmation", 3),
+        row("approved", "checkout_done", 20),
+        row("rejected", "checkout_done", 30),
+        row("revoked", "incident_resolved", 40),
+      ],
+      { nowMs: NOW },
+    );
+    expect(k).toEqual({
+      total: 6,
+      pending: 2,
+      approved: 2,
+      rejected: 1,
+      revoked: 1,
+      proposedWindow: 3,
+      approvalPct: 66.7,
+      bySource: { checkout_done: 3, incident_resolved: 2, guest_confirmation: 1 },
+    });
+  });
+
+  it("degradação segura: sem registros ⇒ zeros e taxa nula (nunca NaN)", () => {
+    expect(computeLearningKpis([], { nowMs: NOW })).toEqual({
+      total: 0,
+      pending: 0,
+      approved: 0,
+      rejected: 0,
+      revoked: 0,
+      proposedWindow: 0,
+      approvalPct: null,
+      bySource: { checkout_done: 0, incident_resolved: 0, guest_confirmation: 0 },
+    });
+  });
+
+  it("status/origem desconhecidos e data inválida não quebram: entram só no total", () => {
+    const k = computeLearningKpis([{ status: "x", source: "y", createdAt: "lixo" }], { nowMs: NOW });
+    expect(k).toMatchObject({ total: 1, pending: 0, approved: 0, proposedWindow: 0, approvalPct: null });
+  });
+
+  it("ferramentas: sem registro persistido ⇒ indisponível (nenhum número inventado)", () => {
+    expect(TOOL_KPIS_UNAVAILABLE).toEqual({ available: false, reason: "not_persisted" });
+    expect(Object.isFrozen(TOOL_KPIS_UNAVAILABLE)).toBe(true);
+  });
+
+  it("rótulos em português para todos os status e origens", () => {
+    expect(Object.keys(LEARNING_STATUS_LABEL).sort()).toEqual(["approved", "pending", "rejected", "revoked"]);
+    expect(Object.keys(LEARNING_SOURCE_LABEL).sort()).toEqual(["checkout_done", "guest_confirmation", "incident_resolved"]);
+  });
+
+  it("a leitura do servidor só pede status, origem e data do aprendizado (nunca o texto do fato) e segue somente leitura", () => {
+    const src = readFileSync(path.resolve(__dirname, "../admin-ia-telemetry.functions.ts"), "utf8");
+    expect(src).toContain('.select("status, source, created_at")');
+    expect(src).not.toMatch(/guest_ai_learning_entries[\s\S]{0,200}statement/);
+    expect(src).not.toMatch(/\.(insert|update|upsert|delete)\(/);
+    // único RPC permitido: a verificação de papel de administrador
+    expect([...src.matchAll(/\.rpc\("([a-z_]+)"/g)].map((m) => m[1])).toEqual(["has_role"]);
+    expect(src).toMatch(/assertSaasAdmin\(context\.supabase, context\.userId\)/);
   });
 });

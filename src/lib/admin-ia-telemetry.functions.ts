@@ -6,7 +6,11 @@ import {
   cardSnapshotRows,
   classifyOutcome,
   computeKpis,
+  computeLearningKpis,
   isOscillation,
+  TOOL_KPIS_UNAVAILABLE,
+  type LearningKpis,
+  type ToolKpis,
   type OpsRow,
   type OutcomeKey,
   type SuggestionRow,
@@ -19,7 +23,8 @@ import {
  *
  * Só administradores do SaaS (`has_role(admin)`); a leitura cruza contas, então usa o cliente
  * administrativo depois da verificação. Nenhuma escrita, nenhuma migration: lê
- * `guest_ai_copilot_suggestions` (janela de 14 dias = retenção) e `guest_ai_ops_actions`.
+ * `guest_ai_copilot_suggestions` (janela de 14 dias = retenção), `guest_ai_ops_actions` e, desde 10/11/2026,
+ * só status/origem/data de `guest_ai_learning_entries` (nunca o texto do fato).
  */
 
 /** Teto de linhas lidas para os indicadores (a janela inteira) e para o feed (as mais recentes). */
@@ -118,6 +123,10 @@ export interface TelemetryOverview {
   kpis: TelemetryKpis;
   rows: TelemetryFeedRow[];
   truncated: boolean;
+  /** Aprendizado contínuo; `null` se a leitura falhar (a página continua). */
+  learning: LearningKpis | null;
+  /** Ferramentas externas: sem registro persistido hoje. */
+  tools: ToolKpis;
 }
 
 interface PropertyInfo {
@@ -205,6 +214,27 @@ export const getAiTelemetry = createServerFn({ method: "GET" })
     for (const o of ops)
       opsByTrigger.set(o.triggerMessageId, [...(opsByTrigger.get(o.triggerMessageId) ?? []), o]);
 
+    // aprendizado contínuo: só status/origem/data (nunca o texto do fato); falha só esvazia o bloco
+    let learning: LearningKpis | null = null;
+    try {
+      const { data: lRaw, error: lErr } = await admin
+        .from("guest_ai_learning_entries")
+        .select("status, source, created_at")
+        .order("created_at", { ascending: false })
+        .limit(KPI_ROW_CAP);
+      if (!lErr)
+        learning = computeLearningKpis(
+          ((lRaw ?? []) as Array<Record<string, unknown>>).map((r) => ({
+            status: String(r["status"] ?? ""),
+            source: String(r["source"] ?? ""),
+            createdAt: String(r["created_at"] ?? ""),
+          })),
+          { nowMs },
+        );
+    } catch {
+      learning = null;
+    }
+
     const { copilotDailyLimitUsd } = await import("@/lib/guest-ai/copilot/contracts");
     const kpis = computeKpis(all, ops, { nowMs, dailyLimitUsd: copilotDailyLimitUsd() });
 
@@ -251,6 +281,8 @@ export const getAiTelemetry = createServerFn({ method: "GET" })
       kpis,
       rows,
       truncated: all.length >= KPI_ROW_CAP,
+      learning,
+      tools: TOOL_KPIS_UNAVAILABLE,
     };
   });
 
