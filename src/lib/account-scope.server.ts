@@ -46,6 +46,23 @@ export async function resolveAuthorizedAccountOwnerId(
   return userId;
 }
 /**
+ * Conta efetiva para AÇÕES que mudam a conta (conectar/desconectar integrações): além de
+ * `resolveAuthorizedAccountOwnerId`, exige ser o titular ou administrador SaaS — membro de equipe só lê.
+ */
+export async function resolveManagedAccountOwnerId(
+  supabase: SupabaseClient,
+  userId: string,
+  requestedOwnerId?: string | null,
+): Promise<string> {
+  const owner = await resolveAuthorizedAccountOwnerId(supabase, userId, requestedOwnerId);
+  if (owner === userId) return owner;
+  const { data: isAdmin, error } = await supabase.rpc("has_role", { _user_id: userId, _role: "admin" });
+  if (error) throw new Error("Não foi possível validar o acesso à conta.");
+  if (!isAdmin) throw new Error("Apenas o administrador da conta pode alterar esta integração.");
+  return owner;
+}
+
+/**
  * Perfil pessoal: nunca herda a conta por vínculo implícito de equipe.
  * Só usa outro titular quando explicitamente solicitado (impersonação) e autorizado.
  */

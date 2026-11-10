@@ -237,9 +237,26 @@ function AccountLine({ title, detail, value, first }: { title: string; detail: s
 }
 
 /** Janela "Asaas PJ": leitura da conta sincronizada pela API (não há o que conectar pelo painel). */
-export function AsaasPanel({ inWindow = false, readOnly: _readOnly = false, ownerId = null }: { inWindow?: boolean; readOnly?: boolean; ownerId?: string | null }) {
+export function AsaasPanel({ inWindow = false, readOnly = false, ownerId = null }: { inWindow?: boolean; readOnly?: boolean; ownerId?: string | null }) {
   const q = useBankConnections(true, ownerId);
+  const qc = useQueryClient();
+  const disconnectFn = useServerFn(disconnectBank);
+  const [busy, setBusy] = useState(false);
   const item = asaasItem(q.data?.items ?? []);
+  async function disconnect() {
+    if (!item) return;
+    if (!confirm("Desconectar a API do Asaas desta conta?")) return;
+    setBusy(true);
+    try {
+      await disconnectFn({ data: { itemId: item.malvo_item_id, ownerId } });
+      toast.success("Asaas desconectado.");
+      qc.invalidateQueries({ queryKey: BANK_CONNECTIONS_KEY });
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
   const accounts = (q.data?.accounts ?? []).filter((a) => a.malvo_item_id === item?.malvo_item_id);
   const saldo = accounts.reduce((s, a) => s + (Number(a.balance) || 0), 0);
   const when = item?.last_synced_at
@@ -281,6 +298,18 @@ export function AsaasPanel({ inWindow = false, readOnly: _readOnly = false, owne
                   </p>
                 ) : null}
               </div>
+              {readOnly ? null : (
+                <button
+                  type="button"
+                  aria-label="Desconectar"
+                  title="Desconectar a API do Asaas"
+                  disabled={busy}
+                  onClick={disconnect}
+                  className="grid h-[17px] shrink-0 place-items-center text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50 [&_svg]:size-4"
+                >
+                  <Trash2 strokeWidth={1.9} />
+                </button>
+              )}
             </div>
           ))}
         </>

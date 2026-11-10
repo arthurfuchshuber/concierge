@@ -12,8 +12,8 @@ export const listBankConnections = createServerFn({ method: "GET" })
   .handler(async ({ data: input, context }) => {
     // Mesma resolução de conta das demais integrações (titular, membro ativo ou admin SaaS):
     // o status de Bancos/Asaas PJ tem que refletir a conta que está na tela.
-    const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
-    const userId = await resolveAuthorizedAccountOwnerId(context.supabase, context.userId, input.ownerId);
+    const { resolveManagedAccountOwnerId } = await import("@/lib/account-scope.server");
+    const userId = await resolveManagedAccountOwnerId(context.supabase, context.userId, input.ownerId);
     const supabase =
       userId === context.userId
         ? context.supabase
@@ -45,13 +45,13 @@ export const getBankConnectToken = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { createConnectToken } = await import("@/lib/malvo.server");
-    const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
-    const owner = await resolveAuthorizedAccountOwnerId(context.supabase, context.userId, data.ownerId);
+    const { resolveManagedAccountOwnerId } = await import("@/lib/account-scope.server");
+    const owner = await resolveManagedAccountOwnerId(context.supabase, context.userId, data.ownerId);
     if (data.itemId) await assertOwnItem(owner, data.itemId);
     return { connectToken: await createConnectToken(owner, data.itemId) };
   });
 
-/** `ownerId` já foi autorizado por resolveAuthorizedAccountOwnerId; a RLS esconde as linhas do titular de um membro, então a conferência usa o cliente administrativo. */
+/** `ownerId` já foi autorizado por resolveManagedAccountOwnerId; a RLS esconde as linhas do titular de um membro, então a conferência usa o cliente administrativo. */
 async function assertOwnItem(ownerId: string, itemId: string) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data } = await supabaseAdmin
@@ -71,8 +71,8 @@ export const syncBankConnection = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { malvoFetch, syncMalvoItem } = await import("@/lib/malvo.server");
-    const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
-    const owner = await resolveAuthorizedAccountOwnerId(context.supabase, context.userId, data.ownerId);
+    const { resolveManagedAccountOwnerId } = await import("@/lib/account-scope.server");
+    const owner = await resolveManagedAccountOwnerId(context.supabase, context.userId, data.ownerId);
     // Checa o dono real ignorando RLS: item de outra conta é rejeitado mesmo invisível ao chamador.
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: known } = await supabaseAdmin
@@ -97,8 +97,8 @@ export const disconnectBank = createServerFn({ method: "POST" })
     z.object({ itemId: z.string().min(1).max(100), ownerId: z.string().uuid().nullish() }).parse(i),
   )
   .handler(async ({ data, context }) => {
-    const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
-    const owner = await resolveAuthorizedAccountOwnerId(context.supabase, context.userId, data.ownerId);
+    const { resolveManagedAccountOwnerId } = await import("@/lib/account-scope.server");
+    const owner = await resolveManagedAccountOwnerId(context.supabase, context.userId, data.ownerId);
     await assertOwnItem(owner, data.itemId);
     const { malvoFetch } = await import("@/lib/malvo.server");
     await malvoFetch(`/items/${encodeURIComponent(data.itemId)}`, { method: "DELETE" });

@@ -8,16 +8,14 @@ import {
   removeMyAvatar,
   requestEmailChange,
 } from "@/lib/profile.functions";
-import { Camera, Check, Clock, Loader2, Trash2, User as UserIcon, Mail, ShieldCheck, Lock, CalendarDays, Info } from "lucide-react";
+import { Camera, Check, Clock, Loader2, Trash2, Mail, Lock, CalendarDays, Info } from "lucide-react";
 import { PANEL_SHELL } from "@/components/dashboard/panel-chrome";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ActionButton } from "@/components/admin-pages/admin-mobile-ui";
 import { toast } from "sonner";
 import { formatCPF } from "@/lib/masks";
 import { useImpersonation } from "@/hooks/useImpersonation";
-import { PageHeader } from "@/components/ds/PageHeader";
 import { useAutosave } from "@/hooks/useAutosave";
-import { AutosaveIndicator } from "@/components/ui/autosave-indicator";
 
 
 export function MeuPerfilPage() {
@@ -28,6 +26,7 @@ export function MeuPerfilPage() {
   const emailFn = useServerFn(requestEmailChange);
   const qc = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
+  const birthRef = useRef<HTMLInputElement>(null);
   const { impersonation } = useImpersonation();
   const accountOwnerId = impersonation?.userId ?? null;
 
@@ -140,16 +139,7 @@ export function MeuPerfilPage() {
   }
 
   const avatar = q.data?.profile?.avatar_url ?? null;
-  const initials = (fullName || email || "?").slice(0, 2).toUpperCase();
   const cpfDigits = q.data?.profile?.cpf ?? "";
-  const createdAt = q.data?.profile?.created_at
-    ? new Intl.DateTimeFormat("pt-BR", { dateStyle: "long" }).format(new Date(q.data.profile.created_at))
-    : "";
-  const onboardingCompletedAt = q.data?.profile?.onboarding_completed_at
-    ? new Intl.DateTimeFormat("pt-BR", { dateStyle: "long", timeStyle: "short" }).format(
-        new Date(q.data.profile.onboarding_completed_at),
-      )
-    : "";
 
   const canSave =
     fullName.trim().length > 0 &&
@@ -188,215 +178,9 @@ export function MeuPerfilPage() {
 
   return (
     <>
-    <div className="hidden w-full space-y-8 lg:block">
-      <PageHeader
-        title={
-          <span className="inline-flex items-center gap-2">
-            <UserIcon className="size-5 text-primary" />
-            {impersonation ? "Perfil da conta" : "Meu perfil"}
-          </span>
-        }
-      />
-
-      {/* Avatar */}
-      <section className="glass ds-surface p-4 lg:p-6 border border-border">
-        <div className="flex items-center gap-4">
-          <div className="relative">
-            {avatar ? (
-              <img
-                src={avatar}
-                alt="Foto de perfil"
-                className="size-20 rounded-full object-cover border border-border"
-              />
-            ) : (
-              <div className="size-20 rounded-full bg-accent text-accent-foreground grid place-items-center text-xl font-semibold border border-border">
-                {initials}
-              </div>
-            )}
-            {uploading && (
-              <div className="absolute inset-0 rounded-full bg-black/40 grid place-items-center">
-                <Loader2 className="size-5 animate-spin text-white" />
-              </div>
-            )}
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="ds-card-title">Foto de perfil</div>
-            <div className="ds-meta">PNG, JPG ou WEBP · até 3MB</div>
-            <div className="flex gap-2 mt-2">
-              <button
-                type="button"
-                onClick={() => fileRef.current?.click()}
-                disabled={uploading}
-                className="inline-flex items-center gap-1.5 rounded-md border border-border bg-secondary/40 hover:bg-secondary px-3 py-1.5 text-xs font-medium disabled:opacity-50"
-              >
-                <Camera className="size-3.5" /> {avatar ? "Trocar foto" : "Enviar foto"}
-              </button>
-              {avatar && (
-                <button
-                  type="button"
-                  onClick={onRemoveAvatar}
-                  disabled={uploading}
-                  className="inline-flex items-center gap-1.5 rounded-md border border-border hover:bg-secondary px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground disabled:opacity-50"
-                >
-                  <Trash2 className="size-3.5" /> Remover
-                </button>
-              )}
-              <input
-                ref={fileRef}
-                type="file"
-                accept="image/png,image/jpeg,image/webp"
-                className="hidden"
-                onChange={onPickFile}
-              />
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Dados */}
-      <section className="glass ds-surface p-5 border border-border space-y-4">
-        <h2 className="ds-section-title mb-0">Dados pessoais</h2>
-
-        <Field label="Nome completo" required>
-          <input
-            value={fullName}
-            onChange={(e) => setFullName(e.target.value)}
-            maxLength={120}
-            className="input"
-            placeholder="Como aparece nos documentos"
-          />
-        </Field>
-
-        <Field
-          label="Nome fantasia"
-          hint="Opcional — se preenchido, aparece no lugar do nome completo no cabeçalho."
-        >
-          <input
-            value={tradeName}
-            onChange={(e) => setTradeName(e.target.value)}
-            maxLength={120}
-            className="input"
-            placeholder="Ex.: Sigma Turismo"
-          />
-        </Field>
-
-        <div className="grid sm:grid-cols-2 gap-4">
-          <Field label="Data de nascimento" required>
-            <input
-              type="date"
-              value={birthDate}
-              max={new Date().toISOString().slice(0, 10)}
-              onChange={(e) => setBirthDate(e.target.value)}
-              className="input"
-            />
-          </Field>
-          <Field label="Cargo" hint="Opcional">
-            <input
-              value={jobTitle}
-              onChange={(e) => setJobTitle(e.target.value)}
-              maxLength={80}
-              className="input"
-              placeholder="Ex.: Gerente de reservas"
-            />
-          </Field>
-        </div>
-
-        <div className="grid sm:grid-cols-[8rem_1fr] gap-4">
-          <Field label="País / DDI">
-            <input
-              value={phoneCountry}
-              onChange={(e) => setPhoneCountry(e.target.value)}
-              maxLength={8}
-              className="input"
-              placeholder="Ex.: BR / +55"
-            />
-          </Field>
-          <Field label="Telefone">
-            <input
-              type="tel"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              maxLength={30}
-              className="input"
-              placeholder="Telefone cadastrado na conta"
-            />
-          </Field>
-        </div>
-
-        {(createdAt || onboardingCompletedAt) && (
-          <div className="grid sm:grid-cols-2 gap-4">
-            {createdAt && (
-              <Field label="Conta criada em">
-                <input value={createdAt} readOnly disabled className="input opacity-70 cursor-not-allowed" />
-              </Field>
-            )}
-            {onboardingCompletedAt && (
-              <Field label="Cadastro concluído em">
-                <input value={onboardingCompletedAt} readOnly disabled className="input opacity-70 cursor-not-allowed" />
-              </Field>
-            )}
-          </div>
-        )}
-
-        <div className="grid sm:grid-cols-2 gap-4">
-          <Field label="CPF" hint="Alteração apenas via suporte">
-            <div className="relative">
-              <input
-                value={cpfDigits ? formatCPF(cpfDigits) : "—"}
-                readOnly
-                disabled
-                className="input pr-9 opacity-70 cursor-not-allowed"
-              />
-              <ShieldCheck className="size-4 text-muted-foreground absolute right-3 top-1/2 -translate-y-1/2" />
-            </div>
-          </Field>
-          <Field
-            label="E-mail"
-            required
-            hint={
-              email !== emailOriginal
-                ? "Enviaremos um link para confirmar o novo e-mail."
-                : undefined
-            }
-          >
-            <div className="relative">
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="input pr-9"
-                placeholder="voce@exemplo.com"
-              />
-              <Mail className="size-4 text-muted-foreground absolute right-3 top-1/2 -translate-y-1/2" />
-            </div>
-          </Field>
-        </div>
-
-        <div className="pt-2 flex items-center justify-end gap-3">
-          <AutosaveIndicator status={autosave.status} />
-          {email !== emailOriginal && (
-            <button
-              type="button"
-              onClick={() => save.mutate()}
-              disabled={!canSave || save.isPending}
-              className="inline-flex items-center gap-2 rounded-xl bg-primary text-primary-foreground px-4 py-2.5 text-sm font-medium hover:opacity-90 disabled:opacity-50"
-            >
-              {save.isPending ? <Loader2 className="size-4 animate-spin" /> : <Mail className="size-4" />}
-              Confirmar novo e-mail
-            </button>
-          )}
-        </div>
-
-      </section>
-
-      <style>{`
-        .input { width: 100%; border-radius: 0.75rem; border: 1px solid hsl(var(--border)); background: hsl(var(--background)); padding: 0.55rem 0.75rem; font-size: 0.875rem; outline: none; }
-        .input:focus { border-color: hsl(var(--primary) / 0.7); box-shadow: 0 0 0 3px hsl(var(--primary) / 0.15); }
-      `}</style>
-    </div>
 
     {/* CELULAR — mockups "Meu Perfil" e "Meu Perfil · novo e-mail pendente" (aprovados 05/11/2026). */}
-    <div className="ds-stack lg:hidden">
+    <div className="ds-stack lg:max-w-[760px]">
       {/* Meu Perfil no celular — direção E (aprovada em 05/11/2026): tudo numa tela, campos sem caixa. */}
       <section className={`${PANEL_SHELL} px-4 pb-[18px] pt-4`}>
           <div className="flex items-center gap-3">
@@ -477,10 +261,10 @@ export function MeuPerfilPage() {
               placeholder="Ex.: Sigma Turismo"
             />
           </UField>
-          <div className="grid grid-cols-2 gap-[18px]">
-            <UField label="Número do CPF">
-              <div aria-disabled="true" className={`${UROW} cursor-not-allowed text-muted-foreground`}>
-                <span className="min-w-0 flex-1 truncate">{cpfDigits ? formatCPF(cpfDigits) : "—"}</span>
+          <div className="grid grid-cols-1 gap-[18px]">
+            <UField
+              label="Número do CPF"
+              badge={
                 <span
                   role="button"
                   aria-label="Alteração apenas via suporte"
@@ -489,18 +273,35 @@ export function MeuPerfilPage() {
                 >
                   <Lock className="size-3.5" />
                 </span>
+              }
+            >
+              <div aria-disabled="true" className={`${UROW} cursor-not-allowed text-muted-foreground`}>
+                <span className="min-w-0 flex-1 truncate">{cpfDigits ? formatCPF(cpfDigits) : "—"}</span>
               </div>
             </UField>
-            <UField label="Nascimento" required>
+            <UField
+              label="Nascimento"
+              required
+              badge={
+                <button
+                  type="button"
+                  aria-label="Abrir calendário"
+                  onClick={() => birthRef.current?.showPicker?.()}
+                  className="flex cursor-pointer text-[var(--faint)]"
+                >
+                  <CalendarDays className="size-3.5" />
+                </button>
+              }
+            >
               <div className={`${UROW} relative`}>
                 <input
+                  ref={birthRef}
                   type="date"
                   value={birthDate}
                   max={new Date().toISOString().slice(0, 10)}
                   onChange={(e) => setBirthDate(e.target.value)}
                   className={`${UINPUT_BARE} [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-0`}
                 />
-                <CalendarDays className="pointer-events-none size-3.5 shrink-0 text-[var(--faint)]" />
               </div>
             </UField>
           </div>
@@ -647,39 +448,17 @@ function UField({
         {info ? (
           <Popover>
             <PopoverTrigger asChild>
-              <button type="button" aria-label="Mais informações" className="ml-auto flex cursor-pointer text-[var(--faint)]">
+              <button type="button" aria-label="Mais informações" className="flex cursor-pointer text-[var(--faint)]">
                 <Info className="size-[13px]" strokeWidth={2} />
               </button>
             </PopoverTrigger>
-            <PopoverContent align="end" className="w-[260px] max-w-[calc(100vw-32px)] p-3 text-[12px] leading-[1.45] text-muted-foreground">
+            <PopoverContent align="start" className="w-[260px] max-w-[calc(100vw-32px)] p-3 text-[12px] leading-[1.45] text-muted-foreground">
               {info}
             </PopoverContent>
           </Popover>
         ) : null}
       </div>
       {children}
-    </div>
-  );
-}
-
-function Field({
-  label,
-  hint,
-  required,
-  children,
-}: {
-  label: string;
-  hint?: string;
-  required?: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <div>
-      <label className="ds-meta mb-1 block">
-        {label} {required && <span className="text-red-500">*</span>}
-      </label>
-      {children}
-      {hint && <p className="ds-meta mt-1">{hint}</p>}
     </div>
   );
 }

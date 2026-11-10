@@ -34,6 +34,8 @@ vi.mock("@/lib/malvo.functions", () => ({
 vi.mock("@/hooks/useImpersonation", () => ({
   useImpersonation: () => ({ impersonation: state.impersonating ? { userId: "other", name: "Outra", email: null } : null }),
 }));
+vi.mock("@/hooks/useMyPermissions", () => ({ useMyPermissions: () => ({ isOwner: true, can: () => true, loading: false }) }));
+vi.mock("@/hooks/useIsAdmin", () => ({ useIsAdmin: () => ({ isAdmin: false }) }));
 vi.mock("@/components/admin-pages/WhatsappBusinessPage", () => ({ WhatsappBusinessPage: () => null }));
 vi.mock("@/components/admin-pages/ClicksignPanel", () => ({ ClicksignPanel: () => null }));
 vi.mock("@/components/admin-pages/GoogleCalendarPanel", () => ({ GoogleCalendarPanel: () => null }));
