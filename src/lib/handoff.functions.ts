@@ -1367,8 +1367,59 @@ export const deleteHandoffMessage = createServerFn({ method: "POST" })
       .delete()
       .eq("id", data.messageId);
     if (error) throw new Error(error.message);
+    // AUDITORIA (10/11/2026): mensagem da IA apagada pela equipe vira só uma MÉTRICA (evento sem o texto).
+    // Mensagens são pontuais: nada disso gera regra, contra-exemplo ou aprendizado para o prompt.
+    if (msg.sender_type === "ai") {
+      try {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const { logSystemEvent } = await import("@/lib/audit/events.server");
+        const { data: conv } = await supabaseAdmin
+          .from("property_chat_conversations")
+          .select("property_id")
+          .eq("id", data.conversationId)
+          .maybeSingle();
+        await logSystemEvent(supabaseAdmin, aiMessageDeletedEvent({
+          userId,
+          conversationId: data.conversationId,
+          propertyId: (conv as { property_id?: string | null } | null)?.property_id ?? null,
+          messageId: data.messageId,
+          channel: msg.channel ?? null,
+        }));
+      } catch {
+        /* auditoria nunca derruba a exclusão */
+      }
+    }
     return { ok: true };
   });
+
+/** Evento de auditoria da exclusão de mensagem da IA (sem conteúdo da mensagem). */
+export function aiMessageDeletedEvent(i: {
+  userId: string;
+  conversationId: string;
+  propertyId: string | null;
+  messageId: string;
+  channel: string | null;
+}) {
+  return {
+    userId: i.userId,
+    actorType: "USER" as const,
+    actorId: i.userId,
+    eventType: AI_MESSAGE_DELETED_EVENT,
+    eventCategory: "AI_DECISION" as const,
+    entityType: "property_chat_message",
+    entityId: i.messageId,
+    action: "delete",
+    description: "Mensagem da IA apagada pela equipe",
+    source: "handoff",
+    channel: i.channel,
+    conversationId: i.conversationId,
+    propertyId: i.propertyId,
+    metadata: { sender_type: "ai" },
+    severity: "notice" as const,
+    result: "success" as const,
+  };
+}
+export const AI_MESSAGE_DELETED_EVENT = "ai_message_deleted_by_team";
 
 // -------- Count of pending handoffs (for badge/dock) --------
 

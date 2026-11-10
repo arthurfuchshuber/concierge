@@ -127,6 +127,8 @@ export interface TelemetryOverview {
   learning: LearningKpis | null;
   /** Ferramentas externas: sem registro persistido hoje. */
   tools: ToolKpis;
+  /** Mensagens da IA apagadas pela equipe na janela (auditoria; `null` se a leitura falhar). */
+  aiMessagesDeleted: number | null;
 }
 
 interface PropertyInfo {
@@ -235,6 +237,19 @@ export const getAiTelemetry = createServerFn({ method: "GET" })
       learning = null;
     }
 
+    // auditoria: mensagens da IA apagadas pela equipe (só a contagem; nenhuma regra nasce disso)
+    let aiMessagesDeleted: number | null = null;
+    try {
+      const { count, error: dErr } = await admin
+        .from("ai_system_events")
+        .select("id", { count: "exact", head: true })
+        .eq("event_type", "ai_message_deleted_by_team")
+        .gte("created_at", since);
+      if (!dErr) aiMessagesDeleted = count ?? 0;
+    } catch {
+      aiMessagesDeleted = null;
+    }
+
     const { copilotDailyLimitUsd } = await import("@/lib/guest-ai/copilot/contracts");
     const kpis = computeKpis(all, ops, { nowMs, dailyLimitUsd: copilotDailyLimitUsd() });
 
@@ -283,6 +298,7 @@ export const getAiTelemetry = createServerFn({ method: "GET" })
       truncated: all.length >= KPI_ROW_CAP,
       learning,
       tools: TOOL_KPIS_UNAVAILABLE,
+      aiMessagesDeleted,
     };
   });
 

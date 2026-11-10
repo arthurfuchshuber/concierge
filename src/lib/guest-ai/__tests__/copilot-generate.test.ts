@@ -286,7 +286,7 @@ describe("Copiloto · geração com a cadeia real e o Gateway real (transporte f
     const p = fakeProvider(okJson(v6()));
     const d = deps(p);
     const r = await generateCopilotSuggestion(REQ, d);
-    expect(r).toEqual({ status: "stored", suggestionId: "s-1", state: "available", code: null });
+    expect(r).toMatchObject({ status: "stored", suggestionId: "s-1", state: "available", code: null });
     expect(p.calls).toBe(1);
     const res = d.store.only().result!;
     expect(res.text).toBe("O check-in começa às 15h, no horário do imóvel.");
@@ -310,6 +310,14 @@ describe("Copiloto · geração com a cadeia real e o Gateway real (transporte f
       dailyCostLimitUsd: 3,
       turnCostCeilingUsd: 0.15,
     });
+  });
+
+  it("modo autônomo (slot, 10/11/2026): não depende da chave nem da lista do Copiloto e devolve o resultado gravado", async () => {
+    const p = fakeProvider(okJson(v6()));
+    const d = deps(p, { env: { GUEST_AI_COPILOT_GENERATION_PROPERTY_IDS: "outro-imovel" }, autonomous: true });
+    const r = await generateCopilotSuggestion(REQ, d);
+    expect(r).toMatchObject({ status: "stored", state: "available", result: { text: "O check-in começa às 15h, no horário do imóvel.", handoffNeeded: false } });
+    expect(p.calls).toBe(1);
   });
 
   it("chave mestra desligada ⇒ nada é lido, reivindicado ou chamado", async () => {
@@ -934,12 +942,13 @@ describe("Copiloto · isolamento estático (a IA nunca envia)", () => {
       expect(c, f).not.toMatch(/supabaseAdmin|integrations\/supabase/);
     }
   });
-  it("slot.server.ts continua devolvendo null e sem importar o Copiloto", async () => {
+  it("slot.server.ts: desligado devolve null; ligado usa a cadeia do Copiloto em MODO AUTÔNOMO (import dinâmico)", async () => {
     const slot = readFileSync(pathMod.resolve(__dirname, "..", "slot.server.ts"), "utf8");
-    expect(slot).not.toMatch(/copilot/);
+    expect(slot).toMatch(/import\("@\/lib\/guest-ai\/copilot\/generate\.server"\)/);
+    expect(slot).toMatch(/autonomous: true/);
     const { requestGuestAiReply } = await import("@/lib/guest-ai/slot.server");
     await expect(
-      requestGuestAiReply({ surface: "airbnb", conversationId: "c", messageId: "m" }),
+      requestGuestAiReply({ surface: "airbnb", conversationId: "c", messageId: "m" }, { env: {} }),
     ).resolves.toBeNull();
   });
   it("os canais só importam o DISPARO (trigger), nunca o serviço de geração direto, e o disparo vem antes do fallback inalterado", () => {

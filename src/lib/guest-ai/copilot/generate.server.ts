@@ -93,6 +93,11 @@ export type CopilotPorts = Required<
   Pick<ChainDeps, "loadGuestProfile" | "loadCityEvents" | "loadLivingDocument">;
 
 export interface CopilotGenerateDeps {
+  /**
+   * CONDUÇÃO AUTÔNOMA (10/11/2026): chamada pelo `slot.server.ts`, que tem a própria chave e lista de imóveis.
+   * Aqui só muda: não confere a chave/lista do Copiloto e o silêncio é legítimo (o roteiro não exige texto).
+   */
+  autonomous?: boolean;
   db?: GuestAiDb;
   store?: CopilotStore;
   validateTurnScope?: (input: CopilotGenerationRequest, db: GuestAiDb) => Promise<ValidatedTurn>;
@@ -151,6 +156,14 @@ export type CopilotGenerateResult =
       suggestionId: string;
       state: "available" | "no_suggestion" | "generation_failed";
       code: string | null;
+      /** O que foi gravado (para a condução autônoma devolver ao canal sem reler o banco). */
+      result?: {
+        text: string | null;
+        handoffNeeded: boolean;
+        handoffUrgency: string | null;
+        internalQuestion: string | null;
+        outcomeKind: string | null;
+      };
     }
   | { status: "exists"; suggestionId: string; state: string }
   | { status: "daily_budget_exceeded"; suggestionId: string }
@@ -461,7 +474,7 @@ export async function generateCopilotSuggestion(
 ): Promise<CopilotGenerateResult> {
   const env = deps.env ?? process.env;
   // porta da GERAÇÃO: conferida aqui, no servidor, para QUALQUER chamador (canal ou tela). Sem desvio.
-  if (!copilotFlagOn("generation", env))
+  if (!deps.autonomous && !copilotFlagOn("generation", env))
     return { status: "skipped", code: "generation_off", detail: null };
   // relógio de PAREDE (ms desde a época): a cadeia o usa para datas (fase da estadia, janela D9, pausa) e o
   // prazo global é medido pelo mesmo relógio. Nunca `performance.now` aqui (origem ≠ época).
@@ -504,7 +517,7 @@ export async function generateCopilotSuggestion(
     }
 
     // 1b) escopo de imóveis (backend): sem lista ⇒ todos; com lista ⇒ só os listados (imóvel do turno VALIDADO)
-    if (!copilotPropertyAllowed(turn.propertyId, env)) {
+    if (!deps.autonomous && !copilotPropertyAllowed(turn.propertyId, env)) {
       return { status: "skipped", code: "property_not_allowlisted", detail: null };
     }
 
@@ -708,15 +721,18 @@ export async function generateCopilotSuggestion(
     // tentativa vier sem texto por motivo corrigível (silêncio, incoerência de campos, bloqueio de validação),
     // faz UMA nova tentativa dizendo ao modelo o que corrigir (só códigos fechados). Credenciais (D9), guard,
     // escopo e falhas técnicas NÃO são recontadas aqui.
+    // Na condução autônoma o silêncio é LEGÍTIMO (ex.: "ok, obrigado"): sem exigir texto e sem refazer por silêncio.
+    const alwaysSuggest = !deps.autonomous;
     let outcome = await runTurnChain(
-      { turn, traceId: claimed.suggestionId, batch: null, suggest: { alwaysSuggest: true } },
+      { turn, traceId: claimed.suggestionId, batch: null, suggest: { alwaysSuggest } },
       chainDeps,
     );
-    const reason = retryReason(outcome);
+    const rawReason = retryReason(outcome);
+    const reason = deps.autonomous && outcome.kind === "silence" ? null : rawReason;
     if (reason && generator.telemetry().status !== "blocked" && remainingMs() > 6_000) {
       generator = makeGenerator();
       const second = await runTurnChain(
-        { turn, traceId: claimed.suggestionId, batch: null, suggest: { alwaysSuggest: true, retryNote: reason } },
+        { turn, traceId: claimed.suggestionId, batch: null, suggest: { alwaysSuggest, retryNote: reason } },
         chainDeps,
       );
       if (second.kind === "reply" || retryReason(second) === null) outcome = second;
@@ -792,6 +808,13 @@ export async function generateCopilotSuggestion(
         suggestionId: claimed.suggestionId,
         state: projected.state,
         code: outcomeCode,
+        result: {
+          text: projected.text,
+          handoffNeeded: projected.handoffNeeded,
+          handoffUrgency: projected.handoffUrgency,
+          internalQuestion: projected.internalQuestion,
+          outcomeKind: projected.outcomeKind,
+        },
       };
     if (stored.kind === "stale") return { status: "stale", suggestionId: claimed.suggestionId };
     return {

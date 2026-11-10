@@ -297,6 +297,7 @@ describe("guardas estáticas da tela e do servidor", () => {
         "property_chat_messages",
         "property_chat_conversations",
         "guest_ai_learning_entries",
+        "ai_system_events",
       ]),
     );
     expect(fns).toMatch(/context_dossier_entries/);
@@ -410,5 +411,26 @@ describe("Etapa 4 (10/11/2026) · aprendizado contínuo e ferramentas", () => {
     // único RPC permitido: a verificação de papel de administrador
     expect([...src.matchAll(/\.rpc\("([a-z_]+)"/g)].map((m) => m[1])).toEqual(["has_role"]);
     expect(src).toMatch(/assertSaasAdmin\(context\.supabase, context\.userId\)/);
+  });
+});
+
+describe("auditoria de mensagens da IA apagadas (10/11/2026)", () => {
+  it("evento sem o texto da mensagem, só identificadores e canal", async () => {
+    const { aiMessageDeletedEvent, AI_MESSAGE_DELETED_EVENT } = await import("@/lib/handoff.functions");
+    const e = aiMessageDeletedEvent({ userId: "u1", conversationId: "c1", propertyId: "p1", messageId: "m1", channel: "whatsapp" });
+    expect(e).toMatchObject({ eventType: AI_MESSAGE_DELETED_EVENT, eventCategory: "AI_DECISION", entityId: "m1", conversationId: "c1", propertyId: "p1", channel: "whatsapp" });
+    expect(JSON.stringify(e)).not.toMatch(/content|text|statement/);
+  });
+  it("só mensagens da IA geram o evento e nada disso alimenta o prompt nem o aprendizado", () => {
+    const h = readFileSync(path.resolve(__dirname, "../handoff.functions.ts"), "utf8");
+    expect(h).toMatch(/if \(msg\.sender_type === "ai"\) \{[\s\S]{0,400}logSystemEvent/);
+    const learning = readFileSync(path.resolve(__dirname, "../guest-ai/learning/learning.ts"), "utf8");
+    const extractor = readFileSync(path.resolve(__dirname, "../guest-ai-learning/extractor.server.ts"), "utf8");
+    for (const src of [learning, extractor]) expect(src).not.toMatch(/ai_message_deleted|ai_system_events/);
+  });
+  it("o painel conta as exclusões pela tabela de eventos, só leitura", () => {
+    const src = readFileSync(path.resolve(__dirname, "../admin-ia-telemetry.functions.ts"), "utf8");
+    expect(src).toMatch(/\.from\("ai_system_events"\)[\s\S]{0,120}count: "exact", head: true/);
+    expect(src).toMatch(/eq\("event_type", "ai_message_deleted_by_team"\)/);
   });
 });
