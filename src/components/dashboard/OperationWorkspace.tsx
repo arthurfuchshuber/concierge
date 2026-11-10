@@ -8542,7 +8542,7 @@ function OccupancyPanel({
                   type="button"
                   data-action-wide
                   onClick={() => scrollToToday()}
-                  className="hidden items-center justify-center gap-1.5 text-[12px] font-semibold text-foreground/90 transition-colors hover:bg-secondary/60 lg:inline-flex"
+                  className="hidden h-full items-center justify-center gap-1.5 text-[12px] font-semibold text-foreground/90 transition-colors hover:bg-secondary/60 lg:inline-flex"
                   title="Rolar para o dia vigente"
                   aria-label="Rolar calendário para o dia de hoje"
                 >
