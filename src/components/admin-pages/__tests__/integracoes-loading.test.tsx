@@ -10,10 +10,8 @@ const { resolvers, deferred } = vi.hoisted(() => {
 });
 
 vi.mock("@tanstack/react-start", () => ({ useServerFn: (fn: unknown) => fn }));
-vi.mock("@/lib/whatsapp.functions", () => ({ getMyWhatsappConfig: deferred("wa") }));
 vi.mock("@/lib/clicksign.functions", () => ({ getMyClicksignConfig: deferred("cs") }));
 vi.mock("@/lib/google-calendar.functions", () => ({ getMyGoogleCalendarStatus: deferred("gcal") }));
-vi.mock("@/lib/channex.functions", () => ({ getChannexStatus: deferred("channex") }));
 vi.mock("@/lib/malvo.functions", () => ({
   listBankConnections: () => Promise.resolve({ items: [], accounts: [], transactions: 0 }),
   getBankConnectToken: vi.fn(),
@@ -23,7 +21,6 @@ vi.mock("@/lib/malvo.functions", () => ({
 vi.mock("@/hooks/useImpersonation", () => ({ useImpersonation: () => ({ impersonation: null }) }));
 vi.mock("@/hooks/useMyPermissions", () => ({ useMyPermissions: () => ({ isOwner: true, can: () => true, loading: false }) }));
 vi.mock("@/hooks/useIsAdmin", () => ({ useIsAdmin: () => ({ isAdmin: false }) }));
-vi.mock("@/components/admin-pages/WhatsappBusinessPage", () => ({ WhatsappBusinessPage: () => null }));
 vi.mock("@/components/admin-pages/ClicksignPanel", () => ({ ClicksignPanel: () => null }));
 vi.mock("@/components/admin-pages/GoogleCalendarPanel", () => ({ GoogleCalendarPanel: () => null }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
@@ -58,8 +55,6 @@ describe("IntegracoesPage — sem flash de cards desconectados", () => {
     const { container } = renderPage();
     resolvers.cs({ hasToken: true });
     resolvers.gcal({ connected: false });
-    resolvers.wa({ senderNumber: null });
-    resolvers.channex({ configured: false });
     await waitFor(() => expect(screen.queryAllByTestId("integration-skeleton")).toHaveLength(0));
     expect(screen.getAllByText("Gerenciar").length).toBeGreaterThan(0);
     expect(container.querySelector(".bg-emerald-500.w-\\[3px\\]")).not.toBeNull();
@@ -73,12 +68,10 @@ describe("IntegracoesPage — sem flash de cards desconectados", () => {
       return null;
     }
     render(<QueryClientProvider client={qc}><Prefetch /></QueryClientProvider>);
-    await waitFor(() => expect(resolvers.channex).toBeDefined());
+    await waitFor(() => expect(resolvers.gcal).toBeDefined());
     resolvers.cs({ hasToken: true });
     resolvers.gcal({ connected: false });
-    resolvers.wa({ senderNumber: null });
-    resolvers.channex({ configured: false });
-    await waitFor(() => expect(qc.getQueryData(["channex-status"])).toBeDefined());
+    await waitFor(() => expect(qc.getQueryData(["gcal-status", null])).toBeDefined());
     cleanup();
     render(<QueryClientProvider client={qc}><IntegracoesPage /></QueryClientProvider>);
     expect(screen.queryAllByTestId("integration-skeleton")).toHaveLength(0);

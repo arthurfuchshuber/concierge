@@ -21,10 +21,8 @@ const { bankData, state } = vi.hoisted(() => ({
 }));
 
 vi.mock("@tanstack/react-start", () => ({ useServerFn: (fn: unknown) => fn }));
-vi.mock("@/lib/whatsapp.functions", () => ({ getMyWhatsappConfig: () => Promise.resolve({ senderNumber: null }) }));
 vi.mock("@/lib/clicksign.functions", () => ({ getMyClicksignConfig: () => Promise.resolve({ hasToken: true }) }));
 vi.mock("@/lib/google-calendar.functions", () => ({ getMyGoogleCalendarStatus: () => Promise.resolve({ connected: true }) }));
-vi.mock("@/lib/channex.functions", () => ({ getChannexStatus: () => Promise.resolve({ configured: false }) }));
 vi.mock("@/lib/malvo.functions", () => ({
   listBankConnections: () => Promise.resolve(state.empty ? { items: [], accounts: [], transactions: 0 } : bankData),
   getBankConnectToken: vi.fn(),
@@ -36,7 +34,6 @@ vi.mock("@/hooks/useImpersonation", () => ({
 }));
 vi.mock("@/hooks/useMyPermissions", () => ({ useMyPermissions: () => ({ isOwner: true, can: () => true, loading: false }) }));
 vi.mock("@/hooks/useIsAdmin", () => ({ useIsAdmin: () => ({ isAdmin: false }) }));
-vi.mock("@/components/admin-pages/WhatsappBusinessPage", () => ({ WhatsappBusinessPage: () => null }));
 vi.mock("@/components/admin-pages/ClicksignPanel", () => ({ ClicksignPanel: () => null }));
 vi.mock("@/components/admin-pages/GoogleCalendarPanel", () => ({ GoogleCalendarPanel: () => null }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
