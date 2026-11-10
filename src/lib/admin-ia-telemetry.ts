@@ -387,3 +387,12 @@ export const LEARNING_SOURCE_LABEL: Record<LearningSourceKey, string> = {
   incident_resolved: "Atendimento resolvido",
   guest_confirmation: "Confirmação do hóspede",
 };
+
+/**
+ * Nota do cartão "Modelo" (10/11/2026): o Copiloto roda no Gemini Flash como TITULAR; contar "reserva usada"
+ * para ele enganava. Só quando o titular é outro (ex.: Astra pela variável) o Flash é contado como reserva.
+ */
+export function modelNote(k: Pick<TelemetryKpis, "activeModel" | "reserveUsesToday">): string {
+  if (k.activeModel === RESERVE_MODEL) return "titular do Copiloto";
+  return k.reserveUsesToday ? `reserva usada ${k.reserveUsesToday}× hoje` : "sem reserva hoje";
+}

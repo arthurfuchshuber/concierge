@@ -6,6 +6,7 @@ import { PageShell } from "@/components/ds/PageShell";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TelemetryKpis } from "@/components/admin/ia/TelemetryKpis";
 import { TelemetryFeed } from "@/components/admin/ia/TelemetryFeed";
+import { TelemetryLearningTools } from "@/components/admin/ia/TelemetryLearningTools";
 import { TelemetryInspector } from "@/components/admin/ia/TelemetryInspector";
 import { checkIsAdmin } from "@/lib/admin-subs.functions";
 import { friendlyErrorMessage } from "@/lib/friendly-error";
@@ -111,6 +112,12 @@ function AiTelemetryPage() {
       ) : null}
 
       <TelemetryKpis kpis={q.data?.kpis ?? null} loading={q.isLoading} />
+
+      <TelemetryLearningTools
+        learning={q.data?.learning ?? null}
+        tools={q.data?.tools ?? null}
+        loading={q.isLoading}
+      />
 
       <TelemetryFeed
         rows={rows}
