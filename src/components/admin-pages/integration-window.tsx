@@ -298,7 +298,7 @@ export function IntegrationShell({
         ref={bodyRef}
         className={cn(
           "sg-elegant-scroll grid min-h-0 grid-cols-[minmax(0,1fr)] content-start overflow-y-auto overscroll-contain",
-          inWindow ? "flex-1 px-4 pt-2.5" : "max-h-[440px] pt-2.5",
+          inWindow ? cn("flex-1 px-4 pt-2.5", !footer && "pb-4") : "max-h-[440px] pt-2.5",
         )}
       >
         {children}
