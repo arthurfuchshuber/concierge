@@ -4649,7 +4649,7 @@ function KpiCard({
             className="flex h-full items-center gap-2 whitespace-nowrap border-r border-border/50 px-[22px] text-left transition-colors hover:bg-foreground/[0.04] focus:outline-none focus-visible:bg-foreground/[0.06]"
           >
             <Icon className="size-3 shrink-0 text-muted-foreground" strokeWidth={2.2} />
-            <span className="ds-eyebrow text-[12px] font-extrabold leading-none tracking-[0.12em]">{label}</span>
+            <span className="ds-eyebrow text-[12px] font-normal leading-none tracking-[0.12em]">{label}</span>
             <span className="font-display text-sm font-bold leading-none tabular-nums">{loading ? "—" : rows.length}</span>
           </button>
         ) : compact ? (
@@ -4996,7 +4996,7 @@ function FreePropertiesCard({
             className="flex h-full items-center gap-2 whitespace-nowrap border-r border-border/50 px-[22px] text-left transition-colors hover:bg-foreground/[0.04] focus:outline-none focus-visible:bg-foreground/[0.06]"
           >
             <Home className="size-3 shrink-0 text-muted-foreground" strokeWidth={2.2} />
-            <span className="ds-eyebrow text-[12px] font-extrabold leading-none tracking-[0.12em]">Imóveis livres</span>
+            <span className="ds-eyebrow text-[12px] font-normal leading-none tracking-[0.12em]">Imóveis livres</span>
             <span
               className={`font-display text-sm font-bold leading-none tabular-nums ${hasFree ? "text-red-500 dark:text-red-400" : "text-foreground"}`}
             >
