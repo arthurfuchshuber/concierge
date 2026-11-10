@@ -60,12 +60,12 @@ export function PanelHeading({
   afterTitle?: ReactNode;
   /** Troca o tamanho/espaçamento do título (padrão: 10px, para as abas densas). */
   titleClassName?: string;
-  /** Só no desktop: título centralizado no topo, sem o fio, e o `right`
-   * (ex.: o "i") cola no canto superior direito do bloco. */
+  /** Em todas as telas (celular, tablet e desktop): título centralizado, sem o fio, e o `right`
+   * (ex.: o "i") cola no canto direito — da linha no celular/tablet e do bloco no desktop. */
   lgCentered?: boolean;
 }) {
   return (
-    <div className={`flex items-center gap-2.5 ${lgCentered ? "lg:justify-center" : ""} ${className ?? "mb-3"}`}>
+    <div className={`flex items-center gap-2.5 ${lgCentered ? "relative justify-center lg:static" : ""} ${className ?? "mb-3"}`}>
       {dot ??
         (dotColor ? (
           <span
@@ -80,9 +80,9 @@ export function PanelHeading({
       {afterTitle ? <span className="shrink-0">{afterTitle}</span> : null}
       <span
         aria-hidden
-        className={`h-px flex-1 bg-gradient-to-r from-[color-mix(in_oklab,var(--foreground)_9%,transparent)] to-transparent ${lgCentered ? "lg:hidden" : ""}`}
+        className={`h-px flex-1 bg-gradient-to-r from-[color-mix(in_oklab,var(--foreground)_9%,transparent)] to-transparent ${lgCentered ? "hidden" : ""}`}
       />
-      {right ? <span className={`shrink-0 ${lgCentered ? "lg:absolute lg:right-[18px] lg:top-[13px]" : ""}`}>{right}</span> : null}
+      {right ? <span className={`shrink-0 ${lgCentered ? "absolute right-0 top-1/2 -translate-y-1/2 lg:right-[18px] lg:top-[13px] lg:translate-y-0" : ""}`}>{right}</span> : null}
     </div>
   );
 }
