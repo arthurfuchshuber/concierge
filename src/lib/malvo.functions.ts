@@ -3,7 +3,8 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 
-// Dados bancários da empresa: só o dono da conta conecta e enxerga.
+// Dados bancários da empresa: o titular, os membros ativos da conta e o admin SaaS conectam e enxergam.
+// `ownerId` é a conta em tela; o servidor valida o acesso e grava SEMPRE sob o titular, nunca sob o membro.
 
 export const listBankConnections = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -39,19 +40,25 @@ export const listBankConnections = createServerFn({ method: "GET" })
 
 export const getBankConnectToken = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((i: unknown) => z.object({ itemId: z.string().max(100).optional() }).parse(i ?? {}))
+  .inputValidator((i: unknown) =>
+    z.object({ itemId: z.string().max(100).optional(), ownerId: z.string().uuid().nullish() }).parse(i ?? {}),
+  )
   .handler(async ({ data, context }) => {
     const { createConnectToken } = await import("@/lib/malvo.server");
-    if (data.itemId) await assertOwnItem(context.supabase, context.userId, data.itemId);
-    return { connectToken: await createConnectToken(context.userId, data.itemId) };
+    const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
+    const owner = await resolveAuthorizedAccountOwnerId(context.supabase, context.userId, data.ownerId);
+    if (data.itemId) await assertOwnItem(owner, data.itemId);
+    return { connectToken: await createConnectToken(owner, data.itemId) };
   });
 
-async function assertOwnItem(supabase: any, userId: string, itemId: string) {
-  const { data } = await supabase
+/** `ownerId` já foi autorizado por resolveAuthorizedAccountOwnerId; a RLS esconde as linhas do titular de um membro, então a conferência usa o cliente administrativo. */
+async function assertOwnItem(ownerId: string, itemId: string) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data } = await supabaseAdmin
     .from("malvo_items")
     .select("malvo_item_id")
     .eq("malvo_item_id", itemId)
-    .eq("account_owner_id", userId)
+    .eq("account_owner_id", ownerId)
     .maybeSingle();
   if (!data) throw new Error("Conexão bancária não encontrada.");
 }
@@ -59,9 +66,13 @@ async function assertOwnItem(supabase: any, userId: string, itemId: string) {
 /** Chamado logo após o widget concluir (best-effort; o webhook continua sendo a fonte da verdade). */
 export const syncBankConnection = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((i: unknown) => z.object({ itemId: z.string().min(1).max(100) }).parse(i))
+  .inputValidator((i: unknown) =>
+    z.object({ itemId: z.string().min(1).max(100), ownerId: z.string().uuid().nullish() }).parse(i),
+  )
   .handler(async ({ data, context }) => {
     const { malvoFetch, syncMalvoItem } = await import("@/lib/malvo.server");
+    const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
+    const owner = await resolveAuthorizedAccountOwnerId(context.supabase, context.userId, data.ownerId);
     // Checa o dono real ignorando RLS: item de outra conta é rejeitado mesmo invisível ao chamador.
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: known } = await supabaseAdmin
@@ -69,22 +80,26 @@ export const syncBankConnection = createServerFn({ method: "POST" })
       .select("account_owner_id")
       .eq("malvo_item_id", data.itemId)
       .maybeSingle();
-    if (known && (known as { account_owner_id: string }).account_owner_id !== context.userId) {
+    if (known && (known as { account_owner_id: string }).account_owner_id !== owner) {
       throw new Error("Conexão bancária não encontrada.");
     }
     if (!known) {
       // Conexão recém-criada: só aceita se o próprio Malvo disser que é deste usuário.
       const item = await malvoFetch(`/items/${encodeURIComponent(data.itemId)}`);
-      if (!item || item.clientUserId !== context.userId) throw new Error("Conexão bancária não encontrada.");
+      if (!item || item.clientUserId !== owner) throw new Error("Conexão bancária não encontrada.");
     }
-    return syncMalvoItem(data.itemId, context.userId);
+    return syncMalvoItem(data.itemId, owner);
   });
 
 export const disconnectBank = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((i: unknown) => z.object({ itemId: z.string().min(1).max(100) }).parse(i))
+  .inputValidator((i: unknown) =>
+    z.object({ itemId: z.string().min(1).max(100), ownerId: z.string().uuid().nullish() }).parse(i),
+  )
   .handler(async ({ data, context }) => {
-    await assertOwnItem(context.supabase, context.userId, data.itemId);
+    const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
+    const owner = await resolveAuthorizedAccountOwnerId(context.supabase, context.userId, data.ownerId);
+    await assertOwnItem(owner, data.itemId);
     const { malvoFetch } = await import("@/lib/malvo.server");
     await malvoFetch(`/items/${encodeURIComponent(data.itemId)}`, { method: "DELETE" });
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -92,6 +107,6 @@ export const disconnectBank = createServerFn({ method: "POST" })
       .from("malvo_items")
       .update({ deleted_at: new Date().toISOString() } as never)
       .eq("malvo_item_id", data.itemId)
-      .eq("account_owner_id", context.userId);
+      .eq("account_owner_id", owner);
     return { ok: true };
   });

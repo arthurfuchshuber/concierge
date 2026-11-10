@@ -21,7 +21,7 @@ import {
   syncedLabel,
 } from "@/lib/bank-account-label";
 import { cn } from "@/lib/utils";
-import { IntegrationShell } from "@/components/admin-pages/integration-window";
+import { IntegrationShell, PrimaryAction } from "@/components/admin-pages/integration-window";
 
 declare global {
   interface Window {
@@ -60,7 +60,7 @@ export function useBankConnections(enabled = true, ownerId: string | null = null
 }
 
 /** Janela "Bancos": conectar, atualizar e desconectar as instituições do Open Finance. */
-/** `readOnly`: vendo outra conta — não consulta nem conecta bancos da sessão logada. */
+/** `ownerId`: conta em tela (membro de equipe/admin). O servidor valida o acesso e conecta sempre sob o titular. `readOnly` só esconde as ações. */
 export function BancosPanel({ inWindow = false, readOnly = false, ownerId = null }: { inWindow?: boolean; readOnly?: boolean; ownerId?: string | null }) {
   const qc = useQueryClient();
   const tokenFn = useServerFn(getBankConnectToken);
@@ -72,7 +72,7 @@ export function BancosPanel({ inWindow = false, readOnly = false, ownerId = null
   async function connect(itemId?: string) {
     setBusy(itemId ?? "new");
     try {
-      const { connectToken } = await tokenFn({ data: { itemId } });
+      const { connectToken } = await tokenFn({ data: { itemId, ownerId } });
       await loadWidget();
       window.MalvoConnect!.init({
         connectToken,
@@ -81,7 +81,7 @@ export function BancosPanel({ inWindow = false, readOnly = false, ownerId = null
           if (!id) return;
           toast.success("Banco conectado. Importando os dados…");
           try {
-            await syncFn({ data: { itemId: id } });
+            await syncFn({ data: { itemId: id, ownerId } });
           } catch {
             /* o aviso automático do banco conclui a importação */
           }
@@ -99,7 +99,7 @@ export function BancosPanel({ inWindow = false, readOnly = false, ownerId = null
     if (!confirm("Desconectar este banco e revogar o consentimento?")) return;
     setBusy(itemId);
     try {
-      await disconnectFn({ data: { itemId } });
+      await disconnectFn({ data: { itemId, ownerId } });
       qc.invalidateQueries({ queryKey: BANK_CONNECTIONS_KEY });
     } catch (e) {
       toast.error((e as Error).message);
@@ -122,15 +122,9 @@ export function BancosPanel({ inWindow = false, readOnly = false, ownerId = null
       bodyDeps={[items.length, accounts.length]}
       footer={
         readOnly ? undefined : (
-          <button
-            type="button"
-            onClick={() => connect()}
-            disabled={busy === "new"}
-            className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-foreground text-[13px] font-bold text-background transition-opacity hover:opacity-90 disabled:opacity-60"
-          >
-            <Plus className="size-4" strokeWidth={2.2} />
+          <PrimaryAction icon={<Plus strokeWidth={2.2} />} onClick={() => connect()} disabled={busy === "new"}>
             Conectar banco
-          </button>
+          </PrimaryAction>
         )
       }
     >

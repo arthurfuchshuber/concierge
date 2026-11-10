@@ -366,7 +366,7 @@ export function IntegracoesPage() {
           ) : panelCfg?.key === "clicksign" ? (
             <ClicksignPanel accountOwnerId={accountOwnerId} readOnly={!!accountOwnerId} inWindow />
           ) : panelCfg?.key === "bancos" ? (
-            <BancosPanel inWindow readOnly={!!accountOwnerId} ownerId={accountOwnerId} />
+            <BancosPanel inWindow ownerId={accountOwnerId} />
           ) : panelCfg?.key === "asaas" ? (
             <AsaasPanel inWindow readOnly={!!accountOwnerId} ownerId={accountOwnerId} />
           ) : null}
