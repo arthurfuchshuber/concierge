@@ -9,7 +9,6 @@ import { describe, expect, it } from "vitest";
 const ROOT = process.env["GUEST_AI_REPO_ROOT"] ?? process.cwd();
 const CHANNELS = [
   "src/routes/api/public/guide-chat.ts",
-  "src/routes/api/public/whatsapp/sinch-webhook.ts",
   "src/lib/channex-messages.server.ts",
 ];
 

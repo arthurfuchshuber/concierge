@@ -1,7 +1,7 @@
 /**
  * VALIDAÇÃO DO TURNO — porta de entrada de toda a camada de dados do Guest.
  *
- * O canal (rota do guia, webhook Sinch, fila Channex) já autenticou a requisição
+ * O canal (rota do guia, webhook do WhatsApp, hoje em standby, fila Channex) já autenticou a requisição
  * (passe assinado, HMAC, anúncio resolvido com certeza). Aqui o BACKEND confirma,
  * a partir do banco, tudo o que o canal afirma, sem confiar em nenhum
  * identificador vindo do cliente:

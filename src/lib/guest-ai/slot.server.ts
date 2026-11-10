@@ -1,7 +1,7 @@
 /**
  * PONTO DE EXTENSÃO DA IA DE ATENDIMENTO AO HÓSPEDE.
  *
- * Os canais de entrada (chat do guia, WhatsApp/Sinch, Airbnb/Channex) chamam este
+ * Os canais de entrada (chat do guia, WhatsApp (em standby desde 10/11/2026), Airbnb/Channex) chamam este
  * ponto único quando a IA está LIGADA para a conversa (chave do anúncio, pausa
  * humana expirada etc.).
  *

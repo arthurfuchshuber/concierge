@@ -955,7 +955,6 @@ describe("Copiloto · isolamento estático (a IA nunca envia)", () => {
     const SRC = pathMod.resolve(__dirname, "..", "..", "..");
     for (const f of [
       "routes/api/public/guide-chat.ts",
-      "routes/api/public/whatsapp/sinch-webhook.ts",
       "lib/channex-messages.server.ts",
     ]) {
       const c = readFileSync(pathMod.join(SRC, f), "utf8");

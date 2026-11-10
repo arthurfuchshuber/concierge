@@ -1,7 +1,7 @@
 /**
  * COPILOTO · preparação dos testes dos TRÊS CANAIS (Guia, WhatsApp, Airbnb) — fluxo de ponta a ponta com as
  * ROTINAS OFICIAIS REAIS de envio (`handoff-send.server` / `whatsapp-send.server` / `deliverToAirbnbThread`).
- * Só a rede (Sinch, Channex, Airbnb) e o banco são falsos: nenhuma mensagem real sai, nenhum hóspede real.
+ * Só a rede (Channex, Airbnb) e o banco são falsos: nenhuma mensagem real sai, nenhum hóspede real.
  *
  * Por canal: geração pela cadeia real + Gateway real (transporte falso) com o turno do canal → resposta
  * disponível. (O envio pela equipe da sugestão foi removido em 10/11/2026: a IA responde pelo slot.) Guia = `GuideAiChat` (/g/$slug) → POST /api/public/guide-chat,
@@ -15,8 +15,6 @@ const db = vi.hoisted(() => ({
   updates: [] as Array<{ client: string; table: string; patch: Record<string, unknown> }>,
   conv: null as Record<string, unknown> | null,
   waConfig: null as Record<string, unknown> | null,
-  sinch: [] as Array<{ to: string; text: string }>,
-  sinchFail: false,
   permission: [] as string[],
 }));
 
@@ -67,15 +65,6 @@ vi.mock("@/lib/member-permissions.server", () => ({
     db.permission.push(`${perm}:${userId}`);
   },
 }));
-vi.mock("@/lib/whatsapp.server", () => ({
-  decryptToken: () => "token-falso",
-  normalizePhone: (p: string) => `+${p.replace(/\D/g, "")}`,
-  sinchSendText: async (_cfg: unknown, m: { toE164: string; text: string }) => {
-    if (db.sinchFail) throw new Error("Sinch 500");
-    db.sinch.push({ to: m.toE164, text: m.text });
-    return { messageId: `sinch-${db.sinch.length}` };
-  },
-}));
 vi.mock("@/lib/guest-push.server", () => ({ sendPushToGuest: async () => {} }));
 vi.mock("@/lib/delivery-failure.server", () => ({ reportDeliveryFailure: async () => {} }));
 const airbnb = vi.hoisted(() => ({
@@ -123,7 +112,7 @@ const CHANNELS: ReadonlyArray<{
   {
     surface: "whatsapp",
     session: "wa:5500000000001",
-    label: "WhatsApp (Sinch, número de teste)",
+    label: "WhatsApp (standby; geração do motor segue igual)",
     channel: "whatsapp",
   },
   {
@@ -188,9 +177,7 @@ function sessionRpc(text: string, surface: GuestSurface) {
 beforeEach(() => {
   db.inserts.length = 0;
   db.updates.length = 0;
-  db.sinch.length = 0;
   db.permission.length = 0;
-  db.sinchFail = false;
   airbnb.calls.length = 0;
   airbnb.outcome = { outcome: "preferred_is_mapped", channelId: "chan-ok" };
   process.env.CHANNEX_API_KEY = "teste";
@@ -208,14 +195,6 @@ describe.each(CHANNELS)("Copiloto · canal $label", ({ surface, session, channel
       guest_session_id: session,
       guest_name: "Hóspede Teste",
       properties: { id: "p1", owner_id: "t1", name: "Casa Teste", slug: "casa-teste" },
-    };
-    db.waConfig = {
-      provider: "sinch",
-      sender_number: "+5500000000999",
-      service_plan_id: "proj",
-      app_id: "app",
-      api_token_encrypted: "enc",
-      status: "active",
     };
   };
   const guard = (async () => ({

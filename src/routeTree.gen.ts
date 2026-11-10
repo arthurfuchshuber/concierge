@@ -86,7 +86,7 @@ import { Route as ApiPublicCronReindexSystemKnowledgeRouteImport } from './route
 import { Route as ApiPublicWebhooksAsaasRouteImport } from './routes/api/public/webhooks.asaas'
 import { Route as ApiPublicWebhooksMalvoRouteImport } from './routes/api/public/webhooks.malvo'
 import { Route as ApiPublicWebhooksStripeRouteImport } from './routes/api/public/webhooks.stripe'
-import { Route as ApiPublicWhatsappSinchWebhookRouteImport } from './routes/api/public/whatsapp/sinch-webhook'
+import { Route as ApiPublicWhatsappWebhookRouteImport } from './routes/api/public/whatsapp/webhook'
 import { Route as LovableEmailAuthPreviewRouteImport } from './routes/lovable/email/auth/preview'
 import { Route as LovableEmailAuthWebhookRouteImport } from './routes/lovable/email/auth/webhook'
 import { Route as LovableEmailTransactionalPreviewRouteImport } from './routes/lovable/email/transactional/preview'
@@ -517,10 +517,10 @@ const ApiPublicWebhooksStripeRoute = ApiPublicWebhooksStripeRouteImport.update({
   path: '/api/public/webhooks/stripe',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPublicWhatsappSinchWebhookRoute =
-  ApiPublicWhatsappSinchWebhookRouteImport.update({
-    id: '/api/public/whatsapp/sinch-webhook',
-    path: '/api/public/whatsapp/sinch-webhook',
+const ApiPublicWhatsappWebhookRoute =
+  ApiPublicWhatsappWebhookRouteImport.update({
+    id: '/api/public/whatsapp/webhook',
+    path: '/api/public/whatsapp/webhook',
     getParentRoute: () => rootRouteImport,
   } as any)
 const LovableEmailAuthPreviewRoute = LovableEmailAuthPreviewRouteImport.update({
@@ -615,7 +615,7 @@ export interface FileRoutesByFullPath {
   '/api/public/webhooks/asaas': typeof ApiPublicWebhooksAsaasRoute
   '/api/public/webhooks/malvo': typeof ApiPublicWebhooksMalvoRoute
   '/api/public/webhooks/stripe': typeof ApiPublicWebhooksStripeRoute
-  '/api/public/whatsapp/sinch-webhook': typeof ApiPublicWhatsappSinchWebhookRoute
+  '/api/public/whatsapp/webhook': typeof ApiPublicWhatsappWebhookRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
   '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
@@ -694,7 +694,7 @@ export interface FileRoutesByTo {
   '/api/public/webhooks/asaas': typeof ApiPublicWebhooksAsaasRoute
   '/api/public/webhooks/malvo': typeof ApiPublicWebhooksMalvoRoute
   '/api/public/webhooks/stripe': typeof ApiPublicWebhooksStripeRoute
-  '/api/public/whatsapp/sinch-webhook': typeof ApiPublicWhatsappSinchWebhookRoute
+  '/api/public/whatsapp/webhook': typeof ApiPublicWhatsappWebhookRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
   '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
@@ -778,7 +778,7 @@ export interface FileRoutesById {
   '/api/public/webhooks/asaas': typeof ApiPublicWebhooksAsaasRoute
   '/api/public/webhooks/malvo': typeof ApiPublicWebhooksMalvoRoute
   '/api/public/webhooks/stripe': typeof ApiPublicWebhooksStripeRoute
-  '/api/public/whatsapp/sinch-webhook': typeof ApiPublicWhatsappSinchWebhookRoute
+  '/api/public/whatsapp/webhook': typeof ApiPublicWhatsappWebhookRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
   '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
@@ -862,7 +862,7 @@ export interface FileRouteTypes {
     | '/api/public/webhooks/asaas'
     | '/api/public/webhooks/malvo'
     | '/api/public/webhooks/stripe'
-    | '/api/public/whatsapp/sinch-webhook'
+    | '/api/public/whatsapp/webhook'
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
     | '/lovable/email/transactional/preview'
@@ -941,7 +941,7 @@ export interface FileRouteTypes {
     | '/api/public/webhooks/asaas'
     | '/api/public/webhooks/malvo'
     | '/api/public/webhooks/stripe'
-    | '/api/public/whatsapp/sinch-webhook'
+    | '/api/public/whatsapp/webhook'
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
     | '/lovable/email/transactional/preview'
@@ -1024,7 +1024,7 @@ export interface FileRouteTypes {
     | '/api/public/webhooks/asaas'
     | '/api/public/webhooks/malvo'
     | '/api/public/webhooks/stripe'
-    | '/api/public/whatsapp/sinch-webhook'
+    | '/api/public/whatsapp/webhook'
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
     | '/lovable/email/transactional/preview'
@@ -1080,7 +1080,7 @@ export interface RootRouteChildren {
   ApiPublicWebhooksAsaasRoute: typeof ApiPublicWebhooksAsaasRoute
   ApiPublicWebhooksMalvoRoute: typeof ApiPublicWebhooksMalvoRoute
   ApiPublicWebhooksStripeRoute: typeof ApiPublicWebhooksStripeRoute
-  ApiPublicWhatsappSinchWebhookRoute: typeof ApiPublicWhatsappSinchWebhookRoute
+  ApiPublicWhatsappWebhookRoute: typeof ApiPublicWhatsappWebhookRoute
   LovableEmailAuthPreviewRoute: typeof LovableEmailAuthPreviewRoute
   LovableEmailAuthWebhookRoute: typeof LovableEmailAuthWebhookRoute
   LovableEmailTransactionalPreviewRoute: typeof LovableEmailTransactionalPreviewRoute
@@ -1627,11 +1627,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicWebhooksStripeRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/whatsapp/sinch-webhook': {
-      id: '/api/public/whatsapp/sinch-webhook'
-      path: '/api/public/whatsapp/sinch-webhook'
-      fullPath: '/api/public/whatsapp/sinch-webhook'
-      preLoaderRoute: typeof ApiPublicWhatsappSinchWebhookRouteImport
+    '/api/public/whatsapp/webhook': {
+      id: '/api/public/whatsapp/webhook'
+      path: '/api/public/whatsapp/webhook'
+      fullPath: '/api/public/whatsapp/webhook'
+      preLoaderRoute: typeof ApiPublicWhatsappWebhookRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/lovable/email/auth/preview': {
@@ -1819,7 +1819,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicWebhooksAsaasRoute: ApiPublicWebhooksAsaasRoute,
   ApiPublicWebhooksMalvoRoute: ApiPublicWebhooksMalvoRoute,
   ApiPublicWebhooksStripeRoute: ApiPublicWebhooksStripeRoute,
-  ApiPublicWhatsappSinchWebhookRoute: ApiPublicWhatsappSinchWebhookRoute,
+  ApiPublicWhatsappWebhookRoute: ApiPublicWhatsappWebhookRoute,
   LovableEmailAuthPreviewRoute: LovableEmailAuthPreviewRoute,
   LovableEmailAuthWebhookRoute: LovableEmailAuthWebhookRoute,
   LovableEmailTransactionalPreviewRoute: LovableEmailTransactionalPreviewRoute,

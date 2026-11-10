@@ -1,5 +1,5 @@
 /**
- * COPILOTO — disparo em SEGUNDO PLANO a partir dos canais de entrada (chat do guia, WhatsApp/Sinch,
+ * COPILOTO — disparo em SEGUNDO PLANO a partir dos canais de entrada (chat do guia, WhatsApp (em standby desde 10/11/2026),
  * Airbnb/Channex), logo depois de a mensagem do hóspede ser gravada.
  *
  *  - Gate G1 (R2): a geração NUNCA fica solta. Com o `waitUntil` do Worker, a promessa devolvida resolve na

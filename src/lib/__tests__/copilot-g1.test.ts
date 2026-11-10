@@ -212,7 +212,6 @@ describe("G1 · estáticos", () => {
     expect(server).toMatch(/await drainLifecycle\(lifecycle\)/);
     for (const f of [
       "src/routes/api/public/guide-chat.ts",
-      "src/routes/api/public/whatsapp/sinch-webhook.ts",
       "src/lib/channex-messages.server.ts",
     ]) {
       const src = read(f);
