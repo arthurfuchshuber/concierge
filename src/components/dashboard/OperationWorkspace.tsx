@@ -3109,7 +3109,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       <div className="relative overflow-hidden rounded-[16px] p-px lg:h-full">
         {engagementRing}
         <div
-          className="relative rounded-[15px] bg-card p-4 lg:flex lg:h-full lg:flex-col lg:px-5 lg:pb-[14px] lg:pt-[13px]"
+          className="relative rounded-[15px] bg-card p-4 lg:flex lg:h-full lg:flex-col lg:px-5 lg:pb-0 lg:pt-[13px]"
           style={{ backgroundImage: engagementCardBg }}
         >
           {engagementEyebrow}
@@ -9317,7 +9317,7 @@ function EngagementBars({
        vai para a esquerda e a frase para a direita, que é onde sobra
        largura. Quando só existe uma das métricas, ela ocupa o espaço todo e
        o fio não aparece. */
-    <div className="flex items-start gap-3.5 lg:flex-1 lg:items-center lg:gap-0">
+    <div className="flex items-start gap-3.5 lg:flex-1 lg:items-center lg:gap-0 lg:py-2">
       {temCheckin && (
         <RingCell
           label="Viram instruções Check-In"
@@ -9594,7 +9594,7 @@ function RingCell({
   const gid = `ring-${done ? "ok" : "falta"}`;
   const arco = RING_C * Math.max(pct, 3) * 0.01;
   return (
-    <div className="relative flex min-w-0 flex-1 flex-col items-center gap-3 lg:flex-row lg:justify-center lg:gap-4">
+    <div className="relative flex min-w-0 flex-1 flex-col items-center gap-3 lg:flex-row lg:justify-center lg:gap-3 lg:px-2">
       {breakdown ? (
         <EngagementBreakdownDialog
           label={label}
@@ -9652,15 +9652,15 @@ function RingCell({
       </div>
       {/* A frase em UMA linha: no celular ela encolhe para caber inteira na
           metade do card; no computador sobra largura de sobra. */}
-      <div className="pointer-events-none relative z-[1] min-w-0 text-center lg:text-left lg:leading-[23px]">
+      <div className="pointer-events-none relative z-[1] min-w-0 text-center lg:text-left">
         <p
-          className="min-w-0 truncate text-[10.5px] font-semibold text-muted-foreground lg:text-[15px] lg:font-bold lg:text-foreground"
+          className="min-w-0 truncate text-[10.5px] font-semibold text-muted-foreground lg:overflow-visible lg:whitespace-normal lg:text-clip lg:break-words lg:text-[13px] lg:font-bold lg:leading-[18px] lg:text-foreground"
           title={label}
         >
           {label}
         </p>
         {/* Só no desktop (mockup 09/11/2026): "14 de 18 hóspedes". */}
-        <p className="hidden text-[13.5px] text-muted-foreground lg:block">
+        <p className="hidden text-[12.5px] text-muted-foreground lg:block lg:break-words lg:leading-[18px]">
           {value} de {total} {total === 1 ? "hóspede" : "hóspedes"}
         </p>
       </div>
