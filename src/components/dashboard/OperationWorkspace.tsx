@@ -5916,8 +5916,8 @@ function CleaningCostComposition({
       ) : total <= 0 ? (
         <div className="py-6 text-center text-xs text-muted-foreground">Nenhum custo no período.</div>
       ) : (
-        <div className="flex flex-col items-center gap-4 md:max-lg:flex-1 lg:flex-1 lg:flex-row lg:justify-center lg:gap-[30px] lg:px-2.5">
-          <svg viewBox="0 0 170 170" className="size-[148px] shrink-0 md:max-lg:my-auto lg:size-[170px]" role="img" aria-label="Composição do custo">
+        <div className="flex flex-col items-center gap-0 lg:flex-1 lg:flex-row lg:justify-center lg:gap-[30px] lg:px-2.5">
+          <svg viewBox="0 0 170 170" className="size-[148px] shrink-0 lg:size-[170px]" role="img" aria-label="Composição do custo">
             <g transform="rotate(-90 85 85)">
               <circle cx="85" cy="85" r={R} fill="none" stroke="var(--muted-foreground)" strokeOpacity={0.35} strokeWidth="18" />
               <circle
