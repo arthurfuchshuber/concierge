@@ -5897,7 +5897,7 @@ function CleaningCostComposition({
   const legendRow = (color: string, label: string, cents: number, opacity = 1, last = false) => (
     <div className={`flex items-center gap-2.5 border-border/60 py-2.5 lg:border-b lg:py-[11px] ${last ? "" : "border-b"}`}>
       <i aria-hidden className="size-2.5 shrink-0 rounded-[3px]" style={{ background: color, opacity }} />
-      <span className="flex-1 text-[13px] font-semibold text-foreground">{label}</span>
+      <span className="mr-6 min-w-[104px] flex-1 text-[13px] font-semibold text-foreground lg:mr-0 lg:min-w-0">{label}</span>
       <span className="text-[13px] font-extrabold tabular-nums text-foreground">{centsToBRLShort(cents)}</span>
       <span className="w-[46px] text-right text-xs tabular-nums text-muted-foreground">{pct(cents)}</span>
     </div>
@@ -5934,7 +5934,7 @@ function CleaningCostComposition({
               {centsToBRLShort(total)}
             </text>
           </svg>
-          <div className="w-full min-w-0 lg:flex-1">
+          <div className="w-fit min-w-0 max-w-full lg:w-full lg:flex-1">
             {legendRow(CLEANING_DONE_COLOR, "Limpezas", cleanCents)}
             {legendRow("var(--muted-foreground)", "Serviços extras", extraCents, 0.55, true)}
             <div className="mt-3 hidden text-[11.5px] leading-4 text-muted-foreground lg:block">
