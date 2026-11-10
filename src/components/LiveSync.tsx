@@ -4,7 +4,6 @@ import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { ensureRealtimeAuth } from "@/lib/realtime-auth";
 import { getChangePulse } from "@/lib/change-pulse.functions";
-import { AWAY_RESYNC_MS, beginResync, endResync } from "@/lib/resync-state";
 
 /**
  * AO VIVO PARA TODOS, EM TODO O PAINEL (pedido explícito, 01/10/2026):
@@ -112,43 +111,25 @@ export function LiveSync() {
     let timer: ReturnType<typeof setTimeout> | null = null;
     // `todas`: voltar para a aba / reconectar relê tudo, inclusive a casca.
     let todas = false;
-    // `precisaReler`: a tela pode estar mostrando um retrato velho (voltou de segundo plano ou reconectou);
-    // os botões de etapa dos cards ficam "Atualizando…" até a releitura terminar (mockup D009, 09/11/2026).
-    let precisaReler = false;
     const refresh = (all = false) => {
       todas = todas || all;
       if (timer) clearTimeout(timer);
       timer = setTimeout(() => {
         const incluirCasca = todas;
-        const reler = precisaReler;
         todas = false;
-        precisaReler = false;
-        const feito = qc.invalidateQueries({
+        void qc.invalidateQueries({
           refetchType: "active",
           predicate: (q) => incluirCasca || !NOT_LIVE.has(String(q.queryKey[0])),
         });
-        if (reler) void feito.finally(() => endResync());
       }, 120);
     };
-    // Reconexão/volta da internet: eventos podem ter sido perdidos ⇒ sempre relê com os botões em espera.
+    // Reconexão/volta da internet: eventos podem ter sido perdidos ⇒ sempre relê.
     const relerAposQueda = () => {
       if (typeof navigator !== "undefined" && navigator.onLine === false) return;
-      precisaReler = true;
-      beginResync();
       refresh(true);
     };
-    // Voltar à tela: só conta quando ficou fora tempo suficiente para o canal ao vivo ter perdido algo
-    // (uma piscada de aba ou clique fora da janela não pode apagar os botões).
-    let ausenteDesde: number | null = null;
-    const saiu = () => {
-      if (ausenteDesde === null) ausenteDesde = Date.now();
-    };
-    const voltou = () => {
-      const longe = ausenteDesde !== null && Date.now() - ausenteDesde > AWAY_RESYNC_MS;
-      ausenteDesde = null;
-      if (longe) relerAposQueda();
-      else refresh(true);
-    };
+    // Voltar à tela: relê tudo (o canal ao vivo pode ter perdido algo enquanto estava fora).
+    const voltou = () => refresh(true);
     const onChange = () => refresh();
 
     let channel: ReturnType<typeof supabase.channel> | null = null;
@@ -212,12 +193,10 @@ export function LiveSync() {
 
     const onVisible = () => {
       if (document.visibilityState === "visible") voltou();
-      else saiu();
     };
     document.addEventListener("visibilitychange", onVisible);
     window.addEventListener("online", relerAposQueda);
     window.addEventListener("focus", voltou);
-    window.addEventListener("blur", saiu);
 
     // PULSO DE SEGURANÇA: mesmo com o canal "saudável", um evento pode se
     // perder sem aviso. A cada PULSE_MS (só com a aba visível e online),
@@ -261,8 +240,6 @@ export function LiveSync() {
       document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("online", relerAposQueda);
       window.removeEventListener("focus", voltou);
-      window.removeEventListener("blur", saiu);
-      endResync();
     };
   }, [qc, pulseFn]);
 
