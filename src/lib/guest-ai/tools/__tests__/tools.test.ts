@@ -320,6 +320,7 @@ describe("(c) falha, prazo e indisponibilidade: o turno segue e nenhum metro é 
     );
     await Promise.resolve();
     expect(scheduledMs).toBe(TOOL_TIMEOUT_MS);
+    expect(TOOL_TIMEOUT_MS).toBe(4_000);
     fire!();
     const [o] = await p;
     expect(o).toMatchObject({ ok: false, error: "tempo_esgotado" });

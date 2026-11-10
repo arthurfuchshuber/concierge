@@ -18,8 +18,9 @@ const BASE: Record<ExternalProvider, () => string> = {
   aviationstack: () => process.env["AVIATIONSTACK_BASE_URL"] || "https://api.aviationstack.com",
 };
 export const EXTERNAL_CACHE_TTL_MS: Record<ExternalProvider, number> = {
-  open_meteo: 10 * 60_000,
-  aviationstack: 2 * 60_000,
+  // 10/11/2026: previsão muda devagar (60 min); status de voo muda mais rápido, mas 10 min evita consultas repetidas
+  open_meteo: 60 * 60_000,
+  aviationstack: 10 * 60_000,
 };
 const CACHE_MAX = 200;
 export const BREAKER_FAILURES = 3;

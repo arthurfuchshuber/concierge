@@ -11,6 +11,7 @@ import { executeToolCalls } from "../executor";
 import {
   BREAKER_FAILURES,
   createExternalHttp,
+  EXTERNAL_CACHE_TTL_MS,
   externalToolAvailability,
 } from "../external-http.server";
 import { TOOL_MAX_CALLS_PER_TURN, type ExternalHttp, type GuestToolContext } from "../contracts";
@@ -145,15 +146,34 @@ describe("transporte: chave fora do caminho devolvido, cache curto e disjuntor",
     expect(JSON.stringify(await r.json())).not.toContain("SEGREDO123");
   });
 
-  it("cache curto: a mesma consulta dentro do prazo não vai à rede de novo; depois vai", async () => {
+  it("prazos de cache (10/11/2026): clima 60 min, voos 10 min", () => {
+    expect(EXTERNAL_CACHE_TTL_MS).toEqual({ open_meteo: 60 * 60_000, aviationstack: 10 * 60_000 });
+  });
+
+  it("cache do clima: 59 min ainda no cache; depois de 60 min vai à rede de novo", async () => {
     let t = 0;
     const f = vi.fn(async () => new Response(JSON.stringify(METEO), { status: 200 }));
     const http = createExternalHttp({ fetch: f as never, now: () => t });
     await http("open_meteo", "/v1/forecast?x=1", { signal });
+    t = 59 * 60_000;
     await http("open_meteo", "/v1/forecast?x=1", { signal });
     expect(f).toHaveBeenCalledTimes(1);
-    t = 11 * 60_000;
+    t = 60 * 60_000 + 1;
     await http("open_meteo", "/v1/forecast?x=1", { signal });
+    expect(f).toHaveBeenCalledTimes(2);
+  });
+
+  it("cache de voos: 9 min ainda no cache; depois de 10 min vai à rede de novo", async () => {
+    vi.stubEnv("AVIATIONSTACK_API_KEY", "k");
+    let t = 0;
+    const f = vi.fn(async () => new Response(JSON.stringify(FLIGHT), { status: 200 }));
+    const http = createExternalHttp({ fetch: f as never, now: () => t });
+    await http("aviationstack", "/v1/flights?flight_iata=LA3456", { signal });
+    t = 9 * 60_000;
+    await http("aviationstack", "/v1/flights?flight_iata=LA3456", { signal });
+    expect(f).toHaveBeenCalledTimes(1);
+    t = 10 * 60_000 + 1;
+    await http("aviationstack", "/v1/flights?flight_iata=LA3456", { signal });
     expect(f).toHaveBeenCalledTimes(2);
   });
 

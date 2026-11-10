@@ -85,8 +85,8 @@ export interface GuestTool<A> {
   execute(args: A, ctx: GuestToolContext, deps: ToolExecDeps): Promise<ToolResult>;
 }
 
-/** Prazo máximo de cada ferramenta (diretriz: 6 s). */
-export const TOOL_TIMEOUT_MS = 6_000;
+/** Prazo máximo de cada ferramenta (10/11/2026: 4 s; antes 6 s). Vale para todas as ferramentas de consulta. */
+export const TOOL_TIMEOUT_MS = 4_000;
 /** Teto de chamadas da MESMA ferramenta num turno (custo de provedor previsível; excedente = `limite_atingido`). */
 export const TOOL_MAX_CALLS_PER_TURN = 3;
 /** Teto do JSON de cada resultado levado de volta ao modelo (protege o orçamento do turno). */
