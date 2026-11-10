@@ -350,7 +350,7 @@ function AdminLayout() {
     <div className="min-h-screen bg-background text-foreground flex">
       {/* Sidebar */}
       <aside
-        className={`fixed lg:sticky top-0 left-0 z-40 h-dvh lg:h-dvh [--nav-h:44px] lg:[--nav-h:clamp(32px,calc((100dvh_-_440px)/10),44px)] shrink-0 border-r border-border bg-surface flex flex-col transition-[transform,width] duration-300 ${open ? "translate-x-0" : "-translate-x-full lg:translate-x-0"} ${collapsed ? "lg:w-[76px]" : "w-72 lg:w-[268px]"}`}
+        className={`fixed lg:sticky top-0 left-0 z-40 h-dvh lg:h-dvh [--nav-h:44px] lg:[--nav-h:clamp(32px,calc((100dvh_-_372px)/9.8),56px)] shrink-0 border-r border-border bg-surface flex flex-col transition-[transform,width] duration-300 ${open ? "translate-x-0" : "-translate-x-full lg:translate-x-0"} ${collapsed ? "lg:w-[76px]" : "w-72 lg:w-[268px]"}`}
       >
         <div className={`relative border-b border-border flex items-center ${collapsed ? "px-4 py-6 justify-center" : "px-6 py-6 justify-between lg:px-4"}`}>
           <Link to="/admin" className="inline-flex items-center gap-2.5 min-w-0">

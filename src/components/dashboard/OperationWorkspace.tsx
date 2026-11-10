@@ -5343,9 +5343,9 @@ function useIsLg(): boolean {
  */
 const FIT_PAGE_BOTTOM = 32; // respiro de baixo da página (lg:py-8)
 const FIT_ROW_GAP = 10; // vão entre as duas linhas (ds-card-grid)
-const FIT_CHARTS_MIN = 200;
+const FIT_CHARTS_MIN = 170;
 const FIT_CHARTS_MAX = 460;
-const FIT_BOTTOM_MIN = 200;
+const FIT_BOTTOM_MIN = 190;
 const FIT_BOTTOM_MAX = 380;
 function useFitRowHeights(anchor: React.RefObject<HTMLElement | null>): { charts: number; bottom: number } | null {
   const isLg = useIsLg();
@@ -5862,7 +5862,7 @@ function CleaningTopProperties({
   const top = (items ?? []).slice(0, 5);
   const maxCount = Math.max(1, ...top.map((i) => i.count));
   // Encaixe na tela: vão entre as linhas encolhe junto com a altura do card.
-  const listGap = fitH ? Math.round(Math.min(17, Math.max(5, (fitH - 56 - 5 * 16) / 4))) : undefined;
+  const listGap = fitH ? Math.round(Math.min(17, Math.max(2, (fitH - 56 - 5 * 22) / 4))) : undefined;
   return (
     <div
       className={`${PANEL_SHELL} flex h-full w-full flex-col px-3.5 py-3.5 lg:min-h-[246px] lg:px-5`}
