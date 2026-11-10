@@ -1,7 +1,7 @@
 /**
  * Executor seguro das chamadas de ferramenta pedidas pelo modelo.
  *
- * - Cada chamada roda com prazo próprio de no máximo `TOOL_TIMEOUT_MS` (6 s), limitado ao que resta do
+ * - Cada chamada roda com prazo próprio de no máximo `TOOL_TIMEOUT_MS` (4 s), limitado ao que resta do
  *   prazo do turno; chamadas independentes correm em paralelo.
  * - NUNCA lança: ferramenta desconhecida, argumento inválido, falha de rede, chave ausente ou prazo
  *   estourado viram `{ ok: false, erro }` com código fixo — o modelo então responde com o conhecimento
