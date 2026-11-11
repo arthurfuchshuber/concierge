@@ -191,3 +191,24 @@ describe("B2.3 · semântico — saída sensível (FreeTextGuard na SAÍDA)", ()
     expect(new Set(SEMANTIC_BLOCKS).size).toBe(SEMANTIC_BLOCKS.length);
   });
 });
+
+describe("Reparo em primeira pessoa (11/11/2026): acionar a manutenção é repasse, não promessa de conserto", async () => {
+  const { analyzeReplyCommitments } = await import("@/lib/guest-ai/validation/commitment-text");
+  const kinds = (t: string) => analyzeReplyCommitments(t, { officialCheckin: null, officialCheckout: null }).claims.map((c) => c.kind);
+
+  it("acionar técnico/manutenção ⇒ team_relay (exige encaminhamento), nunca resolution", () => {
+    for (const t of [
+      "Vou acionar a manutenção para verificar o chuveiro e te aviso por aqui.",
+      "Obrigado por avisar. Vou acionar o técnico de manutenção para verificar o ar-condicionado.",
+      "Vou chamar o eletricista para olhar o problema da tomada.",
+    ]) {
+      expect(kinds(t), t).toContain("team_relay");
+      expect(kinds(t), t).not.toContain("resolution");
+    }
+  });
+
+  it("prometer o conserto em si continua sendo resolution (não autorizado)", () => {
+    expect(kinds("Vou consertar o chuveiro.")).toContain("resolution");
+    expect(kinds("O vazamento já foi consertado.")).toContain("resolution");
+  });
+});

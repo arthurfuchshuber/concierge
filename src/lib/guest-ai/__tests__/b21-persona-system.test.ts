@@ -73,7 +73,7 @@ describe("Persona sóbria (10/11/2026): solução primeiro, sem coitadismo e sem
     expect(sys).toMatch(/direta, natural e serena, como o próprio anfitrião/);
   });
   it("exemplos de ouro: nenhum abre com desculpa ou lamento, no máximo uma exclamação", () => {
-    expect(tones).toHaveLength(4);
+    expect(tones).toHaveLength(5);
     const apology = /^(desculp|perd[aã]o|lamento|poxa|que pena|infelizmente|sinto)/i;
     for (const t of tones) {
       expect(t, t).not.toMatch(apology);
@@ -111,7 +111,7 @@ describe("Diálogo investigativo, sem bordões, sem prazo e encaminhamento silen
   it("prompt: bordões, prazos e anúncio de transferência proibidos; urgência só nos campos estruturados", () => {
     expect(sys).toMatch(/Sem bordões de suporte/);
     expect(sys).toMatch(/Zero promessa de prazo/);
-    expect(sys).toMatch(/Encaminhamento 100% silencioso: a urgência vai só em handoff/);
+    expect(sys).toMatch(/Encaminhamento 100% silencioso, fora do reparo em primeira pessoa descrito acima: a urgência vai só em handoff/);
     // os bordões só aparecem dentro da própria proibição
     const outsideBan = sys.replace(/Sem bordões de suporte[^\n]*/, "").replace(/Zero promessa de prazo[^\n]*/, "").replace(/Nada de voz passiva[^\n]*/, "");
     expect(outsideBan).not.toMatch(BORDOES);
@@ -358,7 +358,7 @@ describe("aviso de chegada coerente com canal e dossiê (system.2026-11-11.3)", 
   const arrival = sys.slice(sys.indexOf("Aviso de deslocamento"), sys.indexOf("Continue declarando guestEtas"));
 
   it("versão do roteiro", () => {
-    expect(SYSTEM_PROMPT_VERSION).toBe("system.2026-11-11.4");
+    expect(SYSTEM_PROMPT_VERSION).toBe("system.2026-11-11.5");
   });
 
   it("corrobora o histórico em vez de vetar a palavra guia", () => {
@@ -402,5 +402,41 @@ describe("checagem sem tréplica e acolhimento focado na casa (system.2026-11-11
   it("persona: discrição para encerrar conversa concluída", () => {
     expect(personaPrinciples().map((p) => p.id)).toContain("discreet_closure");
     expect(renderPersona()).toMatch(/discreto quando a resposta é que está tudo bem/);
+  });
+});
+
+describe("defeito e manutenção: o anfitrião assume, o hóspede não vira zelador (system.2026-11-11.5)", () => {
+  const sys = buildSystemPrompt("airbnb");
+  const persona = renderPersona();
+
+  it("separa risco real (contenção de segurança) de defeito de conforto", () => {
+    expect(sys).toMatch(/\(a\) Risco real/);
+    expect(sys).toMatch(/\(b\) Defeito ou desconforto em aparelho ou comodidade/);
+    expect(sys).toMatch(/o conforto do hóspede é intocável/);
+  });
+
+  it("nunca transfere o ônus: desligar comodidade essencial, bacia/toalha, vigiar ou foto por obrigação", () => {
+    expect(sys).toMatch(/O hóspede nunca é o zelador da casa/);
+    expect(sys).toMatch(/desligar o ar no calor/);
+    expect(sys).toMatch(/bacia, balde, toalha, pano/);
+    expect(sys).toMatch(/fique vigiando o problema ou mande fotos por obrigação/);
+    expect(persona).toMatch(/nunca transfira o ônus ao hóspede/);
+    expect(persona).toMatch(/assuma em primeira pessoa o encaminhamento prático do reparo/);
+  });
+
+  it("reparo em primeira pessoa é legítimo; jargão terceirizado e prazo continuam proibidos", () => {
+    expect(sys).toMatch(/Reparo em primeira pessoa/);
+    expect(sys).toMatch(/vai acionar a manutenção ou o técnico/);
+    expect(sys).toMatch(/chamado aberto número tal/);
+    expect(sys).toMatch(/nunca dizer quando o técnico chega/);
+    expect(sys).toMatch(/Zero promessa de prazo/);
+    expect(sys).toMatch(/fora do reparo em primeira pessoa/);
+  });
+
+  it("exemplo de ouro do defeito: assume o reparo, sem prazo, sem pedir para desligar ou secar", () => {
+    const ex = sys.slice(sys.indexOf("Exemplo 5"), sys.indexOf("(Sem pedir que desligue"));
+    expect(ex).toMatch(/Vou acionar o técnico de manutenção/);
+    expect(ex).not.toMatch(/o quanto antes|em instantes|logo|daqui a pouco|já já/);
+    expect(ex).not.toMatch(/desligue|bacia|toalha/i);
   });
 });

@@ -92,7 +92,9 @@ const OBJECTS: ReadonlyArray<[CommitmentKind, RegExp]> = [
   ["service_or_benefit", /\b(desconto|cortesia|gratuit\w+|gratis|sem custo|reembolso|brinde|upgrade|discount|free of charge|complimentary|refund|descuento)\b/],
   ["resolution", /\b(problema|defeito|vazamento|conserto|chuveiro|ar.?condicionado|internet|wi.?fi|issue|problem|leak|repair|averia|fuga)\b/],
 ];
-const TEAM = /\b(equipe|anfitri\w+|atendente|responsavel|host|team|staff|equipo|anfitrion\w*)\b/;
+// Profissionais de manutenção contam como "acionar alguém" (11/11/2026): "vou acionar o técnico para verificar o
+// chuveiro" é repasse (team_relay, autorizado só com encaminhamento), não promessa de conserto (resolution).
+const TEAM = /\b(equipe|anfitri\w+|atendente|responsavel|host|team|staff|equipo|anfitrion\w*|manutencao|tecnicos?|eletricista|encanador|bombeiro hidraulico|zelador|maintenance|technician|repair (person|team)|mantenimiento|tecnico)\b/;
 /** Alteração de reserva exige verbo de MUDANÇA (status "confirmada" é informação, não alteração). */
 const CHANGE = /\b(alter\w*|mud\w*|troc\w*|estend\w*|prorrog\w*|cancel\w*|antecip\w*|adi\w*|chang\w*|extend\w*|modif\w*|cambi\w*|reschedul\w*)\b/;
 /** Disponibilidade só é afirmação sobre o IMÓVEL/DATAS (não "as senhas ficam disponíveis no guia"). */
