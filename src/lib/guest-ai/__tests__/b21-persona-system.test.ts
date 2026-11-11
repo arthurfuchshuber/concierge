@@ -341,7 +341,7 @@ describe("nome, gênero, fim do SAC, aviso de chegada e acolhimento breve em pre
 
   it("aviso de GPS/chegada: nunca silêncio, acolhe, reforça check-in autônomo e não afrouxa a D9", () => {
     expect(sys).toMatch(/nunca fica em silêncio nem apenas registra o dado/);
-    expect(sys).toMatch(/100% autônomo/);
+    expect(sys).toMatch(/Só cite check-in autônomo ou fechadura se for o caso real do imóvel/);
     expect(sys).toMatch(/ctx:liberacao_credenciais/);
     expect(sys).toMatch(/nunca aprova entrada antecipada/);
   });
@@ -350,5 +350,34 @@ describe("nome, gênero, fim do SAC, aviso de chegada e acolhimento breve em pre
     expect(sys).toMatch(/ACOLHIMENTO BREVE/);
     expect(sys).toMatch(/TERMINANTEMENTE PROIBIDO despejar comodidades/);
     expect(sys).toMatch(/pre_stay/);
+  });
+});
+
+describe("aviso de chegada coerente com canal e dossiê (system.2026-11-11.3)", () => {
+  const sys = buildSystemPrompt("airbnb");
+  const arrival = sys.slice(sys.indexOf("Aviso de deslocamento"), sys.indexOf("Continue declarando guestEtas"));
+
+  it("versão do roteiro", () => {
+    expect(SYSTEM_PROMPT_VERSION).toBe("system.2026-11-11.3");
+  });
+
+  it("discrimina o canal: Airbnb veta guia, WhatsApp só com link no histórico, guia usa a página", () => {
+    expect(arrival).toMatch(/canal Airbnb \(airbnb\), é TERMINANTEMENTE PROIBIDO falar em guia digital/);
+    expect(arrival).toMatch(/canal WhatsApp \(whatsapp\), só mencione o guia se a própria conta já tiver enviado um link/);
+    expect(arrival).toMatch(/canal do guia \(guide_chat\)/);
+    const airbnbExample = arrival.slice(arrival.indexOf("No Airbnb,"), arrival.indexOf("No WhatsApp,"));
+    expect(airbnbExample).not.toMatch(/guia/i);
+  });
+
+  it("não presume check-in autônomo; portaria presencial é citada; D9 intacta", () => {
+    expect(arrival).toMatch(/portaria presencial/);
+    expect(arrival).toMatch(/não presuma a modalidade/);
+    expect(arrival).toMatch(/decisao deny\), não revele nada/);
+    expect(sys).toMatch(/nunca aprova entrada antecipada/);
+  });
+
+  it("exemplos sem clichê de SAC", () => {
+    expect(arrival).not.toMatch(/qualquer dúvida/i);
+    expect(arrival).not.toMatch(/à disposição/);
   });
 });
