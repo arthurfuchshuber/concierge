@@ -1339,6 +1339,17 @@ function AirbnbAccountFlowInner({
                 ? CONTENT_A
                 : CONTENT_B
           }
+          /* "Voltar" de passo = aba no canto no lugar do X (regra de 11/11/2026). */
+          onBack={
+            step === "bulkPairs"
+              ? () => {
+                  setQ("");
+                  setStep("listings");
+                }
+              : step === "syncConfirm"
+                ? () => setStep("syncPick")
+                : undefined
+          }
         >
           {/* ---------- Conectar: início ---------- */}
           {step === "start" ? (
@@ -2053,14 +2064,6 @@ function AirbnbAccountFlowInner({
                         <RefreshCw className="size-4" />
                         Importar {plural(n, "anúncio", "anúncios")}
                       </PrimaryBtn>
-                      <SecondaryBtn
-                        onClick={() => {
-                          setQ("");
-                          setStep("listings");
-                        }}
-                      >
-                        Voltar
-                      </SecondaryBtn>
                     </div>
                   </>
                 );
@@ -2200,7 +2203,6 @@ function AirbnbAccountFlowInner({
                   <RefreshCw className="size-4" />
                   Sincronizar imóvel
                 </PrimaryBtn>
-                <SecondaryBtn onClick={() => setStep("syncPick")}>Voltar</SecondaryBtn>
               </div>
             </>
           ) : null}

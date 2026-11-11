@@ -798,7 +798,10 @@ export function TaskResolveDialog({
           if (!v && !saving) setAskDiff(false);
         }}
       >
-        <DialogContent className="w-[calc(100vw-2rem)] gap-0 overflow-hidden p-0 sm:max-w-[440px]">
+        <DialogContent
+          className="w-[calc(100vw-2rem)] gap-0 overflow-hidden p-0 sm:max-w-[440px]"
+          onBack={saving ? undefined : () => setAskDiff(false)}
+        >
           <DialogDescription className="sr-only">
             Escolha para quem vai a diferença entre o valor a pagar e o valor da resolução.
           </DialogDescription>
@@ -806,7 +809,7 @@ export function TaskResolveDialog({
             <span className="grid size-8 shrink-0 place-items-center rounded-[9px] bg-[rgba(201,169,98,.14)] text-[#c9a962]">
               <AlertTriangle className="size-[17px]" />
             </span>
-            <div className="min-w-0 pr-8">
+            <div className="min-w-0 pr-16">
               <DialogTitle className="ds-page-title truncate">Há uma Diferença de Valores</DialogTitle>
               <p className="mt-0.5 truncate text-xs text-muted-foreground">
                 Antes de concluir, decida o destino dela.
@@ -868,9 +871,6 @@ export function TaskResolveDialog({
           )}
 
           <div className="flex items-center justify-end gap-2 border-t border-border/60 px-4 py-2.5">
-            <button type="button" onClick={() => setAskDiff(false)} disabled={saving} className={BTN_GHOST}>
-              Voltar
-            </button>
             <button
               type="button"
               disabled={!diffTo || (needDiffProvider && !diffProvider) || saving}

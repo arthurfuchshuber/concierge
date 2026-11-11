@@ -46,7 +46,7 @@ import {
 } from "recharts";
 import {
   CleaningDayDetail,
-  CleaningDayDetailContent,
+  CleaningDayDetailWindow,
   type CleaningForecastItem,
   type DayDetailSource,
 } from "@/components/dashboard/CleaningDayDetail";
@@ -2199,22 +2199,71 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
       // "essas infos também precisam carregar as próprias cores definidas
       // concluídos vs previstos"). O aviso de aprovação continua âmbar,
       // herdado do `ds-atencao` do card — só as parcelas ganham cor própria.
-      const countNoteMixed = (
-        <>
-          <span className="text-[#7fb79a]">{pv.doneCount} realizadas</span>
-          {" + "}
-          <span className="text-[#e2a36b]">{pv.forecastCount} previstas</span>
-          {approvalNote ? <> · {approvalNote}</> : null}
-        </>
-      );
-      const costNoteMixed = (
-        <>
-          <span className="text-[#7fb79a]">{centsToBRLShort(pv.doneCents)} realizado</span>
-          {" + "}
-          <span className="text-[#e2a36b]">{centsToBRLShort(pv.forecastCents)} estimado</span>
-          {approvalCostNote ? <> · {approvalCostNote}</> : null}
-        </>
-      );
+      // Parcela sem informação (0) não ganha etiqueta (pedido de 11/11/2026).
+      const countParts = [
+        pv.doneCount > 0 ? (
+          <span key="d" className="text-[#7fb79a]">
+            {pv.doneCount} realizadas
+          </span>
+        ) : null,
+        pv.forecastCount > 0 ? (
+          <span key="f" className="text-[#e2a36b]">
+            {pv.forecastCount} previstas
+          </span>
+        ) : null,
+      ].filter(Boolean);
+      const countNoteMixed =
+        countParts.length > 0 || approvalNote ? (
+          <>
+            {countParts.length === 2 ? (
+              <>
+                {countParts[0]}
+                {" + "}
+                {countParts[1]}
+              </>
+            ) : (
+              countParts[0]
+            )}
+            {approvalNote ? (
+              <>
+                {countParts.length > 0 ? " · " : null}
+                {approvalNote}
+              </>
+            ) : null}
+          </>
+        ) : null;
+      const costParts = [
+        pv.doneCents > 0 ? (
+          <span key="d" className="text-[#7fb79a]">
+            {centsToBRLShort(pv.doneCents)} realizado
+          </span>
+        ) : null,
+        pv.forecastCents > 0 ? (
+          <span key="f" className="text-[#e2a36b]">
+            {centsToBRLShort(pv.forecastCents)} estimado
+          </span>
+        ) : null,
+      ].filter(Boolean);
+      const costNoteMixed =
+        costParts.length > 0 || approvalCostNote ? (
+          <>
+            {costParts.length === 2 ? (
+              <>
+                {costParts[0]}
+                {" + "}
+                {costParts[1]}
+              </>
+            ) : (
+              costParts[0]
+            )}
+            {approvalCostNote ? (
+              <>
+                {costParts.length > 0 ? " · " : null}
+                {approvalCostNote}
+              </>
+            ) : null}
+          </>
+        ) : null;
       return {
         countLabel:
           pv.kind === "past"
@@ -5218,18 +5267,14 @@ function StatDisplayCard({
     <>
     {clickable && (
       (detailItems && detailItems.length > 0) || (extraItems && extraItems.length > 0) ? (
-      <Dialog open={open} onOpenChange={setOpen}>
-        {/* Janela ampla padrão (07/11/2026): "X" oficial do DialogContent e
-            cabeçalho sem ícone, vindos do próprio CleaningDayDetailContent. */}
-        <DialogContent aria-describedby={undefined} className={FINANCE_WINDOW_CLASS}>
-          <CleaningDayDetailContent
-            date="all"
-            title={label}
-            source={{ mode: "done", items: detailItems ?? [], extras: extraItems }}
-            caretX={null}
-          />
-        </DialogContent>
-      </Dialog>
+      <CleaningDayDetailWindow
+        open={open}
+        onOpenChange={setOpen}
+        date="all"
+        title={label}
+        source={{ mode: "done", items: detailItems ?? [], extras: extraItems }}
+        caretX={null}
+      />
       ) : (
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent aria-describedby={undefined} className={FINANCE_WINDOW_CLASS}>

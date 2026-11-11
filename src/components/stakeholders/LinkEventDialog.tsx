@@ -202,8 +202,8 @@ export function LinkEventDialog({
 
   return (
     <Dialog open={!!target} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
+      <DialogContent className="max-w-md" onBack={() => onOpenChange(false)}>
+        <DialogHeader className="pr-20">
           <DialogTitle className="text-base">
             {bulk
               ? `Vincular ${target!.events!.length} Eventos a um Cadastro`
@@ -320,16 +320,6 @@ export function LinkEventDialog({
               ))
             )}
           </div>
-
-          {/* "Voltar": fecha só esta janela e devolve para a janela de origem (Google Agenda). */}
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-8 rounded-full text-xs"
-            onClick={() => onOpenChange(false)}
-          >
-            Voltar
-          </Button>
         </div>
       </DialogContent>
     </Dialog>
