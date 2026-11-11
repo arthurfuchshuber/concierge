@@ -302,3 +302,20 @@ describe("idioma por canal", () => {
     expect(DECISION_FORMAT_SPEC).not.toMatch(/no idioma do hóspede/);
   });
 });
+
+describe("resposta proporcional (11/11/2026, caso Karen)", () => {
+  it("persona: dimensiona pela mensagem e não despeja informação não pedida", () => {
+    expect(personaPrinciples().map((p) => p.id)).toContain("proportional_reply");
+    const t = renderPersona();
+    expect(t).toMatch(/uma ou duas frases curtas/);
+    expect(t).toMatch(/não venda o imóvel/);
+  });
+
+  it("prompt: confirmação ou resposta à equipe recebe reconhecimento curto, sem dossiê não pedido", () => {
+    for (const ch of ["airbnb", "whatsapp", "guide_chat"] as const) {
+      const sys = buildSystemPrompt(ch);
+      expect(sys).toMatch(/Proporção da resposta/);
+      expect(sys).toMatch(/Nunca use o dossiê para dar informações que a pessoa não pediu/);
+    }
+  });
+});

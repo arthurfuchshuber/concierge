@@ -185,3 +185,7 @@ Ordem de execução no builder: validar escopo → estado → D9 → se negado, 
 - A equipe respondeu (painel, Copiloto ou direto no Airbnb) ⇒ `resolvePendingDecisionsOnHumanMessage` assume a decisão pendente pelas RPCs (a tabela é só leitura).
 - Painel: `DecisionDock` fixo acima do campo de digitação; no fluxo do chat a decisão pendente é só um aviso (`variant="ref"`).
 - O slot não importa cliente de banco (data-boundary): leituras vão por `guest-ai-decision.server`.
+
+## Resposta proporcional e silêncio em afirmação sem pergunta (11/11/2026, caso Karen)
+- `persona.2026-11-11.1` (`proportional_reply`) e `system.2026-11-11.1` ("Proporção da resposta"): quem só informa, confirma ou responde a uma pergunta recebe reconhecimento de uma ou duas frases curtas; nunca usar o dossiê para informação não pedida (comodidades, camas, Wi-Fi, garagem) nem encerrar com oferta genérica; quem já tem reserva não é convencido.
+- `ack-silence.ts` agora também silencia resposta AFIRMATIVA com conteúdo (`isAffirmativeStatement`: abre com sim/isso/ok/certo…, sem pergunta, sem pedido, sem horário) quando não há pergunta nossa pendente; o fato continua lido pelos bastidores.
