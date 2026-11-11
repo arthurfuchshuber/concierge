@@ -44,7 +44,7 @@ import type { ProviderOutcome, ProviderRequest } from "@/lib/guest-ai/llm/provid
 import { llmMessageText } from "@/lib/guest-ai/llm/contracts";
 import { GUEST_AI_DEFAULT_MODEL, GUEST_AI_RESERVE_MODEL } from "@/lib/guest-ai/orchestrator/contracts";
 import type { OwnershipLoad } from "@/lib/guest-ai/data/conversation-ownership.server";
-import { CONV, ctx, history, turn, v6, silence } from "./helpers/b23-chain";
+import { CONV, ctx, currentRef, history, turn, v6, silence } from "./helpers/b23-chain";
 import { fakeProvider, okJson } from "./helpers/copilot-provider";
 
 const ON = { GUEST_AI_COPILOT_GENERATION: "on", GUEST_AI_COPILOT_GENERATION_PROPERTY_IDS: "p1" };
@@ -223,16 +223,19 @@ describe("Bastidores · trabalho próprio, ligado à geração mas independente 
     expect(calls).toHaveLength(1);
     expect(calls[0]!.decision).toEqual(eta);
   });
-  it("resposta válida + bastidores com sinal ⇒ o executor roda UMA vez (o reserva da decisão não repete)", async () => {
+  it("UMA CABEÇA SÓ: resposta válida ⇒ o leitor separado nem é chamado; a decisão da resposta vai ao executor", async () => {
     const calls: unknown[] = [];
     const ops = async (i: { decision: unknown }) => {
       calls.push(i.decision);
     };
+    const extract = vi.fn(async () => eta);
     const p = fakeProvider(okJson(v6()));
-    await generateCopilotSuggestion(REQ, deps(p, { ops: ops as never, extractOps: async () => eta }));
-    expect(calls).toEqual([eta]);
+    await generateCopilotSuggestion(REQ, deps(p, { ops: ops as never, extractOps: extract }));
+    expect(extract).not.toHaveBeenCalled();
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toMatchObject({ guestEtas: [], milestoneQuote: null });
   });
-  it("extrator indisponível ⇒ reserva: sinais da própria decisão validada, como antes", async () => {
+  it("a resposta é a fonte mesmo com o leitor indisponível", async () => {
     const calls: unknown[] = [];
     const ops = async (i: { decision: unknown }) => {
       calls.push(i.decision);
@@ -242,9 +245,9 @@ describe("Bastidores · trabalho próprio, ligado à geração mas independente 
     expect(calls).toHaveLength(1);
     expect(calls[0]).toMatchObject({ guestEtas: [], milestoneQuote: null });
   });
-  it("conversa sem estadia (consulta) ⇒ o extrator nem é chamado", async () => {
+  it("conversa sem estadia (consulta) e resposta falhou ⇒ o leitor nem é chamado", async () => {
     const extract = vi.fn(async () => eta);
-    const p = fakeProvider(okJson(v6()));
+    const p = fakeProvider({ kind: "error", error: { code: "bad_request", retryable: false } as never, usage: null, requestId: null });
     await generateCopilotSuggestion(
       REQ,
       deps(p, {
@@ -261,13 +264,21 @@ describe("Observabilidade dos bastidores · o 'não avançou' sempre deixa o mot
   const run = async (
     over: Partial<Omit<CopilotGenerateDeps, "store">>,
     ops: unknown = async () => ({ status: "no_signal" }),
+    failed = true,
   ) => {
     const noAdvance = vi.fn(async (_i: unknown) => undefined);
-    const p = fakeProvider(okJson(v6()));
+    // resposta falha ⇒ quem lê é o leitor de reserva (com resposta válida, a fonte é a própria decisão)
+    const p = fakeProvider(failed ? { kind: "error", error: { code: "bad_request", retryable: false } as never, usage: null, requestId: null } : okJson(v6()));
     await generateCopilotSuggestion(REQ, deps(p, { ops: ops as never, opsNoAdvance: noAdvance, ...over }));
     return noAdvance;
   };
-  it("leitura sem marco ⇒ registra o motivo do próprio leitor", async () => {
+  it("resposta válida sem marco nem previsão ⇒ response_no_signal (o leitor não roda)", async () => {
+    const extract = vi.fn(async () => empty as never);
+    const n = await run({ extractOps: extract }, async () => ({ status: "no_signal" }), false);
+    expect(extract).not.toHaveBeenCalled();
+    expect(n.mock.calls[0]![0]).toMatchObject({ code: "response_no_signal" });
+  });
+  it("resposta falhou + leitura sem marco ⇒ registra o motivo do próprio leitor", async () => {
     const n = await run({ extractOps: async () => ({ ...empty, milestoneAbstain: "access_unresolved" }) as never });
     expect(n).toHaveBeenCalledTimes(1);
     expect(n.mock.calls[0]![0]).toMatchObject({ code: "reader_abstain_access_unresolved", phase: expect.any(String) });
@@ -1189,5 +1200,52 @@ describe("Copiloto · memória do hóspede recorrente na cadeia real", () => {
       .map((m) => llmMessageText(m.content))
       .join("\n");
     expect(user).not.toContain("<perfil_do_hospede>");
+  });
+});
+
+describe("Uma cabeça só: o marco vem da resposta (caso Vânia, 11/11/2026)", () => {
+  const abstain = { hospitalityMilestone: null, milestoneQuote: null, guestEtas: [], milestoneAbstain: "context_unclear" };
+  const inStay: CopilotGenerateDeps["ports"] = (_t, _db, meta) => ({
+    ...ports()!(_t, _db, meta),
+    loadContext: async () => ctx({ phase: "in_stay", stay: { ...ctx().guest.stay!, phase: "in_stay" } }),
+  });
+  const withMilestone = () =>
+    v6({
+      intents: ["departure_confirmation", "acknowledgment"],
+      hospitalityMilestone: { kind: "checkout_confirmed", evidence: [currentRef()] },
+      milestoneQuote: "Qual é o horário do check-in?",
+    });
+
+  it("a saída reconhecida pela resposta vai à política, mesmo que um leitor separado se abstivesse", async () => {
+    const decisions: unknown[] = [];
+    const ops = vi.fn(async (i: { decision: unknown }) => {
+      decisions.push(i.decision);
+      return { status: "done" };
+    });
+    const extract = vi.fn(async () => abstain as never);
+    const noAdvance = vi.fn(async () => undefined);
+    const p = fakeProvider(okJson(withMilestone()));
+    const r = await generateCopilotSuggestion(
+      REQ,
+      deps(p, { ops: ops as never, opsNoAdvance: noAdvance as never, extractOps: extract, ports: inStay }),
+    );
+    expect(r.status).toBe("stored");
+    expect(extract).not.toHaveBeenCalled();
+    expect(ops).toHaveBeenCalledTimes(1);
+    expect(decisions[0]).toMatchObject({ hospitalityMilestone: { kind: "checkout_confirmed" } });
+    expect(noAdvance).not.toHaveBeenCalled();
+  });
+
+  it("resposta sem decisão validada ⇒ o leitor de reserva entra e o motivo dele fica na auditoria", async () => {
+    const ops = vi.fn(async () => ({ status: "no_signal" }));
+    const extract = vi.fn(async () => abstain as never);
+    const noAdvance = vi.fn(async (_i: unknown) => undefined);
+    const p = fakeProvider({ kind: "error", error: { code: "bad_request", retryable: false } as never, usage: null, requestId: null });
+    await generateCopilotSuggestion(
+      REQ,
+      deps(p, { ops: ops as never, opsNoAdvance: noAdvance as never, extractOps: extract, ports: inStay }),
+    );
+    expect(extract).toHaveBeenCalledTimes(1);
+    expect(noAdvance.mock.calls[0]![0]).toMatchObject({ code: "reader_abstain_context_unclear" });
   });
 });

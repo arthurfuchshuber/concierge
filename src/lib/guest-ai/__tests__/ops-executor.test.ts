@@ -550,12 +550,15 @@ describe("G2 · integração com a geração do Copiloto", () => {
   it("a geração chama o executor depois da gravação, com a decisão validada; falha do executor não afeta a sugestão", async () => {
     const src = readFileSync(path.join(ROOT, "copilot/generate.server.ts"), "utf8");
     const store = src.indexOf("const stored = await store.store(");
-    // Bastidores (08/11/2026): o executor padrão é único (`opsRun`); o extrator próprio roda em paralelo e a decisão
-    // validada da resposta é o reserva, chamado DEPOIS da gravação só se os bastidores não responderam.
+    // Uma cabeça só (11/11/2026): o executor padrão é único (`opsRun`); DEPOIS da gravação, a decisão validada da
+    // resposta é a fonte; o leitor separado só entra sem decisão (e nunca em paralelo).
     expect(src).toContain("const opsRun = deps.ops ?? ((i: OpsRunInput) => runOps(i, { env }))");
-    const fallback = src.indexOf("!backstageDone &&");
+    const primary = src.indexOf("if (decided && opsPhase) {");
+    const fallback = src.indexOf("await runReaderFallback();");
     expect(store).toBeGreaterThan(0);
-    expect(fallback).toBeGreaterThan(store);
+    expect(primary).toBeGreaterThan(store);
+    expect(fallback).toBeGreaterThan(primary);
+    expect(src).not.toContain("startBackstage");
     expect(src).toMatch(
       /outcome\.kind === "reply" \|\| outcome\.kind === "silence" \|\| outcome\.kind === "human_action"/,
     );

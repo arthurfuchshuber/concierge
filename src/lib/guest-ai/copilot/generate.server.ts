@@ -526,8 +526,6 @@ export async function generateCopilotSuggestion(
   const cancelTimer = schedule(() => controller.abort(), deadlineMs);
   let claimed: { suggestionId: string; attempt: number } | null = null;
   let store: CopilotStore | null = null;
-  // bastidores em andamento (o segundo plano do Worker só termina quando a geração resolve: nunca abandoná-los)
-  let pendingBackstage: Promise<boolean> | null = null;
 
   try {
     const db = deps.db ?? (await getGuestAiDb());
@@ -632,10 +630,9 @@ export async function generateCopilotSuggestion(
     };
     // visão: só consulta fotos se o histórico do turno tiver imagem do hóspede; ids citáveis vêm do histórico
     let history: HistoryResult | null = null;
-    // BASTIDORES (08/11/2026): trabalho próprio, ligado à mesma geração mas independente da resposta. Começa assim
-    // que contexto e histórico estão lidos (em paralelo com a chamada da resposta) e grava as ações nos cards pela
-    // política determinística de sempre. Se o extrator falhar, os sinais da resposta (se houver) são o reserva.
-    let backstage: Promise<boolean> | null = null;
+    // UMA CABEÇA SÓ (11/11/2026, decisão do titular; caso Vânia): quem lê o que aconteceu (entrada, saída,
+    // previsão) é a MESMA decisão validada que responde ao hóspede, com o contexto completo. A política
+    // determinística (ops/policy.ts) continua sendo a trava. O leitor separado só entra se a resposta falhar.
     const opsRun = deps.ops ?? ((i: OpsRunInput) => runOps(i, { env }));
     const readOps = async (i: OpsExtractorInput): Promise<OpsReading> => {
       if (!deps.extractOps) return await readOpsSignals(i, { provider: deps.provider, log: deps.log });
@@ -646,51 +643,53 @@ export async function generateCopilotSuggestion(
       };
     };
     // auditoria do "não avançou": o motivo do leitor e se algum sinal chegou a ser avaliado pela política
-    let noAdvanceReason: OpsReaderReason | null = null;
+    let noAdvanceReason: OpsRefusalCode | null = null;
+    let readerRan = false;
     let opsEvaluated = false;
     const trackOps = async (i: OpsRunInput): Promise<void> => {
       const r = (await opsRun(i)) as { status?: string } | undefined;
       if (r?.status === "done") opsEvaluated = true;
     };
-    const startBackstage = () => {
-      // só há ação de card antes/durante a estadia; nas demais fases não gasta chamada (a resposta segue igual)
-      if (backstage || !opsPhase || !history || history.status !== "available") return;
+    // LEITOR DE RESERVA (11/11/2026, "uma cabeça só"): só roda quando a resposta NÃO produziu decisão validada
+    // (prazo, erro, saída inválida, bloqueio). Devolve se algum sinal chegou à política.
+    const READER_MIN_MS = 3_000;
+    const runReaderFallback = async (): Promise<void> => {
+      if (!opsPhase || !history || history.status !== "available") return;
       if (opsPhase !== "pre_stay" && opsPhase !== "in_stay" && opsPhase !== "post_checkout") return;
-      const phase = opsPhase;
-      const h = history;
-      backstage = pendingBackstage = (async () => {
-        try {
-          const reading = await readOps({
-            history: h,
-            phase,
-            timezone: opsTimezone,
-            checkInAt: opsCheckInAt,
-            checkOutAt: opsCheckOutAt,
-            now: new Date(now()),
-            traceId: claimed?.suggestionId ?? turn.messageId,
-            remainingMs,
-            signal: controller.signal,
-          });
-          const signals = reading.signals;
-          if (!signals) {
-            noAdvanceReason = reading.reason ?? "reader_model_failed";
-            return false;
-          }
-          if (!hasOpsSignal(signals)) noAdvanceReason = reading.reason ?? "reader_no_signal";
-          await trackOps({
-            turn,
-            decision: signals,
-            history: h,
-            phase,
-            timezone: opsTimezone,
-            suggestionId: claimed?.suggestionId ?? null,
-          });
-          return true;
-        } catch {
-          console.error("[copilot] bastidores falharam");
-          return false;
+      readerRan = true;
+      if (controller.signal.aborted || remainingMs() < READER_MIN_MS) {
+        noAdvanceReason = "reader_deadline";
+        return;
+      }
+      try {
+        const reading = await readOps({
+          history,
+          phase: opsPhase,
+          timezone: opsTimezone,
+          checkInAt: opsCheckInAt,
+          checkOutAt: opsCheckOutAt,
+          now: new Date(now()),
+          traceId: claimed?.suggestionId ?? turn.messageId,
+          remainingMs,
+          signal: controller.signal,
+        });
+        const signals = reading.signals;
+        if (!signals) {
+          noAdvanceReason = reading.reason ?? "reader_model_failed";
+          return;
         }
-      })();
+        if (!hasOpsSignal(signals)) noAdvanceReason = reading.reason ?? "reader_no_signal";
+        await trackOps({
+          turn,
+          decision: signals,
+          history,
+          phase: opsPhase,
+          timezone: opsTimezone,
+          suggestionId: claimed?.suggestionId ?? null,
+        });
+      } catch {
+        console.error("[copilot] leitor de reserva falhou");
+      }
     };
     const loadVision = async (): Promise<CopilotVisionInput> => {
       if (!history || history.status !== "available") return NO_VISION;
@@ -756,13 +755,11 @@ export async function generateCopilotSuggestion(
         opsTimezone = ctx.guest.stay?.timezone ?? ctx.guest.property.timezone ?? null;
         opsCheckInAt = ctx.guest.stay?.checkInAt ?? null;
         opsCheckOutAt = ctx.guest.stay?.checkOutAt ?? null;
-        startBackstage();
         return ctx;
       },
       loadHistory: async (t, sg) => {
         const h = await ports.loadHistory(t, sg);
         history = h;
-        startBackstage();
         return h;
       },
       loadDossiers: ports.loadDossiers,
@@ -863,31 +860,30 @@ export async function generateCopilotSuggestion(
         error: g.error,
       },
     });
-    // G2: os bastidores já rodaram em paralelo (extrator próprio). Reserva: se o extrator não respondeu, usa os
-    // sinais da MESMA decisão validada da resposta, como antes (a reivindicação é idempotente por mensagem + ação).
-    const backstageDone = backstage ? await backstage : false;
-    if (
-      !backstageDone &&
-      (outcome.kind === "reply" || outcome.kind === "silence" || outcome.kind === "human_action") &&
-      opsPhase
-    ) {
+    // Sinais operacionais: a decisão validada da resposta é a fonte única; sem ela, o leitor de reserva.
+    const decided =
+      outcome.kind === "reply" || outcome.kind === "silence" || outcome.kind === "human_action" ? outcome.decision : null;
+    const opsReadPhase = opsPhase === "pre_stay" || opsPhase === "in_stay" || opsPhase === "post_checkout";
+    if (decided && opsPhase) {
       try {
         await trackOps({
           turn,
-          decision: outcome.decision,
+          decision: decided,
           history,
           phase: opsPhase,
           timezone: opsTimezone,
           suggestionId: claimed.suggestionId,
         });
       } catch {
-        console.error("[copilot] ações operacionais (observação) falharam");
+        console.error("[copilot] ações operacionais falharam");
       }
+      if (!opsEvaluated && opsReadPhase) noAdvanceReason = "response_no_signal";
+    } else {
+      await runReaderFallback();
     }
-    // Nenhum sinal chegou à política e os bastidores rodaram ⇒ o motivo exato fica na auditoria (sem buraco negro).
-    // Vem DEPOIS da reserva acima: a linha é por mensagem + ação e nunca pode ocupar o lugar de uma ação legítima.
+    // Nenhum sinal chegou à política ⇒ o motivo exato fica na auditoria (sem buraco negro).
     const record = deps.opsNoAdvance ?? (deps.ops ? null : (i: OpsNoAdvanceInput) => recordOpsNoAdvance(i, { env }));
-    if (record && backstage && !opsEvaluated && opsPhase) {
+    if (record && (readerRan || noAdvanceReason) && !opsEvaluated && opsPhase && opsReadPhase) {
       const code: OpsRefusalCode = noAdvanceReason ?? "reader_no_signal";
       let timer: ReturnType<typeof setTimeout> | undefined;
       try {
@@ -928,8 +924,6 @@ export async function generateCopilotSuggestion(
       detail: stored.kind === "invalid" ? stored.reason : stored.kind,
     };
   } catch (e) {
-    const pb = pendingBackstage as Promise<boolean> | null;
-    if (pb) await pb.catch(() => false);
     // falha inesperada: a sugestão reivindicada não pode ficar "gerando" para sempre
     if (claimed && store) {
       try {

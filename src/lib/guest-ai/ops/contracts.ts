@@ -119,6 +119,8 @@ export const OPS_REFUSAL_CODES = [
   "reader_abstain_access_unresolved",
   "reader_abstain_context_unclear",
   "reader_abstain_no_fact",
+  // UMA CABEÇA SÓ (11/11/2026): a decisão validada da resposta não trouxe marco nem previsão
+  "response_no_signal",
 ] as const;
 export type OpsRefusalCode = (typeof OPS_REFUSAL_CODES)[number];
 
