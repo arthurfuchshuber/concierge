@@ -17,6 +17,7 @@ import {
 } from "@/lib/billing/billing.functions";
 import { metaPixelTrack, metaPixelTrackOnce } from "@/lib/meta-pixel";
 import { Skeleton } from "@/components/ui/skeleton";
+import { CardSetupDialog, STRIPE_PUBLISHABLE_KEY } from "@/components/billing/CardSetupDialog";
 import { PageHeader } from "@/components/ds/PageHeader";
 import { PANEL_SHELL } from "@/components/dashboard/panel-chrome";
 import { PriceBands } from "@/components/pricing/ListingPricing";
@@ -45,6 +46,7 @@ function AssinaturaPage({ embedded = false }: { embedded?: boolean } = {}) {
   const qc = useQueryClient();
   const search = useSearch({ strict: false }) as { checkout?: string; card?: string };
   const [busy, setBusy] = useState(false);
+  const [cardOpen, setCardOpen] = useState(false);
 
   useEffect(() => {
     if (search.checkout !== "success") return;
@@ -59,7 +61,10 @@ function AssinaturaPage({ embedded = false }: { embedded?: boolean } = {}) {
 
   useEffect(() => {
     if (search.checkout !== "success" || !info.isActive) return;
-    metaPixelTrackOnce("Purchase", { value: (info.billing?.monthlyCents ?? 0) / 100, currency: "BRL" });
+    metaPixelTrackOnce("Purchase", {
+      value: (info.billing?.monthlyCents ?? 0) / 100,
+      currency: "BRL",
+    });
   }, [search.checkout, info.isActive, info.billing?.monthlyCents]);
 
   // Volta do cadastro do cartão (conta isenta): confere o cartão e atualiza a tela.
@@ -115,7 +120,9 @@ function AssinaturaPage({ embedded = false }: { embedded?: boolean } = {}) {
   async function openCardSetup() {
     setBusy(true);
     try {
-      const res = await cardSetupFn({ data: { ownerId, returnPath: "/admin/administrativo?tab=perfil" } });
+      const res = await cardSetupFn({
+        data: { ownerId, returnPath: "/admin/administrativo?tab=perfil" },
+      });
       window.location.href = res.url;
     } catch (e) {
       toast.error(friendlyErrorMessage(e, "Não foi possível abrir o cadastro do cartão"));
@@ -123,10 +130,20 @@ function AssinaturaPage({ embedded = false }: { embedded?: boolean } = {}) {
     }
   }
 
+  /** Janela do sistema (Stripe Elements) quando há chave pública; senão, o caminho antigo pela página da Stripe. */
+  function openCard() {
+    if (STRIPE_PUBLISHABLE_KEY) setCardOpen(true);
+    else if (info.isExempt) void openCardSetup();
+    else void openPortal();
+  }
+
   async function subscribe() {
     setBusy(true);
     try {
-      metaPixelTrack("InitiateCheckout", { content_name: "conciergeia_por_anuncio", currency: "BRL" });
+      metaPixelTrack("InitiateCheckout", {
+        content_name: "conciergeia_por_anuncio",
+        currency: "BRL",
+      });
       const res = await checkoutFn({ data: { ownerId, returnPath: "/admin/assinatura" } });
       window.location.href = res.url;
     } catch (e) {
@@ -150,8 +167,12 @@ function AssinaturaPage({ embedded = false }: { embedded?: boolean } = {}) {
       {isPending ? (
         <AssinaturaSkeleton />
       ) : isError ? (
-        <section className={`${PANEL_SHELL} flex flex-col items-center gap-3 px-4 py-5 text-center`}>
-          <p className="text-[13px] text-muted-foreground">Não foi possível carregar sua assinatura.</p>
+        <section
+          className={`${PANEL_SHELL} flex flex-col items-center gap-3 px-4 py-5 text-center`}
+        >
+          <p className="text-[13px] text-muted-foreground">
+            Não foi possível carregar sua assinatura.
+          </p>
           <button
             type="button"
             onClick={() => refetch()}
@@ -162,16 +183,25 @@ function AssinaturaPage({ embedded = false }: { embedded?: boolean } = {}) {
         </section>
       ) : showFull ? (
         <>
-          <AssinaturaMobile view={view} paymentMethod={pm} onOpenPortal={info.isExempt ? openCardSetup : openPortal} busy={busy} />
-          <AssinaturaDesktop view={view} paymentMethod={pm} onOpenPortal={info.isExempt ? openCardSetup : openPortal} busy={busy} />
+          <AssinaturaMobile view={view} paymentMethod={pm} onOpenPortal={openCard} busy={busy} />
+          <AssinaturaDesktop view={view} paymentMethod={pm} onOpenPortal={openCard} busy={busy} />
+          <CardSetupDialog
+            open={cardOpen}
+            onOpenChange={setCardOpen}
+            ownerId={ownerId}
+            hasCard={!!pm}
+          />
         </>
       ) : (
         <section className={`${PANEL_SHELL} flex flex-col gap-4 px-4 pb-4 pt-5`}>
           <div className="text-center">
-            <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">Sem Assinatura Ativa</div>
+            <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+              Sem Assinatura Ativa
+            </div>
             <p className="mx-auto mt-2 max-w-md text-[13px] leading-[1.5] text-muted-foreground">
-              Um plano com tudo incluso, cobrado por anúncio conectado. Vencimento todo dia {BILLING_ANCHOR_DAY}; na
-              contratação você paga só os dias até o dia {BILLING_ANCHOR_DAY}.
+              Um plano com tudo incluso, cobrado por anúncio conectado. Vencimento todo dia{" "}
+              {BILLING_ANCHOR_DAY}; na contratação você paga só os dias até o dia{" "}
+              {BILLING_ANCHOR_DAY}.
             </p>
           </div>
           <PriceBands highlight={view.qtd || undefined} />
@@ -193,7 +223,11 @@ function AssinaturaPage({ embedded = false }: { embedded?: boolean } = {}) {
 /** Casca do card de assinatura enquanto a primeira resposta não chega (sem flash do "Sem Assinatura Ativa"). */
 function AssinaturaSkeleton() {
   return (
-    <section aria-busy aria-label="Carregando assinatura" className={`${PANEL_SHELL} flex flex-col gap-4 px-4 pb-4 pt-5`}>
+    <section
+      aria-busy
+      aria-label="Carregando assinatura"
+      className={`${PANEL_SHELL} flex flex-col gap-4 px-4 pb-4 pt-5`}
+    >
       <div className="flex flex-col items-center gap-2">
         <Skeleton className="h-[10px] w-28 rounded-[3px]" />
         <Skeleton className="h-[13px] w-full max-w-md rounded-[4px]" />

@@ -78,7 +78,10 @@ async function ownerFor(context: any, ownerId?: string | null): Promise<string> 
 
 async function assertTitularOrAdmin(context: any, ownerId: string): Promise<void> {
   if (ownerId === context.userId) return;
-  const { data: isAdmin } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" });
+  const { data: isAdmin } = await context.supabase.rpc("has_role", {
+    _user_id: context.userId,
+    _role: "admin",
+  });
   if (!isAdmin) throw new Error("Apenas o titular da conta pode gerenciar a assinatura.");
 }
 
@@ -102,7 +105,11 @@ export const getAccountBilling = createServerFn({ method: "POST" })
     const { stripeEnvOrNull } = await import("@/lib/billing/stripe.server");
     const env = stripeEnvOrNull();
     const list = (rows ?? []) as any[];
-    const match = list.find((r) => r.environment === env && r.stripe_subscription_id) ?? list.find((r) => r.is_manual) ?? list[0] ?? null;
+    const match =
+      list.find((r) => r.environment === env && r.stripe_subscription_id) ??
+      list.find((r) => r.is_manual) ??
+      list[0] ??
+      null;
 
     const { loadBillingTerms } = await import("@/lib/billing/billing-terms.server");
     const { loadConnectedListings } = await import("@/lib/billing/connected-listings.server");
@@ -115,13 +122,27 @@ export const getAccountBilling = createServerFn({ method: "POST" })
         .select("status, checked_at, failure_message")
         .eq("user_id", ownerId)
         .maybeSingle()
-        .then((r: any) => (r?.data ?? null) as { status: string; checked_at: string | null; failure_message: string | null } | null),
+        .then(
+          (r: any) =>
+            (r?.data ?? null) as {
+              status: string;
+              checked_at: string | null;
+              failure_message: string | null;
+            } | null,
+        ),
     ]);
     const count = listings.length;
     const sub = match ? toBillingSubscription(match) : null;
     const now = Date.now();
-    const trialUntil = sub?.status === "trialing" && sub.trialEndsAt && Date.parse(sub.trialEndsAt) > now ? sub.trialEndsAt : null;
-    const courtesyUntil = trialUntil ?? (terms.billingStartsAt && Date.parse(terms.billingStartsAt) > now ? terms.billingStartsAt : null);
+    const trialUntil =
+      sub?.status === "trialing" && sub.trialEndsAt && Date.parse(sub.trialEndsAt) > now
+        ? sub.trialEndsAt
+        : null;
+    const courtesyUntil =
+      trialUntil ??
+      (terms.billingStartsAt && Date.parse(terms.billingStartsAt) > now
+        ? terms.billingStartsAt
+        : null);
     const nextChargeAt = sub?.hasStripeBilling
       ? (trialUntil ?? (sub.billingPaused ? null : sub.currentPeriodEnd))
       : null;
@@ -134,7 +155,9 @@ export const getAccountBilling = createServerFn({ method: "POST" })
       features: plan.features as PlanFeatures,
       /** Cartão obrigatório: resultado da última verificação (dia 20) ou do último cadastro. */
       cardCheck: {
-        status: (cardRow?.status === "ok" || cardRow?.status === "failed" ? cardRow.status : "missing") as "ok" | "failed" | "missing",
+        status: (cardRow?.status === "ok" || cardRow?.status === "failed"
+          ? cardRow.status
+          : "missing") as "ok" | "failed" | "missing",
         checkedAt: cardRow?.checked_at ?? null,
         failureMessage: cardRow?.failure_message ?? null,
       },
@@ -187,7 +210,10 @@ async function ensureStripeCustomer(ownerId: string): Promise<string> {
     doc.length === 11
       ? { type: "br_cpf", value: doc.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4") }
       : doc.length === 14
-        ? { type: "br_cnpj", value: doc.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, "$1.$2.$3/$4-$5") }
+        ? {
+            type: "br_cnpj",
+            value: doc.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, "$1.$2.$3/$4-$5"),
+          }
         : null;
   const created = await stripeRequest<{ id: string }>(
     "POST",
@@ -222,7 +248,11 @@ export const createCheckoutSession = createServerFn({ method: "POST" })
     z
       .object({
         ownerId: z.string().uuid().nullish(),
-        returnPath: z.string().regex(/^\/[A-Za-z0-9/_\-?=&.]*$/).max(200).optional(),
+        returnPath: z
+          .string()
+          .regex(/^\/[A-Za-z0-9/_\-?=&.]*$/)
+          .max(200)
+          .optional(),
       })
       .optional()
       .parse(d),
@@ -242,11 +272,11 @@ export const createCheckoutSession = createServerFn({ method: "POST" })
       .not("stripe_subscription_id", "is", null)
       .in("status", ["active", "past_due", "trialing", "unpaid"])
       .limit(1);
-    if ((live ?? []).length) throw new Error("A conta já tem uma assinatura ativa. Gerencie pelo botão de cartão.");
+    if ((live ?? []).length)
+      throw new Error("A conta já tem uma assinatura ativa. Gerencie pelo botão de cartão.");
 
-    const { loadBillingTerms, priceIdForTerms, ensureCourtesyCoupon, courtesyEndSeconds } = await import(
-      "@/lib/billing/billing-terms.server"
-    );
+    const { loadBillingTerms, priceIdForTerms, ensureCourtesyCoupon, courtesyEndSeconds } =
+      await import("@/lib/billing/billing-terms.server");
     const { nextBillingAnchor } = await import("@/lib/billing/listing-billing");
     const terms = await loadBillingTerms(supabaseAdmin, ownerId);
     const [priceId, customer, listings] = await Promise.all([
@@ -272,7 +302,10 @@ export const createCheckoutSession = createServerFn({ method: "POST" })
         // Vencimento único no dia 25: hoje paga o proporcional até o dia 25 (ou nada, na carência).
         ...(trialEnd
           ? { trial_end: trialEnd }
-          : { billing_cycle_anchor: nextBillingAnchor(now), proration_behavior: "create_prorations" }),
+          : {
+              billing_cycle_anchor: nextBillingAnchor(now),
+              proration_behavior: "create_prorations",
+            }),
       },
       metadata: { user_id: ownerId },
       success_url: await originUrl(`${back}${sep}checkout=success`),
@@ -296,11 +329,9 @@ let portalConfigCache: string | null = null;
 async function portalConfigurationId(): Promise<string> {
   if (portalConfigCache) return portalConfigCache;
   const { stripeRequest } = await import("@/lib/billing/stripe.server");
-  const list = await stripeRequest<{ data: Array<{ id: string; active: boolean; metadata: Record<string, string> }> }>(
-    "GET",
-    "/billing_portal/configurations",
-    { active: true, limit: 100 },
-  );
+  const list = await stripeRequest<{
+    data: Array<{ id: string; active: boolean; metadata: Record<string, string> }>;
+  }>("GET", "/billing_portal/configurations", { active: true, limit: 100 });
   const mine = list.data.find((c) => c.metadata?.app === "conciergeia");
   if (mine) return (portalConfigCache = mine.id);
   const created = await stripeRequest<{ id: string }>(
@@ -329,7 +360,11 @@ export const createPortalSession = createServerFn({ method: "POST" })
     z
       .object({
         ownerId: z.string().uuid().nullish(),
-        returnPath: z.string().regex(/^\/[A-Za-z0-9/_\-?=&.]*$/).max(200).optional(),
+        returnPath: z
+          .string()
+          .regex(/^\/[A-Za-z0-9/_\-?=&.]*$/)
+          .max(200)
+          .optional(),
       })
       .optional()
       .parse(d),
@@ -360,7 +395,9 @@ export const createPortalSession = createServerFn({ method: "POST" })
     return { url: session.url };
   });
 
-async function customerOf(ownerId: string): Promise<{ customer: string | null; subscription: string | null }> {
+async function customerOf(
+  ownerId: string,
+): Promise<{ customer: string | null; subscription: string | null }> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { stripeEnvOrNull } = await import("@/lib/billing/stripe.server");
   const env = stripeEnvOrNull();
@@ -374,7 +411,11 @@ async function customerOf(ownerId: string): Promise<{ customer: string | null; s
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
-  if (data?.stripe_customer_id) return { customer: data.stripe_customer_id as string, subscription: data.stripe_subscription_id ?? null };
+  if (data?.stripe_customer_id)
+    return {
+      customer: data.stripe_customer_id as string,
+      subscription: data.stripe_subscription_id ?? null,
+    };
   // Conta isenta: o cliente na Stripe existe só para guardar o cartão obrigatório.
   const { data: card } = await (supabaseAdmin as any)
     .from("account_card_checks")
@@ -395,13 +436,23 @@ export const listMyPayments = createServerFn({ method: "POST" })
     if (!customer) return { payments: [] };
     const { stripeRequest } = await import("@/lib/billing/stripe.server");
     try {
-      const list = await stripeRequest<{ data: any[] }>("GET", "/invoices", { customer, limit: 24 });
+      const list = await stripeRequest<{ data: any[] }>("GET", "/invoices", {
+        customer,
+        limit: 24,
+      });
       const payments: PaymentRow[] = list.data
         .filter((inv) => inv.status !== "void" && inv.status !== "draft" && inv.total > 0)
         .map((inv) => ({
           id: inv.id,
-          status: inv.status === "paid" ? "paid" : inv.status === "open" && inv.attempt_count > 0 ? "failed" : inv.status,
-          createdAt: new Date((inv.status_transitions?.finalized_at ?? inv.created) * 1000).toISOString(),
+          status:
+            inv.status === "paid"
+              ? "paid"
+              : inv.status === "open" && inv.attempt_count > 0
+                ? "failed"
+                : inv.status,
+          createdAt: new Date(
+            (inv.status_transitions?.finalized_at ?? inv.created) * 1000,
+          ).toISOString(),
           amount: inv.status === "paid" ? inv.amount_paid : inv.amount_due,
           currency: String(inv.currency ?? "brl").toUpperCase(),
           invoiceUrl: inv.hosted_invoice_url ?? null,
@@ -424,9 +475,13 @@ export const getAccountPaymentMethod = createServerFn({ method: "POST" })
     try {
       let pm: any = null;
       if (subscription) {
-        const sub = await stripeRequest<any>("GET", `/subscriptions/${encodeURIComponent(subscription)}`, {
-          expand: ["default_payment_method"],
-        });
+        const sub = await stripeRequest<any>(
+          "GET",
+          `/subscriptions/${encodeURIComponent(subscription)}`,
+          {
+            expand: ["default_payment_method"],
+          },
+        );
         pm = sub.default_payment_method;
       }
       if (!pm) {
@@ -451,7 +506,6 @@ export const getAccountPaymentMethod = createServerFn({ method: "POST" })
     }
   });
 
-
 /**
  * Cadastro ou troca do cartão de uma conta SEM assinatura na Stripe (conta isenta): abre a página
  * hospedada da Stripe só para salvar o cartão. Ao voltar, `refreshCardCheck` confere o cartão.
@@ -462,7 +516,11 @@ export const startCardSetup = createServerFn({ method: "POST" })
     z
       .object({
         ownerId: z.string().uuid().nullish(),
-        returnPath: z.string().regex(/^\/[A-Za-z0-9/_\-?=&.]*$/).max(200).optional(),
+        returnPath: z
+          .string()
+          .regex(/^\/[A-Za-z0-9/_\-?=&.]*$/)
+          .max(200)
+          .optional(),
       })
       .optional()
       .parse(d),
@@ -476,7 +534,10 @@ export const startCardSetup = createServerFn({ method: "POST" })
     // Guarda o cliente já agora: o retorno e o webhook o encontram sem depender da assinatura.
     await (supabaseAdmin as any)
       .from("account_card_checks")
-      .upsert({ user_id: ownerId, environment: stripeEnv(), stripe_customer_id: customer }, { onConflict: "user_id", ignoreDuplicates: true });
+      .upsert(
+        { user_id: ownerId, environment: stripeEnv(), stripe_customer_id: customer },
+        { onConflict: "user_id", ignoreDuplicates: true },
+      );
     const base = data?.returnPath ?? "/admin/administrativo?tab=perfil";
     const sep = base.includes("?") ? "&" : "?";
     const session = await stripeRequest<{ url: string }>("POST", "/checkout/sessions", {
@@ -503,4 +564,96 @@ export const refreshCardCheck = createServerFn({ method: "POST" })
     if (!customer) return { status: "missing" as const };
     const { checkAccountCard } = await import("@/lib/billing/card-check.server");
     return { status: await checkAccountCard(ownerId, customer) };
+  });
+
+/**
+ * Janela de cartão dentro do sistema (Stripe Elements): prepara o cadastro do cartão da conta.
+ * Serve para conta isenta, conta paga e troca depois de pagamento recusado.
+ */
+export const createCardSetupIntent = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { ownerId?: string | null } | undefined) => OwnerInput.parse(d))
+  .handler(async ({ data, context }) => {
+    const ownerId = await ownerFor(context, data?.ownerId);
+    await assertTitularOrAdmin(context, ownerId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { stripeRequest, stripeEnv } = await import("@/lib/billing/stripe.server");
+    const customer = await ensureStripeCustomer(ownerId);
+    await (supabaseAdmin as any)
+      .from("account_card_checks")
+      .upsert(
+        { user_id: ownerId, environment: stripeEnv(), stripe_customer_id: customer },
+        { onConflict: "user_id", ignoreDuplicates: true },
+      );
+    const si = await stripeRequest<{ id: string; client_secret: string }>(
+      "POST",
+      "/setup_intents",
+      {
+        customer,
+        payment_method_types: ["card"],
+        usage: "off_session",
+        metadata: { app: "conciergeia", purpose: "card_window", user_id: ownerId },
+      },
+    );
+    return { clientSecret: si.client_secret, setupIntentId: si.id };
+  });
+
+/**
+ * Fecha o cadastro feito na janela: o cartão aprovado vira o padrão do cliente e da assinatura, a
+ * fatura recusada em aberto é tentada de novo e o resultado fica gravado como "verificado".
+ */
+export const finishCardSetup = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { ownerId?: string | null; setupIntentId: string } | undefined) =>
+    z
+      .object({
+        ownerId: z.string().uuid().nullish(),
+        setupIntentId: z.string().regex(/^seti_[A-Za-z0-9]+$/),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const ownerId = await ownerFor(context, data.ownerId);
+    await assertTitularOrAdmin(context, ownerId);
+    const { stripeRequest } = await import("@/lib/billing/stripe.server");
+    const { customer, subscription } = await customerOf(ownerId);
+    if (!customer) throw new Error("Conta sem cliente na Stripe.");
+    // Lê o resultado na Stripe: nunca confia no que o navegador diz.
+    const si = await stripeRequest<{
+      status: string;
+      customer: string | null;
+      payment_method: string | null;
+      metadata?: Record<string, string>;
+    }>("GET", `/setup_intents/${encodeURIComponent(data.setupIntentId)}`);
+    if (si.customer !== customer || si.metadata?.user_id !== ownerId)
+      throw new Error("Cadastro de cartão inválido.");
+    if (si.status !== "succeeded" || !si.payment_method)
+      throw new Error("O cartão não foi aprovado.");
+    await stripeRequest("POST", `/customers/${encodeURIComponent(customer)}`, {
+      invoice_settings: { default_payment_method: si.payment_method },
+    });
+    if (subscription) {
+      await stripeRequest("POST", `/subscriptions/${encodeURIComponent(subscription)}`, {
+        default_payment_method: si.payment_method,
+      }).catch(() => undefined);
+    }
+    // Pagamento recusado em aberto: tenta de novo com o cartão novo (a janela de bloqueio sai sozinha).
+    const open = await stripeRequest<{ data: Array<{ id: string; attempt_count?: number }> }>(
+      "GET",
+      "/invoices",
+      {
+        customer,
+        status: "open",
+        limit: 5,
+      },
+    ).catch(() => ({ data: [] as Array<{ id: string; attempt_count?: number }> }));
+    for (const inv of open.data) {
+      if (!inv.attempt_count) continue;
+      await stripeRequest("POST", `/invoices/${encodeURIComponent(inv.id)}/pay`, {
+        payment_method: si.payment_method,
+      }).catch(() => undefined);
+    }
+    const { saveCardCheck } = await import("@/lib/billing/card-check.server");
+    await saveCardCheck(ownerId, customer, { status: "ok", message: null });
+    return { ok: true as const };
   });

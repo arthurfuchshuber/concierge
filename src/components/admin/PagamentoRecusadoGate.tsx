@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { CreditCard, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { CardSetupDialog, STRIPE_PUBLISHABLE_KEY } from "@/components/billing/CardSetupDialog";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { createPortalSession } from "@/lib/billing/billing.functions";
 import { friendlyErrorMessage } from "@/lib/friendly-error";
@@ -21,10 +22,15 @@ export function PagamentoRecusadoGate() {
   const { impersonation } = useImpersonation();
   const portalFn = useServerFn(createPortalSession);
   const [busy, setBusy] = useState(false);
+  const [cardOpen, setCardOpen] = useState(false);
 
   const open = info.isPastDue && info.hasStripeBilling && isOwner && !impersonation;
 
   async function updateCard() {
+    if (STRIPE_PUBLISHABLE_KEY) {
+      setCardOpen(true);
+      return;
+    }
     setBusy(true);
     try {
       const res = await portalFn({ data: { returnPath: "/admin/administrativo?tab=perfil" } });
@@ -36,33 +42,37 @@ export function PagamentoRecusadoGate() {
   }
 
   return (
-    <Dialog open={open}>
-      <DialogContent
-        hideClose
-        onInteractOutside={(e) => e.preventDefault()}
-        onPointerDownOutside={(e) => e.preventDefault()}
-        onEscapeKeyDown={(e) => e.preventDefault()}
-        className="max-w-[380px] gap-3 p-[18px] pt-[22px]"
-      >
-        <DialogTitle className="flex items-center gap-2.5 font-display text-[19px] font-extrabold leading-[1.2] tracking-[-0.01em]">
-          <span className="grid size-[34px] shrink-0 place-items-center rounded-[10px] bg-secondary text-muted-foreground shadow-[inset_0_0_0_1px_var(--border)]">
-            <CreditCard className="size-4" />
-          </span>
-          <span className="min-w-0">Pagamento recusado</span>
-        </DialogTitle>
-        <DialogDescription className="text-[12.5px] leading-[1.55]">
-          O pagamento da sua assinatura não foi aprovado. Atualize o cartão para liberar o painel; a cobrança é tentada de novo em seguida.
-        </DialogDescription>
-        <button
-          type="button"
-          onClick={updateCard}
-          disabled={busy}
-          className="flex h-[46px] items-center justify-center gap-2 rounded-md bg-gradient-to-br from-brand-purple to-brand-magenta text-[13.5px] font-extrabold text-white disabled:opacity-60"
+    <>
+      <Dialog open={open && !cardOpen}>
+        <DialogContent
+          hideClose
+          onInteractOutside={(e) => e.preventDefault()}
+          onPointerDownOutside={(e) => e.preventDefault()}
+          onEscapeKeyDown={(e) => e.preventDefault()}
+          className="max-w-[380px] gap-3 p-[18px] pt-[22px]"
         >
-          {busy ? <Loader2 className="size-4 animate-spin" /> : null}
-          Atualizar cartão
-        </button>
-      </DialogContent>
-    </Dialog>
+          <DialogTitle className="flex items-center gap-2.5 font-display text-[19px] font-extrabold leading-[1.2] tracking-[-0.01em]">
+            <span className="grid size-[34px] shrink-0 place-items-center rounded-[10px] bg-secondary text-muted-foreground shadow-[inset_0_0_0_1px_var(--border)]">
+              <CreditCard className="size-4" />
+            </span>
+            <span className="min-w-0">Pagamento recusado</span>
+          </DialogTitle>
+          <DialogDescription className="text-[12.5px] leading-[1.55]">
+            O pagamento da sua assinatura não foi aprovado. Atualize o cartão para liberar o painel;
+            a cobrança é tentada de novo em seguida.
+          </DialogDescription>
+          <button
+            type="button"
+            onClick={updateCard}
+            disabled={busy}
+            className="flex h-[46px] items-center justify-center gap-2 rounded-md bg-gradient-to-br from-brand-purple to-brand-magenta text-[13.5px] font-extrabold text-white disabled:opacity-60"
+          >
+            {busy ? <Loader2 className="size-4 animate-spin" /> : null}
+            Atualizar cartão
+          </button>
+        </DialogContent>
+      </Dialog>
+      <CardSetupDialog open={open && cardOpen} onOpenChange={setCardOpen} hasCard />
+    </>
   );
 }
