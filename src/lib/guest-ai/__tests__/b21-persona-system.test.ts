@@ -341,7 +341,7 @@ describe("nome, gênero, fim do SAC, aviso de chegada e acolhimento breve em pre
 
   it("aviso de GPS/chegada: nunca silêncio, acolhe, reforça check-in autônomo e não afrouxa a D9", () => {
     expect(sys).toMatch(/nunca fica em silêncio nem apenas registra o dado/);
-    expect(sys).toMatch(/100% autônomo/);
+    expect(sys).toMatch(/Só cite fechadura digital ou check-in autônomo se o imóvel realmente tiver/);
     expect(sys).toMatch(/ctx:liberacao_credenciais/);
     expect(sys).toMatch(/nunca aprova entrada antecipada/);
   });
@@ -350,5 +350,37 @@ describe("nome, gênero, fim do SAC, aviso de chegada e acolhimento breve em pre
     expect(sys).toMatch(/ACOLHIMENTO BREVE/);
     expect(sys).toMatch(/TERMINANTEMENTE PROIBIDO despejar comodidades/);
     expect(sys).toMatch(/pre_stay/);
+  });
+});
+
+describe("aviso de chegada coerente com canal e dossiê (system.2026-11-11.3)", () => {
+  const sys = buildSystemPrompt("airbnb");
+  const arrival = sys.slice(sys.indexOf("Aviso de deslocamento"), sys.indexOf("Continue declarando guestEtas"));
+
+  it("versão do roteiro", () => {
+    expect(SYSTEM_PROMPT_VERSION).toBe("system.2026-11-11.3");
+  });
+
+  it("corrobora o histórico em vez de vetar a palavra guia", () => {
+    expect(arrival).toMatch(/Corroboração com o contexto e o histórico/);
+    expect(arrival).toMatch(/Se a conta já enviou anteriormente nesta conversa um link de guia/);
+    expect(arrival).toMatch(/Se NADA sobre guia foi enviado ou mencionado no histórico/);
+    expect(arrival).toMatch(/canal guide_chat/);
+    expect(arrival).toMatch(/sem qualquer restrição artificial de vocabulário/);
+    expect(arrival).not.toMatch(/PROIBIDO falar em guia/);
+    const airbnbExample = arrival.slice(arrival.indexOf("No Airbnb,"), arrival.indexOf("No WhatsApp,"));
+    expect(airbnbExample).not.toMatch(/guia/i);
+  });
+
+  it("não presume check-in autônomo; portaria presencial é citada; D9 intacta", () => {
+    expect(arrival).toMatch(/portaria presencial/);
+    expect(arrival).toMatch(/sem presumir a modalidade/);
+    expect(arrival).toMatch(/retidas pela D9/);
+    expect(sys).toMatch(/nunca aprova entrada antecipada/);
+  });
+
+  it("exemplos sem clichê de SAC", () => {
+    expect(arrival).not.toMatch(/qualquer dúvida/i);
+    expect(arrival).not.toMatch(/à disposição/);
   });
 });
