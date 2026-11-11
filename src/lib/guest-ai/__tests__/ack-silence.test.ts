@@ -5,7 +5,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import { isAffirmativeStatement, isBareAcknowledgment, shouldSilenceBareAck } from "@/lib/guest-ai/ack-silence";
+import { isAccommodationCheck, isAffirmativeStatement, isBareAcknowledgment, isSatisfiedCheckReply, shouldSilenceBareAck } from "@/lib/guest-ai/ack-silence";
 import type { HistoryEntry } from "@/lib/guest-ai/history";
 import { requestGuestAiReply } from "@/lib/guest-ai/slot.server";
 import { waitForReservationCode } from "@/lib/chat/reservation-wait";
@@ -114,5 +114,44 @@ describe("Resposta afirmativa sem a nossa pergunta (caso Karen, 11/11/2026)", ()
     for (const t of ["Sim, qual o horário do check-in", "Sim, gostaria de saber do Wi-Fi", "Ok, chego às 15h", "Sim, chegamos as 14:30", "Sim? Pode ser?", "Boa noite, tudo bem"])
       expect(isAffirmativeStatement(t), t).toBe(false);
     expect(shouldSilenceBareAck([e("ai", "Vão ser quantas pessoas?"), e("guest", "Sim! Somos o casal e 2 amigos.")])).toBe(false);
+  });
+});
+
+describe("Checagem do imóvel respondida com satisfação ⇒ sem tréplica (caso Jenifer, 11/11/2026)", () => {
+  const check = "Boa noite, Jenifer! Não se preocupe, muito obrigada por avisar. Vocês encontraram tudo certinho no apartamento?";
+
+  it("\"Encontramos sim. Um apartamento muito bonito.\" ⇒ silêncio", () => {
+    expect(isAccommodationCheck(check)).toBe(true);
+    expect(isSatisfiedCheckReply("Encontramos sim. Um apartamento muito bonito.")).toBe(true);
+    expect(shouldSilenceBareAck([e("ai", check), e("guest", "Encontramos sim. Um apartamento muito bonito.")])).toBe(true);
+  });
+
+  it("outras confirmações de satisfação também encerram (inclusive em rajada)", () => {
+    for (const t of ["Tudo certo por aqui", "Tudo perfeito!", "Sim", "Sim, tudo ótimo 😊", "Amamos, muito aconchegante"])
+      expect(shouldSilenceBareAck([e("ai", check), e("guest", t)]), t).toBe(true);
+    expect(shouldSilenceBareAck([e("ai", check), e("guest", "Encontramos sim"), e("guest", "Lindo o apartamento")])).toBe(true);
+  });
+
+  it("ressalva, problema, pergunta ou pedido ⇒ o modelo responde", () => {
+    for (const t of [
+      "Encontramos sim, mas faltou toalha",
+      "Tudo certo, só que o ar não liga",
+      "Sim! Qual a senha do Wi-Fi?",
+      "Lindo, mas está um pouco sujo",
+      "Não encontramos o controle",
+      "Tudo certo, pode me mandar o endereço do mercado",
+      "Encontramos sim, chegamos às 22h",
+    ])
+      expect(shouldSilenceBareAck([e("ai", check), e("guest", t)]), t).toBe(false);
+  });
+
+  it("nossa mensagem com outra pergunta (ou duas perguntas) não é checagem pura ⇒ a conversa segue", () => {
+    expect(isAccommodationCheck("Que horas vocês chegam?")).toBe(false);
+    expect(isAccommodationCheck("Encontraram tudo certinho? Precisam de mais toalhas?")).toBe(false);
+    expect(shouldSilenceBareAck([e("ai", "Que horas vocês chegam?"), e("guest", "Tudo certo")])).toBe(false);
+  });
+
+  it("elogio espontâneo, sem checagem nossa, continua indo ao modelo", () => {
+    expect(shouldSilenceBareAck([e("ai", "As toalhas extras estão no armário."), e("guest", "Apartamento muito bonito")])).toBe(false);
   });
 });

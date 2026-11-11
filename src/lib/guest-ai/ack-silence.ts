@@ -3,7 +3,8 @@
  * primeira mensagem da conversa, recebeu um texto institucional). Regra em CÓDIGO, acima do modelo:
  * se o turno do hóspede é só confirmação ou cortesia ("Sim", "Ok", "Obrigado", emoji…) e a nossa última mensagem
  * (IA, equipe ou sistema) não fez pergunta — ou não existe mensagem nossa —, a IA não responde.
- * Com pergunta nossa pendente ("Quer que eu envie o passo a passo?" → "Sim"), a conversa segue. Puro.
+ * Com pergunta nossa pendente ("Quer que eu envie o passo a passo?" → "Sim"), a conversa segue — exceto a
+ * checagem do imóvel respondida com satisfação (caso Jenifer, 11/11/2026), que encerra o assunto. Puro.
  */
 import type { HistoryEntry } from "@/lib/guest-ai/history";
 
@@ -56,14 +57,51 @@ export function isAffirmativeStatement(text: string | null | undefined): boolean
 }
 
 /**
+ * Nossa mensagem foi a CHECAGEM do imóvel (acolhimento no check-in: "Vocês encontraram tudo certinho no
+ * apartamento?")? Só uma pergunta na mensagem, e é a de checagem. Duas perguntas ⇒ não é checagem pura.
+ */
+const ACCOMMODATION_CHECK =
+  /\b(encontra(ram|ste|r) tudo|tudo (certinho|certo|ok|em ordem|bem|conforme)|como (esperava|esperavam|imaginava|imaginavam)|ficou tudo|esta tudo|conseguiram se (acomodar|instalar)|se (acomodaram|instalaram) bem|gostaram (do|da) (apartamento|imovel|espaco|studio|casa|acomodacao))\b/;
+
+export function isAccommodationCheck(text: string | null | undefined): boolean {
+  const raw = (text ?? "").trim();
+  if ((raw.match(/\?/g) ?? []).length !== 1) return false;
+  const question = raw.slice(0, raw.indexOf("?")).split(/[.!\n]/).pop() ?? "";
+  return ACCOMMODATION_CHECK.test(normalizeAck(question));
+}
+
+const SATISFACTION =
+  /\b(sim|encontramos|encontrei|tudo (certo|certinho|otimo|perfeito|bem|ok|em ordem|maravilhoso|lindo)|perfeito|otimo|otima|maravilh\w*|lind[oa]|bonit[oa]|incrivel|excelente|amamos|adoramos|gostamos|amei|adorei|gostei|confortavel|aconchegante|limp[oa]|limpinh[oa]|show|top)\b/;
+const PROBLEM_OR_RESERVATION =
+  /\b(nao|mas|porem|so que|entretanto|contudo|falt\w*|suj[oa]s?|quebrad\w*|estragad\w*|vazand\w*|vazamento|barulh\w*|cheiro|defeito|reclam\w*|duvida|frio|quente|calor|apagad\w*)\b/;
+
+/**
+ * Resposta de SATISFAÇÃO à checagem ("Encontramos sim. Um apartamento muito bonito.", caso Jenifer 11/11/2026):
+ * afirma que está tudo bem, sem pergunta, pedido, horário, ressalva ou relato de problema. Na dúvida ⇒ não.
+ */
+export function isSatisfiedCheckReply(text: string | null | undefined): boolean {
+  const raw = (text ?? "").trim();
+  if (!raw || raw.includes("?") || raw.length > 200) return false;
+  const n = normalizeAck(raw);
+  return SATISFACTION.test(n) && !PROBLEM_OR_RESERVATION.test(n) && !REQUEST_WORDS.test(n) && !TIME_MENTION.test(n);
+}
+
+/**
  * O turno atual do hóspede (mensagens seguidas dele no fim do histórico) deve ficar SEM resposta?
  * Mídia (foto/áudio) nunca é confirmação vazia.
+ * - Sem pergunta nossa pendente: confirmação/cortesia ou afirmação sem pedido ⇒ silêncio.
+ * - Nossa última mensagem foi a checagem do imóvel e o hóspede respondeu que está tudo bem (com ou sem elogio)
+ *   ⇒ a checagem cumpriu o objetivo; silêncio (sem tréplica). Qualquer ressalva, pergunta ou pedido ⇒ modelo.
+ * - Outra pergunta nossa pendente ⇒ a conversa segue (modelo).
  */
 export function shouldSilenceBareAck(entries: readonly HistoryEntry[]): boolean {
   let i = entries.length - 1;
   const turn: HistoryEntry[] = [];
   while (i >= 0 && entries[i]!.speaker === "guest") turn.unshift(entries[i--]!);
-  if (turn.length === 0 || turn.some((e) => e.media != null || !(isBareAcknowledgment(e.text) || isAffirmativeStatement(e.text)))) return false;
+  if (turn.length === 0 || turn.some((e) => e.media != null)) return false;
   const ours = i >= 0 ? entries[i]! : null;
-  return !ours || !ours.text.includes("?");
+  const closed = (e: HistoryEntry) => isBareAcknowledgment(e.text) || isAffirmativeStatement(e.text);
+  if (!ours || !ours.text.includes("?")) return turn.every(closed);
+  if (isAccommodationCheck(ours.text)) return turn.every((e) => closed(e) || isSatisfiedCheckReply(e.text));
+  return false;
 }

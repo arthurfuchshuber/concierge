@@ -358,7 +358,7 @@ describe("aviso de chegada coerente com canal e dossiê (system.2026-11-11.3)", 
   const arrival = sys.slice(sys.indexOf("Aviso de deslocamento"), sys.indexOf("Continue declarando guestEtas"));
 
   it("versão do roteiro", () => {
-    expect(SYSTEM_PROMPT_VERSION).toBe("system.2026-11-11.3");
+    expect(SYSTEM_PROMPT_VERSION).toBe("system.2026-11-11.4");
   });
 
   it("corrobora o histórico em vez de vetar a palavra guia", () => {
@@ -382,5 +382,25 @@ describe("aviso de chegada coerente com canal e dossiê (system.2026-11-11.3)", 
   it("exemplos sem clichê de SAC", () => {
     expect(arrival).not.toMatch(/qualquer dúvida/i);
     expect(arrival).not.toMatch(/à disposição/);
+  });
+});
+
+describe("checagem sem tréplica e acolhimento focado na casa (system.2026-11-11.4, caso Jenifer)", () => {
+  const sys = buildSystemPrompt("airbnb");
+  it("checagem respondida com satisfação ⇒ silêncio; ressalva ou nova demanda ⇒ responde", () => {
+    expect(sys).toMatch(/Ciclo de uma checagem/);
+    expect(sys).toMatch(/não fazer tréplica/);
+    expect(sys).toMatch(/shouldReply false, strategy silence/);
+    expect(sys).toMatch(/qualquer ressalva junto da confirmação/);
+    expect(sys).toMatch(/elogio espontâneo, fora desse ciclo/);
+  });
+  it("acolhimento do check-in foca no imóvel, sem divagar sobre trajeto", () => {
+    expect(sys).toMatch(/bem-estar dentro da casa/);
+    expect(sys).toMatch(/não empilhe divagações sobre trânsito, trajeto ou viagem/);
+    expect(sys).toMatch(/hospitalityMilestone checkin_confirmed/);
+  });
+  it("persona: discrição para encerrar conversa concluída", () => {
+    expect(personaPrinciples().map((p) => p.id)).toContain("discreet_closure");
+    expect(renderPersona()).toMatch(/discreto quando a resposta é que está tudo bem/);
   });
 });
