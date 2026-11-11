@@ -316,6 +316,8 @@ export function ConversationView({ conversationId, compact, myUserId, stay, owne
         },
         () => {
           qc.invalidateQueries({ queryKey: ["handoff-conv", conversationId] });
+          // o vínculo com a reserva pode ter mudado: o cabeçalho se atualiza na hora
+          qc.invalidateQueries({ queryKey: ["handoff-stay", conversationId] });
         },
       )
       .subscribe();

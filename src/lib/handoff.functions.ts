@@ -83,7 +83,7 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
       let q = supabase
         .from("property_chat_conversations")
         .select(
-          "id, property_id, guest_session_id, guest_name, status, ai_paused, paused_until, assigned_to, handoff_reason, handoff_urgency, handoff_at, last_message_at, created_at, resolved_at, properties:property_id(id, name, owner_id, owner_contact_id, slug)",
+          "id, property_id, guest_session_id, guest_name, reservation_id, status, ai_paused, paused_until, assigned_to, handoff_reason, handoff_urgency, handoff_at, last_message_at, created_at, resolved_at, properties:property_id(id, name, owner_id, owner_contact_id, slug)",
         )
         .in("property_id", scopedPropIds)
         .order("handoff_at", { ascending: false, nullsFirst: false })
@@ -415,7 +415,7 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
         const [resR, threadR] = await Promise.all([
           supabaseAdmin
             .from("property_reservations")
-            .select("property_id, checkin_date, checkout_date, source, status, external_uid, guest_hint, guest_contacts, occupancy")
+            .select("id, property_id, checkin_date, checkout_date, source, status, external_uid, guest_hint, guest_contacts, occupancy")
             .in("property_id", propIds)
             .in("source", ["airbnb", "channex"]),
           sessionIds.length
@@ -435,6 +435,7 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
           if (p?.message_thread_id && p.booking_id) bookingByThread.set(p.message_thread_id, p.booking_id);
         }
         type ResRow = {
+          id: string;
           property_id: string;
           checkin_date: string;
           checkout_date: string;
@@ -442,7 +443,7 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
           status: string;
           external_uid: string;
           guest_hint: string | null;
-          guest_contacts: { names?: string[]; ota_thread_id?: string } | null;
+          guest_contacts: { names?: string[]; ota_thread_id?: string; code?: string } | null;
           occupancy: { adults?: number | null; children?: number | null } | null;
         };
         const channexAll = ((resR.data ?? []) as ResRow[]).filter((r) => r.source === "channex");
@@ -488,6 +489,15 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
         }
         for (const conv of deduped) {
           const pid = conv.property_id ?? "";
+          // VÍNCULO DIRETO (a mesma reserva que a IA usa) vale antes de qualquer cruzamento por nome.
+          const direct = conv.reservation_id
+            ? ((resR.data ?? []) as ResRow[]).find((r) => r.id === conv.reservation_id && r.property_id === pid)
+            : null;
+          if (direct) {
+            const { stayMatchFromReservation } = await import("@/lib/handoff-stay");
+            reservations[conv.id] = stayMatchFromReservation(direct);
+            continue;
+          }
           const official = pid ? findChannex(conv) : null;
           if (official) {
             reservations[conv.id] = {
@@ -590,6 +600,41 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
   });
 
 // -------- Get one conversation with messages --------
+
+/**
+ * CABEÇALHO DA CONVERSA: situação da reserva da PRÓPRIA conversa, sem depender da lista (fila, limite, cache).
+ * Acesso provado pela RLS da conversa; a reserva é lida com o cliente administrativo, só do imóvel dela.
+ */
+export const getHandoffConversationStay = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(parseHandoffConversationInput)
+  .handler(async ({ data, context }): Promise<import("@/lib/handoff.schemas").HandoffConversationStay> => {
+    const { supabase } = context;
+    const { data: conv } = await supabase
+      .from("property_chat_conversations")
+      .select("id, property_id, guest_session_id, guest_name, reservation_id")
+      .eq("id", data.conversationId)
+      .maybeSingle();
+    if (!conv) throw new Error("Conversa não encontrada.");
+    const missing = { res: { status: "missing", checkin: null, checkout: null } as const, code: null };
+    if (!conv.property_id) return missing;
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { pickConversationReservation, stayMatchFromReservation } = await import("@/lib/handoff-stay");
+    const { data: rows } = await supabaseAdmin
+      .from("property_reservations")
+      .select("id, property_id, checkin_date, checkout_date, source, status, external_uid, guest_hint, guest_contacts, occupancy")
+      .eq("property_id", conv.property_id)
+      .in("source", ["airbnb", "channex"]);
+    const list = (rows ?? []) as unknown as import("@/lib/handoff-stay").StayReservationRow[];
+    const hit = pickConversationReservation(
+      { reservation_id: conv.reservation_id as string | null, property_id: conv.property_id as string, guest_session_id: conv.guest_session_id as string | null, guest_name: conv.guest_name as string | null },
+      list,
+      new Date().toISOString().slice(0, 10),
+    );
+    if (!hit) return missing;
+    const res = stayMatchFromReservation(hit);
+    return { res, code: res.code ?? null };
+  });
 
 export const getHandoffConversation = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

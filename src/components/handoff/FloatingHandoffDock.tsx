@@ -8,6 +8,7 @@ import { useHasSession } from "@/hooks/useHasSession";
 import { listHandoffConversations, countPendingHandoffs, getAtendimentoAccess, resolveConversationForGuest } from "@/lib/handoff.functions";
 import { ConversationList, ConversationView, useMyUserId } from "@/components/handoff/ConversationView";
 import { buildStayView } from "@/components/handoff/stay-view";
+import { useConversationStay } from "@/components/handoff/useConversationStay";
 import { ChannelLogo, channelOf } from "@/components/handoff/ChannelLogo";
 import { formatIntlPhone } from "@/lib/masks";
 import { listenToPushMessages } from "@/lib/push-client";
@@ -108,6 +109,7 @@ export function FloatingHandoffDock({ launcher = true }: { launcher?: boolean } 
 
   const [state, setState] = useState<DockState>(() => loadState());
   const [activeId, setActiveId] = useState<string | null>(null);
+  const stayFresh = useConversationStay(activeId);
   const [enlarged, setEnlarged] = useState(false);
   // Chamados novos viram balão junto ao botão (nunca abrem a janela inteira sozinhos).
   const [bubbleIds, setBubbleIds] = useState<string[]>([]);
@@ -328,9 +330,11 @@ export function FloatingHandoffDock({ launcher = true }: { launcher?: boolean } 
   const owners = list.data?.owners ?? {};
   const activeConv = activeId ? (convs as Array<{ id: string; guest_name: string | null; guest_session_id: string | null; properties: { name: string | null } | null }>).find((c) => c.id === activeId) ?? null : null;
   const activeDetail = activeId ? details[activeId] : undefined;
-  const activeStay = activeId
-    ? buildStayView({ detail: activeDetail ?? null, res: reservations[activeId] ?? null, viewers: guideViewers[activeId] ?? 0 })
-    : null;
+  const stayRes = stayFresh?.res ?? (activeId ? reservations[activeId] : null) ?? null;
+  const activeStay =
+    activeId && stayRes
+      ? buildStayView({ detail: activeDetail ?? null, res: stayRes, viewers: guideViewers[activeId] ?? 0 })
+      : null; // carregando: sem etiqueta (nunca "Consulta" por falta de dado)
   const activeOwner = activeId ? (owners[activeId] ?? null) : null;
   const activeChannelLabel = activeConv
     ? { airbnb: "Airbnb", whatsapp: "WhatsApp", guide: "Guia digital" }[channelOf(null, activeConv.guest_session_id)]
