@@ -504,9 +504,8 @@ describe("System Prompt e persona: Google Maps, distância, eventos, formataçã
     expect(sys).toMatch(
       /Nunca diga que recebeu a foto, a imagem ou o vídeo, nem agradeça pelo envio/,
     );
-    expect(sys).toMatch(
-      /strategy answer_and_handoff, com handoff\.needed true, handoff\.urgency high/,
-    );
+    // 11/11/2026: urgência pela gravidade (high em risco real ou comodidade essencial inutilizável)
+    expect(sys).toMatch(/strategy answer_and_handoff, handoff\.needed true, handoff\.urgency pela gravidade \(high em risco real/);
     expect(sys).toMatch(/nunca assuma culpa ou responsabilidade formal/);
     expect(sys).toMatch(/nunca prometa prazos de terceiros/);
     expect(sys).toMatch(/Chame a pessoa pelo nome de quem está escrevendo agora/);
