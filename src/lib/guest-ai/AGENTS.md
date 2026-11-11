@@ -177,3 +177,11 @@ Ordem de execução no builder: validar escopo → estado → D9 → se negado, 
 - `system.2026-11-10.3` / `persona.2026-11-10.2` (`investigative_dialogue`, `no_support_catchphrases`): em problema de acesso ou aparelho, primeiro UMA pergunta-chave de diagnóstico (portaria/portão/porta? teclado acende ou faz bipe? aparelho tem energia, o que aparece no visor?), depois uma orientação por vez; nunca o manual inteiro.
 - Proibidos: bordões ("vamos resolver isso agora", "deixa comigo", "vamos conferir isso já", "me avisa aqui assim que testar"), qualquer prazo ("de imediato", "na hora", "em instantes", "o quanto antes") e anunciar transferência/equipe avisada. A urgência vai só em `handoff` (push nos bastidores). Chamado aberto relacionado: responde com o fato, sem dizer que alguém está cuidando.
 - Exemplos 1 e 3 reescritos como pergunta de diagnóstico; Exemplo 4 sem tempo de deslocamento. Aviso seguro de credencial indisponível passou a ser "Os dados de acesso eu te passo por aqui, nesta conversa." (sem citar a equipe).
+
+## Decisão humana resiliente (11/11/2026, caso Clarisse)
+- Pedido de saída tardia/entrada antecipada NUNCA deixa o hóspede mudo nem a equipe sem botões: o slot abre a decisão e responde na hora com texto determinístico (`buildDecisionAckText`: horários oficiais, motivo da limpeza, registro do pedido; sem promessa, recusa ou prazo). O texto do modelo não é usado nesse caso (podia recusar antes da equipe).
+- Fallback sem modelo: a cadeia tem teto de `GENERATION_FALLBACK_MS` (20 s; o normal leva 5–10 s, 4 s cortaria todo turno). Estourou, falhou ou veio inválido ⇒ `deterministicFallback` lê a rajada por regex (modo estrito) e abre a decisão via `openHumanDecision`.
+- Rajada: `openHumanDecision` lê as mensagens do hóspede desde a última resposta (máx. 3 min). Os dois tipos juntos ⇒ UM cartão (`operational_concession`, sem migração) com os dois pedidos; só um tipo ⇒ o tipo da rajada vale sobre o rótulo do modelo.
+- A equipe respondeu (painel, Copiloto ou direto no Airbnb) ⇒ `resolvePendingDecisionsOnHumanMessage` assume a decisão pendente pelas RPCs (a tabela é só leitura).
+- Painel: `DecisionDock` fixo acima do campo de digitação; no fluxo do chat a decisão pendente é só um aviso (`variant="ref"`).
+- O slot não importa cliente de banco (data-boundary): leituras vão por `guest-ai-decision.server`.

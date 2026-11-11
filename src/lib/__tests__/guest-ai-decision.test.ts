@@ -173,11 +173,15 @@ describe("Decisão · slot (silêncio absoluto da IA)", () => {
     expect(generate).not.toHaveBeenCalled();
   });
 
-  it("pedido de exceção ⇒ abre a decisão, ZERO texto ao hóspede (nem frase de espera) e push prioritário", async () => {
-    const openDecision = vi.fn(async () => ({ opened: true, reason: "Decisão pendente · late check-out às 13h" }));
+  it("pedido de exceção ⇒ abre a decisão, responde com os horários oficiais (sem a frase de espera do modelo) e push prioritário", async () => {
+    const ack = { guestName: "Mariana Souza", officialCheckin: "15:00", officialCheckout: "11:00", late: { time: "13:00", day: null }, early: null };
+    const openDecision = vi.fn(async () => ({ opened: true, reason: "Decisão pendente · late check-out às 13h", ack }));
     const r = await requestGuestAiReply(REQ, slotDeps({ generate: async () => stored(), openDecision }) as never);
     expect(openDecision).toHaveBeenCalledWith(expect.objectContaining({ conversationId: "c1", triggerMessageId: "m1", formalChangeRequests: ["late_checkout"] }));
-    expect(r).toEqual({ reply: "", handoff: true, handoffReason: "Decisão pendente · late check-out às 13h", handoffUrgency: "high" });
+    expect(r).toMatchObject({ handoff: true, handoffReason: "Decisão pendente · late check-out às 13h", handoffUrgency: "high" });
+    expect(r?.reply).toMatch(/check-in a partir das 15h e check-out até as 11h/);
+    expect(r?.reply).toMatch(/Registrei o seu pedido de saída às 13h/);
+    expect(r?.reply).not.toMatch(/Vou verificar com a equipe!/);
   });
 
   it("já havia decisão pendente/aberta para a mensagem ⇒ continua em silêncio", async () => {

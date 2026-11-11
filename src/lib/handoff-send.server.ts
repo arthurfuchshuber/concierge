@@ -136,6 +136,15 @@ export async function sendHumanMessageToConversation(
       })
       .eq("id", data.conversationId);
 
+    // A equipe respondeu por conta própria: decisão pendente da conversa sai do painel (assumida pela equipe).
+    // Melhor esforço, nunca atrasa nem derruba o envio.
+    try {
+      const { resolvePendingDecisionsOnHumanMessage } = await import("@/lib/guest-ai-decision.server");
+      await resolvePendingDecisionsOnHumanMessage(data.conversationId, { actorUserId: userId });
+    } catch (e) {
+      console.warn("[handoff] auto-resolução da decisão falhou", e);
+    }
+
     // Dispara push para o hóspede (se ele tiver ativado notificações).
     // Fire-and-forget: isto inclui uma consulta extra e uma chamada de rede
     // externa ao serviço de push — não faz sentido nenhum o envio da

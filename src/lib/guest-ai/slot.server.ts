@@ -24,6 +24,7 @@ import {
   type OutboundContext,
 } from "@/lib/guest-ai/outbound-text";
 import type { GuestSurface } from "@/lib/guest-ai/types";
+import { buildDecisionAckText, parseBurstRequests, requestsFromBurst } from "@/lib/guest-ai-decision";
 
 export type GuestAiSurface = GuestSurface;
 
@@ -126,8 +127,29 @@ export interface SlotDeps {
     triggerMessageId: string;
     formalChangeRequests: readonly string[];
     internalQuestion: string | null;
-  }) => Promise<{ opened: boolean; code?: string; reason?: string }>;
+  }) => Promise<{ opened: boolean; code?: string; reason?: string; ack?: DecisionAckData }>;
+  /** Textos do hóspede da rajada atual (fallback sem modelo). */
+  loadBurst?: (req: GuestAiRequest) => Promise<string[]>;
+  /** Tempo máximo da cadeia do modelo antes do fallback determinístico. */
+  generationTimeoutMs?: number;
 }
+
+/** Dados da resposta imediata ao abrir a decisão (horários oficiais + pedido). */
+export interface DecisionAckData {
+  guestName: string | null;
+  officialCheckin: string | null;
+  officialCheckout: string | null;
+  late: { time: string | null; day: number | null } | null;
+  early: { time: string | null; day: number | null } | null;
+}
+
+/**
+ * Teto da cadeia do modelo no turno autônomo. O normal leva 5–10 s; acima disso o turno não pode ficar mudo: cai
+ * no fallback determinístico (decisão com botões + resposta com os horários oficiais). A Gateway corta em 30 s.
+ */
+export const GENERATION_FALLBACK_MS = 20_000;
+
+const ackReply = (ack: DecisionAckData | undefined): string => (ack ? buildDecisionAckText(ack) : "");
 
 /** Urgência do chamado de decisão (push prioritário). */
 export const DECISION_HANDOFF_URGENCY = "high";
@@ -182,9 +204,11 @@ export async function requestGuestAiReply(req: GuestAiRequest, deps: SlotDeps = 
     if (human === null) return toHandoff("", "Não foi possível confirmar quem está atendendo — responder ao hóspede.", "normal");
 
     // 3) a cadeia completa (modo autônomo)
-    const r = deps.generate
-      ? await deps.generate(req)
-      : await (await import("@/lib/guest-ai/copilot/generate.server")).generateCopilotSuggestion(
+    const TIMED_OUT = Symbol("generation_timeout");
+    const limitMs = deps.generationTimeoutMs ?? GENERATION_FALLBACK_MS;
+    const run = deps.generate
+      ? deps.generate(req)
+      : (await import("@/lib/guest-ai/copilot/generate.server")).generateCopilotSuggestion(
           {
             surface: req.surface,
             conversationId: req.conversationId,
@@ -193,10 +217,25 @@ export async function requestGuestAiReply(req: GuestAiRequest, deps: SlotDeps = 
           },
           { autonomous: true },
         );
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const raced: any = await Promise.race([
+      Promise.resolve(run).catch(() => null),
+      new Promise<typeof TIMED_OUT>((resolve) => {
+        timer = setTimeout(() => resolve(TIMED_OUT), limitMs);
+      }),
+    ]);
+    if (timer) clearTimeout(timer);
+    // FALLBACK DETERMINÍSTICO (sem modelo): pedido de saída/entrada fora do horário NUNCA fica sem botões.
+    if (raced === TIMED_OUT || raced === null) {
+      return await deterministicFallback(req, deps);
+    }
+    const r = raced;
 
     // 4) projeção para o canal
     if (r?.status === "skipped" && r.code === "superseded_by_newer_message") return SILENT; // a mensagem mais nova responde
-    if (r?.status !== "stored" || !r.result) return toHandoff("", undefined, "normal");
+    if (r?.status === "stale") return toHandoff("", undefined, "normal"); // a mensagem mais nova assume o turno
+    if (r?.status !== "stored" || !r.result) return await deterministicFallback(req, deps);
     const res = r.result as {
       text: string | null;
       handoffNeeded: boolean;
@@ -206,8 +245,9 @@ export async function requestGuestAiReply(req: GuestAiRequest, deps: SlotDeps = 
       bareAckWithoutQuestion?: boolean;
     };
 
-    // 4a) PEDIDO DE EXCEÇÃO (late check-out, entrada antecipada, concessão): a IA não responde nem "vai verificar";
-    //     abre UMA decisão com botões para a equipe (push prioritário) e espera o clique.
+    // 4a) PEDIDO DE EXCEÇÃO (late check-out, entrada antecipada, concessão): abre UMA decisão com botões para a
+    //     equipe (push prioritário) E responde ao hóspede na hora com os horários oficiais e o registro do pedido
+    //     (texto determinístico: não promete, não recusa antes da equipe, não cita prazo). Nunca fica mudo.
     if ((res.formalChangeRequests ?? []).length > 0) {
       const open = deps.openDecision
         ? await deps.openDecision({
@@ -222,8 +262,8 @@ export async function requestGuestAiReply(req: GuestAiRequest, deps: SlotDeps = 
             formalChangeRequests: res.formalChangeRequests ?? [],
             internalQuestion: res.internalQuestion,
           });
-      if (open.opened || open.code === "pending_exists" || open.code === "exists")
-        return toHandoff("", open.reason, DECISION_HANDOFF_URGENCY);
+      if (open.opened) return toHandoff(ackReply(open.ack), open.reason, DECISION_HANDOFF_URGENCY);
+      if (open.code === "pending_exists" || open.code === "exists") return toHandoff("", open.reason, DECISION_HANDOFF_URGENCY);
     }
     // 4b) ALTERAÇÃO FORMAL (titular, 10/11/2026): cancelamento, datas, valor, nº de hóspedes ou condições
     //     NUNCA ficam só com a IA: a resposta ao hóspede segue, mas a equipe é SEMPRE avisada (push).
@@ -261,6 +301,40 @@ export async function requestGuestAiReply(req: GuestAiRequest, deps: SlotDeps = 
     }
     if (r.state === "no_suggestion" && !mustHandoff) return SILENT; // silêncio legítimo
     return toHandoff(text, reason, res.handoffUrgency);
+  } catch {
+    return toHandoff("", undefined, "normal");
+  }
+}
+
+
+/**
+ * Fallback sem modelo (timeout, erro ou resultado inválido): lê a rajada do hóspede por regex e, se houver pedido
+ * de saída tardia/entrada antecipada, abre a decisão com botões e responde com os horários oficiais. Sem pedido
+ * reconhecido, mantém o encaminhamento de sempre (fila humana + push), sem texto.
+ */
+async function deterministicFallback(req: GuestAiRequest, deps: SlotDeps): Promise<GuestAiReply> {
+  try {
+    const texts = deps.loadBurst
+      ? await deps.loadBurst(req)
+      : await (async () => {
+          const { loadGuestBurstFor } = await import("@/lib/guest-ai-decision.server");
+          return loadGuestBurstFor(req.conversationId, req.messageId);
+        })();
+    const burst = parseBurstRequests(texts, { strict: true });
+    const requests = requestsFromBurst(burst);
+    if (requests.length === 0) return toHandoff("", undefined, "normal");
+    const input = {
+      conversationId: req.conversationId,
+      triggerMessageId: req.messageId,
+      formalChangeRequests: requests,
+      internalQuestion: null,
+    };
+    const open = deps.openDecision
+      ? await deps.openDecision(input)
+      : await (await import("@/lib/guest-ai-decision.server")).openHumanDecision(input);
+    if (open.opened) return toHandoff(ackReply(open.ack), open.reason, DECISION_HANDOFF_URGENCY);
+    if (open.code === "pending_exists" || open.code === "exists") return toHandoff("", open.reason, DECISION_HANDOFF_URGENCY);
+    return toHandoff("", undefined, "normal");
   } catch {
     return toHandoff("", undefined, "normal");
   }
