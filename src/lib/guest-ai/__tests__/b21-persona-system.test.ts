@@ -282,3 +282,23 @@ describe("Condução consultiva ao fechamento em consultas (06/11/2026)", () => 
     expect(sys).toMatch(/nunca crie urgência artificial/);
   });
 });
+
+describe("idioma por canal", () => {
+  it("Airbnb e guia escrevem no idioma do país do imóvel; só o WhatsApp segue o hóspede", () => {
+    for (const surface of ["airbnb", "guide_chat"] as const) {
+      const sys = buildSystemPrompt(surface);
+      expect(sys).toMatch(/Idioma: escreva sempre no idioma oficial do país do imóvel/);
+      expect(sys).not.toMatch(/Idioma: responda no idioma em que o hóspede escreveu/);
+    }
+    const wa = buildSystemPrompt("whatsapp");
+    expect(wa).toMatch(/Idioma: responda no idioma em que o hóspede escreveu/);
+    expect(wa).not.toMatch(/Idioma: escreva sempre no idioma oficial do país do imóvel/);
+  });
+
+  it("persona e contrato não mandam mais responder sempre no idioma do hóspede", () => {
+    const text = renderPersona();
+    expect(text).toMatch(/depende do canal/);
+    expect(text).not.toMatch(/Responda no idioma em que o hóspede escreveu e acompanhe/);
+    expect(DECISION_FORMAT_SPEC).not.toMatch(/no idioma do hóspede/);
+  });
+});

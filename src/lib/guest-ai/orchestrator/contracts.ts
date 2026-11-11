@@ -58,7 +58,7 @@ export type HandoffUrgency = (typeof HANDOFF_URGENCIES)[number];
 /** O que o MODELO devolve (JSON). Validado por `decision.ts` com parse estrito. */
 export interface ModelDecision {
   strategy: Strategy;
-  /** Texto ao hóspede, no idioma do hóspede. Vazio só quando `strategy = "handoff"`. */
+  /** Texto ao hóspede, no idioma definido pela regra do canal. Vazio só quando `strategy = "handoff"`. */
   reply: string;
   handoff: { needed: boolean; question: string | null; urgency: HandoffUrgency | null };
   caseRelation: ModelCaseRelation;
