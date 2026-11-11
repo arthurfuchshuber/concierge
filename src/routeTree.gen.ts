@@ -445,12 +445,11 @@ const ApiPublicCronBillingSyncRoute =
     path: '/api/public/cron/billing-sync',
     getParentRoute: () => rootRouteImport,
   } as any)
-const ApiPublicCronCardCheckRoute =
-  ApiPublicCronCardCheckRouteImport.update({
-    id: '/api/public/cron/card-check',
-    path: '/api/public/cron/card-check',
-    getParentRoute: () => rootRouteImport,
-  } as any)
+const ApiPublicCronCardCheckRoute = ApiPublicCronCardCheckRouteImport.update({
+  id: '/api/public/cron/card-check',
+  path: '/api/public/cron/card-check',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicCronChannexAriRetryRoute =
   ApiPublicCronChannexAriRetryRouteImport.update({
     id: '/api/public/cron/channex-ari-retry',

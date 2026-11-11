@@ -13,6 +13,7 @@ import {
   Settings2,
   Landmark,
   Wallet,
+  Home,
 } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { ClicksignPanel } from "@/components/admin-pages/ClicksignPanel";
@@ -22,6 +23,8 @@ import { AsaasPanel, BancosPanel, bankSummaryRows, useBankConnections } from "@/
 import { asaasItem, onlyBanks } from "@/lib/bank-account-label";
 import { getMyGoogleCalendarStatus } from "@/lib/google-calendar.functions";
 import { getMyClicksignConfig } from "@/lib/clicksign.functions";
+import { ChannexPanel } from "@/components/admin-pages/ChannexPanel";
+import { getChannexStatus } from "@/lib/channex.functions";
 import { SearchActionRow } from "@/components/dashboard/SearchActionRow";
 import { ActionButton } from "@/components/admin-pages/admin-mobile-ui";
 import { cn } from "@/lib/utils";
@@ -49,6 +52,15 @@ type IntegrationConfig = {
 };
 
 const INTEGRATIONS: IntegrationConfig[] = [
+  {
+    key: "channex",
+    nome: "Airbnb",
+    descricao: "Anúncios do Airbnb, IA por anúncio, remetente das respostas e modo de operação.",
+    subtitulo: "Anúncios e IA",
+    categoria: "Operação",
+    icon: Home,
+    detalhe: "Importe anúncios, ligue/desligue a IA por anúncio, escolha quem assina as respostas e o modo de operação.",
+  },
   {
     key: "clicksign",
     nome: "ClickSign",
@@ -127,7 +139,15 @@ export function useIntegrationStatusQueries() {
 
   // Bancos e Asaas PJ: status da conta em tela (mesma resolução das demais integrações).
   const banks = useBankConnections(true, accountOwnerId);
-  return { cs, gcal, banks };
+  const channexFn = useServerFn(getChannexStatus);
+  const channex = useQuery({
+    queryKey: ["channex-status"],
+    queryFn: () => channexFn(),
+    retry: false,
+    staleTime: QUERY_STALE_MS,
+    gcTime: QUERY_GC_MS,
+  });
+  return { cs, gcal, banks, channex };
 }
 
 export function IntegracoesPage() {
@@ -135,7 +155,8 @@ export function IntegracoesPage() {
   const accountOwnerId = impersonation?.userId ?? null;
   const [q, setQ] = useState("");
 
-  const { cs, gcal, banks } = useIntegrationStatusQueries();
+  const { cs, gcal, banks, channex } = useIntegrationStatusQueries();
+  const channexActive = !!channex.data?.configured;
   // Todos veem os cards e as informações; só titular/administrador conecta, edita ou desconecta.
   const { isOwner } = useMyPermissions();
   const { isAdmin } = useIsAdmin();
@@ -163,6 +184,7 @@ export function IntegracoesPage() {
         else if (cfg.key === "clicksign") statusKey = csActive ? "ativa" : "inativa";
         else if (cfg.key === "gcal") statusKey = gcalActive ? "ativa" : "inativa";
         else if (cfg.key === "bancos") statusKey = bancosActive ? "ativa" : "inativa";
+        else if (cfg.key === "channex") statusKey = channexActive ? "ativa" : "inativa";
         else if (cfg.key === "asaas") statusKey = asaasActive ? "ativa" : "inativa";
         return { cfg, statusKey };
       })
@@ -170,7 +192,7 @@ export function IntegracoesPage() {
           (a, b) =>
             STATUS_ORDER[a.statusKey] - STATUS_ORDER[b.statusKey] || a.cfg.nome.localeCompare(b.cfg.nome, "pt-BR"),
         ),
-    [csActive, gcalActive, bancosActive, asaasActive],
+    [csActive, gcalActive, bancosActive, asaasActive, channexActive],
   );
 
   // CELULAR — mockup "Proposta · Integrações" (05/11/2026): quadradinhos compactos, sem rótulos de seção;
@@ -275,6 +297,8 @@ export function IntegracoesPage() {
             <BancosPanel inWindow readOnly={!canManage} ownerId={accountOwnerId} />
           ) : panelCfg?.key === "asaas" ? (
             <AsaasPanel inWindow readOnly={!canManage} ownerId={accountOwnerId} />
+          ) : panelCfg?.key === "channex" ? (
+            <ChannexPanel />
           ) : null}
         </DialogContent>
       </Dialog>
