@@ -170,7 +170,6 @@ import { PropertyMapsButton } from "@/components/dashboard/PropertyMapsButton";
 import {
   PANEL_SHELL,
   PanelHeading,
-  SectionLabel,
   ACTION_BAR,
   ACTION_SEGMENT,
   ACTION_BUTTON_TONE,
@@ -3341,11 +3340,8 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 <div className="order-[0] col-span-2 lg:order-none lg:col-span-1 lg:h-[142px]">{renderEngagementTop()}</div>
               ) : null}
               <div className={`contents lg:grid lg:auto-rows-[66px] lg:gap-[var(--ds-grid-gap)] ${topTilesCols}`}>
-            {/* RÓTULOS DE SEÇÃO — só no celular (mockup aprovado,
-                17/09/2026): "Hoje", "Amanhã" e "Ocupação" separam a lista
-                num fio que some. No computador os quatro cards ficam numa
-                linha só e os rótulos não fazem falta. */}
-            <SectionLabel className="col-span-2 order-1 lg:hidden">Hoje</SectionLabel>
+            {/* Rótulos de seção ("Hoje", "Amanhã", "Ocupação") removidos no celular (pedido explícito,
+                10/11/2026). */}
             <div className={`order-2 lg:order-1 ${tileRow1Span}`}>
               <KpiCard
                 deskTile="stacked"
@@ -3384,7 +3380,6 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 valueSizeClass={opBigSize}
               />
             </div>
-            <SectionLabel className="col-span-2 order-5 lg:hidden">Amanhã</SectionLabel>
             <div className={`order-6 lg:order-3 ${tileRow2Span}`}>
               <KpiCard
                 deskTile="stacked"
@@ -3467,7 +3462,6 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 valendo sem nenhum ajuste: ele mede a PRÓPRIA largura por
                 ResizeObserver, então em 3 colunas simplesmente cabem menos
                 dias inteiros, nunca um dia cortado na margem. */}
-            <SectionLabel className="col-span-2 order-8 lg:hidden">Ocupação</SectionLabel>
             <div className="order-9 col-span-2 lg:order-6 lg:col-span-4 lg:col-start-1">
               <OccupancyPanel
                 loading={occupancyQ.isLoading || !calendarReady}
