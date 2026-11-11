@@ -62,14 +62,17 @@ describe("Playbook de cancelamento · cálculo do prazo sem custo", () => {
 
 describe("Playbook de cancelamento · roteiro", () => {
   const p = JSON.stringify(buildSystemPrompt("airbnb" as never));
-  it("decide pelo fato calculado; encerrado ⇒ sem autorização pela modalidade, sem sugerir a plataforma", () => {
+it("postura fixa: nunca estimula nem é permissiva; a responsabilidade é das regras da plataforma (titular, 10/11/2026)", () => {
     expect(p).toMatch(/ctx:cancelamento_sem_custo/);
-    expect(p).toMatch(/não temos autorização para essa alteração pela modalidade da reserva/);
-    expect(p).toMatch(/sem sugerir o pedido de alteração da plataforma/);
-    expect(p).toMatch(/só se a pessoa insistir, diga que ela pode procurar o suporte da plataforma/);
+    expect(p).toMatch(/NUNCA estimula, facilita, sugere nem é permissivo com cancelamento ou alteração/);
+    expect(p).toMatch(/definido exclusivamente pelas regras da plataforma/);
+    expect(p).toMatch(/não temos autonomia para alterar, cancelar, abrir exceção ou reembolsar/);
+    expect(p).toMatch(/não ensine o passo a passo por iniciativa própria/);
   });
-  it("aberto ⇒ encaminha à equipe; desconhecido ⇒ nunca presume", () => {
-    expect(p).toMatch(/prazo aberto: não decida nem prometa/);
+  it("encerrado ⇒ não é possível; aberto ⇒ só o fato, sem incentivar; desconhecido ⇒ nunca presume", () => {
+    expect(p).toMatch(/prazo encerrado: diga com clareza que, pelas regras da plataforma/);
+    expect(p).toMatch(/só se a pessoa insistir, diga que ela pode procurar o suporte da plataforma/);
+    expect(p).toMatch(/prazo aberto: informe apenas o fato/);
     expect(p).toMatch(/nunca presuma a modalidade nem o prazo/);
   });
   it("traz o resumo das modalidades do Airbnb", () => {
