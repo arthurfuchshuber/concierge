@@ -302,3 +302,53 @@ describe("idioma por canal", () => {
     expect(DECISION_FORMAT_SPEC).not.toMatch(/no idioma do hóspede/);
   });
 });
+
+describe("resposta proporcional (11/11/2026, caso Karen)", () => {
+  it("persona: dimensiona pela mensagem e não despeja informação não pedida", () => {
+    expect(personaPrinciples().map((p) => p.id)).toContain("proportional_reply");
+    const t = renderPersona();
+    expect(t).toMatch(/uma ou duas frases curtas/);
+    expect(t).toMatch(/não venda o imóvel/);
+  });
+
+  it("prompt: confirmação ou resposta à equipe recebe reconhecimento curto, sem dossiê não pedido", () => {
+    for (const ch of ["airbnb", "whatsapp", "guide_chat"] as const) {
+      const sys = buildSystemPrompt(ch);
+      expect(sys).toMatch(/Proporção da resposta/);
+      expect(sys).toMatch(/Nunca use o dossiê para dar informações que a pessoa não pediu/);
+    }
+  });
+});
+
+describe("nome, gênero, fim do SAC, aviso de chegada e acolhimento breve em pre_stay (11/11/2026)", () => {
+  const sys = buildSystemPrompt("airbnb");
+
+  it("usa o primeiro nome com naturalidade e concorda o gênero (bem-vinda × bem-vindo × neutro)", () => {
+    expect(sys).toMatch(/ctx:hospede_nome/);
+    expect(sys).toMatch(/primeiro_nome/);
+    expect(sys).toMatch(/nunca bem-vindo/);
+    expect(sys).toMatch(/genero_sugerido/);
+    expect(sys).toMatch(/indeterminado pede construções neutras/);
+  });
+
+  it("proíbe os clichês de telemarketing no roteiro e na persona", () => {
+    expect(sys).toMatch(/Como posso te ajudar hoje\?/);
+    expect(sys).toMatch(/Fico à disposição para qualquer dúvida/);
+    expect(sys).toMatch(/hospitalidade de hotel boutique/);
+    expect(renderPersona()).toMatch(/clichês de telemarketing e de SAC/);
+    expect(renderPersona()).not.toMatch(/["“”«»]/);
+  });
+
+  it("aviso de GPS/chegada: nunca silêncio, acolhe, reforça check-in autônomo e não afrouxa a D9", () => {
+    expect(sys).toMatch(/nunca fica em silêncio nem apenas registra o dado/);
+    expect(sys).toMatch(/100% autônomo/);
+    expect(sys).toMatch(/ctx:liberacao_credenciais/);
+    expect(sys).toMatch(/nunca aprova entrada antecipada/);
+  });
+
+  it("pre_stay: acolhimento breve e proibição de tour de comodidades", () => {
+    expect(sys).toMatch(/ACOLHIMENTO BREVE/);
+    expect(sys).toMatch(/TERMINANTEMENTE PROIBIDO despejar comodidades/);
+    expect(sys).toMatch(/pre_stay/);
+  });
+});

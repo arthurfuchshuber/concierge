@@ -53,7 +53,7 @@ const turn = (over: Partial<ValidatedTurn> = {}) =>
 const NOW = () => new Date("2026-11-06T12:00:00Z");
 const ctx = (surface: "guide_chat" | "airbnb" | "whatsapp" = "guide_chat") =>
   conversationContext({
-    interlocutor: { guestId: "s", conversationId: CONV, messageId: MSG, surface },
+    interlocutor: { guestId: "s", conversationId: CONV, messageId: MSG, surface, guestName: null },
     property: {
       id: P1,
       tenantId: T1,

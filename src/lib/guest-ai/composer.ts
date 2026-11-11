@@ -271,6 +271,41 @@ function stayFact(kind: "early" | "late", op: Operational | null): Record<string
   return { status: "nao_autorizada", motivo: l.reason, tratamento: "sem_autorizacao_para_prometer" };
 }
 
+/**
+ * Nome e gênero gramatical sugerido a partir do nome da conversa (cadastro), só para o tratamento cordial e a
+ * concordância (bem-vinda/bem-vindo). É uma sugestão, não identidade: nome declarado não prova nada e, na dúvida,
+ * o gênero é indeterminado e a resposta usa construções neutras. Pura.
+ */
+export function inferGuestIdentity(fullName: string | null | undefined): {
+  primeiro_nome: string | null;
+  nome_completo: string | null;
+  genero_sugerido: "feminino" | "masculino" | "indeterminado";
+} {
+  const raw = (fullName ?? "").trim();
+  if (!raw) return { primeiro_nome: null, nome_completo: null, genero_sugerido: "indeterminado" };
+  const firstName = raw.split(/\s+/)[0]!;
+  const clean = firstName.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  // Nomes femininos conhecidos ou terminados em "a" (exceto exceções óbvias)
+  const FEM_NAMES = new Set(["jenifer", "jennifer", "karen", "clarisse", "clarice", "mariana", "beatriz", "livia", "aline", "carol", "carolina", "isabel", "isabela", "raquel", "regina", "michele", "camila", "renata", "patricia", "vanessa", "fernanda"]);
+  const MASC_EXCEPTIONS = new Set(["luca", "lucas", "joshua", "elias", "matias"]);
+  let gen: "feminino" | "masculino" | "indeterminado" = "indeterminado";
+  if (FEM_NAMES.has(clean) || (clean.endsWith("a") && !MASC_EXCEPTIONS.has(clean))) {
+    gen = "feminino";
+  } else if (clean.endsWith("o") || clean.endsWith("os") || clean.endsWith("or")) {
+    gen = "masculino";
+  }
+  return { primeiro_nome: firstName, nome_completo: raw, genero_sugerido: gen };
+}
+
+function guestIdentityFact(name: string | null | undefined, guarded: Guarded) {
+  const ident = inferGuestIdentity(name);
+  return {
+    primeiro_nome: ident.primeiro_nome ? guarded(ident.primeiro_nome, "context.guest_first_name") : null,
+    nome_completo: ident.nome_completo ? guarded(ident.nome_completo, "context.guest_name") : null,
+    genero_sugerido: ident.genero_sugerido,
+  };
+}
+
 function buildContextData(ctx: ConversationContext, guarded: Guarded, unavailable: ReadonlyArray<{ secao: string; motivo: string }>, op: Operational | null = null) {
   const g = ctx.guest;
   const facts: Fact[] = [
@@ -309,6 +344,9 @@ function buildContextData(ctx: ConversationContext, guarded: Guarded, unavailabl
     },
     { id: "ctx:entrada_antecipada", valor: stayFact("early", op), origem: op?.stayAuthorizations ? "verificacao_formal" : "backend" },
     { id: "ctx:saida_tardia", valor: stayFact("late", op), origem: op?.stayAuthorizations ? "verificacao_formal" : "backend" },
+    // Nome da conversa (cadastro) para o tratamento cordial e a concordância de gênero. Texto livre: passa pela
+    // varredura de segredos como qualquer outro; não prova identidade nem autoriza nada.
+    { id: "ctx:hospede_nome", valor: guestIdentityFact(g.interlocutor.guestName, guarded), origem: "cadastro_da_conversa" },
     // Interlocutor ≠ titular (diretriz B2.1 §8): nada aqui comprova identidade de quem escreve.
     { id: "ctx:interlocutor", valor: { identidade: "nao_verificada", papel: "participante_da_conversa" }, origem: "backend" },
     // B2.5: a voz é institucional (equipe da acomodação); a conta de envio não identifica uma pessoa.

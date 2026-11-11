@@ -118,6 +118,7 @@ export async function validateTurnScope(input: TurnInput, deps?: { db?: GuestAiD
     guestSessionId: sessionId,
     conversationStatus: str(conv["status"]),
     reservationId: str(conv["reservation_id"]),
+    guestName: str(conv["guest_name"]),
     messageCreatedAt: str(msg["created_at"]),
   } satisfies ValidatedTurn);
 }

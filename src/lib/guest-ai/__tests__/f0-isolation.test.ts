@@ -113,6 +113,7 @@ describe("F0 · camada de dados só aceita turno emitido pelo módulo (identific
     guestSessionId: "x",
     conversationStatus: "ai",
     reservationId: IDS.res2,
+    guestName: null,
     messageCreatedAt: null,
   };
   it("fetchReservationState / fetchListingFacts recusam turno forjado sem consultar nada", async () => {

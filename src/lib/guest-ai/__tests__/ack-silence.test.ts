@@ -5,7 +5,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import { isBareAcknowledgment, shouldSilenceBareAck } from "@/lib/guest-ai/ack-silence";
+import { isAffirmativeStatement, isBareAcknowledgment, shouldSilenceBareAck } from "@/lib/guest-ai/ack-silence";
 import type { HistoryEntry } from "@/lib/guest-ai/history";
 import { requestGuestAiReply } from "@/lib/guest-ai/slot.server";
 import { waitForReservationCode } from "@/lib/chat/reservation-wait";
@@ -100,5 +100,19 @@ describe("Roteiro e raciocínio", () => {
     expect(g).toMatch(/effort \? \{\} : \{ callTimeoutMs: COPILOT_AUTO_CALL_MAX_MS \}/);
     expect(g).toMatch(/generator = makeGenerator\("low"\)/);
     expect(g).toMatch(/reasoningEffort: effort \?\? COPILOT_REASONING_EFFORT/);
+  });
+});
+
+describe("Resposta afirmativa sem a nossa pergunta (caso Karen, 11/11/2026)", () => {
+  it("\"Sim! Estou reservado para o meu marido e 2 amigos…\" como primeira mensagem ⇒ silêncio", () => {
+    const t = "Sim! Estou reservado para o meu marido e 2 amigos que estão viajando a trabalho.";
+    expect(isAffirmativeStatement(t)).toBe(true);
+    expect(shouldSilenceBareAck([e("guest", t)])).toBe(true);
+  });
+
+  it("pergunta, pedido ou horário nunca são silenciados; pergunta nossa pendente segue a conversa", () => {
+    for (const t of ["Sim, qual o horário do check-in", "Sim, gostaria de saber do Wi-Fi", "Ok, chego às 15h", "Sim, chegamos as 14:30", "Sim? Pode ser?", "Boa noite, tudo bem"])
+      expect(isAffirmativeStatement(t), t).toBe(false);
+    expect(shouldSilenceBareAck([e("ai", "Vão ser quantas pessoas?"), e("guest", "Sim! Somos o casal e 2 amigos.")])).toBe(false);
   });
 });

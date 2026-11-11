@@ -4,6 +4,7 @@ import { normalizeHistory, type HistoryResult, type HistoryRow } from "@/lib/gue
 import { CONTEXT_TAG, HISTORY_TAG, buildSystemPrompt } from "@/lib/guest-ai/system-prompt";
 import { defaultBudgetConfig } from "@/lib/guest-ai/budget";
 import { DECISION_LIMITS } from "@/lib/guest-ai/orchestrator/decision";
+import { inferGuestIdentity } from "@/lib/guest-ai/composer";
 import { CONV, MSG, OTHER_CONV, TEST_GUARD, conversationContext, row } from "./helpers/b21-fixtures";
 
 const T = (i: number) => new Date(Date.UTC(2026, 10, 3, 10, 0, i)).toISOString();
@@ -170,7 +171,7 @@ describe("B2.1 · composer — contexto validado", () => {
 
 describe("B2.1 · composer — dados proibidos nunca entram", () => {
   const ctxFull = {
-    interlocutor: { guestId: "wa:5511988887777", conversationId: CONV, messageId: MSG, surface: "guide_chat" as const },
+    interlocutor: { guestId: "wa:5511988887777", conversationId: CONV, messageId: MSG, surface: "guide_chat" as const, guestName: null },
     property: {
       id: "p1",
       tenantId: "t1",
@@ -298,5 +299,40 @@ describe("B2.1 · composer — interlocutor × titular (§8)", () => {
     const f = (id: string) => d.fatos.find((x: { id: string }) => x.id === id).valor;
     expect(f("ctx:interlocutor")).toEqual({ identidade: "nao_verificada", papel: "participante_da_conversa" });
     expect(f("ctx:titular_da_reserva")).toEqual({ status: "nao_informado" });
+  });
+});
+
+describe("Nome e gênero do hóspede no contexto (11/11/2026)", () => {
+  it("inferGuestIdentity: primeiro nome, nome completo e gênero sugerido (neutro na dúvida)", () => {
+    expect(inferGuestIdentity("Jenifer Souza")).toEqual({ primeiro_nome: "Jenifer", nome_completo: "Jenifer Souza", genero_sugerido: "feminino" });
+    expect(inferGuestIdentity("Karen Stuckert").genero_sugerido).toBe("feminino");
+    expect(inferGuestIdentity("Mariana").genero_sugerido).toBe("feminino");
+    expect(inferGuestIdentity("Carlos Alberto").genero_sugerido).toBe("masculino");
+    expect(inferGuestIdentity("Pedro").genero_sugerido).toBe("masculino");
+    expect(inferGuestIdentity("Lucas").genero_sugerido).toBe("indeterminado");
+    expect(inferGuestIdentity("Luca").genero_sugerido).toBe("indeterminado");
+    expect(inferGuestIdentity("Ariel").genero_sugerido).toBe("indeterminado");
+    for (const v of [null, undefined, "", "   "]) {
+      expect(inferGuestIdentity(v)).toEqual({ primeiro_nome: null, nome_completo: null, genero_sugerido: "indeterminado" });
+    }
+  });
+
+  it("ctx:hospede_nome vai ao modelo com origem do cadastro; sem nome, tudo nulo e gênero indeterminado", () => {
+    const withName = prompt(compose({ interlocutor: { guestId: "s", conversationId: CONV, messageId: MSG, surface: "airbnb", guestName: "Jenifer Souza" } }));
+    const d = JSON.parse(block(withName.prompt.messages[0]!.content, CONTEXT_TAG));
+    const fact = d.fatos.find((x: { id: string }) => x.id === "ctx:hospede_nome");
+    expect(fact.valor).toEqual({ primeiro_nome: "Jenifer", nome_completo: "Jenifer Souza", genero_sugerido: "feminino" });
+    expect(fact.origem).toBe("cadastro_da_conversa");
+    const without = prompt(compose());
+    const d2 = JSON.parse(block(without.prompt.messages[0]!.content, CONTEXT_TAG));
+    expect(d2.fatos.find((x: { id: string }) => x.id === "ctx:hospede_nome").valor).toEqual({ primeiro_nome: null, nome_completo: null, genero_sugerido: "indeterminado" });
+  });
+
+  it("o nome é texto livre: passa pela varredura de segredos (nunca contorna o guard)", () => {
+    const seen: string[] = [];
+    const guard: FreeTextGuard = { ...TEST_GUARD, scan: (t: string) => (seen.push(t), TEST_GUARD.scan(t)) };
+    prompt(compose({ interlocutor: { guestId: "s", conversationId: CONV, messageId: MSG, surface: "airbnb", guestName: "Karen Stuckert" } }, basicHistory(), guard));
+    expect(seen).toContain("Karen");
+    expect(seen).toContain("Karen Stuckert");
   });
 });

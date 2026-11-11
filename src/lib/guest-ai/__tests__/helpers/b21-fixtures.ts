@@ -12,7 +12,7 @@ export const OTHER_CONV = "99999999-9999-4999-8999-999999999999";
 export function guestContext(over: Partial<GuestContext> = {}): GuestContext {
   return {
     version: 1,
-    interlocutor: { guestId: "wa:5511988887777", conversationId: CONV, messageId: MSG, surface: "guide_chat" },
+    interlocutor: { guestId: "wa:5511988887777", conversationId: CONV, messageId: MSG, surface: "guide_chat", guestName: null },
     property: {
       id: "p1",
       tenantId: "t1",

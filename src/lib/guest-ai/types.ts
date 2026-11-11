@@ -41,6 +41,8 @@ export interface ValidatedTurn {
   readonly conversationStatus: string | null;
   /** Vínculo declarado na conversa (`reservation_id`). Ainda NÃO provado: ver `fetchReservationState`. */
   readonly reservationId: string | null;
+  /** `property_chat_conversations.guest_name`: nome da conversa (cadastro). Tratamento cordial; NÃO prova identidade. */
+  readonly guestName: string | null;
   readonly messageCreatedAt: string | null;
 }
 
@@ -196,6 +198,8 @@ export interface GuestContext {
     conversationId: string;
     messageId: string;
     surface: GuestSurface;
+    /** Nome da conversa (cadastro), texto livre: só passa ao modelo pela varredura de segredos. Não prova identidade. */
+    guestName: string | null;
   };
   property: {
     id: string;

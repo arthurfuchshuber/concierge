@@ -90,7 +90,7 @@ describe("F1 · GuestContextBuilder — cenários", () => {
     const db = makeDb({ property_faqs: [{ id: "f1", property_id: IDS.prop1, question: "Tem piscina?", answer: "Não.", position: 1 }] });
     const ctx = await buildGuestContext(guide, deps(db, T.inStay));
     expect(ctx.version).toBe(1);
-    expect(ctx.interlocutor).toEqual({ guestId: "sess-guide-aaaaaaaaaaaa", conversationId: IDS.conv1, messageId: IDS.msg1, surface: "guide_chat" });
+    expect(ctx.interlocutor).toEqual({ guestId: "sess-guide-aaaaaaaaaaaa", conversationId: IDS.conv1, messageId: IDS.msg1, surface: "guide_chat", guestName: null });
     expect(ctx.property).toMatchObject({ id: IDS.prop1, tenantId: IDS.owner1, timezone: "America/Sao_Paulo" });
     expect(ctx.phase).toBe("in_stay");
     expect(ctx.stay).toMatchObject({ reservationId: IDS.res1, phase: "in_stay", checkInAt: "2026-11-10T18:00:00.000Z", checkOutAt: "2026-11-12T14:00:00.000Z" });

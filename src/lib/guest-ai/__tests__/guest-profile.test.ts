@@ -39,6 +39,7 @@ const base: ValidatedTurn = {
   guestSessionId: "airbnb:thread-1",
   conversationStatus: "ai",
   reservationId: RES,
+  guestName: null,
   messageCreatedAt: null,
 };
 const turn = (over: Partial<ValidatedTurn> = {}) =>
