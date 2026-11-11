@@ -54,6 +54,40 @@ describe("B2.1 · persona", () => {
   });
 });
 
+describe("Persona sóbria (10/11/2026): solução primeiro, sem coitadismo e sem excessos", () => {
+  const persona = renderPersona();
+  const sys = buildSystemPrompt("airbnb");
+  const examples = sys.slice(sys.indexOf("Exemplos de tom de hospitalidade"), sys.indexOf("Exemplo 4"));
+  const allExamples = sys.slice(sys.indexOf("Exemplos de tom de hospitalidade"));
+  const tones = [...allExamples.matchAll(/Tom ideal: ([^\n]*)/g)].map((m) => m[1]!);
+
+  it("princípios novos: anfitrião boutique, solução primeiro e sem entusiasmo forçado", () => {
+    const ids = personaPrinciples().map((p) => p.id);
+    for (const id of ["boutique_host", "solution_first", "no_forced_enthusiasm"]) expect(ids).toContain(id);
+    expect(persona).toMatch(/vá direto à solução, em primeira pessoa e com parceria ativa/);
+    expect(persona).toMatch(/falha comprovada e irreparável/);
+    expect(persona).toMatch(/no máximo um ponto de exclamação por resposta/);
+  });
+  it("incidentes: sem lamento, sem desculpas protocolares, parceria ativa e próximo passo", () => {
+    expect(sys).toMatch(/não se lamente, não peça desculpas protocolares e não use tom de culpa/);
+    expect(sys).toMatch(/vamos resolver isso juntos, deixa comigo/);
+  });
+  it("exemplos de ouro: avaria não abre com desculpa, fala em primeira pessoa ativa e sem excesso de exclamação", () => {
+    expect(tones).toHaveLength(4);
+    const apology = /^(desculp|perd[aã]o|lamento|poxa|que pena|infelizmente|sinto)/i;
+    for (const t of tones) {
+      expect(t, t).not.toMatch(apology);
+      expect(t, t).not.toMatch(/desculpa|perdoe|transtorno|inconveniente/i);
+      expect((t.match(/!/g) ?? []).length, t).toBeLessThanOrEqual(1);
+      expect(t, t).not.toMatch(/!!|\?!/);
+    }
+    const ar = tones[2]!;
+    expect(ar).toMatch(/^Deixa comigo/);
+    expect(ar).toMatch(/nossa equipe cuida disso com você de imediato/);
+    expect(examples).toMatch(/sem desculpas desnecessárias/);
+  });
+});
+
 describe("B2.1 · System Prompt — hierarquia", () => {
   const sys = buildSystemPrompt("guide_chat");
 
