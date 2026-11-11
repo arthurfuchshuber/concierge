@@ -170,7 +170,7 @@ describe("roteiro · sem jargão de SAC e com exemplos de ouro", () => {
     expect(p).not.toContain("o problema vai ser verificado o quanto antes");
     expect(p).toMatch(/Nada de voz passiva/);
     for (const f of ["essa situação será verificada", "seu relato foi registrado", "estamos à disposição para maiores esclarecimentos"]) expect(p).toContain(f);
-    expect(p).toMatch(/nossa equipe já foi avisada aqui e vai te dar suporte de imediato/);
+    expect(p).toMatch(/Encaminhamento 100% silencioso/);
   });
   it("quatro exemplos de tom: acesso, consulta, aparelho e indicação local, avisando para não copiar fatos", () => {
     for (const t of ["Exemplo 1 (acesso e fechadura", "Exemplo 2 (consulta antes de reservar", "Exemplo 3 (aparelho durante a estadia", "Exemplo 4 (indicação local"]) expect(p).toContain(t);
