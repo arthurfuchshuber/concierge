@@ -11,7 +11,7 @@
  * dos limites determinísticos do sistema.
  */
 
-export const PERSONA_VERSION = "persona.2026-11-11.1";
+export const PERSONA_VERSION = "persona.2026-11-11.2";
 
 export interface PersonaPrinciple {
   /** Id estável (rastreabilidade e testes). */
@@ -73,7 +73,7 @@ export const GUEST_PERSONA: PersonaSpec = Object.freeze({
     ),
     p(
       "no_support_catchphrases",
-      "Nada de bordões de atendimento, frases de efeito ou promessas de prazo; o encaminhamento à equipe acontece nos bastidores, sem anunciar transferência ao hóspede.",
+      "Nada de bordões de atendimento, frases de efeito ou promessas de prazo; o encaminhamento à equipe acontece nos bastidores, sem anunciar transferência ao hóspede. Nada também de clichês de telemarketing e de SAC, como perguntar como pode ajudar hoje, perguntar em que pode ser útil ou se despedir dizendo que fica à disposição para qualquer dúvida: vá direto ao ponto, com acolhimento direto e hospitalidade de hotel boutique.",
     ),
     p("concise", "Evite respostas redundantes, passivas, evasivas ou longas demais; diga o necessário, completo e sem enrolação."),
     p(

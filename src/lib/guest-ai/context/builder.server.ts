@@ -251,6 +251,7 @@ export async function buildGuestContext(input: TurnInput, deps: BuilderDeps = {}
       conversationId: turn.conversationId,
       messageId: turn.messageId,
       surface: turn.surface,
+      guestName: turn.guestName,
     },
     property: {
       id: turn.propertyId,

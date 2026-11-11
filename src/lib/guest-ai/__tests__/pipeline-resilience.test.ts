@@ -162,7 +162,7 @@ describe("B · conversa ainda sem reserva vinculada: degradação graciosa, sem 
       messageCreatedAt: null,
     }) as ValidatedTurn;
     const ctx = conversationContext({
-      interlocutor: { guestId: "s", conversationId: CONV, messageId: MSG, surface: "guide_chat" },
+      interlocutor: { guestId: "s", conversationId: CONV, messageId: MSG, surface: "guide_chat", guestName: null },
     });
     expect(checkContextIntegrity(turn, ctx)).toBe("reservation_conversation_mismatch");
   });
@@ -293,6 +293,7 @@ describe("C · verdade estrita do dossiê, check-in antecipado/malas e fim das m
         conversationId: CONV,
         messageId: MSG,
         surface: "airbnb",
+        guestName: null,
       },
       stay: {
         reservationId: "r1",

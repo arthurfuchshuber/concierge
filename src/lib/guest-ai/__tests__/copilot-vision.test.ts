@@ -253,6 +253,7 @@ const TURN: ValidatedTurn = {
   guestSessionId: "airbnb:x",
   conversationStatus: "ai",
   reservationId: null,
+  guestName: null,
   messageCreatedAt: null,
 };
 const turn = () => issue("turn", { ...TURN }) as ValidatedTurn;

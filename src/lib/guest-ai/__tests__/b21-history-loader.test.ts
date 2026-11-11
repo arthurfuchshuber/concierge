@@ -16,6 +16,7 @@ const TURN_FIELDS: ValidatedTurn = {
   guestSessionId: "sess",
   conversationStatus: "ai",
   reservationId: null,
+  guestName: null,
   messageCreatedAt: null,
 };
 const turn = () => issue("turn", { ...TURN_FIELDS }) as ValidatedTurn;

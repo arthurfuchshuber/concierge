@@ -110,7 +110,7 @@ export const PROPERTY_CREDENTIAL_COLUMNS = [
   "gate_instructions",
 ] as const;
 
-export const CONVERSATION_COLUMNS = ["id", "property_id", "guest_session_id", "status", "reservation_id"] as const;
+export const CONVERSATION_COLUMNS = ["id", "property_id", "guest_session_id", "guest_name", "status", "reservation_id"] as const;
 /**
  * B2.4 — estado do atendimento humano da conversa (só leitura; preparado para integração, sem
  * loader instalado). `handoff_reason` é texto da equipe: passa pelo FreeTextGuard antes do prompt.

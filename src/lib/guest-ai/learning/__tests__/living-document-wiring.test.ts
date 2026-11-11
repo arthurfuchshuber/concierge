@@ -10,7 +10,7 @@ import { P1, T1 } from "../../__tests__/helpers/b22-portfolio";
 
 const ctx = () =>
   conversationContext({
-    interlocutor: { guestId: "s", conversationId: CONV, messageId: MSG, surface: "guide_chat" },
+    interlocutor: { guestId: "s", conversationId: CONV, messageId: MSG, surface: "guide_chat", guestName: null },
     property: { id: P1, tenantId: T1, name: "Flat", timezone: "America/Sao_Paulo", listingFacts: null, dossierKnowledge: null },
   });
 const history = () => normalizeHistory([row({ id: MSG, content: "Como liga o aquecedor?" })], { conversationId: CONV, currentMessageId: MSG });
