@@ -221,9 +221,10 @@ export function TrailDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         onOpenAutoFocus={(e) => e.preventDefault()}
+        onBack={onBack}
         className="flex h-auto max-h-[90dvh] w-[min(560px,calc(100vw-24px))] max-w-none flex-col gap-0 overflow-hidden border-[var(--panel-border)] bg-[var(--panel)] p-0 sm:max-w-none"
       >
-        <div className="flex shrink-0 items-center gap-2.5 border-b border-[var(--panel-div)] py-2.5 pl-4 pr-14">
+        <div className="flex shrink-0 items-center gap-2.5 border-b border-[var(--panel-div)] py-2.5 pl-4 pr-14 data-[back=true]:pr-24" data-back={onBack ? "true" : "false"}>
           <div className="min-w-0 flex-1">
             <DialogTitle className="block truncate font-display text-[16px] font-bold leading-tight text-foreground">
               {title}
@@ -242,13 +243,15 @@ export function TrailDialog({
         </div>
         {footer ? (
           <div className="flex shrink-0 items-center gap-2 border-t border-[var(--panel-div)] px-4 py-3 sm:px-5">
-            <button
-              type="button"
-              onClick={() => (onBack ? onBack() : onOpenChange(false))}
-              className="inline-flex h-10 shrink-0 items-center justify-center rounded-[10px] border border-border px-4 text-[13px] font-semibold text-foreground transition-colors hover:bg-foreground/[0.05]"
-            >
-              {onBack ? "Voltar" : "Cancelar"}
-            </button>
+            {onBack ? null : (
+              <button
+                type="button"
+                onClick={() => onOpenChange(false)}
+                className="inline-flex h-10 shrink-0 items-center justify-center rounded-[10px] border border-border px-4 text-[13px] font-semibold text-foreground transition-colors hover:bg-foreground/[0.05]"
+              >
+                Cancelar
+              </button>
+            )}
             <div className="min-w-0 flex-1">{footer}</div>
           </div>
         ) : null}

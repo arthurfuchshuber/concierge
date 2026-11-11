@@ -13,7 +13,8 @@ import { ChannelLogo, channelOf } from "@/components/handoff/ChannelLogo";
 import { formatIntlPhone } from "@/lib/masks";
 import { listenToPushMessages } from "@/lib/push-client";
 import { HANDOFF_DOCK_OPEN_EVENT, type HandoffDockOpenDetail } from "@/lib/handoff-dock";
-import { Headphones, X, Expand, Shrink, ArrowLeft } from "lucide-react";
+import { CORNER_BACK_CLASS } from "@/components/ui/corner-close";
+import { Headphones, X, Expand, Shrink, ChevronLeft } from "lucide-react";
 import { QUEUES, type Queue } from "@/lib/handoff-queues";
 import { useImpersonation } from "@/hooks/useImpersonation";
 import { useAntiClipRows } from "@/hooks/useAntiClipRows";
@@ -564,18 +565,7 @@ export function FloatingHandoffDock({ launcher = true }: { launcher?: boolean } 
           >
             <div className="shrink-0 flex items-center justify-between gap-2 px-3 h-12 border-b border-border bg-secondary/40">
               <div className="flex items-center gap-2 min-w-0">
-                {activeId ? (
-                  <button
-                    type="button"
-                    onClick={() => setActiveId(null)}
-                    className="size-7 -ml-1 grid place-items-center rounded-md hover:bg-secondary shrink-0"
-                    aria-label="Voltar para a lista de conversas"
-                  >
-                    <ArrowLeft className="size-4" />
-                  </button>
-                ) : (
-                  <Headphones className="size-4 text-primary shrink-0" />
-                )}
+                <Headphones className="size-4 text-primary shrink-0" />
                 <span className="text-sm font-medium truncate">
                   Atendimento {count > 0 && <span className="ml-1 text-red-500">({count})</span>}
                 </span>
@@ -588,14 +578,31 @@ export function FloatingHandoffDock({ launcher = true }: { launcher?: boolean } 
                 >
                   Central completa
                 </Link>
-                <button
-                  type="button"
-                  onClick={() => setState({ open: false, minimized: false })}
-                  className="size-8 grid place-items-center rounded-md hover:bg-secondary"
-                  aria-label="Fechar"
-                >
-                  <X className="size-4" />
-                </button>
+                {activeId ? (
+                  <>
+                    {/* Conversa aberta: "‹ Voltar" no canto, no lugar do X (regra de 11/11/2026). */}
+                    <span className="w-20" aria-hidden />
+                    <button
+                      type="button"
+                      data-window-back
+                      onClick={() => setActiveId(null)}
+                      aria-label="Voltar para a lista de conversas"
+                      className={CORNER_BACK_CLASS}
+                    >
+                      <ChevronLeft className="size-[15px]" strokeWidth={2.2} />
+                      Voltar
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setState({ open: false, minimized: false })}
+                    className="size-8 grid place-items-center rounded-md hover:bg-secondary"
+                    aria-label="Fechar"
+                  >
+                    <X className="size-4" />
+                  </button>
+                )}
               </div>
             </div>
 
