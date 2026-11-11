@@ -302,7 +302,13 @@ export function refusalCodeWithReason(code: string, structural: readonly string[
 }
 
 /** Desfechos sem texto que valem uma nova tentativa (corrigíveis pelo modelo). Códigos fechados; nada de texto livre. */
-/** Tempo mínimo restante para a nova tentativa com raciocínio `low` após saída truncada. */
+/**
+ * Teto de cada chamada da tentativa ELÁSTICA (`auto`). Auditoria de 10/11/2026 à noite: em perguntas difíceis
+ * (cancelamento, adiar datas) o Flash em `auto` pensou 23–35 s e não entregou nada, mesmo com a cadeia em 30 s.
+ * Passou de 12 s ⇒ a chamada é cancelada e o turno refaz com raciocínio `low`, que responde em poucos segundos.
+ */
+export const COPILOT_AUTO_CALL_MAX_MS = 12_000;
+/** Tempo mínimo restante para a nova tentativa com raciocínio `low` após saída truncada ou chamada lenta. */
 export const TRUNCATED_RETRY_MIN_MS = 6_000;
 
 export function retryReason(o: ChainOutcome): string | null {
@@ -687,6 +693,8 @@ export async function generateCopilotSuggestion(
             minOutputTokens: COPILOT_MIN_OUTPUT_TOKENS,
             // elasticidade nativa: sem tabela por assunto; o modelo dosa o raciocínio, o custo é contido por fora
             reasoningEffort: effort ?? COPILOT_REASONING_EFFORT,
+            // a tentativa elástica (`auto`) tem teto próprio por chamada; a de raciocínio curto usa o que resta
+            ...(effort ? {} : { callTimeoutMs: COPILOT_AUTO_CALL_MAX_MS }),
             remainingMs,
             beforeNetwork,
             traceId: claimed!.suggestionId,
@@ -742,13 +750,14 @@ export async function generateCopilotSuggestion(
     // telemetria de prazo (10/11/2026): em corte por tempo, registra EM QUE ETAPA estourou (código fixo, sem dados)
     if (outcome.kind === "technical_error")
       console.warn("[copilot] turno interrompido", outcome.code, `etapa=${outcome.stage}`, `restante_ms=${Math.round(remainingMs())}`);
-    // RACIOCÍNIO QUE ESTOUROU O TETO DE SAÍDA (10/11/2026, caso Karen: 4.089 de 4.096 tokens gastos pensando,
-    // 23 s, nenhuma resposta): o padrão segue elástico (`auto`), mas esta falha específica ganha UMA nova
-    // tentativa com raciocínio `low` (curto e rápido), se houver tempo. Nunca em bloqueio de custo/prazo.
+    // RACIOCÍNIO QUE NÃO ENTREGOU (10/11/2026): estourou o teto de saída (caso Karen: 4.089 de 4.096 tokens
+    // gastos pensando, 23 s) ou passou de `COPILOT_AUTO_CALL_MAX_MS` (caso Fabiano: ~35 s sem resposta).
+    // O padrão segue elástico (`auto`), mas essas duas falhas ganham UMA nova tentativa com raciocínio `low`
+    // (curto e rápido), se houver tempo. Nunca em bloqueio de custo/prazo.
     if (
       outcome.kind === "technical_error" &&
       outcome.code === "model_call_failed" &&
-      generator.telemetry().error === "truncated_response" &&
+      (generator.telemetry().error === "truncated_response" || generator.telemetry().error === "timeout") &&
       remainingMs() > TRUNCATED_RETRY_MIN_MS
     ) {
       generator = makeGenerator("low");

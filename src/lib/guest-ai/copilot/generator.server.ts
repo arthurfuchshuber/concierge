@@ -137,6 +137,8 @@ export interface CopilotGeneratorDeps {
   minOutputTokens?: number;
   /** Tempo (ms) que resta do prazo global da geração. */
   remainingMs: () => number;
+  /** Teto de CADA chamada ao modelo nesta tentativa (ms); ausente ⇒ até `COPILOT_STAGE_MAX_MS`. */
+  callTimeoutMs?: number;
   /** Conferido IMEDIATAMENTE antes da rede: `false` ⇒ a sugestão deixou de ser a vigente (nada é chamado). */
   beforeNetwork: () => Promise<boolean>;
   traceId: string;
@@ -444,7 +446,7 @@ export function createCopilotGenerator(deps: CopilotGeneratorDeps): CopilotGener
             maxOutputTokens: outputTokens,
             reasoningEffort: deps.reasoningEffort,
             responseFormat: "json",
-            timeoutMs: Math.max(1_000, Math.min(COPILOT_STAGE_MAX_MS, Math.floor(deps.remainingMs()))),
+            timeoutMs: Math.max(1_000, Math.min(deps.callTimeoutMs ?? COPILOT_STAGE_MAX_MS, COPILOT_STAGE_MAX_MS, Math.floor(deps.remainingMs()))),
             signal: sg,
             traceId: deps.traceId,
             ...(tools.length > 0 && toolChoice ? { tools, toolChoice } : {}),
