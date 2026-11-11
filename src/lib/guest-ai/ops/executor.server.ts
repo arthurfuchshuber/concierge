@@ -21,7 +21,14 @@ import { NO_AI_HANDOFF_REASON } from "@/lib/guest-ai/slot.server";
 import type { StayPhase, ValidatedTurn } from "@/lib/guest-ai/types";
 import { getGuestAiOpsRpc, type GuestAiOpsRpc } from "@/lib/guest-ai/data/client.server";
 import { fetchOpsState, type OpsState } from "@/lib/guest-ai/data/ops-state.server";
-import { OPS_MODE_ENV, OPS_PROPERTIES_ENV, type OpsEvaluation, type OpsMode } from "./contracts";
+import {
+  OPS_MODE_ENV,
+  OPS_PROPERTIES_ENV,
+  type OpsAction,
+  type OpsEvaluation,
+  type OpsMode,
+  type OpsRefusalCode,
+} from "./contracts";
 import { evaluateOpsSignals, type OpsHistoryEntry } from "./policy";
 
 type Env = Record<string, string | undefined>;
@@ -290,6 +297,74 @@ export async function runOps(input: OpsRunInput, deps: OpsRunDeps = {}): Promise
     return { status: "done", mode, ...summary };
   } catch {
     console.error("[guest-ai:ops] falha interna");
+    return { status: "error" };
+  }
+}
+
+export interface OpsNoAdvanceInput {
+  turn: ValidatedTurn;
+  phase: StayPhase;
+  /** Motivo fechado do leitor (`reader_*`) ou da política. */
+  code: OpsRefusalCode;
+  suggestionId: string | null;
+}
+export type OpsNoAdvanceResult =
+  | { status: "off" | "property_not_in_pilot" | "no_pending_card" | "no_state" }
+  | { status: "recorded" | "exists" }
+  | { status: "error" };
+
+/**
+ * OBSERVABILIDADE TOTAL (14/11/2026): quando o leitor dos bastidores avaliou o turno e NÃO avançou nenhum card
+ * (sem sinal, leitura falha, prazo, orçamento…), o motivo exato fica em `guest_ai_ops_actions` (`refused` +
+ * código `reader_*`). A linha é sobre o card que ainda está pendente: o de entrada (antes/durante a estadia) ou,
+ * não havendo, o de saída. Sem card pendente não há o que avançar ⇒ não grava (limita o volume). Nunca lança.
+ * A chave é mensagem + ação; se a ação já foi registrada por outro caminho no mesmo turno, o banco devolve
+ * `exists` e nada é sobrescrito.
+ */
+export async function recordOpsNoAdvance(
+  input: OpsNoAdvanceInput,
+  deps: OpsRunDeps = {},
+): Promise<OpsNoAdvanceResult> {
+  try {
+    const env = deps.env ?? process.env;
+    const mode = opsMode(env);
+    if (mode === "off") return { status: "off" };
+    if (!opsPropertyAllowed(input.turn.propertyId, env)) return { status: "property_not_in_pilot" };
+    const state = await (deps.loadState ?? ((t) => fetchOpsState(t)))(input.turn);
+    const pending = (c: { status: string | null; doneAt: string | null } | null) =>
+      !c || !(c.status === "done" || c.status === "no_show" || c.doneAt);
+    const cards = state.cards;
+    if (!state.reservation || !cards) return { status: "no_state" };
+    const action: OpsAction | null =
+      (input.phase === "pre_stay" || input.phase === "in_stay") && pending(cards.checkin)
+        ? "checkin_done"
+        : (input.phase === "in_stay" || input.phase === "post_checkout") && pending(cards.checkout)
+          ? "checkout_done"
+          : null;
+    if (!action) return { status: "no_pending_card" };
+    const card = action === "checkin_done" ? cards.checkin : cards.checkout;
+    const rpc = deps.rpc ?? (await getGuestAiOpsRpc());
+    const r = await rpc.call("guest_ai_ops_record", {
+      p_tenant_id: input.turn.tenantId,
+      p_property_id: input.turn.propertyId,
+      p_conversation_id: input.turn.conversationId,
+      p_trigger_message_id: input.turn.messageId,
+      p_reservation_id: state.reservation.id,
+      p_suggestion_id: input.suggestionId,
+      p_action: action,
+      p_evidence_message_id: null,
+      p_proposed_date: null,
+      p_proposed_time: null,
+      p_madrugada: false,
+      p_card_before: card ? { exists: true, ...card } : { exists: false },
+      p_mode: mode,
+      p_outcome: "refused",
+      p_code: input.code,
+    });
+    const res = ok(r, "recorded", "exists");
+    return res ? { status: res as "recorded" | "exists" } : { status: "error" };
+  } catch {
+    console.error("[guest-ai:ops] registro de não avanço falhou");
     return { status: "error" };
   }
 }

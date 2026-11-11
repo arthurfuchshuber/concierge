@@ -117,7 +117,7 @@ describe("Bastidores · validação estrita da saída", () => {
     expect(parseOpsSignals({ hospitalityMilestone: { kind: "checkout_confirmed", evidence: ["hist:guest:h3"] }, milestoneQuote: "" }, cur).hospitalityMilestone).toBeNull();
     expect(parseOpsSignals({ hospitalityMilestone: { kind: "checkout_confirmed", evidence: ["hist:guest:h3"] }, milestoneQuote: "já saímos" }, cur).hospitalityMilestone).toEqual({ kind: "checkout_confirmed", evidence: ["hist:guest:h3"] });
     expect(parseOpsSignals({ hospitalityMilestone: { kind: "outro", evidence: ["hist:guest:h3"] }, milestoneQuote: "x" }, cur).hospitalityMilestone).toBeNull();
-    expect(parseOpsSignals("lixo", cur)).toEqual({ hospitalityMilestone: null, milestoneQuote: null, guestEtas: [] });
+    expect(parseOpsSignals("lixo", cur)).toEqual({ hospitalityMilestone: null, milestoneQuote: null, guestEtas: [], milestoneAbstain: null });
   });
 });
 
