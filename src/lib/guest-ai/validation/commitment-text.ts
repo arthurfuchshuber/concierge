@@ -48,7 +48,7 @@ export interface TextContext {
   officialCheckin: string | null;
   officialCheckout: string | null;
   /** Ocupação do calendário do imóvel (11/11/2026): sugerir noite ocupada ⇒ `text_calendar_collision`. */
-  calendar?: Pick<PropertyCalendarOccupancy, "occupiedRanges" | "today" | "windowEnd"> | null;
+  calendar?: Pick<PropertyCalendarOccupancy, "occupiedRanges" | "today" | "windowStart" | "windowEnd"> | null;
 }
 
 /** Evidência que o SISTEMA tem para afirmações retrospectivas. */

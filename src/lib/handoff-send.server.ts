@@ -127,7 +127,7 @@ export async function sendHumanMessageToConversation(
     await supabase
       .from("property_chat_conversations")
       .update({
-        // FALAR DIRETO é o que silencia a IA — e agora com prazo: 10 minutos,
+        // FALAR DIRETO é o que silencia a IA — e agora com prazo: 60 minutos,
         // renovados a cada nova mensagem do atendente. Ver `lib/chat/pause.ts`.
         ...pausePatch(),
         status: "assigned",

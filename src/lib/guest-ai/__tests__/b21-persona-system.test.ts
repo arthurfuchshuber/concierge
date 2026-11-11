@@ -117,17 +117,17 @@ describe("Diálogo investigativo, sem bordões, sem prazo e encaminhamento silen
     expect(outsideBan).not.toMatch(BORDOES);
     expect(outsideBan).not.toMatch(/nossa equipe já foi avisada|equipe cuidará disso|equipe está cuidando/i);
   });
-  it("exemplos de ouro: sem bordões, sem prazo, sem transferência; 1 e 3 abrem com pergunta de diagnóstico", () => {
+  it("exemplos de ouro: sem bordões, sem prazo, sem transferência; 1 vai direto ao obstáculo relatado, 3 abre com pergunta de diagnóstico", () => {
     for (const t of tones) {
       expect(t, t).not.toMatch(BORDOES);
       expect(t, t).not.toMatch(PRAZO);
       expect(t, t).not.toMatch(TRANSFER);
     }
-    expect(tones[0]).toMatch(/^Você já está na porta do apartamento\?/);
-    expect(tones[0]).toMatch(/acender os números ou fica apagado/);
+    expect(tones[0]).toMatch(/^Para acender o visor da fechadura, passe a palma da mão na tela/);
+    expect(tones[0]).toMatch(/Deu certo para abrir\?/);
     expect(tones[2]).toMatch(/^Quando você aponta o controle para ele, aparece algum símbolo ou número no visor/);
     // uma pergunta de diagnóstico, não um manual: no máximo 3 frases antes da observação entre parênteses
-    expect(tones[0]!.replace(/\(.*\)/, "").split(/[.?!]\s/).length).toBeLessThanOrEqual(3);
+    expect(tones[0]!.replace(/\(.*\)/, "").split(/[.?!]\s/).length).toBeLessThanOrEqual(4); // 2–3 frases de ação + checagem
   });
 });
 
@@ -358,7 +358,7 @@ describe("aviso de chegada coerente com canal e dossiê (system.2026-11-11.3)", 
   const arrival = sys.slice(sys.indexOf("Aviso de deslocamento"), sys.indexOf("Continue declarando guestEtas"));
 
   it("versão do roteiro", () => {
-    expect(SYSTEM_PROMPT_VERSION).toBe("system.2026-11-11.6");
+    expect(SYSTEM_PROMPT_VERSION).toBe("system.2026-11-11.8");
   });
 
   it("corrobora o histórico em vez de vetar a palavra guia", () => {

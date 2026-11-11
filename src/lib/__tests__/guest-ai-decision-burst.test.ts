@@ -71,17 +71,18 @@ describe("resposta imediata ao hóspede (fim do silêncio)", () => {
     late: { time: "16:00", day: 23 },
     early: { time: "10:00", day: 19 },
   });
-  it("informa horários oficiais, o motivo e o registro do pedido; sem promessa, sem recusa, sem prazo", () => {
-    expect(ack).toMatch(/^Clarisse, o horário oficial da casa é check-in a partir das 15h e check-out até as 11h/);
-    expect(ack).toMatch(/limpeza e a preparação do imóvel/);
-    expect(ack).toMatch(/Registrei o seu pedido de saída às 16h no dia 23 e entrada às 10h no dia 19/);
+  it("horário oficial como padrão, sem fórmula de SAC; sem promessa, sem recusa, sem prazo (diretiva 11/11/2026)", () => {
+    expect(ack).toMatch(/^Clarisse, nosso check-in é às 15h\. Faremos o possível para liberar o seu acesso antes, caso a acomodação fique pronta/);
+    expect(ack).toMatch(/nossa equipe fala com você no próprio dia/);
+    expect(ack).toMatch(/O check-out é até as 11h\. Havendo possibilidade de estender um pouco o seu horário nesse dia, nossa equipe te avisa por aqui/);
+    expect(ack).not.toMatch(/Registrei|levei à equipe|te retorno|vou verificar/i);
     expect(ack).not.toMatch(/não (é possível|conseguimos)|aprovad|em até|minutos|hoje ainda|desculp|sinto muito/i);
     expect(ack).not.toMatch(/!/);
   });
   it("sem horários cadastrados, não inventa", () => {
     const t = buildDecisionAckText({ guestName: null, officialCheckin: null, officialCheckout: null, late: { time: null, day: null }, early: null });
     expect(t).not.toMatch(/\d/);
-    expect(t).toMatch(/Registrei o seu pedido de saída/);
+    expect(t).toMatch(/O check-out é no horário da sua reserva/);
   });
 });
 
@@ -173,7 +174,8 @@ describe("slot · fallback determinístico (sem modelo)", () => {
     );
     expect(openDecision).toHaveBeenCalledWith(expect.objectContaining({ formalChangeRequests: ["late_checkout", "early_checkin"] }));
     expect(r).toMatchObject({ handoff: true, handoffUrgency: "high" });
-    expect(r?.reply).toMatch(/Registrei o seu pedido de saída às 16h no dia 23 e entrada às 10h no dia 19/);
+    expect(r?.reply).toMatch(/Faremos o possível para liberar o seu acesso antes/);
+    expect(r?.reply).toMatch(/O check-out é até as 11h/);
   });
   it("geração que falha (erro/resultado inválido) ⇒ mesmo fallback", async () => {
     for (const generate of [async () => { throw new Error("gateway"); }, async () => ({ status: "failed" })]) {

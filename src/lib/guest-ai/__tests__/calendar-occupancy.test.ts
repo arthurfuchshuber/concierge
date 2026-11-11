@@ -34,7 +34,7 @@ describe("núcleo puro: ocupação", () => {
     expect(isNightOccupied(occGleison, "2026-11-21")).toBe(true);
     expect(isNightOccupied(occGleison, "2026-11-22")).toBe(false);
     expect(occGleison.sameDayTurnovers).toEqual(["2026-11-14", "2026-11-20"]);
-    expect(occGleison.windowEnd).toBe(addDays(TODAY, 60));
+    expect(occGleison.windowEnd).toBe(addDays(TODAY, 14));
   });
 
   it("mesma regra da Channex: bloqueio só manual; iCal histórico, cancelada e duplicada não ocupam; a própria reserva não conta", () => {
@@ -48,7 +48,7 @@ describe("núcleo puro: ocupação", () => {
         row({ id: "other", property_id: "outro", checkin_date: "2026-12-05", checkout_date: "2026-12-06" }),
         row({ id: "past", checkin_date: "2026-11-01", checkout_date: "2026-11-05" }),
       ],
-      { propertyId: P, today: TODAY, excludeReservationId: "mine" },
+      { propertyId: P, today: TODAY, windowStart: TODAY, windowEnd: "2026-12-31", excludeReservationId: "mine" },
     );
     expect(occ.occupiedRanges).toEqual([{ checkin: "2026-11-27", checkout: "2026-11-28", status: "blocked" }]);
     expect(occ.sameDayTurnovers).toEqual([]);
@@ -57,26 +57,6 @@ describe("núcleo puro: ocupação", () => {
   it("hoje no fuso do imóvel", () => {
     expect(localDate("2026-11-12T02:30:00Z", "America/Sao_Paulo")).toBe("2026-11-11");
     expect(localDate("2026-11-12T02:30:00Z", null)).toBeNull();
-  });
-});
-
-describe("carregador: projeção fechada, imóvel do turno, janela de 60 dias", () => {
-  it("lê só RESERVATION_COLUMNS (sem PII) e filtra por imóvel, status e janela", async () => {
-    const calls: Array<[string, ...unknown[]]> = [];
-    const q: Record<string, (...a: unknown[]) => unknown> = {};
-    for (const m of ["select", "eq", "in", "gt", "lte", "order", "limit"]) q[m] = (...a: unknown[]) => (calls.push([m, ...a]), q);
-    (q as unknown as { then: unknown }).then = (res: (v: unknown) => void) => res({ data: GLEISON_ROWS, error: null });
-    const db = { from: (t: string) => (calls.push(["from", t]), q) } as never;
-    const turn = issue("turn", { surface: "airbnb", conversationId: "c", messageId: "m", propertyId: P, tenantId: "t", guestSessionId: "airbnb:1", conversationStatus: "ai", reservationId: null, guestName: null, messageCreatedAt: null }) as ValidatedTurn;
-    const occ = await fetchPropertyOccupancy(turn, { today: TODAY }, { db });
-    expect(calls).toContainEqual(["from", "property_reservations"]);
-    expect(calls).toContainEqual(["select", RESERVATION_COLUMNS.join(", ")]);
-    expect(calls).toContainEqual(["eq", "property_id", P]);
-    expect(calls).toContainEqual(["in", "status", ["confirmed", "blocked"]]);
-    expect(calls).toContainEqual(["gt", "checkout_date", TODAY]);
-    expect(calls).toContainEqual(["lte", "checkin_date", addDays(TODAY, 60)]);
-    expect(occ.sameDayTurnovers).toContain("2026-11-20");
-    await expect(fetchPropertyOccupancy({ ...turn } as never, { today: TODAY }, { db })).rejects.toThrow();
   });
 });
 

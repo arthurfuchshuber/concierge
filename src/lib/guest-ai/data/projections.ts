@@ -152,6 +152,8 @@ export const GUEST_IMAGE_MESSAGE_COLUMNS = [
 ] as const;
 /** Sem `guest_contacts` (telefone/PII) nem valores financeiros. */
 export const RESERVATION_COLUMNS = ["id", "property_id", "status", "source", "checkin_date", "checkout_date"] as const;
+/** Calendário (11/11/2026): só para achar DATAS citadas pelo hóspede da própria conversa; o texto não vai ao modelo por aqui. */
+export const CALENDAR_GUEST_TEXT_COLUMNS = ["id", "conversation_id", "role", "sender_type", "is_internal_note", "content", "created_at"] as const;
 /** Modalidade de cancelamento DA RESERVA (playbook de cancelamento, 10/11/2026). Sem valores nem contatos. */
 export const RESERVATION_CANCELLATION_COLUMNS = ["id", "property_id", "checkin_date", "checkout_date", "cancellation_policy_category", "is_non_refundable", "created_at"] as const;
 export const ARRIVAL_STATUS_COLUMNS = [

@@ -533,7 +533,7 @@ export async function handleChannexMessage(payload: unknown): Promise<void> {
   if (!m || !m.threadId) return;
   if (m.sender !== "guest") {
     // Mensagem programada do Airbnb: só registra, sem pausar a IA.
-    // Anfitrião falando de verdade → IA se cala nessa conversa (10 min, renovável).
+    // Anfitrião falando de verdade → IA se cala nessa conversa (60 min, renovável).
     const automated = isAutomatedHostMessage(payload, m.text);
     await pauseOnHostMessage(m, automated).catch((e: unknown) => console.error("[channex-messages] pausa falhou", e));
     return;

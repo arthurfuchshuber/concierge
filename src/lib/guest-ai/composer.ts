@@ -32,6 +32,7 @@
  *
  * Não é instalado em lugar nenhum: o padrão de produção do Orchestrator continua `NO_COMPOSER`.
  */
+import { calendarFactValue } from "@/lib/guest-ai/calendar-occupancy";
 import type { ComposedPrompt, ConversationContext } from "@/lib/guest-ai/orchestrator/contracts";
 import type { HistoryEntry, HistoryResult, HistoryUnavailableReason } from "./history";
 import { PERSONA_VERSION } from "./persona";
@@ -336,26 +337,12 @@ function buildContextData(ctx: ConversationContext, guarded: Guarded, unavailabl
   } else {
     facts.push({ id: "ctx:reserva_status", valor: { status: "nao_informado" }, origem: "backend" });
   }
-  // Calendário do imóvel (11/11/2026, caso Gleison): só datas, sem dados de outros hóspedes. Noite D ocupada se
-  // entrada <= D < saida; no dia da saida a casa fica livre a partir do check-out oficial.
+  // Calendário do imóvel (11/11/2026, caso Gleison + calendário dinâmico): só datas, sem dados de outros hóspedes,
+  // na janela que interessa (estadia, datas citadas pelo hóspede ou próximos 14 dias) e com o resumo já calculado.
   const cal = g.calendar;
   facts.push({
     id: "ctx:calendario_ocupacao",
-    valor:
-      cal && cal.status === "available"
-        ? {
-            status: "consultado",
-            hoje: cal.today,
-            consultado_ate: cal.windowEnd,
-            intervalos_ocupados: cal.occupiedRanges.map((r) => ({
-              entrada: r.checkin,
-              saida: r.checkout,
-              tipo: r.status === "confirmed" ? "reserva_confirmada" : "bloqueio",
-            })),
-            dias_com_outro_checkin: [...cal.sameDayTurnovers],
-            leitura: "noite D ocupada se entrada <= D < saida; sem intervalo cobrindo a noite = livre no nosso calendário",
-          }
-        : { status: "indisponivel" },
+    valor: cal && cal.status === "available" ? calendarFactValue(cal) : { status: "indisponivel" },
     origem: "calendario_oficial_do_imovel",
   });
   facts.push(

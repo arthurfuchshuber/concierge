@@ -173,15 +173,20 @@ describe("Decisão · slot (silêncio absoluto da IA)", () => {
     expect(generate).not.toHaveBeenCalled();
   });
 
-  it("pedido de exceção ⇒ abre a decisão, responde com os horários oficiais (sem a frase de espera do modelo) e push prioritário", async () => {
+  it("pedido de exceção ⇒ abre a decisão e push prioritário; o texto VALIDADO do modelo é preservado (diretiva 11/11/2026)", async () => {
     const ack = { guestName: "Mariana Souza", officialCheckin: "15:00", officialCheckout: "11:00", late: { time: "13:00", day: null }, early: null };
     const openDecision = vi.fn(async () => ({ opened: true, reason: "Decisão pendente · late check-out às 13h", ack }));
     const r = await requestGuestAiReply(REQ, slotDeps({ generate: async () => stored(), openDecision }) as never);
     expect(openDecision).toHaveBeenCalledWith(expect.objectContaining({ conversationId: "c1", triggerMessageId: "m1", formalChangeRequests: ["late_checkout"] }));
-    expect(r).toMatchObject({ handoff: true, handoffReason: "Decisão pendente · late check-out às 13h", handoffUrgency: "high" });
-    expect(r?.reply).toMatch(/check-in a partir das 15h e check-out até as 11h/);
-    expect(r?.reply).toMatch(/Registrei o seu pedido de saída às 13h/);
-    expect(r?.reply).not.toMatch(/Vou verificar com a equipe!/);
+    expect(r).toEqual({ reply: "Vou verificar com a equipe!", handoff: true, handoffReason: "Decisão pendente · late check-out às 13h", handoffUrgency: "high" });
+  });
+
+  it("pedido de exceção sem texto do modelo ⇒ texto determinístico com o horário oficial", async () => {
+    const ack = { guestName: "Mariana Souza", officialCheckin: "15:00", officialCheckout: "11:00", late: { time: "13:00", day: null }, early: null };
+    const openDecision = vi.fn(async () => ({ opened: true, reason: "Decisão pendente · late check-out às 13h", ack }));
+    const r = await requestGuestAiReply(REQ, slotDeps({ generate: async () => stored({ text: "" }), openDecision }) as never);
+    expect(r).toMatchObject({ handoff: true, handoffUrgency: "high" });
+    expect(r?.reply).toMatch(/^Mariana, o check-out é até as 11h/);
   });
 
   it("já havia decisão pendente/aberta para a mensagem ⇒ continua em silêncio", async () => {

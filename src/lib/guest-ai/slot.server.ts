@@ -141,6 +141,8 @@ export interface DecisionAckData {
   officialCheckout: string | null;
   late: { time: string | null; day: number | null } | null;
   early: { time: string | null; day: number | null } | null;
+  sameDayArrival?: boolean | null;
+  sameDayDeparture?: boolean | null;
 }
 
 /**
@@ -246,8 +248,12 @@ export async function requestGuestAiReply(req: GuestAiRequest, deps: SlotDeps = 
     };
 
     // 4a) PEDIDO DE EXCEÇÃO (late check-out, entrada antecipada, concessão): abre UMA decisão com botões para a
-    //     equipe (push prioritário) E responde ao hóspede na hora com os horários oficiais e o registro do pedido
-    //     (texto determinístico: não promete, não recusa antes da equipe, não cita prazo). Nunca fica mudo.
+    //     equipe (push prioritário). MENSAGEM MISTA (11/11/2026, diretiva do titular): o texto validado do modelo
+    //     (que já passou pelas travas de compromisso: não promete exceção sem autorização) é PRESERVADO, para não
+    //     jogar fora a resposta das outras perguntas; só sem texto do modelo entra o texto determinístico.
+    let decisionReason: string | null = null;
+    let decisionAck: string | null = null;
+    let decisionUrgency: string = DECISION_HANDOFF_URGENCY;
     if ((res.formalChangeRequests ?? []).length > 0) {
       const open = deps.openDecision
         ? await deps.openDecision({
@@ -262,14 +268,24 @@ export async function requestGuestAiReply(req: GuestAiRequest, deps: SlotDeps = 
             formalChangeRequests: res.formalChangeRequests ?? [],
             internalQuestion: res.internalQuestion,
           });
-      if (open.opened) return toHandoff(ackReply(open.ack), open.reason, DECISION_HANDOFF_URGENCY);
-      if (open.code === "pending_exists" || open.code === "exists") return toHandoff("", open.reason, DECISION_HANDOFF_URGENCY);
+      if (open.opened) {
+        decisionReason = open.reason ?? null;
+        decisionAck = ackReply(open.ack);
+        if (!(r.state === "available" && (res.text ?? "").trim())) return toHandoff(decisionAck, decisionReason, DECISION_HANDOFF_URGENCY);
+      } else if (open.code === "same_day_turnover") {
+        // virada no mesmo dia: nada a decidir; a saída é pontual e a equipe só é avisada (urgência normal)
+        decisionReason = open.reason ?? null;
+        decisionAck = ackReply(open.ack);
+        decisionUrgency = "normal";
+        if (!(r.state === "available" && (res.text ?? "").trim())) return toHandoff(decisionAck, decisionReason, decisionUrgency);
+      } else if (open.code === "pending_exists" || open.code === "exists") return toHandoff("", open.reason, DECISION_HANDOFF_URGENCY);
     }
     // 4b) ALTERAÇÃO FORMAL (titular, 10/11/2026): cancelamento, datas, valor, nº de hóspedes ou condições
     //     NUNCA ficam só com a IA: a resposta ao hóspede segue, mas a equipe é SEMPRE avisada (push).
     const formal = res.formalChangeRequests ?? [];
-    const mustHandoff = res.handoffNeeded || formal.length > 0;
-    const reason = res.internalQuestion?.trim() || (formal.length > 0 ? formalChangeReason(formal) : null);
+    const mustHandoff = res.handoffNeeded || formal.length > 0 || decisionReason !== null;
+    const reason = decisionReason ?? (res.internalQuestion?.trim() || (formal.length > 0 ? formalChangeReason(formal) : null));
+    const urgency = decisionReason !== null ? decisionUrgency : res.handoffUrgency;
     // 4c) SILÊNCIO GARANTIDO (titular, 10/11/2026): "Sim"/"Ok"/"Obrigado" sem pergunta nossa pendente não recebe
     //     resposta, mesmo que o modelo tenha escrito uma. Encaminhamento/alteração formal nunca são calados.
     if (res.bareAckWithoutQuestion && !mustHandoff) return SILENT;
@@ -296,11 +312,12 @@ export async function requestGuestAiReply(req: GuestAiRequest, deps: SlotDeps = 
       if (tagHandoff)
         return toHandoff(text, reason ?? CREDENTIAL_UNAVAILABLE_REASON, res.handoffUrgency ?? "high");
       return mustHandoff
-        ? toHandoff(text, reason, res.handoffUrgency)
+        ? toHandoff(text, reason, urgency)
         : { reply: sanitizeResidualTags(text), handoff: false };
     }
+    if (decisionAck !== null) return toHandoff(decisionAck, reason, decisionUrgency);
     if (r.state === "no_suggestion" && !mustHandoff) return SILENT; // silêncio legítimo
-    return toHandoff(text, reason, res.handoffUrgency);
+    return toHandoff(text, reason, urgency);
   } catch {
     return toHandoff("", undefined, "normal");
   }
@@ -333,6 +350,7 @@ async function deterministicFallback(req: GuestAiRequest, deps: SlotDeps): Promi
       ? await deps.openDecision(input)
       : await (await import("@/lib/guest-ai-decision.server")).openHumanDecision(input);
     if (open.opened) return toHandoff(ackReply(open.ack), open.reason, DECISION_HANDOFF_URGENCY);
+    if (open.code === "same_day_turnover") return toHandoff(ackReply(open.ack), open.reason, "normal");
     if (open.code === "pending_exists" || open.code === "exists") return toHandoff("", open.reason, DECISION_HANDOFF_URGENCY);
     return toHandoff("", undefined, "normal");
   } catch {
