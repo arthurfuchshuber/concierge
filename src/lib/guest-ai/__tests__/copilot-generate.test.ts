@@ -44,7 +44,7 @@ import type { ProviderOutcome, ProviderRequest } from "@/lib/guest-ai/llm/provid
 import { llmMessageText } from "@/lib/guest-ai/llm/contracts";
 import { GUEST_AI_DEFAULT_MODEL, GUEST_AI_RESERVE_MODEL } from "@/lib/guest-ai/orchestrator/contracts";
 import type { OwnershipLoad } from "@/lib/guest-ai/data/conversation-ownership.server";
-import { CONV, ctx, history, turn, v6, silence } from "./helpers/b23-chain";
+import { CONV, ctx, currentRef, history, turn, v6, silence } from "./helpers/b23-chain";
 import { fakeProvider, okJson } from "./helpers/copilot-provider";
 
 const ON = { GUEST_AI_COPILOT_GENERATION: "on", GUEST_AI_COPILOT_GENERATION_PROPERTY_IDS: "p1" };
@@ -1189,5 +1189,57 @@ describe("Copiloto · memória do hóspede recorrente na cadeia real", () => {
       .map((m) => llmMessageText(m.content))
       .join("\n");
     expect(user).not.toContain("<perfil_do_hospede>");
+  });
+});
+
+describe("Marco da resposta quando o leitor se abstém (caso Vânia, 11/11/2026)", () => {
+  const abstain = { hospitalityMilestone: null, milestoneQuote: null, guestEtas: [], milestoneAbstain: "context_unclear" };
+  const inStay: CopilotGenerateDeps["ports"] = (_t, _db, meta) => ({
+    ...ports()!(_t, _db, meta),
+    loadContext: async () => ctx({ phase: "in_stay", stay: { ...ctx().guest.stay!, phase: "in_stay" } }),
+  });
+  const withMilestone = () =>
+    v6({
+      intents: ["departure_confirmation", "acknowledgment"],
+      hospitalityMilestone: { kind: "checkout_confirmed", evidence: [currentRef()] },
+      milestoneQuote: "Qual é o horário do check-in?",
+    });
+
+  it("leitor sem marco + resposta com marco ⇒ o marco da resposta vai à mesma política", async () => {
+    const decisions: unknown[] = [];
+    const ops = vi.fn(async (i: { decision: unknown }) => {
+      decisions.push(i.decision);
+      return { status: decisions.length === 1 ? "no_signal" : "done" };
+    });
+    const noAdvance = vi.fn(async () => undefined);
+    const p = fakeProvider(okJson(withMilestone()));
+    const r = await generateCopilotSuggestion(
+      REQ,
+      deps(p, { ops: ops as never, opsNoAdvance: noAdvance as never, extractOps: async () => abstain as never, ports: inStay }),
+    );
+    expect(r.status).toBe("stored");
+    expect(ops).toHaveBeenCalledTimes(2);
+    expect(decisions[1]).toMatchObject({ hospitalityMilestone: { kind: "checkout_confirmed" } });
+    expect(noAdvance).not.toHaveBeenCalled();
+  });
+
+  it("leitor sem marco + resposta sem marco ⇒ nada extra; o motivo do leitor fica na auditoria", async () => {
+    const ops = vi.fn(async () => ({ status: "no_signal" }));
+    const noAdvance = vi.fn(async (_i: unknown) => undefined);
+    const p = fakeProvider(okJson(v6()));
+    await generateCopilotSuggestion(
+      REQ,
+      deps(p, { ops: ops as never, opsNoAdvance: noAdvance as never, extractOps: async () => abstain as never }),
+    );
+    expect(ops).toHaveBeenCalledTimes(1);
+    expect(noAdvance.mock.calls[0]![0]).toMatchObject({ code: "reader_abstain_context_unclear" });
+  });
+
+  it("leitor COM marco ⇒ a resposta não é reavaliada (sem dupla avaliação)", async () => {
+    const ops = vi.fn(async () => ({ status: "done" }));
+    const reader = { hospitalityMilestone: { kind: "checkout_confirmed", evidence: [currentRef()] }, milestoneQuote: "x", guestEtas: [] };
+    const p = fakeProvider(okJson(withMilestone()));
+    await generateCopilotSuggestion(REQ, deps(p, { ops: ops as never, extractOps: async () => reader as never, ports: inStay }));
+    expect(ops).toHaveBeenCalledTimes(1);
   });
 });

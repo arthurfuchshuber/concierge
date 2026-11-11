@@ -647,6 +647,8 @@ export async function generateCopilotSuggestion(
     };
     // auditoria do "não avançou": o motivo do leitor e se algum sinal chegou a ser avaliado pela política
     let noAdvanceReason: OpsReaderReason | null = null;
+    // o leitor próprio declarou marco (entrada/saída)? Se não, o marco da resposta validada ainda pode ser avaliado
+    let readerMilestone = false;
     let opsEvaluated = false;
     const trackOps = async (i: OpsRunInput): Promise<void> => {
       const r = (await opsRun(i)) as { status?: string } | undefined;
@@ -677,6 +679,7 @@ export async function generateCopilotSuggestion(
             return false;
           }
           if (!hasOpsSignal(signals)) noAdvanceReason = reading.reason ?? "reader_no_signal";
+          readerMilestone = signals.hospitalityMilestone != null;
           await trackOps({
             turn,
             decision: signals,
@@ -865,16 +868,17 @@ export async function generateCopilotSuggestion(
     });
     // G2: os bastidores já rodaram em paralelo (extrator próprio). Reserva: se o extrator não respondeu, usa os
     // sinais da MESMA decisão validada da resposta, como antes (a reivindicação é idempotente por mensagem + ação).
+    // Caso Vânia (11/11/2026): o leitor se absteve ("Fiz tudo conforme combinado" ⇒ context_unclear) enquanto a
+    // resposta, com o contexto completo, reconheceu a saída. Leitor SEM marco + resposta COM marco ⇒ o marco da
+    // resposta também passa pela MESMA política (barreira léxica, dia, fase, card); a reivindicação é idempotente.
     const backstageDone = backstage ? await backstage : false;
-    if (
-      !backstageDone &&
-      (outcome.kind === "reply" || outcome.kind === "silence" || outcome.kind === "human_action") &&
-      opsPhase
-    ) {
+    const decided =
+      outcome.kind === "reply" || outcome.kind === "silence" || outcome.kind === "human_action" ? outcome.decision : null;
+    if (decided && opsPhase && (!backstageDone || (!readerMilestone && decided.hospitalityMilestone != null))) {
       try {
         await trackOps({
           turn,
-          decision: outcome.decision,
+          decision: decided,
           history,
           phase: opsPhase,
           timezone: opsTimezone,
