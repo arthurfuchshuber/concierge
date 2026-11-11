@@ -33,6 +33,8 @@ import { abortableDb, getGuestAiDb, throwIfAborted } from "@/lib/guest-ai/data/c
 import { fetchListingFacts, detectListingConflicts } from "@/lib/guest-ai/data/listing.server";
 import { fetchDossierKnowledge } from "@/lib/guest-ai/data/dossier.server";
 import { fetchReservationState, type ReservationLookup } from "@/lib/guest-ai/data/reservation.server";
+import { fetchCancellationTerms } from "@/lib/guest-ai/data/cancellation-terms.server";
+import { freeCancellationStatus } from "@/lib/guest-ai/playbooks/airbnb-cancellation";
 import { emptyReservationState, type ReservationState } from "@/lib/guest-ai/data/reservation-facts";
 import { fetchSensitiveCredentials } from "@/lib/guest-ai/data/credentials.server";
 import { PROPERTY_SCOPE_COLUMNS, cols } from "@/lib/guest-ai/data/projections";
@@ -53,6 +55,7 @@ export interface BuilderDeps {
   now?: () => Date;
   validateTurnScope?: typeof validateTurnScope;
   fetchReservationState?: typeof fetchReservationState;
+  fetchCancellationTerms?: typeof fetchCancellationTerms;
   fetchListingFacts?: typeof fetchListingFacts;
   fetchDossierKnowledge?: typeof fetchDossierKnowledge;
   fetchSensitiveCredentials?: (grant: CredentialGrant) => Promise<GuestCredentials | null>;
@@ -172,6 +175,32 @@ export async function buildGuestContext(input: TurnInput, deps: BuilderDeps = {}
     closeAt,
     now: parseInstant(nowIso),
   });
+  // Playbook de cancelamento (10/11/2026): prazo sem custo DA RESERVA, calculado aqui (nunca pelo modelo).
+  // Falha de leitura ou modalidade não reconhecida ⇒ `unknown` (a IA não presume).
+  let freeCancellation: { status: "open" | "closed" | "unknown"; until: string | null; policyLabel: string | null } = {
+    status: "unknown",
+    until: null,
+    policyLabel: null,
+  };
+  if (state.exists) {
+    try {
+      const terms = await (deps.fetchCancellationTerms ?? fetchCancellationTerms)(turn, { db });
+      if (terms) {
+        const fc = freeCancellationStatus({
+          category: terms.category,
+          isNonRefundable: terms.isNonRefundable,
+          checkInAt,
+          nights: terms.nights,
+          bookedAt: terms.bookedAt ? parseInstant(terms.bookedAt) : null,
+          now: parseInstant(nowIso)!,
+        });
+        freeCancellation = { status: fc.status, until: fc.until ? fc.until.toISOString() : null, policyLabel: fc.policyLabel };
+      }
+    } catch {
+      /* desconhecido */
+    }
+    throwIfAborted(signal);
+  }
   const { audiences } = decideAudiences({ stayExists: state.exists, status: state.status, phase, noShow: state.noShow });
   const audienceSet = new Set<GuestAudience>(audiences);
 
@@ -240,6 +269,7 @@ export async function buildGuestContext(input: TurnInput, deps: BuilderDeps = {}
           checkInAt: checkInAt ? checkInAt.toISOString() : null,
           checkOutAt: closeAt ? closeAt.toISOString() : null,
           timezone,
+          freeCancellation,
         }
       : null,
     audiences,

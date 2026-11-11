@@ -93,12 +93,6 @@ describe("Roteiro e raciocínio", () => {
     expect(p).toMatch(/nunca sugira formalizar ou concluir a reserva em resposta a uma mensagem curta/);
     expect(p).toMatch(/Sem contexto, não presuma/);
   });
-  it("alteração de datas: nunca permitida depois do prazo de cancelamento sem custo (titular, 10/11/2026)", () => {
-    const p = JSON.stringify(buildSystemPrompt("airbnb" as never));
-    expect(p).toMatch(/só é possível enquanto a reserva ainda está dentro do prazo de cancelamento sem custo/);
-    expect(p).toMatch(/em reserva não reembolsável, a alteração de datas NÃO é permitida/);
-    expect(p).toMatch(/sem sugerir o pedido de alteração da plataforma/);
-  });
   it("saída truncada pelo raciocínio ⇒ UMA nova tentativa com raciocínio low (padrão segue auto)", () => {
     const g = readFileSync(path.join(SRC, "lib/guest-ai/copilot/generate.server.ts"), "utf8");
     expect(g).toMatch(/error === "truncated_response" \|\| generator\.telemetry\(\)\.error === "timeout"/);

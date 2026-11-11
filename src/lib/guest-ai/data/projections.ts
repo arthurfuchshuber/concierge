@@ -131,6 +131,8 @@ export const GUEST_IMAGE_MESSAGE_COLUMNS = [
 ] as const;
 /** Sem `guest_contacts` (telefone/PII) nem valores financeiros. */
 export const RESERVATION_COLUMNS = ["id", "property_id", "status", "source", "checkin_date", "checkout_date"] as const;
+/** Modalidade de cancelamento DA RESERVA (playbook de cancelamento, 10/11/2026). Sem valores nem contatos. */
+export const RESERVATION_CANCELLATION_COLUMNS = ["id", "property_id", "checkin_date", "checkout_date", "cancellation_policy_category", "is_non_refundable", "created_at"] as const;
 export const ARRIVAL_STATUS_COLUMNS = [
   "kind",
   "status",
