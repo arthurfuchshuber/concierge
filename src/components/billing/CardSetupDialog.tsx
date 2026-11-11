@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQueryClient } from "@tanstack/react-query";
 import { CreditCard, Loader2, Lock } from "lucide-react";
@@ -48,26 +48,28 @@ export function CardSetupDialog({
   const intentFn = useServerFn(createCardSetupIntent);
   const finishFn = useServerFn(finishCardSetup);
   const qc = useQueryClient();
-  const numberRef = useRef<HTMLDivElement>(null);
-  const expiryRef = useRef<HTMLDivElement>(null);
-  const cvcRef = useRef<HTMLDivElement>(null);
-  const els = useRef<{
-    number?: StripeCardNumberElement;
-    expiry?: StripeCardExpiryElement;
-    cvc?: StripeCardCvcElement;
-  }>({});
-  const stripeRef = useRef<Stripe | null>(null);
-  const secretRef = useRef<{ clientSecret: string; setupIntentId: string } | null>(null);
-  const [ready, setReady] = useState(false);
+  // Os campos da Stripe são criados uma vez por abertura e "montados" nos contêineres por ref de
+  // callback: se a janela refizer o corpo (rolagem/anti-corte) e o contêiner trocar, o campo é
+  // montado de novo no contêiner novo em vez de ficar preso num elemento descartado.
+  const [numberNode, setNumberNode] = useState<HTMLDivElement | null>(null);
+  const [expiryNode, setExpiryNode] = useState<HTMLDivElement | null>(null);
+  const [cvcNode, setCvcNode] = useState<HTMLDivElement | null>(null);
+  const [session, setSession] = useState<{
+    stripe: Stripe;
+    clientSecret: string;
+    setupIntentId: string;
+    number: StripeCardNumberElement;
+    expiry: StripeCardExpiryElement;
+    cvc: StripeCardCvcElement;
+  } | null>(null);
   const [name, setName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  // Monta os campos da Stripe quando a janela abre e desmonta ao fechar.
   useEffect(() => {
     if (!open) return;
     let alive = true;
-    setReady(false);
+    let created: { destroy: () => void }[] = [];
     setError(null);
     setName("");
     (async () => {
@@ -75,35 +77,33 @@ export function CardSetupDialog({
         const [stripe, intent] = await Promise.all([getStripe(), intentFn({ data: { ownerId } })]);
         if (!alive) return;
         if (!stripe) throw new Error("Stripe indisponível.");
-        stripeRef.current = stripe;
-        secretRef.current = intent;
-        // Espera os contêineres existirem (a janela abre com animação).
-        await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
-        if (!alive || !numberRef.current || !expiryRef.current || !cvcRef.current) return;
-        const css = getComputedStyle(document.documentElement);
-        const color = `hsl(${css.getPropertyValue("--foreground").trim()})`;
-        const probe = getComputedStyle(numberRef.current).color || "#888";
+        const fontFamily = getComputedStyle(document.body).fontFamily;
         const style = {
           base: {
             fontSize: "13.5px",
-            fontFamily: getComputedStyle(document.body).fontFamily,
-            color: probe.startsWith("rgb") ? probe : color,
+            fontFamily,
+            color: getComputedStyle(document.body).color,
             "::placeholder": { color: "#8a8a93" },
           },
           invalid: { color: "#e5484d" },
         };
         const elements = stripe.elements({ locale: "pt-BR" });
-        els.current.number = elements.create("cardNumber", {
+        const number = elements.create("cardNumber", {
           style,
           showIcon: true,
           placeholder: "1234 1234 1234 1234",
         });
-        els.current.expiry = elements.create("cardExpiry", { style, placeholder: "MM / AA" });
-        els.current.cvc = elements.create("cardCvc", { style, placeholder: "CVC" });
-        els.current.number.mount(numberRef.current);
-        els.current.expiry.mount(expiryRef.current);
-        els.current.cvc.mount(cvcRef.current);
-        setReady(true);
+        const expiry = elements.create("cardExpiry", { style, placeholder: "MM / AA" });
+        const cvc = elements.create("cardCvc", { style, placeholder: "CVC" });
+        created = [number, expiry, cvc];
+        setSession({
+          stripe,
+          clientSecret: intent.clientSecret,
+          setupIntentId: intent.setupIntentId,
+          number,
+          expiry,
+          cvc,
+        });
       } catch (e) {
         if (alive)
           setError(friendlyErrorMessage(e, "Não foi possível abrir o cadastro do cartão."));
@@ -111,25 +111,31 @@ export function CardSetupDialog({
     })();
     return () => {
       alive = false;
-      for (const k of ["number", "expiry", "cvc"] as const) {
-        els.current[k]?.destroy();
-        delete els.current[k];
+      setSession(null);
+      for (const el of created) {
+        try {
+          el.destroy();
+        } catch {
+          /* já destruído */
+        }
       }
-      secretRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, ownerId]);
 
+  useMountField(session?.number, numberNode);
+  useMountField(session?.expiry, expiryNode);
+  useMountField(session?.cvc, cvcNode);
+  const ready = !!session;
+
   async function save() {
-    const stripe = stripeRef.current;
-    const intent = secretRef.current;
-    if (!stripe || !intent || !els.current.number || busy) return;
+    if (!session || busy) return;
     setBusy(true);
     setError(null);
     try {
-      const res = await stripe.confirmCardSetup(intent.clientSecret, {
+      const res = await session.stripe.confirmCardSetup(session.clientSecret, {
         payment_method: {
-          card: els.current.number,
+          card: session.number,
           billing_details: { name: name.trim() || undefined },
         },
       });
@@ -137,7 +143,7 @@ export function CardSetupDialog({
         setError(res.error.message ?? "Cartão recusado. Tente outro cartão.");
         return;
       }
-      await finishFn({ data: { ownerId, setupIntentId: intent.setupIntentId } });
+      await finishFn({ data: { ownerId, setupIntentId: session.setupIntentId } });
       toast.success("Cartão verificado!");
       await Promise.all([
         qc.invalidateQueries({ queryKey: ["my-subscription"] }),
@@ -168,14 +174,14 @@ export function CardSetupDialog({
         </DialogDescription>
         <div className="grid gap-2.5">
           <Label text="Número do cartão">
-            <div ref={numberRef} className={`${FIELD} [&>*]:w-full`} />
+            <div ref={setNumberNode} className={`${FIELD} [&>*]:w-full`} />
           </Label>
           <div className="grid grid-cols-2 gap-2.5">
             <Label text="Validade">
-              <div ref={expiryRef} className={`${FIELD} [&>*]:w-full`} />
+              <div ref={setExpiryNode} className={`${FIELD} [&>*]:w-full`} />
             </Label>
             <Label text="Código (CVC)">
-              <div ref={cvcRef} className={`${FIELD} [&>*]:w-full`} />
+              <div ref={setCvcNode} className={`${FIELD} [&>*]:w-full`} />
             </Label>
           </div>
           <Label text="Nome no cartão">
@@ -230,4 +236,22 @@ function Label({ text, children }: { text: string; children: React.ReactNode }) 
       {children}
     </div>
   );
+}
+
+/** Monta um campo da Stripe no contêiner e o solta (sem destruir) se o contêiner sair da tela. */
+function useMountField(
+  el: { mount: (n: HTMLElement) => void; unmount: () => void } | undefined,
+  node: HTMLElement | null,
+) {
+  useEffect(() => {
+    if (!el || !node) return;
+    el.mount(node);
+    return () => {
+      try {
+        el.unmount();
+      } catch {
+        /* já solto */
+      }
+    };
+  }, [el, node]);
 }
