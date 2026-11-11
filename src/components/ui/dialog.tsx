@@ -4,10 +4,10 @@ import { useAntiClipWindow } from "@/hooks/useAntiClipWindow";
 
 import * as React from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { X } from "lucide-react";
+import { ChevronLeft, X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import { CORNER_CLOSE_CLASS } from "@/components/ui/corner-close";
+import { CORNER_BACK_CLASS, CORNER_CLOSE_CLASS } from "@/components/ui/corner-close";
 import { ownsScroll, splitWindowChildren, WindowBody } from "@/components/ui/window-body";
 
 const Dialog = DialogPrimitive.Root;
@@ -54,8 +54,14 @@ const DialogContent = React.forwardRef<
     pageLike?: boolean;
     /** Véu desta janela (ex.: janela pequena POR CIMA de outra, que precisa deixar a de baixo visível). */
     overlayClassName?: string;
+    /**
+     * "VOLTAR" DE CANTO (11/11/2026, regra do sistema inteiro): quando a ação da janela é voltar (detalhe →
+     * lista na MESMA janela), informe `onBack`. A aba do canto superior direito vira "‹ Voltar" no lugar do
+     * "X" (o cabeçalho reserva `pr-24`). Sem `onBack`, o "X" de sempre.
+     */
+    onBack?: () => void;
   }
->(({ className, children, hideClose, pageLike, overlayClassName, ...props }, ref) => {
+>(({ className, children, hideClose, pageLike, overlayClassName, onBack, ...props }, ref) => {
   const [layerRef, layerNodeRef] = useOverlayLayer("window", useAntiClipWindow(ref));
   const wrapBody = !ownsScroll(className);
   const split = splitWindowChildren(children);
@@ -89,7 +95,12 @@ const DialogContent = React.forwardRef<
         ) : (
           children
         )}
-        {hideClose ? null : (
+        {onBack ? (
+          <button type="button" data-window-back onClick={onBack} className={CORNER_BACK_CLASS}>
+            <ChevronLeft className="size-[15px]" strokeWidth={2.2} />
+            Voltar
+          </button>
+        ) : hideClose ? null : (
           <DialogPrimitive.Close
             data-window-close
             // X OFICIAL INTEGRADO DE QUINA (08/11/2026): aba colada no canto superior direito, sem borda, com o

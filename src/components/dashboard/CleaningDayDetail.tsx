@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { ArrowRight, X } from "lucide-react";
+import { ArrowRight, ChevronRight, X } from "lucide-react";
 import { CORNER_CLOSE_CLASS } from "@/components/ui/corner-close";
 import { cn } from "@/lib/utils";
 import { useServerFn } from "@tanstack/react-start";
@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { setCleaningPriceOverride, setCleaningType } from "@/lib/cleaning-price.functions";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { FinanceEntryDetail, type FinanceEntry } from "@/components/dashboard/FinanceEntryDetail";
 import { OwnerLine } from "@/components/dashboard/OwnerLine";
 import { ClampName } from "@/components/ui/clamp-name";
 import { useAreaAccess } from "@/lib/permissions/useAreaAccess";
@@ -120,16 +121,44 @@ function PropertyCell({
   phone = null,
   country = null,
   children,
+  onOpen,
 }: {
   name: string;
   owner: string | null;
   phone?: string | null;
   country?: string | null;
   children?: React.ReactNode;
+  /** Abre o detalhe do lançamento na mesma janela (linha clicável + seta). */
+  onOpen?: () => void;
 }) {
   return (
-    <td className={TD}>
-      <ClampName text={name} className="font-bold" />
+    <td
+      className={cn(TD, onOpen && "cursor-pointer active:bg-foreground/[0.05]")}
+      onClick={
+        onOpen
+          ? (e) => {
+              if ((e.target as HTMLElement).closest("button, a, input, [role=button]")) return;
+              onOpen();
+            }
+          : undefined
+      }
+      onKeyDown={
+        onOpen
+          ? (e) => {
+              if (e.key === "Enter" && e.target === e.currentTarget) onOpen();
+            }
+          : undefined
+      }
+      tabIndex={onOpen ? 0 : undefined}
+    >
+      {onOpen ? (
+        <div className="flex min-w-0 items-center justify-between gap-2">
+          <ClampName text={name} className="min-w-0 font-bold" />
+          <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+        </div>
+      ) : (
+        <ClampName text={name} className="font-bold" />
+      )}
       <OwnerLine name={owner} phone={phone} country={country} phonePosition="adjacent" />
       {children}
     </td>
@@ -317,10 +346,43 @@ export function CleaningDayDetail({
   onClose,
   ...props
 }: Parameters<typeof CleaningDayDetailContent>[0] & { onClose: () => void }) {
+  return <CleaningDayDetailWindow open onOpenChange={(v) => { if (!v) onClose(); }} {...props} />;
+}
+
+/**
+ * Janela completa da lista de lançamentos: clicar numa linha troca o conteúdo
+ * da MESMA janela pelo detalhe e o "X" do canto vira "‹ Voltar" (11/11/2026).
+ */
+export function CleaningDayDetailWindow({
+  open,
+  onOpenChange,
+  ...props
+}: Parameters<typeof CleaningDayDetailContent>[0] & { open: boolean; onOpenChange: (v: boolean) => void }) {
+  const [entry, setEntry] = useState<FinanceEntry | null>(null);
   return (
-    <Dialog open onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DialogContent aria-describedby={undefined} className={FINANCE_WINDOW_CLASS}>
-        <CleaningDayDetailContent {...props} />
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        if (!v) setEntry(null);
+        onOpenChange(v);
+      }}
+    >
+      <DialogContent
+        aria-describedby={undefined}
+        className={FINANCE_WINDOW_CLASS}
+        onBack={entry ? () => setEntry(null) : undefined}
+      >
+        {entry ? (
+          <FinanceEntryDetail
+            entry={entry}
+            onNavigate={() => {
+              setEntry(null);
+              onOpenChange(false);
+            }}
+          />
+        ) : (
+          <CleaningDayDetailContent {...props} onEntryChange={setEntry} />
+        )}
       </DialogContent>
     </Dialog>
   );
@@ -331,7 +393,10 @@ export function CleaningDayDetailContent({
   source,
   caretX,
   title,
+  onEntryChange,
 }: {
+  /** Quando informado, as linhas do modo "done" abrem o detalhe do lançamento. */
+  onEntryChange?: (e: FinanceEntry) => void;
   /** "all" = todas as limpezas do período (janela dos cards do topo). */
   date: string;
   title?: string;
@@ -412,7 +477,13 @@ export function CleaningDayDetailContent({
           <tbody>
             {rows.map((r) => (
               <tr key={r.id} className="snap-start">
-                <PropertyCell name={r.propertyName} owner={r.ownerName} phone={r.ownerPhone} country={r.ownerPhoneCountry}>
+                <PropertyCell
+                  name={r.propertyName}
+                  owner={r.ownerName}
+                  phone={r.ownerPhone}
+                  country={r.ownerPhoneCountry}
+                  onOpen={onEntryChange ? () => onEntryChange({ kind: "cleaning", item: r }) : undefined}
+                >
                   <TypeToggle
                     statusId={r.id}
                     type={r.cleaningType}
@@ -449,7 +520,13 @@ export function CleaningDayDetailContent({
               <tbody>
                 {xrows.map((r) => (
                   <tr key={r.id} className="snap-start">
-                    <PropertyCell name={r.propertyName} owner={r.ownerName} phone={r.ownerPhone} country={r.ownerPhoneCountry}>
+                    <PropertyCell
+                      name={r.propertyName}
+                      owner={r.ownerName}
+                      phone={r.ownerPhone}
+                      country={r.ownerPhoneCountry}
+                      onOpen={onEntryChange ? () => onEntryChange({ kind: "extra", item: r }) : undefined}
+                    >
                       <span className={`mt-0.5 block truncate ${LINE}`} title={`${r.situationName}: ${r.title}`}>
                         Situação: {r.situationName}
                       </span>
