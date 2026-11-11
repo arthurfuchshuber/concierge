@@ -18,9 +18,11 @@ import {
   decisionHandoffReason,
   decisionKindFromRequests,
   extractRequestedTime,
+  parseBurstRequests,
   DECISION_COLUMNS,
   type DecisionKind,
   type DecisionOption,
+  type ExceptionRequest,
   type HumanDecisionRow,
 } from "@/lib/guest-ai-decision";
 import type { DecisionReplyInput } from "@/lib/guest-ai-decision-reply.server";
@@ -63,13 +65,62 @@ export interface OpenDecisionInput {
 }
 
 export type OpenDecisionResult =
-  | { opened: true; id: string; kind: DecisionKind; reason: string }
+  | { opened: true; id: string; kind: DecisionKind; reason: string; ack?: DecisionAck }
   | { opened: false; code: "not_an_exception" | "already_authorized" | "pending_exists" | "exists" | "invalid" | "error"; reason?: string };
+
+/** Dados para a resposta imediata ao hóspede (horários oficiais + o que foi pedido). */
+export interface DecisionAck {
+  guestName: string | null;
+  officialCheckin: string | null;
+  officialCheckout: string | null;
+  late: ExceptionRequest | null;
+  early: ExceptionRequest | null;
+}
+
+/** Janela da rajada: mensagens do hóspede desde a última resposta (IA/equipe), no máximo 3 minutos antes do gatilho. */
+export const BURST_WINDOW_MS = 3 * 60_000;
+
+/** Mesma leitura da rajada com o cliente administrativo padrão (o slot não conhece cliente de banco). */
+export async function loadGuestBurstFor(conversationId: string, triggerMessageId: string): Promise<string[]> {
+  return loadGuestBurst(await adminDb(), conversationId, triggerMessageId);
+}
+
+/** Textos das mensagens do hóspede da rajada que termina em `triggerMessageId` (da mais antiga à mais nova). */
+export async function loadGuestBurst(
+  db: DecisionDb,
+  conversationId: string,
+  triggerMessageId: string,
+): Promise<string[]> {
+  const { data: trig } = await db
+    .from("property_chat_messages")
+    .select("id, content, created_at")
+    .eq("id", triggerMessageId)
+    .eq("conversation_id", conversationId)
+    .maybeSingle();
+  if (!trig?.created_at) return typeof trig?.content === "string" ? [trig.content] : [];
+  const since = new Date(Date.parse(trig.created_at) - BURST_WINDOW_MS).toISOString();
+  const { data } = await db
+    .from("property_chat_messages")
+    .select("id, content, created_at, sender_type, is_internal_note")
+    .eq("conversation_id", conversationId)
+    .gte("created_at", since)
+    .lte("created_at", trig.created_at)
+    .order("created_at", { ascending: false })
+    .limit(15);
+  const out: string[] = [];
+  for (const m of (data ?? []) as Array<{ content: string | null; sender_type: string | null; is_internal_note: boolean | null }>) {
+    if (m.is_internal_note) continue;
+    if (m.sender_type !== "guest") break; // resposta da IA/equipe encerra a rajada
+    if (typeof m.content === "string" && m.content.trim()) out.push(m.content);
+  }
+  if (out.length === 0 && typeof trig.content === "string") out.push(trig.content);
+  return out.reverse();
+}
 
 /** Abre a decisão pendente para um pedido de exceção do hóspede. Nunca lança. */
 export async function openHumanDecision(input: OpenDecisionInput, deps: { db?: DecisionDb } = {}): Promise<OpenDecisionResult> {
-  const kind = decisionKindFromRequests(input.formalChangeRequests);
-  if (!kind) return { opened: false, code: "not_an_exception" };
+  const modelKind = decisionKindFromRequests(input.formalChangeRequests);
+  if (!modelKind) return { opened: false, code: "not_an_exception" };
   try {
     const db = deps.db ?? (await adminDb());
     const { data: conv } = await db
@@ -86,8 +137,25 @@ export async function openHumanDecision(input: OpenDecisionInput, deps: { db?: D
       .eq("id", input.triggerMessageId)
       .eq("conversation_id", input.conversationId)
       .maybeSingle();
-    const guestMessage = typeof msg?.content === "string" ? msg.content : "";
-    const time = kind === "late_checkout" || kind === "early_checkin" ? extractRequestedTime(guestMessage) : null;
+    const triggerText = typeof msg?.content === "string" ? msg.content : "";
+    // RAJADA: o pedido é lido em todas as mensagens do hóspede desde a última resposta, não só na última.
+    const burstTexts = await loadGuestBurst(db, input.conversationId, input.triggerMessageId).catch(() => [triggerText]);
+    const burst = parseBurstRequests(burstTexts);
+    const guestMessage = burstTexts.length > 0 ? burstTexts.join("\n") : triggerText;
+    // o modelo diz que HÁ exceção; a rajada diz QUAL (e corrige rótulo trocado). Os dois tipos juntos ⇒ um cartão só.
+    let kind: DecisionKind = modelKind;
+    const both = !!(burst.late && burst.early);
+    if (both) kind = "operational_concession";
+    else if (modelKind !== "operational_concession" || burst.late || burst.early) {
+      if (burst.late && !burst.early) kind = "late_checkout";
+      else if (burst.early && !burst.late) kind = "early_checkin";
+    }
+    const time =
+      kind === "late_checkout"
+        ? (burst.late?.time ?? extractRequestedTime(triggerText))
+        : kind === "early_checkin"
+          ? (burst.early?.time ?? extractRequestedTime(triggerText))
+          : null;
 
     // late check-out já concedido no card ⇒ não há o que decidir (a IA responde normalmente)
     let sameDayArrival: boolean | null = null;
@@ -125,10 +193,16 @@ export async function openHumanDecision(input: OpenDecisionInput, deps: { db?: D
       officialCheckout: prop.checkout_time ?? null,
       officialCheckin: prop.checkin_time ?? null,
       sameDayArrival,
-      internalQuestion: input.internalQuestion,
+      internalQuestion: both ? null : input.internalQuestion,
       guestMessage,
+      late: burst.late,
+      early: burst.early,
     });
-    const options = buildDecisionOptions(kind, time);
+    const options = both
+      ? buildDecisionOptions("operational_concession", null).map((o) =>
+          o.id === "approve" ? { ...o, label: "Aprovar os dois (cortesia)" } : o,
+        )
+      : buildDecisionOptions(kind, time);
     const { data, error } = await db.rpc("guest_ai_decision_open", {
       p_tenant_id: prop.owner_id,
       p_property_id: conv.property_id,
@@ -141,7 +215,14 @@ export async function openHumanDecision(input: OpenDecisionInput, deps: { db?: D
     if (error) return { opened: false, code: "error" };
     const reason = decisionHandoffReason(kind, time);
     const r = (data ?? {}) as { result?: string; id?: string };
-    if (r.result === "opened" && r.id) return { opened: true, id: r.id, kind, reason };
+    const ack: DecisionAck = {
+      guestName: conv.guest_name ?? null,
+      officialCheckin: prop.checkin_time ?? null,
+      officialCheckout: prop.checkout_time ?? null,
+      late: burst.late ?? (kind === "late_checkout" ? { time, day: null } : null),
+      early: burst.early ?? (kind === "early_checkin" ? { time, day: null } : null),
+    };
+    if (r.result === "opened" && r.id) return { opened: true, id: r.id, kind, reason, ack };
     if (r.result === "pending_exists" || r.result === "exists") return { opened: false, code: r.result, reason };
     return { opened: false, code: "invalid" };
   } catch {
@@ -312,6 +393,9 @@ export async function decideHumanDecision(
       .select("content")
       .eq("id", d.trigger_message_id)
       .maybeSingle();
+    // a resposta considera TODA a rajada do hóspede (ex.: saída tardia + entrada antecipada), não só o gatilho
+    const burstTexts = await loadGuestBurst(db, d.conversation_id, d.trigger_message_id).catch(() => [] as string[]);
+    const guestText = burstTexts.length > 0 ? burstTexts.join("\n") : typeof msg?.content === "string" ? msg.content : "";
     const replyInput: DecisionReplyInput = {
       kind: d.kind,
       intent: option.ai_intent,
@@ -319,7 +403,7 @@ export async function decideHumanDecision(
       officialCheckout: prop?.checkout_time ?? null,
       officialCheckin: prop?.checkin_time ?? null,
       guestName: conv.guest_name ?? null,
-      guestMessage: typeof msg?.content === "string" ? msg.content : "",
+      guestMessage: guestText,
       propertyName: prop?.name ?? "",
       forbiddenValues: [prop?.wifi_password, prop?.gate_code, prop?.lock_code, prop?.pin_code].filter(
         (v): v is string => typeof v === "string" && v.trim().length > 0,
@@ -367,4 +451,43 @@ export async function expirePendingDecisions(conversationId: string, deps: { db?
   } catch {
     /* melhor esforço */
   }
+}
+
+
+/**
+ * A equipe respondeu o hóspede por conta própria (painel, Copiloto ou direto no Airbnb): as decisões pendentes da
+ * conversa viram "assumidas pela equipe" (sem resposta da IA) e o cartão sai do painel. `actorUserId` é quem
+ * respondeu; sem ele (mensagem sincronizada do Airbnb) vale o titular da decisão. Usa só as RPCs da decisão
+ * (a tabela é somente leitura). Melhor esforço: nunca lança.
+ */
+export async function resolvePendingDecisionsOnHumanMessage(
+  conversationId: string,
+  opts: { actorUserId?: string | null } = {},
+  deps: { db?: DecisionDb } = {},
+): Promise<number> {
+  let resolved = 0;
+  try {
+    const db = deps.db ?? (await adminDb());
+    const { data } = await db
+      .from("guest_ai_human_decisions")
+      .select("id, tenant_id, options")
+      .eq("conversation_id", conversationId)
+      .eq("status", "pending");
+    for (const r of (data ?? []) as Array<{ id: string; tenant_id: string; options: DecisionOption[] | null }>) {
+      const assume = (r.options ?? []).find((o) => o.ai_intent === "assume");
+      if (!assume) continue;
+      const claim = await db.rpc("guest_ai_decision_claim", {
+        p_decision_id: r.id,
+        p_actor: opts.actorUserId || r.tenant_id,
+        p_option_id: assume.id,
+      });
+      const c = (claim.data ?? {}) as { result?: string };
+      if (claim.error || c.result !== "claimed") continue;
+      await db.rpc("guest_ai_decision_mark_reply", { p_decision_id: r.id, p_status: "silent", p_message_id: null });
+      resolved += 1;
+    }
+  } catch {
+    /* melhor esforço */
+  }
+  return resolved;
 }

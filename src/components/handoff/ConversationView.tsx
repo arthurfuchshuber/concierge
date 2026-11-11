@@ -4,7 +4,7 @@ import { ownerLabel } from "@/components/dashboard/card-colors";
 import { friendlyErrorMessage } from "@/lib/friendly-error";
 import { ComposerPlusMenu } from "@/components/handoff/ComposerPlusMenu";
 import { LearnedBadge, useConversationLearnings } from "@/components/handoff/LearnedBadge";
-import { DecisionCard, useConversationDecisions } from "@/components/handoff/DecisionCard";
+import { DecisionCard, DecisionDock, useConversationDecisions } from "@/components/handoff/DecisionCard";
 import { PhoneActionButton } from "@/components/PhoneActionButton";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
@@ -954,6 +954,7 @@ export function ConversationView({ conversationId, compact, myUserId, stay, owne
                   conversationId={conversationId}
                   guestName={guestName}
                   propertyName={propertyName}
+                  variant="ref"
                 />
               ) : null}
             </Fragment>
@@ -963,7 +964,7 @@ export function ConversationView({ conversationId, compact, myUserId, stay, owne
         {decisions.list
           .filter((d) => !msgs.some((m) => m.id === d.trigger_message_id))
           .map((d) => (
-            <DecisionCard key={d.id} decision={d} conversationId={conversationId} guestName={guestName} propertyName={propertyName} />
+            <DecisionCard key={d.id} decision={d} conversationId={conversationId} guestName={guestName} propertyName={propertyName} variant="ref" />
           ))}
       </div>
 
@@ -1111,6 +1112,14 @@ export function ConversationView({ conversationId, compact, myUserId, stay, owne
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* DOCK FIXO DE DECISÃO PENDENTE: imediatamente acima do campo de digitação, botões de 1 clique à vista. */}
+      <DecisionDock
+        decisions={decisions.list}
+        conversationId={conversationId}
+        guestName={guestName}
+        propertyName={propertyName}
+      />
 
       {status !== "resolved" && !canChat && (
         <div className="shrink-0 border-t border-border p-3 text-center text-xs text-muted-foreground bg-surface flex items-center justify-center gap-2">

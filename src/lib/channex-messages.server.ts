@@ -800,6 +800,15 @@ export async function pauseOnHostMessage(m: Inbound, automated = false): Promise
       external_id: m.messageId,
       delivery_status: "delivered",
     });
+    // Anfitrião respondeu direto no Airbnb: a decisão pendente da conversa passa a "assumida pela equipe".
+    if (!automated) {
+      try {
+        const { resolvePendingDecisionsOnHumanMessage } = await import("@/lib/guest-ai-decision.server");
+        await resolvePendingDecisionsOnHumanMessage(c.id);
+      } catch (e) {
+        console.warn("[channex-messages] auto-resolução da decisão falhou", e);
+      }
+    }
   }
 }
 
