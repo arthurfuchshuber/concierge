@@ -9,6 +9,7 @@ import {
 } from "@/lib/handoff.functions";
 import { ConversationList, ConversationView, useMyUserId } from "@/components/handoff/ConversationView";
 import { buildStayView } from "@/components/handoff/stay-view";
+import { useConversationStay } from "@/components/handoff/useConversationStay";
 import { Headphones, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { QUEUES, type Queue } from "@/lib/handoff-queues";
@@ -46,6 +47,7 @@ function AtendimentoPage() {
   const activeAccountId = impersonation?.userId ?? null;
   const [queue, setQueue] = useState<Queue>("all_active");
   const [activeId, setActiveId] = useState<string | null>(conv ?? null);
+  const stayFresh = useConversationStay(activeId);
   const [search, setSearch] = useState("");
 
 
@@ -94,13 +96,16 @@ function AtendimentoPage() {
 
   const conversations = list.data?.conversations ?? [];
   const details = list.data?.details ?? {};
-  const activeStay = activeId
-    ? buildStayView({
-        detail: details[activeId] ?? null,
-        res: list.data?.reservations?.[activeId] ?? null,
-        viewers: list.data?.guideViewers?.[activeId] ?? 0,
-      })
-    : null;
+  // Cabeçalho: a reserva da própria conversa (instantâneo e correto); a lista só cobre o intervalo até a resposta.
+  const stayRes = stayFresh?.res ?? list.data?.reservations?.[activeId ?? ""] ?? null;
+  const activeStay =
+    activeId && stayRes
+      ? buildStayView({
+          detail: details[activeId] ?? null,
+          res: stayRes,
+          viewers: list.data?.guideViewers?.[activeId] ?? 0,
+        })
+      : null; // ainda carregando: sem etiqueta (nunca "Consulta" por falta de dado)
   const activeOwner = activeId ? (list.data?.owners?.[activeId] ?? null) : null;
 
   const filteredConversations = (() => {

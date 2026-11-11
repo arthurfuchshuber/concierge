@@ -70,7 +70,7 @@ export function buildStayView(args: {
 }): StayView {
   const { detail, res } = args;
   const viewers = args.viewers ?? 0;
-  const code = detail?.reservationCode ?? null;
+  const code = detail?.reservationCode ?? res?.code ?? null;
   if (res?.status === "cancelled") {
     const ci = res.checkin ?? detail?.checkinDate ?? null;
     const co = res.checkout ?? detail?.checkoutDate ?? null;

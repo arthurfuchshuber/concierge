@@ -20,6 +20,8 @@ export type HandoffConversationSummary = {
   property_id: string | null;
   guest_session_id: string | null;
   guest_name: string | null;
+  /** Reserva vinculada à conversa (a IA e o Atendimento usam o mesmo vínculo). */
+  reservation_id?: string | null;
   status: string;
   ai_paused: boolean | null;
   paused_until: string | null;
@@ -45,6 +47,14 @@ export type HandoffReservationMatch = {
   checkout: string | null;
   /** Hóspedes da reserva (adultos + crianças), quando a Channex informa. */
   guests?: number | null;
+  /** Código da reserva na OTA (ex.: HMJBBHF9ZQ), quando a reserva está vinculada. */
+  code?: string | null;
+};
+
+/** Cabeçalho da conversa: reserva vinculada à PRÓPRIA conversa (independe da lista). */
+export type HandoffConversationStay = {
+  res: HandoffReservationMatch;
+  code: string | null;
 };
 
 export type HandoffListResult = {
@@ -118,6 +128,7 @@ export function normalizeHandoffConversationRows(
     property_id: nullableString(row.property_id),
     guest_session_id: nullableString(row.guest_session_id),
     guest_name: nullableString(row.guest_name),
+    reservation_id: nullableString((row as { reservation_id?: unknown }).reservation_id),
     status: requiredString(row.status, "needs_human"),
     ai_paused: typeof row.ai_paused === "boolean" ? row.ai_paused : null,
     paused_until: nullableString(row.paused_until),
