@@ -33,6 +33,8 @@ import type {
 } from "./contracts";
 import { MADRUGADA_END_MINUTES } from "./contracts";
 import {
+  accessResolvedMarker,
+  accessSupportContext,
   lexicalGuard,
   pastDepartureMarker,
   sentenceContaining,
@@ -180,6 +182,47 @@ function reservationBlock(input: OpsPolicyInput): OpsRefusalCode | null {
   return null;
 }
 
+/** Hora local (HH:MM) de um instante no fuso dado; `null` se o fuso for inválido. */
+function localHm(instant: Date, timezone: string): string | null {
+  try {
+    const f = new Intl.DateTimeFormat("en-GB", {
+      timeZone: timezone,
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    }).formatToParts(instant);
+    const g = (t: string) => f.find((p) => p.type === t)?.value ?? "";
+    return `${g("hour")}:${g("minute")}`;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Acesso destravado ("agora consegui", "abriu"…): só vale como entrada (a) no DIA do check-in no fuso do imóvel
+ * (ou na madrugada seguinte, que ainda é a noite da data de entrada) e (b) quando houve suporte de acesso antes
+ * (o hóspede relatou dificuldade com senha/cadeado/chave/porta, ou a equipe falou do assunto). Sem isso, é uma
+ * frase solta e a política recusa.
+ */
+function accessResolvedBlock(
+  input: OpsPolicyInput,
+  evidenceMessageId: string | null,
+): OpsRefusalCode | null {
+  const r = input.reservation;
+  const today = input.timezone ? localDate(input.now, input.timezone) : null;
+  const hm = input.timezone ? localHm(input.now, input.timezone) : null;
+  const inWindow =
+    !!today &&
+    !!r?.checkinDate &&
+    (today === r.checkinDate ||
+      (today === addDaysIso(r.checkinDate, 1) && !!hm && isMadrugada(hm)));
+  if (!inWindow) return "not_checkin_day";
+  const at = input.history.findIndex((e) => e.messageId === evidenceMessageId);
+  const before = at >= 0 ? input.history.slice(0, at) : input.history;
+  const evidenceAt = at >= 0 ? (input.history[at]!.at ?? null) : null;
+  return accessSupportContext(before, evidenceAt) ? null : "access_context_missing";
+}
+
 function cardBlock(card: OpsCardState | null, now: Date): OpsRefusalCode | null {
   if (!card) return null; // sem linha ⇒ pendente
   if (card.status === "done" || card.status === "no_show" || card.doneAt) return "card_done";
@@ -237,6 +280,10 @@ function evaluateDone(input: OpsPolicyInput, kind: "checkin" | "checkout"): OpsE
   if (res) return fail(res);
   if (!input.cards) return fail("state_unavailable");
   if (kind === "checkin") {
+    if (ev.sentence && accessResolvedMarker(ev.sentence)) {
+      const ar = accessResolvedBlock(input, ev.messageId);
+      if (ar) return fail(ar);
+    }
     // item 5: só com a estadia em curso (depois do horário oficial de entrada, no fuso do imóvel), salvo
     // entrada antecipada combinada expressamente pela equipe no chat, no próprio dia da entrada.
     if (input.phase !== "in_stay") {

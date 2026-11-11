@@ -11,6 +11,7 @@ import pathMod from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import {
   generateCopilotSuggestion,
+  OPS_NO_ADVANCE_MAX_MS,
   projectOutcome,
   type CopilotGenerateDeps,
   type CopilotPorts,
@@ -252,6 +253,57 @@ describe("Bastidores · trabalho próprio, ligado à geração mas independente 
       }),
     );
     expect(extract).not.toHaveBeenCalled();
+  });
+});
+
+describe("Observabilidade dos bastidores · o 'não avançou' sempre deixa o motivo (14/11/2026)", () => {
+  const empty = { hospitalityMilestone: null, milestoneQuote: null, guestEtas: [] };
+  const run = async (
+    over: Partial<Omit<CopilotGenerateDeps, "store">>,
+    ops: unknown = async () => ({ status: "no_signal" }),
+  ) => {
+    const noAdvance = vi.fn(async (_i: unknown) => undefined);
+    const p = fakeProvider(okJson(v6()));
+    await generateCopilotSuggestion(REQ, deps(p, { ops: ops as never, opsNoAdvance: noAdvance, ...over }));
+    return noAdvance;
+  };
+  it("leitura sem marco ⇒ registra o motivo do próprio leitor", async () => {
+    const n = await run({ extractOps: async () => ({ ...empty, milestoneAbstain: "access_unresolved" }) as never });
+    expect(n).toHaveBeenCalledTimes(1);
+    expect(n.mock.calls[0]![0]).toMatchObject({ code: "reader_abstain_access_unresolved", phase: expect.any(String) });
+  });
+  it("leitura sem motivo ⇒ reader_no_signal; leitor indisponível ⇒ reader_model_failed", async () => {
+    expect((await run({ extractOps: async () => empty as never })).mock.calls[0]![0]).toMatchObject({ code: "reader_no_signal" });
+    expect((await run({ extractOps: async () => null })).mock.calls[0]![0]).toMatchObject({ code: "reader_model_failed" });
+  });
+  it("sinal avaliado pela política (done) ⇒ não registra 'não avançou' (a política já grava aplicada ou recusada)", async () => {
+    const n = await run({ extractOps: async () => empty as never }, async () => ({ status: "done" }));
+    expect(n).not.toHaveBeenCalled();
+  });
+  it("conversa sem estadia ⇒ bastidores nem rodam e nada é registrado", async () => {
+    const n = await run({
+      extractOps: async () => empty as never,
+      ports: (_t, _db, meta) => ({ ...ports()!(_t, _db, meta), loadContext: async () => ctx({ phase: "inquiry", stay: null } as never) }),
+    });
+    expect(n).not.toHaveBeenCalled();
+  });
+  it("registro travado nunca atrasa a resposta além do prazo próprio e não derruba a geração", async () => {
+    const stuck = vi.fn(() => new Promise<void>(() => undefined));
+    const p = fakeProvider(okJson(v6()));
+    const t0 = Date.now();
+    const r = await generateCopilotSuggestion(
+      REQ,
+      deps(p, { ops: (async () => ({ status: "no_signal" })) as never, opsNoAdvance: stuck as never, extractOps: async () => empty as never }),
+    );
+    expect(r.status).toBe("stored");
+    expect(Date.now() - t0).toBeLessThan(OPS_NO_ADVANCE_MAX_MS + 1_500);
+    const err = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const bad = await generateCopilotSuggestion(
+      REQ,
+      deps(fakeProvider(okJson(v6())), { ops: (async () => ({ status: "no_signal" })) as never, opsNoAdvance: (async () => Promise.reject(new Error("x"))) as never, extractOps: async () => empty as never }),
+    );
+    expect(bad.status).toBe("stored");
+    err.mockRestore();
   });
 });
 

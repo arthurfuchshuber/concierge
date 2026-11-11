@@ -73,6 +73,9 @@ export const OPS_REFUSAL_CODES = [
   "reservation_not_active",
   "no_timezone",
   "not_in_stay",
+  // acesso destravado no dia da entrada (14/11 · bastidores): exige o dia do check-in e o suporte de acesso antes
+  "not_checkin_day",
+  "access_context_missing",
   "not_checkout_day",
   "early_departure_not_certain",
   // late checkout concedido pela equipe (G2c)
@@ -101,8 +104,36 @@ export const OPS_REFUSAL_CODES = [
   "staff_author_unknown",
   "staff_not_authorized",
   "late_checkout_rejected",
+  // LEITOR DOS BASTIDORES: o turno terminou SEM avançar nenhum card e o motivo fica na auditoria (sem buraco negro)
+  "reader_no_signal",
+  "reader_no_history",
+  "reader_no_timezone",
+  "reader_budget",
+  "reader_deadline",
+  "reader_timeout",
+  "reader_model_failed",
+  "reader_truncated",
+  "reader_invalid_output",
+  "reader_abstain_not_entry",
+  "reader_abstain_question_or_plan",
+  "reader_abstain_access_unresolved",
+  "reader_abstain_context_unclear",
+  "reader_abstain_no_fact",
 ] as const;
 export type OpsRefusalCode = (typeof OPS_REFUSAL_CODES)[number];
+
+/**
+ * Códigos que o PRÓPRIO leitor devolve quando decide não declarar marco (`milestoneAbstain`). Fechados: nunca
+ * texto livre. Cada um vira o código `reader_abstain_<x>` na auditoria.
+ */
+export const OPS_READER_ABSTAIN_CODES = [
+  "not_entry",
+  "question_or_plan",
+  "access_unresolved",
+  "context_unclear",
+  "no_fact",
+] as const;
+export type OpsReaderAbstain = (typeof OPS_READER_ABSTAIN_CODES)[number];
 
 /** Estado de um card (`guest_arrival_status`); `null` = sem linha (pendente por padrão). */
 export interface OpsCardState {

@@ -216,6 +216,113 @@ const ETA_NEGATION = W([
   "no voy",
 ]);
 
+/**
+ * Relato, como fato consumado, de que o acesso ao imóvel destravou ("agora consegui", "abriu", "deu certo",
+ * "já peguei a chave"). Só vale como entrada com suporte de acesso antes (`accessSupportContext`) e no dia do
+ * check-in (`policy.ts`).
+ */
+const ACCESS_RESOLVED = W([
+  "consegui",
+  "conseguimos",
+  "abriu",
+  "abrimos",
+  "abri",
+  "deu certo",
+  "funcionou",
+  "destravou",
+  "liberou",
+  "ja peguei a chave",
+  "ja peguei as chaves",
+  "peguei a chave",
+  "peguei as chaves",
+  "it worked",
+  "got it open",
+  "got in",
+  "it opened",
+  "ya pude",
+  "ya abri",
+  "se abrio",
+  "ya tengo la llave",
+]);
+export function accessResolvedMarker(sentence: string): boolean {
+  return ACCESS_RESOLVED.test(normalizeText(sentence));
+}
+
+/** Assuntos de acesso (senha, cadeado, cofre, chave, porta…): base do "suporte de acesso" anterior. */
+const ACCESS_TOPIC = W([
+  "senha",
+  "codigo",
+  "pin",
+  "cofre",
+  "cadeado",
+  "chave",
+  "chaves",
+  "fechadura",
+  "tranca",
+  "porta",
+  "portao",
+  "lockbox",
+  "teclado",
+  "acesso",
+  "password",
+  "code",
+  "key",
+  "door",
+  "gate",
+  "lock",
+  "llave",
+  "puerta",
+  "contrasena",
+]);
+const ACCESS_TROUBLE = W([
+  "errad[ao]s?",
+  "nao funcion[a-z]*",
+  "nao abr[a-z]*",
+  "nao consig[a-z]*",
+  "nao deu",
+  "nao entra[a-z]*",
+  "travou",
+  "problema",
+  "invalid[ao]",
+  "incorret[ao]",
+  "wrong",
+  "not working",
+  "doesn't work",
+  "didn't work",
+  "no funciona",
+  "no abre",
+]);
+export interface AccessContextEntry {
+  speaker: string;
+  text: string;
+  at?: string;
+}
+/**
+ * Houve suporte de acesso antes da mensagem de evidência? Nas 12 mensagens anteriores (até 6 h antes, quando há
+ * horário): o HÓSPEDE relatou dificuldade (senha errada, não funcionou, não abre…) E o assunto é acesso (senha,
+ * cadeado, cofre, chave, porta…) no que ele ou a equipe disseram. Saudação da equipe ou da IA com o código, sem
+ * dificuldade relatada, não é suporte.
+ */
+export function accessSupportContext(
+  before: readonly AccessContextEntry[],
+  evidenceAt: string | null,
+): boolean {
+  const ref = evidenceAt ? Date.parse(evidenceAt) : NaN;
+  let trouble = false;
+  let topic = false;
+  for (const e of before.slice(-12)) {
+    if (e.speaker !== "guest" && e.speaker !== "team") continue;
+    if (Number.isFinite(ref) && e.at) {
+      const t = Date.parse(e.at);
+      if (Number.isFinite(t) && ref - t > 6 * 3_600_000) continue;
+    }
+    const s = normalizeText(e.text);
+    if (ACCESS_TOPIC.test(s)) topic = true;
+    if (e.speaker === "guest" && ACCESS_TROUBLE.test(s)) trouble = true;
+  }
+  return trouble && topic;
+}
+
 export type LexicalKind = "done" | "checkin_done" | "checkout_done" | "eta";
 
 /** Barreira léxica na frase do trecho. `null` = passou. */
@@ -226,6 +333,15 @@ export function lexicalGuard(sentence: string, kind: LexicalKind): OpsRefusalCod
     if (UNCERTAIN.test(s)) return "lexical_uncertain";
     if (ETA_NEGATION.test(s)) return "lexical_negation";
     if (CONDITIONAL.test(s)) return "lexical_conditional";
+    return null;
+  }
+  // acesso destravado como fato consumado: a palavra de problema do contexto ("senha errada") não bloqueia a
+  // frase que relata a solução; negação, futuro, dúvida e contexto fora do imóvel continuam bloqueando
+  if (kind === "checkin_done" && ACCESS_RESOLVED.test(s)) {
+    if (NEGATION.test(s)) return "lexical_negation";
+    if (FUTURE.test(s)) return "lexical_future";
+    if (UNCERTAIN.test(s)) return "lexical_uncertain";
+    if (NOT_PROPERTY.test(s)) return "lexical_not_property_access";
     return null;
   }
   if (PROBLEM.test(s)) return "lexical_problem";

@@ -57,8 +57,17 @@ import { deriveHumanOwnership } from "@/lib/guest-ai/orchestrator/case-ownership
 import type { LlmProvider } from "@/lib/guest-ai/llm/providers/types";
 import type { LlmLogger } from "@/lib/guest-ai/llm/telemetry";
 import type { StayPhase, ValidatedTurn } from "@/lib/guest-ai/types";
-import { runOps, type OpsRunInput } from "@/lib/guest-ai/ops/executor.server";
-import { extractOpsSignals, type OpsExtractorInput, type OpsSignals } from "./ops-extractor.server";
+import { recordOpsNoAdvance, runOps, type OpsNoAdvanceInput, type OpsRunInput } from "@/lib/guest-ai/ops/executor.server";
+import type { OpsRefusalCode } from "@/lib/guest-ai/ops/contracts";
+import {
+  hasOpsSignal,
+  readerReasonFor,
+  readOpsSignals,
+  type OpsExtractorInput,
+  type OpsReaderReason,
+  type OpsReading,
+  type OpsSignals,
+} from "./ops-extractor.server";
 import {
   COPILOT_DEADLINE_MS,
   COPILOT_STAGE_MAX_MS,
@@ -152,7 +161,15 @@ export interface CopilotGenerateDeps {
    * Roda em paralelo com a resposta assim que contexto e histórico estão lidos e NÃO depende dela dar certo.
    */
   extractOps?: (input: OpsExtractorInput) => Promise<OpsSignals | null>;
+  /**
+   * Observabilidade (14/11/2026): grava o motivo quando o turno terminou SEM avançar card (padrão:
+   * `recordOpsNoAdvance`, só quando `ops` não é substituído). Prazo próprio de 2,5 s; nunca derruba a geração.
+   */
+  opsNoAdvance?: (input: OpsNoAdvanceInput) => Promise<unknown>;
 }
+
+/** Prazo máximo do registro de "não avançou": a auditoria nunca atrasa a resposta além disto. */
+export const OPS_NO_ADVANCE_MAX_MS = 2_500;
 
 export type CopilotGenerateResult =
   | {
@@ -615,6 +632,21 @@ export async function generateCopilotSuggestion(
     // política determinística de sempre. Se o extrator falhar, os sinais da resposta (se houver) são o reserva.
     let backstage: Promise<boolean> | null = null;
     const opsRun = deps.ops ?? ((i: OpsRunInput) => runOps(i, { env }));
+    const readOps = async (i: OpsExtractorInput): Promise<OpsReading> => {
+      if (!deps.extractOps) return await readOpsSignals(i, { provider: deps.provider, log: deps.log });
+      const signals = await deps.extractOps(i);
+      return {
+        signals,
+        reason: !signals ? "reader_model_failed" : hasOpsSignal(signals) ? null : readerReasonFor(signals),
+      };
+    };
+    // auditoria do "não avançou": o motivo do leitor e se algum sinal chegou a ser avaliado pela política
+    let noAdvanceReason: OpsReaderReason | null = null;
+    let opsEvaluated = false;
+    const trackOps = async (i: OpsRunInput): Promise<void> => {
+      const r = (await opsRun(i)) as { status?: string } | undefined;
+      if (r?.status === "done") opsEvaluated = true;
+    };
     const startBackstage = () => {
       // só há ação de card antes/durante a estadia; nas demais fases não gasta chamada (a resposta segue igual)
       if (backstage || !opsPhase || !history || history.status !== "available") return;
@@ -623,7 +655,7 @@ export async function generateCopilotSuggestion(
       const h = history;
       backstage = pendingBackstage = (async () => {
         try {
-          const signals = await (deps.extractOps ?? ((i: OpsExtractorInput) => extractOpsSignals(i, { provider: deps.provider, log: deps.log })))({
+          const reading = await readOps({
             history: h,
             phase,
             timezone: opsTimezone,
@@ -634,8 +666,13 @@ export async function generateCopilotSuggestion(
             remainingMs,
             signal: controller.signal,
           });
-          if (!signals) return false;
-          await opsRun({
+          const signals = reading.signals;
+          if (!signals) {
+            noAdvanceReason = reading.reason ?? "reader_model_failed";
+            return false;
+          }
+          if (!hasOpsSignal(signals)) noAdvanceReason = reading.reason ?? "reader_no_signal";
+          await trackOps({
             turn,
             decision: signals,
             history: h,
@@ -829,7 +866,7 @@ export async function generateCopilotSuggestion(
       opsPhase
     ) {
       try {
-        await opsRun({
+        await trackOps({
           turn,
           decision: outcome.decision,
           history,
@@ -839,6 +876,25 @@ export async function generateCopilotSuggestion(
         });
       } catch {
         console.error("[copilot] ações operacionais (observação) falharam");
+      }
+    }
+    // Nenhum sinal chegou à política e os bastidores rodaram ⇒ o motivo exato fica na auditoria (sem buraco negro).
+    // Vem DEPOIS da reserva acima: a linha é por mensagem + ação e nunca pode ocupar o lugar de uma ação legítima.
+    const record = deps.opsNoAdvance ?? (deps.ops ? null : (i: OpsNoAdvanceInput) => recordOpsNoAdvance(i, { env }));
+    if (record && backstage && !opsEvaluated && opsPhase) {
+      const code: OpsRefusalCode = noAdvanceReason ?? "reader_no_signal";
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      try {
+        await Promise.race([
+          record({ turn, phase: opsPhase, code, suggestionId: claimed.suggestionId }),
+          new Promise<void>((resolve) => {
+            timer = setTimeout(resolve, OPS_NO_ADVANCE_MAX_MS);
+          }),
+        ]);
+      } catch {
+        console.error("[copilot] registro de não avanço falhou");
+      } finally {
+        if (timer) clearTimeout(timer);
       }
     }
     if (stored.kind === "stored")
