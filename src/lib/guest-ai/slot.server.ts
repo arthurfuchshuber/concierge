@@ -15,6 +15,14 @@
  * `GUEST_AI_AUTONOMOUS=on`. Desligada, devolve `null` e cada canal segue o FALLBACK de sempre (conversa vai
  * para `needs_human` + push à equipe).
  */
+import {
+  CREDENTIAL_UNAVAILABLE_REASON,
+  hasAnyTag,
+  needsCredentialLookup,
+  resolveOutboundText,
+  sanitizeResidualTags,
+  type OutboundContext,
+} from "@/lib/guest-ai/outbound-text";
 import type { GuestSurface } from "@/lib/guest-ai/types";
 
 export type GuestAiSurface = GuestSurface;
@@ -88,7 +96,8 @@ export function formalChangeReason(kinds: readonly string[]): string {
 
 function toHandoff(text: string | null | undefined, reason?: string | null, urgency?: string | null): GuestAiReply {
   return {
-    reply: (text ?? "").trim(),
+    // trava final: nenhuma tag crua ([[...]] / {{...}}) sai para o canal, em nenhum caminho
+    reply: sanitizeResidualTags((text ?? "").trim()),
     handoff: true,
     handoffReason: reason?.trim() || AUTONOMOUS_HANDOFF_REASON,
     handoffUrgency: urgency || "normal",
@@ -104,6 +113,11 @@ export interface SlotDeps {
   humanActive?: (turn: unknown, nowIso: string) => Promise<boolean | null>;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   generate?: (req: GuestAiRequest) => Promise<any>;
+  /**
+   * Contexto para resolver as tags da resposta (14/11/2026): credenciais (só com a D9 autorizando agora, por
+   * `CredentialGrant`), campos públicos do imóvel e slug do guia. `needsCredentials` = o texto pede algo sensível.
+   */
+  outboundContext?: (req: GuestAiRequest, needsCredentials: boolean) => Promise<OutboundContext | null>;
   /** Decisão humana pendente na conversa ⇒ silêncio absoluto (10/11/2026). */
   pendingDecision?: (conversationId: string) => Promise<boolean>;
   /** Abre a decisão humana para um pedido de exceção (late check-out, entrada antecipada, concessão). */
@@ -219,9 +233,31 @@ export async function requestGuestAiReply(req: GuestAiRequest, deps: SlotDeps = 
     // 4c) SILÊNCIO GARANTIDO (titular, 10/11/2026): "Sim"/"Ok"/"Obrigado" sem pergunta nossa pendente não recebe
     //     resposta, mesmo que o modelo tenha escrito uma. Encaminhamento/alteração formal nunca são calados.
     if (res.bareAckWithoutQuestion && !mustHandoff) return SILENT;
-    const text = (res.text ?? "").trim();
+    let text = (res.text ?? "").trim();
+    let tagHandoff = false;
+    // 4d) TAGS NA SAÍDA (14/11/2026): o modelo só escreve marcadores; a troca pelos valores reais acontece AQUI.
+    //     `[[CREDENCIAIS]]` e `[[info:...]]` sensível só com credenciais de um CredentialGrant novo (D9 agora);
+    //     sem elas, aviso seguro + equipe. `[[info:...]]` público e `[[tag:...]]` pelo formato do canal. O que
+    //     sobrar é removido: nenhuma tag crua chega ao hóspede.
+    if (r.state === "available" && text && hasAnyTag(text)) {
+      const need = needsCredentialLookup(text);
+      const ctx = await (deps.outboundContext
+        ? deps.outboundContext(req, need)
+        : (await import("@/lib/guest-ai/credential-delivery.server")).loadOutboundContext(req, turn.propertyId, need)
+      ).catch(() => null);
+      const o = resolveOutboundText(
+        text,
+        ctx ?? { surface: req.surface, credentials: null, property: null, guideSlug: null },
+      );
+      text = o.text;
+      tagHandoff = o.needsHandoff;
+    }
     if (r.state === "available" && text) {
-      return mustHandoff ? toHandoff(text, reason, res.handoffUrgency) : { reply: text, handoff: false };
+      if (tagHandoff)
+        return toHandoff(text, reason ?? CREDENTIAL_UNAVAILABLE_REASON, res.handoffUrgency ?? "high");
+      return mustHandoff
+        ? toHandoff(text, reason, res.handoffUrgency)
+        : { reply: sanitizeResidualTags(text), handoff: false };
     }
     if (r.state === "no_suggestion" && !mustHandoff) return SILENT; // silêncio legítimo
     return toHandoff(text, reason, res.handoffUrgency);

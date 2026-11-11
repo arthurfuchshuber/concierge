@@ -26,6 +26,27 @@ export const PROPERTY_SCOPE_COLUMNS = ["id", "owner_id", "name", "city", "countr
 /** 2) Informações PÚBLICAS do imóvel (audiência P). */
 export const PROPERTY_PUBLIC_COLUMNS = ["id", "name", "short_description", "city", "state", "country"] as const;
 
+/**
+ * Saída da IA (14/11/2026): campos usados para resolver `[[info:...]]` e `[[tag:...]]` no texto que vai ao canal.
+ * NENHUMA coluna de segredo (senhas e instruções de acesso só pelo `CredentialGrant`). Endereço, telefone e
+ * instruções de chegada só são usados com a D9 autorizando (`outbound-text.ts`).
+ */
+export const PROPERTY_OUTBOUND_TAG_COLUMNS = [
+  "slug",
+  "checkin_time",
+  "checkin_time_max",
+  "checkout_time",
+  "checkout_time_min",
+  "wifi_ssid",
+  "host_name",
+  "house_rules",
+  "checkout_instructions",
+  "marketplace_links",
+  "address",
+  "host_phone",
+  "checkin_instructions",
+] as const;
+
 /** 3) Operacionais (audiência G): só com reserva ativa. */
 export const PROPERTY_OPERATIONAL_COLUMNS = ["address"] as const;
 
