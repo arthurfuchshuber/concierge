@@ -699,6 +699,13 @@ describe("Copiloto · geração com a cadeia real e o Gateway real (transporte f
       text: null,
       outcomeCode: "template_tag_in_output",
     });
+    // condução autônoma: a tag segue até o slot, que a resolve com a D9 (outbound-text.ts)
+    const autonomous = projectOutcome(
+      { kind: "reply", text: "As regras estão em [[info:house-rules]].", strategy: "answer", situation, audit } as never,
+      { surface: "guide_chat", humanInCommand: false, reservationLinked: true, allowGuideTags: true },
+    );
+    expect(autonomous).toMatchObject({ state: "available", outcomeKind: "reply" });
+    expect(autonomous.text).toContain("[[info:house-rules]]");
     const ok = projectOutcome(
       {
         kind: "reply",

@@ -348,6 +348,11 @@ export function projectOutcome(
     reservationLinked: boolean | null;
     /** Fotos do hóspede que foram ao modelo neste turno (diagnóstico visual só vale com foto). */
     imagesSent?: number;
+    /**
+     * Condução autônoma (14/11/2026): `[[info:…]]`/`[[tag:…]]` seguem até o slot, que os resolve com a D9
+     * (`outbound-text.ts`). Fora do modo autônomo (sugestão revisada por humano) continuam recusados.
+     */
+    allowGuideTags?: boolean;
   },
 ): Pick<
   CopilotResultInput,
@@ -419,7 +424,7 @@ export function projectOutcome(
   };
   switch (outcome.kind) {
     case "reply":
-      if (GUIDE_TEMPLATE_SYNTAX.test(outcome.text)) {
+      if (!extra.allowGuideTags && GUIDE_TEMPLATE_SYNTAX.test(outcome.text)) {
         return {
           ...base,
           state: "generation_failed",
@@ -819,6 +824,7 @@ export async function generateCopilotSuggestion(
       humanInCommand,
       reservationLinked,
       imagesSent: g.imagesSent,
+      allowGuideTags: !!deps.autonomous,
     });
     // bloqueio do gerador (orçamento do turno, substituída, prazo) ⇒ código fechado em vez do técnico genérico
     const outcomeCode =
