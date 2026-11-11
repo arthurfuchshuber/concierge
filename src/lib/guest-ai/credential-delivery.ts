@@ -20,7 +20,7 @@ import type { GuestCredentials, GuestSurface } from "@/lib/guest-ai/types";
 
 /** Frase que ocupa o lugar do marcador quando não há credencial para entregar. */
 export const CREDENTIAL_FALLBACK_SENTENCE =
-  "Estou pedindo agora para nossa equipe te passar os dados de acesso por aqui.";
+  "Os dados de acesso eu te passo por aqui, nesta conversa.";
 /** Motivo do chamado quando a entrega automática não foi possível. */
 export const CREDENTIAL_UNAVAILABLE_REASON =
   "Acesso não entregue automaticamente (credencial indisponível) — enviar os dados de acesso ao hóspede.";

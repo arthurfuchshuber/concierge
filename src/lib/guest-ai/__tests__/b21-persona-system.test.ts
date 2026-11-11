@@ -68,11 +68,11 @@ describe("Persona sóbria (10/11/2026): solução primeiro, sem coitadismo e sem
     expect(persona).toMatch(/falha comprovada e irreparável/);
     expect(persona).toMatch(/no máximo um ponto de exclamação por resposta/);
   });
-  it("incidentes: sem lamento, sem desculpas protocolares, parceria ativa e próximo passo", () => {
+  it("incidentes: sem lamento, sem desculpas protocolares, direto e sereno", () => {
     expect(sys).toMatch(/não se lamente, não peça desculpas protocolares e não use tom de culpa/);
-    expect(sys).toMatch(/vamos resolver isso juntos, deixa comigo/);
+    expect(sys).toMatch(/direta, natural e serena, como o próprio anfitrião/);
   });
-  it("exemplos de ouro: avaria não abre com desculpa, fala em primeira pessoa ativa e sem excesso de exclamação", () => {
+  it("exemplos de ouro: nenhum abre com desculpa ou lamento, no máximo uma exclamação", () => {
     expect(tones).toHaveLength(4);
     const apology = /^(desculp|perd[aã]o|lamento|poxa|que pena|infelizmente|sinto)/i;
     for (const t of tones) {
@@ -81,10 +81,53 @@ describe("Persona sóbria (10/11/2026): solução primeiro, sem coitadismo e sem
       expect((t.match(/!/g) ?? []).length, t).toBeLessThanOrEqual(1);
       expect(t, t).not.toMatch(/!!|\?!/);
     }
-    const ar = tones[2]!;
-    expect(ar).toMatch(/^Deixa comigo/);
-    expect(ar).toMatch(/nossa equipe cuida disso com você de imediato/);
     expect(examples).toMatch(/sem desculpas desnecessárias/);
+  });
+});
+
+describe("Diálogo investigativo, sem bordões, sem prazo e encaminhamento silencioso (10/11/2026)", () => {
+  const sys = buildSystemPrompt("airbnb");
+  const persona = renderPersona();
+  const ex = sys.slice(sys.indexOf("Exemplos de tom de hospitalidade"));
+  const tones = [...ex.matchAll(/Tom ideal: ([^\n]*)/g)].map((m) => m[1]!);
+  const BORDOES = /vamos resolver isso agora|deixa comigo|vamos conferir isso já|me avisa aqui assim que testar/i;
+  const PRAZO = /de imediato|na hora|em instantes|o quanto antes|já já/i;
+  const TRANSFER = /equipe (já )?(foi |está )?(avisada|acionada|chamada|cuida|cuidará|vai)|alerta ligado|transferi|aguard/i;
+
+  it("persona: diálogo investigativo passo a passo e sem bordões", () => {
+    const ids = personaPrinciples().map((p) => p.id);
+    expect(ids).toContain("investigative_dialogue");
+    expect(ids).toContain("no_support_catchphrases");
+    expect(persona).toMatch(/oriente uma coisa por vez/);
+    expect(persona).not.toMatch(BORDOES);
+  });
+  it("prompt: pergunta-chave de diagnóstico antes de instruir, no acesso e em aparelhos", () => {
+    expect(sys).toMatch(/DIÁLOGO INVESTIGATIVO, PASSO A PASSO/);
+    expect(sys).toMatch(/portaria, no portão ou já na porta do apartamento/);
+    expect(sys).toMatch(/acende alguma luz ou faz bipe/);
+    expect(sys).toMatch(/há sinal de energia, e o que aparece no visor ou no controle/);
+    expect(sys).toMatch(/nunca despeje um manual inteiro/);
+  });
+  it("prompt: bordões, prazos e anúncio de transferência proibidos; urgência só nos campos estruturados", () => {
+    expect(sys).toMatch(/Sem bordões de suporte/);
+    expect(sys).toMatch(/Zero promessa de prazo/);
+    expect(sys).toMatch(/Encaminhamento 100% silencioso: a urgência vai só em handoff/);
+    // os bordões só aparecem dentro da própria proibição
+    const outsideBan = sys.replace(/Sem bordões de suporte[^\n]*/, "").replace(/Zero promessa de prazo[^\n]*/, "").replace(/Nada de voz passiva[^\n]*/, "");
+    expect(outsideBan).not.toMatch(BORDOES);
+    expect(outsideBan).not.toMatch(/nossa equipe já foi avisada|equipe cuidará disso|equipe está cuidando/i);
+  });
+  it("exemplos de ouro: sem bordões, sem prazo, sem transferência; 1 e 3 abrem com pergunta de diagnóstico", () => {
+    for (const t of tones) {
+      expect(t, t).not.toMatch(BORDOES);
+      expect(t, t).not.toMatch(PRAZO);
+      expect(t, t).not.toMatch(TRANSFER);
+    }
+    expect(tones[0]).toMatch(/^Você já está na porta do apartamento\?/);
+    expect(tones[0]).toMatch(/acender os números ou fica apagado/);
+    expect(tones[2]).toMatch(/^Quando você aponta o controle para ele, aparece algum símbolo ou número no visor/);
+    // uma pergunta de diagnóstico, não um manual: no máximo 3 frases antes da observação entre parênteses
+    expect(tones[0]!.replace(/\(.*\)/, "").split(/[.?!]\s/).length).toBeLessThanOrEqual(3);
   });
 });
 
