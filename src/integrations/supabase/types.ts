@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      account_card_checks: {
+        Row: {
+          checked_at: string | null
+          environment: string
+          failure_message: string | null
+          status: string
+          stripe_customer_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          checked_at?: string | null
+          environment?: string
+          failure_message?: string | null
+          status?: string
+          stripe_customer_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          checked_at?: string | null
+          environment?: string
+          failure_message?: string | null
+          status?: string
+          stripe_customer_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       account_member_invites: {
         Row: {
           accepted_at: string | null
@@ -3528,6 +3558,151 @@ export type Database = {
           warnings?: string[]
         }
         Relationships: []
+      }
+      guest_ai_human_decisions: {
+        Row: {
+          ai_reply_message_id: string | null
+          ai_reply_status: string
+          conversation_id: string
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decided_option_id: string | null
+          id: string
+          kind: string
+          options: Json
+          property_id: string
+          question_text: string
+          status: string
+          tenant_id: string
+          trigger_message_id: string
+        }
+        Insert: {
+          ai_reply_message_id?: string | null
+          ai_reply_status?: string
+          conversation_id: string
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decided_option_id?: string | null
+          id?: string
+          kind: string
+          options: Json
+          property_id: string
+          question_text: string
+          status?: string
+          tenant_id: string
+          trigger_message_id: string
+        }
+        Update: {
+          ai_reply_message_id?: string | null
+          ai_reply_status?: string
+          conversation_id?: string
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decided_option_id?: string | null
+          id?: string
+          kind?: string
+          options?: Json
+          property_id?: string
+          question_text?: string
+          status?: string
+          tenant_id?: string
+          trigger_message_id?: string
+        }
+        Relationships: []
+      }
+      guest_ai_learning_entries: {
+        Row: {
+          category: string
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decision_note: string | null
+          evidence_refs: string[]
+          id: string
+          owner_id: string
+          property_id: string
+          proposed_by: string
+          source: string
+          statement: string
+          status: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_note?: string | null
+          evidence_refs: string[]
+          id?: string
+          owner_id: string
+          property_id: string
+          proposed_by?: string
+          source: string
+          statement: string
+          status?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_note?: string | null
+          evidence_refs?: string[]
+          id?: string
+          owner_id?: string
+          property_id?: string
+          proposed_by?: string
+          source?: string
+          statement?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "guest_ai_learning_entries_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      guest_ai_learning_events: {
+        Row: {
+          actor: string | null
+          at: string
+          entry_id: string
+          id: number
+          note: string | null
+          status: string
+        }
+        Insert: {
+          actor?: string | null
+          at?: string
+          entry_id: string
+          id?: never
+          note?: string | null
+          status: string
+        }
+        Update: {
+          actor?: string | null
+          at?: string
+          entry_id?: string
+          id?: never
+          note?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "guest_ai_learning_events_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "guest_ai_learning_entries"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       guest_ai_ops_actions: {
         Row: {
@@ -7836,6 +8011,44 @@ export type Database = {
         }
         Returns: Json
       }
+      guest_ai_decision_claim: {
+        Args: { p_actor: string; p_decision_id: string; p_option_id: string }
+        Returns: Json
+      }
+      guest_ai_decision_expire: {
+        Args: { p_decision_id: string }
+        Returns: Json
+      }
+      guest_ai_decision_mark_reply: {
+        Args: { p_decision_id: string; p_message_id: string; p_status: string }
+        Returns: Json
+      }
+      guest_ai_decision_open: {
+        Args: {
+          p_conversation_id: string
+          p_kind: string
+          p_options: Json
+          p_property_id: string
+          p_question_text: string
+          p_tenant_id: string
+          p_trigger_message_id: string
+        }
+        Returns: Json
+      }
+      guest_ai_learning_propose: {
+        Args: {
+          p_category: string
+          p_evidence_refs: string[]
+          p_property_id: string
+          p_source: string
+          p_statement: string
+        }
+        Returns: string
+      }
+      guest_ai_learning_review: {
+        Args: { p_action: string; p_id: string; p_note?: string }
+        Returns: string
+      }
       guest_ai_ops_claim: {
         Args: {
           p_action: string
@@ -7914,6 +8127,7 @@ export type Database = {
         Returns: boolean
       }
       kick_billing_sync: { Args: never; Returns: undefined }
+      kick_card_check: { Args: never; Returns: undefined }
       match_ai_kb_chunks: {
         Args: {
           _owner_id: string
