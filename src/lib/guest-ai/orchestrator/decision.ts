@@ -415,7 +415,7 @@ export function parseDecisionText(text: unknown, options: DecisionParseOptions =
 const q = (xs: readonly string[]) => xs.map((x) => `"${x}"`).join("|");
 export const DECISION_FORMAT_SPEC = `Responda APENAS com um objeto JSON com exatamente estas chaves (nenhuma a mais, nenhuma a menos):
 {"strategy": ${q(STRATEGIES)},
- "reply": string (mensagem ao hóspede, no idioma do hóspede, até ${DECISION_LIMITS.replyMaxChars} caracteres; vazia só em "handoff"),
+ "reply": string (mensagem ao hóspede, no idioma definido pela regra do canal, até ${DECISION_LIMITS.replyMaxChars} caracteres; vazia só em "handoff"),
  "handoff": {"needed": boolean, "question": string|null (pergunta objetiva à equipe), "urgency": ${q(HANDOFF_URGENCIES)}|null},
  "caseRelation": ${q(CASE_RELATIONS)},
  "groundedOn": [ids das fontes do contexto usadas, exatamente como aparecem no contexto],
