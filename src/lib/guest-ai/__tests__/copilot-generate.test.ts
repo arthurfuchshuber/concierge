@@ -223,16 +223,19 @@ describe("Bastidores · trabalho próprio, ligado à geração mas independente 
     expect(calls).toHaveLength(1);
     expect(calls[0]!.decision).toEqual(eta);
   });
-  it("resposta válida + bastidores com sinal ⇒ o executor roda UMA vez (o reserva da decisão não repete)", async () => {
+  it("UMA CABEÇA SÓ: resposta válida ⇒ o leitor separado nem é chamado; a decisão da resposta vai ao executor", async () => {
     const calls: unknown[] = [];
     const ops = async (i: { decision: unknown }) => {
       calls.push(i.decision);
     };
+    const extract = vi.fn(async () => eta);
     const p = fakeProvider(okJson(v6()));
-    await generateCopilotSuggestion(REQ, deps(p, { ops: ops as never, extractOps: async () => eta }));
-    expect(calls).toEqual([eta]);
+    await generateCopilotSuggestion(REQ, deps(p, { ops: ops as never, extractOps: extract }));
+    expect(extract).not.toHaveBeenCalled();
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toMatchObject({ guestEtas: [], milestoneQuote: null });
   });
-  it("extrator indisponível ⇒ reserva: sinais da própria decisão validada, como antes", async () => {
+  it("a resposta é a fonte mesmo com o leitor indisponível", async () => {
     const calls: unknown[] = [];
     const ops = async (i: { decision: unknown }) => {
       calls.push(i.decision);
@@ -242,9 +245,9 @@ describe("Bastidores · trabalho próprio, ligado à geração mas independente 
     expect(calls).toHaveLength(1);
     expect(calls[0]).toMatchObject({ guestEtas: [], milestoneQuote: null });
   });
-  it("conversa sem estadia (consulta) ⇒ o extrator nem é chamado", async () => {
+  it("conversa sem estadia (consulta) e resposta falhou ⇒ o leitor nem é chamado", async () => {
     const extract = vi.fn(async () => eta);
-    const p = fakeProvider(okJson(v6()));
+    const p = fakeProvider({ kind: "error", error: { code: "bad_request", retryable: false } as never, usage: null, requestId: null });
     await generateCopilotSuggestion(
       REQ,
       deps(p, {
@@ -261,13 +264,21 @@ describe("Observabilidade dos bastidores · o 'não avançou' sempre deixa o mot
   const run = async (
     over: Partial<Omit<CopilotGenerateDeps, "store">>,
     ops: unknown = async () => ({ status: "no_signal" }),
+    failed = true,
   ) => {
     const noAdvance = vi.fn(async (_i: unknown) => undefined);
-    const p = fakeProvider(okJson(v6()));
+    // resposta falha ⇒ quem lê é o leitor de reserva (com resposta válida, a fonte é a própria decisão)
+    const p = fakeProvider(failed ? { kind: "error", error: { code: "bad_request", retryable: false } as never, usage: null, requestId: null } : okJson(v6()));
     await generateCopilotSuggestion(REQ, deps(p, { ops: ops as never, opsNoAdvance: noAdvance, ...over }));
     return noAdvance;
   };
-  it("leitura sem marco ⇒ registra o motivo do próprio leitor", async () => {
+  it("resposta válida sem marco nem previsão ⇒ response_no_signal (o leitor não roda)", async () => {
+    const extract = vi.fn(async () => empty as never);
+    const n = await run({ extractOps: extract }, async () => ({ status: "no_signal" }), false);
+    expect(extract).not.toHaveBeenCalled();
+    expect(n.mock.calls[0]![0]).toMatchObject({ code: "response_no_signal" });
+  });
+  it("resposta falhou + leitura sem marco ⇒ registra o motivo do próprio leitor", async () => {
     const n = await run({ extractOps: async () => ({ ...empty, milestoneAbstain: "access_unresolved" }) as never });
     expect(n).toHaveBeenCalledTimes(1);
     expect(n.mock.calls[0]![0]).toMatchObject({ code: "reader_abstain_access_unresolved", phase: expect.any(String) });
@@ -1192,7 +1203,7 @@ describe("Copiloto · memória do hóspede recorrente na cadeia real", () => {
   });
 });
 
-describe("Marco da resposta quando o leitor se abstém (caso Vânia, 11/11/2026)", () => {
+describe("Uma cabeça só: o marco vem da resposta (caso Vânia, 11/11/2026)", () => {
   const abstain = { hospitalityMilestone: null, milestoneQuote: null, guestEtas: [], milestoneAbstain: "context_unclear" };
   const inStay: CopilotGenerateDeps["ports"] = (_t, _db, meta) => ({
     ...ports()!(_t, _db, meta),
@@ -1205,41 +1216,36 @@ describe("Marco da resposta quando o leitor se abstém (caso Vânia, 11/11/2026)
       milestoneQuote: "Qual é o horário do check-in?",
     });
 
-  it("leitor sem marco + resposta com marco ⇒ o marco da resposta vai à mesma política", async () => {
+  it("a saída reconhecida pela resposta vai à política, mesmo que um leitor separado se abstivesse", async () => {
     const decisions: unknown[] = [];
     const ops = vi.fn(async (i: { decision: unknown }) => {
       decisions.push(i.decision);
-      return { status: decisions.length === 1 ? "no_signal" : "done" };
+      return { status: "done" };
     });
+    const extract = vi.fn(async () => abstain as never);
     const noAdvance = vi.fn(async () => undefined);
     const p = fakeProvider(okJson(withMilestone()));
     const r = await generateCopilotSuggestion(
       REQ,
-      deps(p, { ops: ops as never, opsNoAdvance: noAdvance as never, extractOps: async () => abstain as never, ports: inStay }),
+      deps(p, { ops: ops as never, opsNoAdvance: noAdvance as never, extractOps: extract, ports: inStay }),
     );
     expect(r.status).toBe("stored");
-    expect(ops).toHaveBeenCalledTimes(2);
-    expect(decisions[1]).toMatchObject({ hospitalityMilestone: { kind: "checkout_confirmed" } });
+    expect(extract).not.toHaveBeenCalled();
+    expect(ops).toHaveBeenCalledTimes(1);
+    expect(decisions[0]).toMatchObject({ hospitalityMilestone: { kind: "checkout_confirmed" } });
     expect(noAdvance).not.toHaveBeenCalled();
   });
 
-  it("leitor sem marco + resposta sem marco ⇒ nada extra; o motivo do leitor fica na auditoria", async () => {
+  it("resposta sem decisão validada ⇒ o leitor de reserva entra e o motivo dele fica na auditoria", async () => {
     const ops = vi.fn(async () => ({ status: "no_signal" }));
+    const extract = vi.fn(async () => abstain as never);
     const noAdvance = vi.fn(async (_i: unknown) => undefined);
-    const p = fakeProvider(okJson(v6()));
+    const p = fakeProvider({ kind: "error", error: { code: "bad_request", retryable: false } as never, usage: null, requestId: null });
     await generateCopilotSuggestion(
       REQ,
-      deps(p, { ops: ops as never, opsNoAdvance: noAdvance as never, extractOps: async () => abstain as never }),
+      deps(p, { ops: ops as never, opsNoAdvance: noAdvance as never, extractOps: extract, ports: inStay }),
     );
-    expect(ops).toHaveBeenCalledTimes(1);
+    expect(extract).toHaveBeenCalledTimes(1);
     expect(noAdvance.mock.calls[0]![0]).toMatchObject({ code: "reader_abstain_context_unclear" });
-  });
-
-  it("leitor COM marco ⇒ a resposta não é reavaliada (sem dupla avaliação)", async () => {
-    const ops = vi.fn(async () => ({ status: "done" }));
-    const reader = { hospitalityMilestone: { kind: "checkout_confirmed", evidence: [currentRef()] }, milestoneQuote: "x", guestEtas: [] };
-    const p = fakeProvider(okJson(withMilestone()));
-    await generateCopilotSuggestion(REQ, deps(p, { ops: ops as never, extractOps: async () => reader as never, ports: inStay }));
-    expect(ops).toHaveBeenCalledTimes(1);
   });
 });
