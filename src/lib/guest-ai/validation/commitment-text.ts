@@ -23,6 +23,7 @@
  * A B3 pode acrescentar um classificador independente pela porta `TextCommitmentClassifier`.
  */
 import type { CommitmentKind, ModelDecision, PromisedTime } from "@/lib/guest-ai/orchestrator/contracts";
+import { findCalendarCollisions, type PropertyCalendarOccupancy } from "@/lib/guest-ai/calendar-occupancy";
 
 export const TEXT_COMMITMENT_VERSION = "text-commitment.2026-11-03.1";
 
@@ -46,6 +47,8 @@ export interface TextAnalysis {
 export interface TextContext {
   officialCheckin: string | null;
   officialCheckout: string | null;
+  /** Ocupação do calendário do imóvel (11/11/2026): sugerir noite ocupada ⇒ `text_calendar_collision`. */
+  calendar?: Pick<PropertyCalendarOccupancy, "occupiedRanges" | "today" | "windowEnd"> | null;
 }
 
 /** Evidência que o SISTEMA tem para afirmações retrospectivas. */
@@ -55,7 +58,7 @@ export interface TextEvidence {
   humanOwnershipActive: boolean;
 }
 
-export const TEXT_BLOCKS = ["text_commitment_undeclared", "text_completion_without_evidence", "text_commitment_unclassifiable", "text_time_mismatch"] as const;
+export const TEXT_BLOCKS = ["text_commitment_undeclared", "text_completion_without_evidence", "text_commitment_unclassifiable", "text_time_mismatch", "text_calendar_collision"] as const;
 export type TextBlock = (typeof TEXT_BLOCKS)[number];
 
 export interface TextCheck {
@@ -272,5 +275,7 @@ export function checkReplyAgainstDecision(d: ModelDecision, ctx: TextContext, ev
       if (!p || c.times.some((t) => t !== p.time)) blocks.add("text_time_mismatch");
     }
   }
+  // Calendário (11/11/2026, caso Gleison): sugerir reservar/selecionar/estender uma noite ocupada é bloqueio.
+  if (findCalendarCollisions(reply, ctx.calendar).length) blocks.add("text_calendar_collision");
   return { blocks: [...blocks], detectedKinds: [...new Set(a.claims.map((c) => c.kind))], undeclaredKinds: [...undeclared], language: a.language };
 }

@@ -336,6 +336,28 @@ function buildContextData(ctx: ConversationContext, guarded: Guarded, unavailabl
   } else {
     facts.push({ id: "ctx:reserva_status", valor: { status: "nao_informado" }, origem: "backend" });
   }
+  // Calendário do imóvel (11/11/2026, caso Gleison): só datas, sem dados de outros hóspedes. Noite D ocupada se
+  // entrada <= D < saida; no dia da saida a casa fica livre a partir do check-out oficial.
+  const cal = g.calendar;
+  facts.push({
+    id: "ctx:calendario_ocupacao",
+    valor:
+      cal && cal.status === "available"
+        ? {
+            status: "consultado",
+            hoje: cal.today,
+            consultado_ate: cal.windowEnd,
+            intervalos_ocupados: cal.occupiedRanges.map((r) => ({
+              entrada: r.checkin,
+              saida: r.checkout,
+              tipo: r.status === "confirmed" ? "reserva_confirmada" : "bloqueio",
+            })),
+            dias_com_outro_checkin: [...cal.sameDayTurnovers],
+            leitura: "noite D ocupada se entrada <= D < saida; sem intervalo cobrindo a noite = livre no nosso calendário",
+          }
+        : { status: "indisponivel" },
+    origem: "calendario_oficial_do_imovel",
+  });
   facts.push(
     {
       id: "ctx:liberacao_credenciais",

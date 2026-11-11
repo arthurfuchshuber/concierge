@@ -20,6 +20,7 @@
  * situação da conversa (chamado já existente, emergência, necessidade humana) vem à parte e nunca
  * transforma uma recusa em autorização para outra ação.
  */
+import type { TextContext } from "@/lib/guest-ai/validation/commitment-text";
 import type { CityEventsLoad } from "./data/city-events.server";
 import type { LivingDocumentLoad } from "./learning/learning";
 import {
@@ -467,7 +468,7 @@ export function batchMatchesHistory(batch: GuestMessageBatch, history: HistoryRe
 }
 
 /** Horários oficiais LOCAIS (HH:MM, fuso IANA do imóvel) a partir da estadia validada. */
-export function officialLocalTimes(ctx: ConversationContext): { officialCheckin: string | null; officialCheckout: string | null } {
+export function officialLocalTimes(ctx: ConversationContext): TextContext {
   const tz = ctx.guest.property.timezone ?? ctx.guest.stay?.timezone ?? null;
   const local = (iso: string | null | undefined) => {
     if (!iso || !tz) return null;
@@ -482,7 +483,12 @@ export function officialLocalTimes(ctx: ConversationContext): { officialCheckin:
       return null;
     }
   };
-  return { officialCheckin: local(ctx.guest.stay?.checkInAt), officialCheckout: local(ctx.guest.stay?.checkOutAt) };
+  const cal = ctx.guest.calendar;
+  return {
+    officialCheckin: local(ctx.guest.stay?.checkInAt),
+    officialCheckout: local(ctx.guest.stay?.checkOutAt),
+    calendar: cal && cal.status === "available" ? cal : null,
+  };
 }
 
 export type PausedEvaluation =
