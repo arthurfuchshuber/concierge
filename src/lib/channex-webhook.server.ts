@@ -158,6 +158,16 @@ async function gravarReservaOficial(admin: SupabaseAdmin, booking: ResolvedBooki
     { onConflict: "property_id,source,external_uid" },
   );
   if (error) throw new Error(error.message);
+  // a mensagem do hóspede pode ter chegado ANTES desta reserva: liga a conversa já existente (10/11/2026)
+  if (a.status !== "cancelled" && contacts.code) {
+    const { linkAirbnbConversationsForBooking } = await import("@/lib/channex-messages.server");
+    await linkAirbnbConversationsForBooking(admin, {
+      propertyId,
+      bookingId: String(bookingId),
+      code: contacts.code,
+      otaThreadId: contacts.ota_thread_id,
+    });
+  }
   // A reserva da API substitui a do iCal (mesmo imóvel e datas), levando junto todos os vínculos.
   try {
     const { reconcileIcalForProperty } = await import("@/lib/stay-dedup.server");

@@ -214,6 +214,11 @@ export interface GuestContext {
     checkInAt: string | null;
     checkOutAt: string | null;
     timezone: string | null;
+    /**
+     * Prazo de cancelamento SEM CUSTO desta reserva, calculado pelo sistema (playbook de cancelamento,
+     * 10/11/2026). `unknown` = modalidade não comprovada (nunca presumir).
+     */
+    freeCancellation?: { status: "open" | "closed" | "unknown"; until: string | null; policyLabel: string | null };
   } | null;
   audiences: GuestAudience[];
   access: {

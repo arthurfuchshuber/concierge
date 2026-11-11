@@ -189,6 +189,7 @@ export async function requestGuestAiReply(req: GuestAiRequest, deps: SlotDeps = 
       handoffUrgency: string | null;
       internalQuestion: string | null;
       formalChangeRequests?: string[];
+      bareAckWithoutQuestion?: boolean;
     };
 
     // 4a) PEDIDO DE EXCEÇÃO (late check-out, entrada antecipada, concessão): a IA não responde nem "vai verificar";
@@ -215,6 +216,9 @@ export async function requestGuestAiReply(req: GuestAiRequest, deps: SlotDeps = 
     const formal = res.formalChangeRequests ?? [];
     const mustHandoff = res.handoffNeeded || formal.length > 0;
     const reason = res.internalQuestion?.trim() || (formal.length > 0 ? formalChangeReason(formal) : null);
+    // 4c) SILÊNCIO GARANTIDO (titular, 10/11/2026): "Sim"/"Ok"/"Obrigado" sem pergunta nossa pendente não recebe
+    //     resposta, mesmo que o modelo tenha escrito uma. Encaminhamento/alteração formal nunca são calados.
+    if (res.bareAckWithoutQuestion && !mustHandoff) return SILENT;
     const text = (res.text ?? "").trim();
     if (r.state === "available" && text) {
       return mustHandoff ? toHandoff(text, reason, res.handoffUrgency) : { reply: text, handoff: false };

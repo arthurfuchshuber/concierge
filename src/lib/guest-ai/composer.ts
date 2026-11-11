@@ -287,6 +287,16 @@ function buildContextData(ctx: ConversationContext, guarded: Guarded, unavailabl
       { id: "ctx:reserva_status", valor: g.stay.status, origem: "reserva" },
       { id: "ctx:checkin_oficial", valor: g.stay.checkInAt, origem: "reserva_e_cadastro" },
       { id: "ctx:checkout_oficial", valor: g.stay.checkOutAt, origem: "reserva_e_cadastro" },
+      {
+        id: "ctx:cancelamento_sem_custo",
+        valor: {
+          prazo:
+            g.stay.freeCancellation?.status === "open" ? "aberto" : g.stay.freeCancellation?.status === "closed" ? "encerrado" : "desconhecido",
+          aberto_ate: g.stay.freeCancellation?.until ?? null,
+          modalidade: g.stay.freeCancellation?.policyLabel ?? "nao_comprovada",
+        },
+        origem: "reserva_calculado_pelo_sistema",
+      },
     );
   } else {
     facts.push({ id: "ctx:reserva_status", valor: { status: "nao_informado" }, origem: "backend" });
