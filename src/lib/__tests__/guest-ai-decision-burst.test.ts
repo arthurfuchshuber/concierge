@@ -7,7 +7,6 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import {
-  buildDecisionAckText,
   buildDecisionQuestion,
   extractRequestedDay,
   parseBurstRequests,
@@ -60,29 +59,6 @@ describe("extração da rajada (determinística)", () => {
       early: { time: "10:00", day: 19 },
     });
     expect(q).toBe("Clarisse pede entrada às 10h no dia 19 (oficial 15h) e saída às 16h no dia 23 (oficial 11h). Aprovar os dois como cortesia?");
-  });
-});
-
-describe("resposta imediata ao hóspede (fim do silêncio)", () => {
-  const ack = buildDecisionAckText({
-    guestName: "Clarisse Stuckert",
-    officialCheckin: "15:00",
-    officialCheckout: "11:00",
-    late: { time: "16:00", day: 23 },
-    early: { time: "10:00", day: 19 },
-  });
-  it("horário oficial como padrão, sem fórmula de SAC; sem promessa, sem recusa, sem prazo (diretiva 11/11/2026)", () => {
-    expect(ack).toMatch(/^Clarisse, nosso check-in é às 15h\. Faremos o possível para liberar o seu acesso antes, caso a acomodação fique pronta/);
-    expect(ack).toMatch(/nossa equipe fala com você no próprio dia/);
-    expect(ack).toMatch(/O check-out é até as 11h\. Havendo possibilidade de estender um pouco o seu horário nesse dia, nossa equipe te avisa por aqui/);
-    expect(ack).not.toMatch(/Registrei|levei à equipe|te retorno|vou verificar/i);
-    expect(ack).not.toMatch(/não (é possível|conseguimos)|aprovad|em até|minutos|hoje ainda|desculp|sinto muito/i);
-    expect(ack).not.toMatch(/!/);
-  });
-  it("sem horários cadastrados, não inventa", () => {
-    const t = buildDecisionAckText({ guestName: null, officialCheckin: null, officialCheckout: null, late: { time: null, day: null }, early: null });
-    expect(t).not.toMatch(/\d/);
-    expect(t).toMatch(/O check-out é no horário da sua reserva/);
   });
 });
 
@@ -139,7 +115,6 @@ describe("openHumanDecision · rajada", () => {
       "Clarisse pede entrada às 10h no dia 19 (oficial 15h) e saída às 16h no dia 23 (oficial 11h). Aprovar os dois como cortesia?",
     );
     expect((call.args["p_options"] as Array<{ label: string }>)[0]!.label).toBe("Aprovar os dois (cortesia)");
-    expect(r.opened && r.ack).toMatchObject({ officialCheckin: "15:00", officialCheckout: "11:00", late: { time: "16:00", day: 23 }, early: { time: "10:00", day: 19 } });
   });
   it("só a entrada: o tipo vira early_checkin (não 'late check-out às 10h')", async () => {
     const rows = ROWS();
@@ -163,26 +138,23 @@ describe("slot · fallback determinístico (sem modelo)", () => {
     loadBurst: async () => [M1, M2],
     ...over,
   });
-  const ack = { guestName: "Clarisse Stuckert", officialCheckin: "15:00", officialCheckout: "11:00", late: { time: "16:00", day: 23 }, early: { time: "10:00", day: 19 } };
 
-  it("geração que trava ⇒ em até o teto abre a decisão e responde (nunca fica muda)", async () => {
+  it("geração que trava ⇒ em até o teto abre a decisão para a equipe; sem texto fixo ao hóspede (diretiva 11/11/2026)", async () => {
     expect(GENERATION_FALLBACK_MS).toBeLessThanOrEqual(25_000);
-    const openDecision = vi.fn(async () => ({ opened: true, reason: "Decisão pendente · pedido de exceção", ack }));
+    const openDecision = vi.fn(async () => ({ opened: true, reason: "Decisão pendente · pedido de exceção" }));
     const r = await requestGuestAiReply(
       REQ,
       base({ generate: () => new Promise(() => {}), generationTimeoutMs: 20, openDecision }) as never,
     );
     expect(openDecision).toHaveBeenCalledWith(expect.objectContaining({ formalChangeRequests: ["late_checkout", "early_checkin"] }));
-    expect(r).toMatchObject({ handoff: true, handoffUrgency: "high" });
-    expect(r?.reply).toMatch(/Faremos o possível para liberar o seu acesso antes/);
-    expect(r?.reply).toMatch(/O check-out é até as 11h/);
+    expect(r).toEqual({ reply: "", handoff: true, handoffReason: "Decisão pendente · pedido de exceção", handoffUrgency: "high" });
   });
   it("geração que falha (erro/resultado inválido) ⇒ mesmo fallback", async () => {
     for (const generate of [async () => { throw new Error("gateway"); }, async () => ({ status: "failed" })]) {
-      const openDecision = vi.fn(async () => ({ opened: true, reason: "Decisão pendente · x", ack }));
+      const openDecision = vi.fn(async () => ({ opened: true, reason: "Decisão pendente · x" }));
       const r = await requestGuestAiReply(REQ, base({ generate, openDecision }) as never);
       expect(openDecision).toHaveBeenCalledTimes(1);
-      expect(r?.reply).not.toBe("");
+      expect(r).toMatchObject({ reply: "", handoff: true, handoffUrgency: "high" });
     }
   });
   it("sem pedido de exceção na mensagem ⇒ encaminhamento de sempre, sem decisão nem texto", async () => {

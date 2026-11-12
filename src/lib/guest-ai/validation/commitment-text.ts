@@ -249,6 +249,10 @@ export function checkReplyAgainstDecision(d: ModelDecision, ctx: TextContext, ev
   const a = analyzeReplyCommitments(reply, ctx);
   if (a.language === "unsupported" || a.unclassifiable > 0 || a.grantsWithoutOfficialTime > 0) blocks.add("text_commitment_unclassifiable");
   const declared = new Set<CommitmentKind>(d.commitmentKinds ?? []);
+  // "Vou verificar internamente com a equipe a possibilidade de…" (caso Ary, 11/11/2026): com encaminhamento
+  // declarado, o repasse à equipe é a própria ação estruturada; não exige rótulo à parte (e segue sujeito à regra
+  // de autorização de `team_relay`, que só vale com `handoff.needed`).
+  if (d.handoff?.needed === true) declared.add("team_relay");
   const promised: readonly PromisedTime[] = d.promisedTimes ?? [];
   const undeclared = new Set<CommitmentKind>();
   for (const c of a.claims) {
