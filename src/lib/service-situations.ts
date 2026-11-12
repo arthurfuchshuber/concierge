@@ -60,6 +60,8 @@ export type ExtraServiceItem = {
   priceCents: number | null;
   concludedAt: string | null;
   doneByName: string | null;
+  /** Setor do prestador (categoria do cadastro), ex.: "Manutenção". */
+  doneByRole?: string | null;
   logId: string | null;
   reservationId: string | null;
 };
