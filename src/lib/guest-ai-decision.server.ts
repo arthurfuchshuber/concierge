@@ -40,17 +40,43 @@ async function adminDb(): Promise<DecisionDb> {
 const PROPERTY_COLUMNS = "id, name, owner_id, checkout_time, checkin_time, checkin_time_max, wifi_password, gate_code, lock_code, pin_code";
 
 /** Há decisão pendente na conversa? Erro de leitura (ou tabela ausente) ⇒ `false` (segue o fluxo de antes). */
-export async function hasPendingDecision(conversationId: string, deps: { db?: DecisionDb } = {}): Promise<boolean> {
+/** Uma decisão pendente só cala a IA por até 2 h (caso Carlos, 12/11/2026: ficou pendente por 21 h). */
+export const PENDING_DECISION_TTL_MS = 2 * 3600 * 1000;
+
+/**
+ * Há decisão PENDENTE que ainda cala a IA nesta conversa? Só se foi aberta há menos de 2 h E nenhum atendente
+ * humano falou com o hóspede depois dela (fala humana = pendência tratada; a IA volta nas mensagens seguintes).
+ * O cartão continua no painel até alguém decidir; só deixa de bloquear a IA. Falha de leitura ⇒ não bloqueia.
+ */
+export async function hasPendingDecision(
+  conversationId: string,
+  deps: { db?: DecisionDb; now?: () => number } = {},
+): Promise<boolean> {
   try {
     const db = deps.db ?? (await adminDb());
+    const nowMs = (deps.now ?? Date.now)();
+    const since = new Date(nowMs - PENDING_DECISION_TTL_MS).toISOString();
     const { data, error } = await db
       .from("guest_ai_human_decisions")
-      .select("id")
+      .select("id, created_at")
       .eq("conversation_id", conversationId)
       .eq("status", "pending")
+      .gt("created_at", since)
+      .order("created_at", { ascending: true })
       .limit(1);
-    if (error) return false;
-    return Array.isArray(data) && data.length > 0;
+    if (error || !Array.isArray(data) || data.length === 0) return false;
+    const openedAt = (data[0] as { created_at?: string }).created_at;
+    if (!openedAt) return true;
+    const human = await db
+      .from("property_chat_messages")
+      .select("id")
+      .eq("conversation_id", conversationId)
+      .eq("role", "assistant")
+      .eq("sender_type", "human")
+      .gt("created_at", openedAt)
+      .limit(1);
+    if (human.error) return true; // não sabe se a equipe falou: mantém a pendência (cartão recente)
+    return !(Array.isArray(human.data) && human.data.length > 0);
   } catch {
     return false;
   }

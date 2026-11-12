@@ -5,7 +5,7 @@
  * acrescentado, nenhuma palavra é trocada, só marcação e caracteres que quebram o canal são normalizados.
  *  - todos os canais: letras estilizadas (Unicode matemático "𝐧𝐞𝐠𝐫𝐢𝐭𝐨", largura total "ｔｅｘｔｏ") voltam a
  *    caracteres comuns; espaços no fim da linha saem; 3+ quebras viram uma linha em branco;
- *  - Airbnb: sem links (o canal bloqueia), sem Markdown (negrito, itálico, títulos, tabelas, marcadores de
+ *  - Airbnb: sem links (o canal bloqueia; exceção: link de anúncio do próprio Airbnb), sem Markdown (negrito, itálico, títulos, tabelas, marcadores de
  *    lista) — texto limpo com quebras de linha simples;
  *  - WhatsApp: formatação nativa leve (`*negrito*`, `_itálico_`); `**x**` vira `*x*`; títulos e tabelas viram
  *    texto; `[texto](url)` vira "texto: url";
@@ -58,10 +58,15 @@ function common(text: string): string {
     .trim();
 }
 
+/** Link de anúncio do próprio Airbnb (sugestão de portfólio, 12/11/2026): único link que fica no Airbnb. */
+const AIRBNB_LISTING_URL = /^https:\/\/(?:www\.)?airbnb\.com(?:\.br)?\/rooms\/\d{6,24}$/;
+
 function forAirbnb(text: string): string {
   let t = flattenTables(stripHeadings(text));
-  t = t.replace(/\[([^\]\n]+)\]\((?:[^)\s]+)\)/g, "$1"); // [texto](url) ⇒ texto
-  t = t.replace(URL_RE, "").replace(/[ \t]{2,}/g, " ").replace(/[ \t]+([.,;:!?])/g, "$1");
+  t = t.replace(/\[([^\]\n]+)\]\(([^)\s]+)\)/g, (_, label: string, url: string) =>
+    AIRBNB_LISTING_URL.test(url) ? `${label}: ${url}` : label,
+  ); // [texto](url) ⇒ texto (anúncio do Airbnb ⇒ "texto: url")
+  t = t.replace(URL_RE, (u) => (AIRBNB_LISTING_URL.test(u) ? u : "")).replace(/[ \t]{2,}/g, " ").replace(/[ \t]+([.,;:!?])/g, "$1");
   t = t.replace(/(\*\*|__)(?=\S)([^\n]*?\S)\1/g, "$2"); // **negrito** / __negrito__
   t = t.replace(/(^|[\s(])[*_](?=\S)([^*_\n]*?\S)[*_](?=$|[\s.,;:!?)])/gm, "$1$2"); // *x* / _x_
   t = t.replace(/`([^`\n]+)`/g, "$1");

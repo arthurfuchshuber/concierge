@@ -151,6 +151,9 @@ export const GENERATION_FALLBACK_MS = 25_000;
  */
 export const CONTINGENCY_REPLY = "Recebi sua mensagem e já acionei nossa equipe para te orientar por aqui.";
 export const CONTINGENCY_REASON = "Dúvida do hóspede sem resposta da IA (contingência de tempo): responder pela equipe.";
+/** Falha técnica numa consulta/pergunta comercial: a equipe responde; o chat do hóspede não recebe frase padrão. */
+export const COMMERCIAL_CONTINGENCY_REASON =
+  "Consulta comercial ou de datas sem resposta da IA (contingência de tempo): responder pela equipe.";
 
 
 /** Urgência do chamado de decisão (push prioritário). */
@@ -161,7 +164,7 @@ export async function requestGuestAiReply(req: GuestAiRequest, deps: SlotDeps = 
   if (!autonomousEnabled(env)) return null;
   try {
     // 1) escopo validado no backend (fail-closed)
-    let turn: { propertyId: string };
+    let turn: { propertyId: string; reservationId?: string | null };
     try {
       turn = deps.validate
         ? await deps.validate(req)
@@ -231,16 +234,16 @@ export async function requestGuestAiReply(req: GuestAiRequest, deps: SlotDeps = 
     // FALLBACK DETERMINÍSTICO (sem modelo): pedido de saída/entrada fora do horário NUNCA fica sem botões para a
     // equipe; ao hóspede não vai texto fixo (encaminhamento silencioso).
     if (raced === TIMED_OUT || raced === null) {
-      return await deterministicFallback(req, deps);
+      return await deterministicFallback(req, deps, { inquiry: turn.reservationId === null });
     }
     const r = raced;
 
     // 4) projeção para o canal
     if (r?.status === "skipped" && r.code === "superseded_by_newer_message") return SILENT; // a mensagem mais nova responde
     if (r?.status === "stale") return toHandoff("", undefined, "normal"); // a mensagem mais nova assume o turno
-    if (r?.status !== "stored" || !r.result) return await deterministicFallback(req, deps);
+    if (r?.status !== "stored" || !r.result) return await deterministicFallback(req, deps, { inquiry: turn.reservationId === null });
     // a geração foi gravada como falha (prazo, erro do modelo): mesma contingência, o hóspede não fica mudo
-    if (r.state === "generation_failed") return await deterministicFallback(req, deps);
+    if (r.state === "generation_failed") return await deterministicFallback(req, deps, { inquiry: turn.reservationId === null });
     const res = r.result as {
       text: string | null;
       handoffNeeded: boolean;
@@ -331,7 +334,24 @@ export async function requestGuestAiReply(req: GuestAiRequest, deps: SlotDeps = 
  * de saída tardia/entrada antecipada, abre a decisão com botões e responde com os horários oficiais. Sem pedido
  * reconhecido, mantém o encaminhamento de sempre (fila humana + push), sem texto.
  */
-async function deterministicFallback(req: GuestAiRequest, deps: SlotDeps): Promise<GuestAiReply> {
+/**
+ * Pergunta comercial ou de disponibilidade (datas, vaga, valor, reserva, mínimo de noites): numa falha técnica NÃO
+ * recebe o aviso de contingência (soa como SAC e não responde nada a quem quer reservar). Vai só para a equipe,
+ * com urgência alta (diretiva de 12/11/2026, caso Tais).
+ */
+export const COMMERCIAL_QUESTION =
+  /\b(disponib\w*|disponive\w*|vagas?|livres?|lotad\w*|ocupad\w*|reserv\w*|valor(es)?|preco|precos|quanto (custa|fica|sai|e)|diarias?|(\d{1,2}|uma|duas|tres|quatro|cinco) noites?|noites? (livres?|disponive\w*|a mais|extras?)|desconto|promoc\w*|minimo|datas?|dias? \d{1,2}|\d{1,2}\/\d{1,2}|\d{1,2} (a|ao|ate) \d{1,2}|de \d{1,2} a \d{1,2})\b/;
+
+export function isCommercialQuestion(texts: readonly string[]): boolean {
+  const n = texts
+    .join(" ")
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .toLowerCase();
+  return COMMERCIAL_QUESTION.test(n);
+}
+
+async function deterministicFallback(req: GuestAiRequest, deps: SlotDeps, opts: { inquiry?: boolean } = {}): Promise<GuestAiReply> {
   try {
     const texts = deps.loadBurst
       ? await deps.loadBurst(req)
@@ -346,6 +366,8 @@ async function deterministicFallback(req: GuestAiRequest, deps: SlotDeps): Promi
       // ("ok", "obrigado") segue em silêncio, como no fluxo normal.
       const content = texts.filter((t) => (t ?? "").trim());
       if (!content.length || content.every((t) => isBareAcknowledgment(t) || isAffirmativeStatement(t))) return toHandoff("", undefined, "normal");
+      // consulta (sem reserva) ou pergunta comercial/de datas: nada de frase de SAC no chat; a equipe responde
+      if (opts.inquiry || isCommercialQuestion(content)) return toHandoff("", COMMERCIAL_CONTINGENCY_REASON, "high");
       return toHandoff(CONTINGENCY_REPLY, CONTINGENCY_REASON, "high");
     }
     const input = {
@@ -363,7 +385,8 @@ async function deterministicFallback(req: GuestAiRequest, deps: SlotDeps): Promi
     if (open.code === "pending_exists" || open.code === "exists") return toHandoff("", open.reason, DECISION_HANDOFF_URGENCY);
     return toHandoff("", undefined, "normal");
   } catch {
-    // nem a leitura da rajada deu certo: ainda assim o hóspede não fica sem resposta
+    // nem a leitura da rajada deu certo: ainda assim o hóspede não fica sem resposta (consulta ⇒ só a equipe)
+    if (opts.inquiry) return toHandoff("", COMMERCIAL_CONTINGENCY_REASON, "high");
     return toHandoff(CONTINGENCY_REPLY, CONTINGENCY_REASON, "high");
   }
 }

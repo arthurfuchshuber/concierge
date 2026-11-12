@@ -86,6 +86,91 @@ export function isSatisfiedCheckReply(text: string | null | undefined): boolean 
   return SATISFACTION.test(n) && !PROBLEM_OR_RESERVATION.test(n) && !REQUEST_WORDS.test(n) && !TIME_MENTION.test(n);
 }
 
+// ─────────────── despedidas, check-out concluído e saudações repetidas (diretiva de 12/11/2026) ───────────────
+
+/** Frases de agradecimento/despedida (texto normalizado). A mensagem precisa ter ao menos uma. */
+const FAREWELL_CORE = [
+  "muitissimo obrigad[oa]", "muito obrigad[oa]", "obrigad[oa]", "obrigadao", "obg", "agradec\\w*", "grat[oa]", "gratidao", "valeu",
+  "ate mais", "ate logo", "ate breve", "ate a proxima", "ate a proxima vez", "ate outra hora", "tchau", "tchauzinho", "adeus",
+  "abracos?", "abs", "beijos?", "bjs?", "boa viagem", "bom retorno", "boa volta", "volta tranquila", "deus abencoe", "fiquem com deus", "fique com deus",
+  "thank you", "thanks", "bye", "goodbye", "see you", "gracias", "hasta luego", "adios",
+];
+/** Complementos neutros que podem acompanhar a despedida sem pedir nada. */
+const FAREWELL_FILLER = [
+  "ola", "oi", "oie", "bom dia", "boa tarde", "boa noite", "estimo que (esteja|estejam) bem", "espero que (esteja|estejam) bem",
+  "por tudo", "pelo guia( digital)?", "pelas? (informac\\w*|orientac\\w*|instruc\\w*|dicas?)", "pela (hospedagem|estadia|estada|atencao|hospitalidade|recepcao|ajuda|paciencia|gentileza)",
+  "pelo (atendimento|apoio|carinho|espaco|cuidado)", "de novo", "novamente", "mais uma vez", "e", "a", "o", "voces", "voce", "a todos",
+  "deu tudo certo", "tudo certo", "foi (tudo )?(otimo|otima|maravilhos[oa]|perfeito|excelente|incrivel)", "amamos", "adoramos", "gostamos muito",
+  "um (grande )?(abraco|beijo)", "sigma", "equipe", "pessoal", "querid[oa]s?", "tenham? (um|uma) (otimo|otima|bom|boa) (dia|tarde|noite|semana)",
+  "sucesso", "por aqui", "muito", "demais", "ate", "tudo de bom", "tudo de bom pra voces",
+];
+const FAREWELL_CORE_RE = new RegExp(`\\b(${FAREWELL_CORE.join("|")})\\b`, "g");
+const FAREWELL_FILLER_RE = new RegExp(`\\b(${FAREWELL_FILLER.join("|")})\\b`, "g");
+
+/**
+ * Despedida/agradecimento puro, sem pergunta nem pedido ("Muitíssimo obrigado pelo guia digital, até mais",
+ * "Agradeço pelas informações. Abraço", "obrigado por tudo"). Na dúvida (sobra qualquer palavra) ⇒ não.
+ */
+export function isFarewell(text: string | null | undefined): boolean {
+  const raw = (text ?? "").trim();
+  if (!raw || raw.includes("?") || raw.length > 220) return false;
+  const n = normalizeAck(raw);
+  if (!n || REQUEST_WORDS.test(n) || TIME_MENTION.test(n) || PROBLEM_OR_RESERVATION.test(n)) return false;
+  if (!new RegExp(FAREWELL_CORE_RE.source).test(n)) return false;
+  const rest = n.replace(FAREWELL_CORE_RE, " ").replace(FAREWELL_FILLER_RE, " ").replace(/\s+/g, " ").trim();
+  return rest === "";
+}
+
+const CHECKOUT_DONE =
+  /\b(check ?out (feito|realizado|concluido|efetuado|ok|finalizado)|fizemos o check ?out|fiz o check ?out|ja (fizemos|fiz) o check ?out|(ja )?(saimos|sai|deixamos|desocupamos) (do|o|da|a) (apartamento|ap|apto|imovel|studio|estudio|casa|local|quarto)|ja (saimos|sai)\b|(deixei|deixamos) (as|a) chaves?|chaves? (no|na|dentro do|dentro da) (cofre|caixinha|lugar|apartamento|mesa|bancada)|checked out|we (have )?left)\b/;
+const CHECKOUT_FILLER = [
+  "ok", "pronto", "tudo certo", "deu tudo certo", "tudo ok", "ja", "sigma", "ola", "oi", "bom dia", "boa tarde", "boa noite", "conforme combinado",
+  "conforme (as )?orientac\\w*", "e", "foi (tudo )?(otimo|otima|maravilhos[oa]|perfeito|excelente)",
+  "(no|na|dentro do|dentro da|em cima da) (cofre|caixinha|mesa|bancada|lugar combinado|porta)",
+];
+const CHECKOUT_FILLER_RE = new RegExp(`\\b(${CHECKOUT_FILLER.join("|")})\\b`, "g");
+
+/**
+ * Aviso de saída concluída, só ou com despedida ("Check out feito", "check out feito, obrigado por tudo, deu tudo
+ * certo", "já saímos do apartamento"). Os bastidores continuam lendo o fato (baixa do card); só não há tréplica.
+ */
+export function isCheckoutDoneNotice(text: string | null | undefined): boolean {
+  const raw = (text ?? "").trim();
+  if (!raw || raw.includes("?") || raw.length > 220) return false;
+  const n = normalizeAck(raw);
+  if (!CHECKOUT_DONE.test(n) || TIME_MENTION.test(n) || PROBLEM_OR_RESERVATION.test(n)) return false;
+  if (/\b(esqueci|esquecemos|ficou|ficaram|perdi|perdemos|onde|como|podem|pode|preciso|precisamos|gostaria|quero|queria)\b/.test(n)) return false;
+  const rest = n
+    .replace(new RegExp(CHECKOUT_DONE.source, "g"), " ")
+    .replace(FAREWELL_CORE_RE, " ")
+    .replace(FAREWELL_FILLER_RE, " ")
+    .replace(CHECKOUT_FILLER_RE, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return rest === "";
+}
+
+const GREETING = [
+  "ola", "oi", "oie", "oii+", "oiee+", "opa", "e ai", "eai", "bom dia", "boa tarde", "boa noite", "tudo bem", "td bem", "tudo bom", "tudo certo",
+  "como vai", "como vao", "como voce esta", "como esta", "como estao", "desculpa a demora", "desculpe a demora", "perdao pela demora",
+  "perdoe a demora", "desculpa pela demora", "desculpe pela demora", "desculpa", "desculpe", "hello", "hi", "hey", "hola", "buenos dias",
+  "buenas tardes", "buenas noches", "sigma", "e com voces", "e com voce", "e voce", "e voces", "por ai",
+];
+const GREETING_RE = new RegExp(`\\b(${GREETING.join("|")})\\b`, "g");
+
+/** Só cumprimento ("Bom dia", "Oie", "Tudo bem?", "Desculpa a demora"), sem pergunta nova nem pedido. */
+export function isPureGreeting(text: string | null | undefined): boolean {
+  const raw = (text ?? "").trim();
+  if (!raw || raw.length > 80) return false;
+  const n = normalizeAck(raw);
+  if (!n || REQUEST_WORDS.test(n) || TIME_MENTION.test(n) || /\d/.test(n)) return false;
+  if (!new RegExp(GREETING_RE.source).test(n)) return false;
+  return n.replace(GREETING_RE, " ").replace(/\s+/g, " ").trim() === "";
+}
+
+/** Janela em que um cumprimento repetido não ganha novo cumprimento nosso (anti-eco). */
+export const GREETING_ECHO_WINDOW_MS = 30 * 60 * 1000;
+
 /**
  * O turno atual do hóspede (mensagens seguidas dele no fim do histórico) deve ficar SEM resposta?
  * Mídia (foto/áudio) nunca é confirmação vazia.
@@ -101,6 +186,15 @@ export function shouldSilenceBareAck(entries: readonly HistoryEntry[]): boolean 
   if (turn.length === 0 || turn.some((e) => e.media != null)) return false;
   const ours = i >= 0 ? entries[i]! : null;
   const closed = (e: HistoryEntry) => isBareAcknowledgment(e.text) || isAffirmativeStatement(e.text);
+  // despedida pura ou check-out concluído (com ou sem pergunta nossa pendente): sem tréplica (12/11/2026)
+  const farewell = (e: HistoryEntry) => isFarewell(e.text) || isCheckoutDoneNotice(e.text);
+  if (turn.some(farewell) && turn.every((e) => farewell(e) || closed(e))) return true;
+  // ANTI-ECO: só cumprimento, e já falamos com o hóspede há pouco (até 30 min) ⇒ não cumprimenta de novo
+  if (ours && turn.every((e) => isPureGreeting(e.text) || closed(e)) && turn.some((e) => isPureGreeting(e.text))) {
+    const oursAt = Date.parse(ours.at ?? "");
+    const lastAt = Date.parse(turn[turn.length - 1]!.at ?? "");
+    if (Number.isFinite(oursAt) && Number.isFinite(lastAt) && lastAt - oursAt <= GREETING_ECHO_WINDOW_MS && lastAt >= oursAt) return true;
+  }
   if (!ours || !ours.text.includes("?")) return turn.every(closed);
   if (isAccommodationCheck(ours.text)) return turn.every((e) => closed(e) || isSatisfiedCheckReply(e.text));
   return false;
