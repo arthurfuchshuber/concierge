@@ -6,7 +6,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { buildStayView } from "@/components/handoff/stay-view";
-import { pickConversationReservation, stayMatchFromReservation, type StayReservationRow } from "@/lib/handoff-stay";
+import { pickConversationReservation, selectConversationStay, stayMatchFromReservation, type StayReservationRow } from "@/lib/handoff-stay";
 
 const SRC = path.resolve(__dirname, "../..");
 const CLARISSE: StayReservationRow = {
@@ -54,6 +54,34 @@ describe("cabeçalho com os dados da reserva", () => {
   });
 });
 
+describe("seleção da reserva do cabeçalho", () => {
+  const missing = { status: "missing", checkin: null, checkout: null } as const;
+  it("preserva a reserva encontrada pela lista quando a consulta individual não encontra o vínculo", () => {
+    const listed = stayMatchFromReservation(CLARISSE);
+    const selected = selectConversationStay(missing, listed);
+    expect(selected).toEqual(listed);
+    expect(buildStayView({ res: selected })).toMatchObject({ kind: "reservation", checkin: "2026-11-19", checkout: "2026-11-23", nights: 4, guests: 4 });
+  });
+  it("preserva o cruzamento parcial de datas da lista", () => {
+    const listed = { status: "loose", checkin: "2026-11-19", checkout: "2026-11-23" } as const;
+    expect(selectConversationStay(missing, listed)).toEqual(listed);
+  });
+  it("preserva as datas do guia quando o imóvel não tem reservas OTA", () => {
+    const selected = selectConversationStay(missing, { status: "no_reservations", checkin: null, checkout: null });
+    expect(buildStayView({ res: selected, detail: { name: null, phone: null, phoneCountry: null, reservationCode: null, checkinDate: "2026-11-19", checkoutDate: "2026-11-23" } })).toMatchObject({ kind: "reservation", checkin: "2026-11-19", checkout: "2026-11-23" });
+  });
+  it("cancelamento recém-consultado prevalece sobre reserva confirmada na lista", () => {
+    const cancelled = stayMatchFromReservation({ ...CLARISSE, status: "cancelled" });
+    expect(selectConversationStay(cancelled, stayMatchFromReservation(CLARISSE))).toEqual(cancelled);
+  });
+  it("sem reserva nas duas buscas continua consulta; sem dados permanece carregando", () => {
+    expect(selectConversationStay(missing, missing)).toEqual(missing);
+    expect(selectConversationStay(missing, null)).toEqual(missing);
+    expect(selectConversationStay(null, null)).toBeNull();
+    expect(selectConversationStay(null, stayMatchFromReservation(CLARISSE))).toEqual(stayMatchFromReservation(CLARISSE));
+  });
+});
+
 describe("ligação: instantâneo e independente da lista", () => {
   const read = (f: string) => readFileSync(path.join(SRC, f), "utf8");
   it("a lista também usa o vínculo direto (reservation_id) antes do nome", () => {
@@ -65,7 +93,6 @@ describe("ligação: instantâneo e independente da lista", () => {
     for (const f of ["routes/_authenticated/admin.atendimento.tsx", "components/handoff/FloatingHandoffDock.tsx"]) {
       const t = read(f);
       expect(t, f).toMatch(/useConversationStay\(activeId/);
-      expect(t, f).toMatch(/stayFresh\?\.res \?\?/);
       expect(t, f).toMatch(/activeId && stayRes/);
     }
   });

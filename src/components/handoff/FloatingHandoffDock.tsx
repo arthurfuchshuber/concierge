@@ -9,6 +9,7 @@ import { listHandoffConversations, countPendingHandoffs, getAtendimentoAccess, r
 import { ConversationList, ConversationView, useMyUserId } from "@/components/handoff/ConversationView";
 import { buildStayView } from "@/components/handoff/stay-view";
 import { useConversationStay } from "@/components/handoff/useConversationStay";
+import { selectConversationStay } from "@/lib/handoff-stay";
 import { ChannelLogo, channelOf } from "@/components/handoff/ChannelLogo";
 import { formatIntlPhone } from "@/lib/masks";
 import { listenToPushMessages } from "@/lib/push-client";
@@ -331,7 +332,7 @@ export function FloatingHandoffDock({ launcher = true }: { launcher?: boolean } 
   const owners = list.data?.owners ?? {};
   const activeConv = activeId ? (convs as Array<{ id: string; guest_name: string | null; guest_session_id: string | null; properties: { name: string | null } | null }>).find((c) => c.id === activeId) ?? null : null;
   const activeDetail = activeId ? details[activeId] : undefined;
-  const stayRes = stayFresh?.res ?? (activeId ? reservations[activeId] : null) ?? null;
+  const stayRes = selectConversationStay(stayFresh?.res, activeId ? reservations[activeId] : null);
   const activeStay =
     activeId && stayRes
       ? buildStayView({ detail: activeDetail ?? null, res: stayRes, viewers: guideViewers[activeId] ?? 0 })

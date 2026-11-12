@@ -10,6 +10,7 @@ import {
 import { ConversationList, ConversationView, useMyUserId } from "@/components/handoff/ConversationView";
 import { buildStayView } from "@/components/handoff/stay-view";
 import { useConversationStay } from "@/components/handoff/useConversationStay";
+import { selectConversationStay } from "@/lib/handoff-stay";
 import { Headphones, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { QUEUES, type Queue } from "@/lib/handoff-queues";
@@ -23,6 +24,14 @@ const searchSchema = z.object({
 });
 
 export const Route = createFileRoute("/_authenticated/admin/atendimento")({
+  head: () => ({ meta: [
+    { title: "Atendimento aos hóspedes | ConciergeIA" },
+    { name: "description", content: "Central de atendimento ConciergeIA: conversas, reservas e acompanhamento dos hóspedes." },
+    { property: "og:title", content: "Atendimento aos hóspedes | ConciergeIA" },
+    { property: "og:description", content: "Conversas e acompanhamento das reservas na central de atendimento ConciergeIA." },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary" },
+  ] }),
   validateSearch: (s) => searchSchema.parse(s),
   component: AtendimentoPage,
 });
@@ -96,8 +105,8 @@ function AtendimentoPage() {
 
   const conversations = list.data?.conversations ?? [];
   const details = list.data?.details ?? {};
-  // Cabeçalho: a reserva da própria conversa (instantâneo e correto); a lista só cobre o intervalo até a resposta.
-  const stayRes = stayFresh?.res ?? list.data?.reservations?.[activeId ?? ""] ?? null;
+  // A consulta própria prevalece quando encontra a reserva; sem match, preserva o cruzamento mais amplo da lista.
+  const stayRes = selectConversationStay(stayFresh?.res, list.data?.reservations?.[activeId ?? ""]);
   const activeStay =
     activeId && stayRes
       ? buildStayView({

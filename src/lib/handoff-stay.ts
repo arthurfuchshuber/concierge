@@ -4,6 +4,15 @@
  */
 import type { HandoffReservationMatch } from "@/lib/handoff.schemas";
 
+/** An unmatched narrow lookup must not erase the list's broader reservation match. */
+export function selectConversationStay(
+  fresh: HandoffReservationMatch | null | undefined,
+  listed: HandoffReservationMatch | null | undefined,
+): HandoffReservationMatch | null {
+  if (fresh?.status === "missing" && listed && listed.status !== "missing") return listed;
+  return fresh ?? listed ?? null;
+}
+
 export type StayReservationRow = {
   id?: string | null;
   property_id: string;
