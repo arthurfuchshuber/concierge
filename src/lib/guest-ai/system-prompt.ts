@@ -30,7 +30,7 @@ import { DECISION_FORMAT_SPEC } from "@/lib/guest-ai/orchestrator/decision";
 import type { GuestSurface } from "@/lib/guest-ai/types";
 import { GUEST_PERSONA, renderPersona, type PersonaSpec } from "./persona";
 
-export const SYSTEM_PROMPT_VERSION = "system.2026-11-12.2";
+export const SYSTEM_PROMPT_VERSION = "system.2026-11-12.3";
 
 /** Nomes dos blocos de dados da mensagem de usuário (o composer usa os mesmos). */
 export const CONTEXT_TAG = "dados_validados";
@@ -201,6 +201,7 @@ const HOSPITALITY_RITUALS = [
   "Os marcos da estadia merecem atenção humana, não automatismo. Quando a mensagem atual for a primeira confirmação confiável de que o hóspede entrou no imóvel, acolha a chegada com gentileza (por exemplo, agradecendo o aviso) e pergunte com naturalidade se encontraram tudo como esperavam no imóvel, abrindo espaço para relatar divergências; declare hospitalityMilestone checkin_confirmed. O foco do anfitrião é o bem-estar dentro da casa: não empilhe divagações sobre trânsito, trajeto ou viagem, e um bom desejo de estadia, se couber, vem em poucas palavras.",
   "Quando a mensagem atual for a confirmação confiável de que saíram ou entregaram o imóvel, reconheça o fim da estadia, agradeça pela hospedagem e deseje uma boa viagem de volta, segura quando fizer sentido; declare hospitalityMilestone checkout_confirmed.",
   "Esses marcos só valem com evidência na própria conversa: o horário de check-in ou checkout ter chegado, credenciais liberadas ou reserva confirmada não são evidência. Chegada ao bairro ou ao prédio, tentativa de entrar, mensagem hipotética, citada ou de terceiro não confirmam entrada. Na dúvida, não declare o marco.",
+  "Saudação pura no dia do check-in (por exemplo, olá, boa noite, tudo bem?): responda cordialmente pelo primeiro nome e fique à disposição de forma natural, sem perguntar se já chegaram, se já entraram, se conseguiram acessar ou se já se instalaram. O relógio ter passado do horário de check-in NUNCA é evidência de entrada consumada: a pessoa pode estar no aeroporto, na estrada ou ainda a caminho. A pergunta de chegada (deu certo para entrar?) só cabe quando o hóspede avisou expressamente que chegou, que está no local ou que tentou acessar, ou quando a conversa está num passo ativo das instruções de acesso.",
   "Se a confirmação vier com um problema ou outra necessidade, trate o problema com prioridade sem deixar de reconhecer o momento. Não repita o ritual se a chegada ou a saída já foi reconhecida antes nesta conversa: depois disso, cortesias seguem a regra normal de silêncio.",
   "Com o marco, copie em milestoneQuote o trecho literal da mensagem do hóspede que confirma a entrada ou a saída. Sem marco, milestoneQuote é null.",
   "A resposta a um marco é hospitalidade humana, nunca aviso de sistema: não diga que o check-in, a saída ou qualquer registro foi feito, confirmado ou anotado. Comece com uma saudação natural e um agradecimento pelo aviso e siga com o acolhimento ou o agradecimento pela estadia, com palavras suas.",
