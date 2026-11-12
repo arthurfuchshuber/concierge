@@ -53,7 +53,18 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-export function FinanceEntryDetail({ entry, onNavigate }: { entry: FinanceEntry; onNavigate: () => void }) {
+/** Limpeza completa aguardando aprovação: mesmo detalhe, com os botões de decisão no rodapé. */
+export type ApprovalExtra = { normalPriceCents: number | null; footer: React.ReactNode };
+
+export function FinanceEntryDetail({
+  entry,
+  onNavigate,
+  approval,
+}: {
+  entry: FinanceEntry;
+  onNavigate: () => void;
+  approval?: ApprovalExtra;
+}) {
   const fetchDetail = useServerFn(getFinanceEntryDetail);
   const navigate = useNavigate();
   const it = entry.item;
@@ -71,7 +82,7 @@ export function FinanceEntryDetail({ entry, onNavigate }: { entry: FinanceEntry;
   };
   const ext = entry.kind === "extra";
   const title = ext ? entry.item.situationName : entry.item.cleaningType === "completa" ? "Limpeza completa" : "Limpeza normal";
-  const subtitle = ext ? "Serviço extra · concluído" : "Limpeza · concluída";
+  const subtitle = approval ? "Aguardando aprovação" : ext ? "Serviço extra · concluído" : "Limpeza · concluída";
   const stay = d?.reservation
     ? [fmtShort(d.reservation.checkin), fmtShort(d.reservation.checkout)].filter(Boolean).join(" → ")
     : null;
@@ -113,9 +124,15 @@ export function FinanceEntryDetail({ entry, onNavigate }: { entry: FinanceEntry;
           </button>
         ) : null}
         <div className="flex items-baseline justify-between gap-3 border-b border-border/60 px-4 py-3">
-          <span className={CAP}>Valor</span>
+          <span className={CAP}>{approval ? "Valor pedido" : "Valor"}</span>
           <span className="font-display text-[20px] font-bold tabular-nums text-foreground">{brl(it.priceCents)}</span>
         </div>
+        {approval?.normalPriceCents != null ? (
+          <div className="flex items-baseline justify-between gap-3 border-b border-border/60 px-4 pb-3 pt-1">
+            <span className={CAP}>Se foi normal</span>
+            <span className="text-[13.5px] font-bold tabular-nums text-muted-foreground">{brl(approval.normalPriceCents)}</span>
+          </div>
+        ) : null}
         {d?.description ? (
           <div className="border-b border-border/60 px-4 py-3">
             <div className={CAP}>O que aconteceu</div>
@@ -150,14 +167,18 @@ export function FinanceEntryDetail({ entry, onNavigate }: { entry: FinanceEntry;
         ) : null}
       </div>
       <div className="shrink-0 border-t border-border/60 px-4 py-3 sm:mx-6">
-        <button
-          type="button"
-          onClick={() => openRecords(it.propertyName)}
-          className="flex h-11 w-full cursor-pointer items-center justify-center gap-1.5 rounded-[12px] border border-border bg-transparent text-[13px] font-bold text-foreground transition-colors hover:bg-foreground/[0.06]"
-        >
-          <ExternalLink className="size-3.5" />
-          Abrir registro completo
-        </button>
+        {approval ? (
+          approval.footer
+        ) : (
+          <button
+            type="button"
+            onClick={() => openRecords(it.propertyName)}
+            className="flex h-11 w-full cursor-pointer items-center justify-center gap-1.5 rounded-[12px] border border-border bg-transparent text-[13px] font-bold text-foreground transition-colors hover:bg-foreground/[0.06]"
+          >
+            <ExternalLink className="size-3.5" />
+            Abrir registro completo
+          </button>
+        )}
       </div>
     </div>
   );

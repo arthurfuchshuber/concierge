@@ -18,6 +18,8 @@ vi.mock("@/lib/billing/billing.functions", () => ({
   listMyPayments: vi.fn(),
   refreshCardCheck: vi.fn(),
   startCardSetup: vi.fn(),
+  createCardSetupIntent: vi.fn(),
+  finishCardSetup: vi.fn(),
 }));
 vi.mock("@/components/pricing/ListingPricing", async (orig) => ({
   ...(await orig<typeof import("@/components/pricing/ListingPricing")>()),

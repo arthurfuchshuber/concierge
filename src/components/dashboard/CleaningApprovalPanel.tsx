@@ -1,7 +1,11 @@
 import { useQuery, useQueryClient, type QueryKey } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Clock3 } from "lucide-react";
+import { useState } from "react";
+import { ChevronRight, Clock3 } from "lucide-react";
 import { toast } from "sonner";
+import { FinanceEntryDetail } from "@/components/dashboard/FinanceEntryDetail";
+import { FINANCE_WINDOW_CLASS } from "@/components/dashboard/wide-window";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { OwnerLine } from "@/components/dashboard/OwnerLine";
 import { ClampName } from "@/components/ui/clamp-name";
 import { PANEL_SHELL, PanelHeading, CountPill } from "@/components/dashboard/panel-chrome";
@@ -60,6 +64,7 @@ export function CleaningApprovalPanel({
   const decideFn = useServerFn(decideCleaningApproval);
   const undoFn = useServerFn(undoCleaningDecision);
   const qc = useQueryClient();
+  const [openItem, setOpenItem] = useState<CleaningApprovalItem | null>(null);
 
   const q = useQuery({
     queryKey: [CLEANING_APPROVALS_KEY, ownerId ?? "self", propertyIds?.join(",") ?? ""],
@@ -162,9 +167,70 @@ export function CleaningApprovalPanel({
             item={it}
             canApprove={canApprove}
             onDecide={(decision) => decide(it, decision)}
+            onOpen={() => setOpenItem(it)}
           />
         ))}
       </div>
+      {/* Detalhe do pedido numa janela (mockup de 12/11/2026): decide-se dali também. */}
+      <Dialog open={!!openItem} onOpenChange={(v) => !v && setOpenItem(null)}>
+        <DialogContent aria-describedby={undefined} className={FINANCE_WINDOW_CLASS}>
+          {openItem ? (
+            <FinanceEntryDetail
+              entry={{
+                kind: "cleaning",
+                item: {
+                  id: openItem.id,
+                  date: "",
+                  propertyId: openItem.propertyId,
+                  propertyName: openItem.propertyName,
+                  ownerName: openItem.ownerName,
+                  ownerPhone: openItem.ownerPhone,
+                  ownerPhoneCountry: openItem.ownerPhoneCountry,
+                  cleaningType: "completa",
+                  priceCents: openItem.priceCents,
+                  pending: true,
+                  concludedAt: openItem.concludedAt,
+                  doneByName: openItem.doneByName,
+                  logId: openItem.logId,
+                  reservationId: openItem.reservationId,
+                },
+              }}
+              onNavigate={() => setOpenItem(null)}
+              approval={{
+                normalPriceCents: openItem.normalPriceCents,
+                footer: canApprove ? (
+                  <div className="grid grid-cols-2 gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        decide(openItem, "normal");
+                        setOpenItem(null);
+                      }}
+                      className="h-10 rounded-md border border-border text-[12.5px] font-bold transition-colors hover:bg-secondary/50 active:scale-[0.98]"
+                    >
+                      Foi normal
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        decide(openItem, "approve");
+                        setOpenItem(null);
+                      }}
+                      className="flex h-10 items-center justify-center rounded-md bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] text-[12.5px] font-bold text-white transition-opacity hover:opacity-90 active:scale-[0.98]"
+                    >
+                      Aprovar completa
+                    </button>
+                  </div>
+                ) : (
+                  <p className="ds-atencao text-center text-[10.5px] font-extrabold uppercase tracking-[0.1em]">
+                    Aguardando aprovação
+                  </p>
+                ),
+              }}
+            />
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }
@@ -173,17 +239,25 @@ function ApprovalRow({
   item,
   canApprove,
   onDecide,
+  onOpen,
 }: {
   item: CleaningApprovalItem;
   canApprove: boolean;
   onDecide: (decision: "approve" | "normal") => void;
+  onOpen: () => void;
 }) {
   const meta = [whenLabel(item.concludedAt), item.doneByName ? `por ${item.doneByName}` : null]
     .filter(Boolean)
     .join(" · ");
   return (
     <div className={`${PANEL_SHELL} flex flex-col gap-2.5 p-3`}>
-      <div className="flex justify-between gap-2.5">
+      <div
+        className="flex cursor-pointer justify-between gap-2.5 active:bg-foreground/[0.04]"
+        onClick={(e) => {
+          if ((e.target as HTMLElement).closest("button, a, input, [role=button]")) return;
+          onOpen();
+        }}
+      >
         <div className="min-w-0">
           {/* Regra global (29/10/2026): título do imóvel primeiro, proprietário + chat logo abaixo; título em 1 linha. */}
           <ClampName text={item.propertyName} className="ds-card-title" />
@@ -197,6 +271,7 @@ function ApprovalRow({
               normal: {brl(item.normalPriceCents)}
             </p>
           )}
+          <ChevronRight className="ml-auto mt-1 size-4 text-muted-foreground" aria-hidden />
         </div>
       </div>
       {canApprove ? (
