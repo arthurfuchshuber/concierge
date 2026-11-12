@@ -44,6 +44,7 @@ import {
 import { addDaysIso } from "../policy/wall-clock";
 import { detectStaffLateCheckout } from "./late-checkout";
 import { detectStaffEarlyCheckin } from "./early-checkin";
+import { detectStaffAssistedEntry } from "./assisted-entry";
 
 /** Entrada do histórico do turno (mesma origem do prompt; `ref` = id citável, `messageId` = id real). */
 export interface OpsHistoryEntry {
@@ -393,11 +394,53 @@ function evaluateLateCheckout(input: OpsPolicyInput): OpsEvaluation | null {
   return evaluation("late_checkout", null, cand.messageId, card, proposed);
 }
 
+/**
+ * ENTRADA ASSISTIDA PELA EQUIPE (caso Ary, 12/11/2026): chegada declarada pelo hóspede + liberação do acesso por
+ * um atendente humano + resposta do hóspede sem dificuldade ⇒ `checkin_done`, sem depender do modelo. `null` =
+ * nada a avaliar (sem o ciclo completo, fora do dia da entrada ou card já concluído), para não poluir a
+ * auditoria a cada turno.
+ */
+function evaluateAssistedEntry(input: OpsPolicyInput): OpsEvaluation | null {
+  const entries = input.history.map((e) => ({
+    messageId: e.messageId,
+    speaker: e.speaker,
+    text: e.text,
+    at: e.at ?? "",
+  }));
+  const cand = detectStaffAssistedEntry(entries, { now: input.now });
+  if (!cand) return null;
+  const card = input.cards ? input.cards.checkin : null;
+  if (card && (card.status === "done" || card.status === "no_show" || card.doneAt)) return null;
+  const r = input.reservation;
+  const today = input.timezone ? localDate(input.now, input.timezone) : null;
+  const hm = input.timezone ? localHm(input.now, input.timezone) : null;
+  const inWindow =
+    !!today &&
+    !!r?.checkinDate &&
+    (today === r.checkinDate || (today === addDaysIso(r.checkinDate, 1) && !!hm && isMadrugada(hm)));
+  if (!inWindow) return null;
+  const fail = (code: OpsRefusalCode) =>
+    evaluation("checkin_done", code, cand.messageId, card, { date: null, time: null });
+  const res = reservationBlock(input);
+  if (res) return fail(res);
+  if (!input.cards) return fail("state_unavailable");
+  if (input.phase !== "in_stay") return fail("not_in_stay");
+  const cb = cardBlock(card, input.now);
+  if (cb) return fail(cb);
+  const team = teamOrNegotiationBlock(input);
+  if (team) return fail(team);
+  return evaluation("checkin_done", null, cand.messageId, card, { date: null, time: null });
+}
+
 /** Avalia os sinais operacionais da decisão (v5) e a concessão de late checkout da equipe. */
 export function evaluateOpsSignals(input: OpsPolicyInput): OpsEvaluation[] {
   const out: OpsEvaluation[] = [];
   const m = input.decision.hospitalityMilestone;
   if (m) out.push(evaluateDone(input, m.kind === "checkin_confirmed" ? "checkin" : "checkout"));
+  if (m?.kind !== "checkin_confirmed") {
+    const assisted = evaluateAssistedEntry(input);
+    if (assisted) out.push(assisted);
+  }
   for (const eta of input.decision.guestEtas ?? []) out.push(evaluateEta(input, eta));
   const late = evaluateLateCheckout(input);
   if (late) out.push(late);

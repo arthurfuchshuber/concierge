@@ -198,11 +198,12 @@ describe("G2a · sinais operacionais na mesma geração (observação)", () => {
     err.mockRestore();
   });
 
-  it("sem decisão validada (saída inválida) ⇒ o executor não é chamado", async () => {
-    const ops = vi.fn(async () => undefined);
+  it("sem decisão validada (saída inválida) ⇒ nenhum sinal do modelo chega ao executor; só as travas determinísticas (caso Ary)", async () => {
+    const ops = vi.fn(async (_i: unknown) => undefined);
     const p = fakeProvider(okJson({ nada: true }));
     await generateCopilotSuggestion(REQ, deps(p, { ops: ops as never }));
-    expect(ops).not.toHaveBeenCalled();
+    for (const c of ops.mock.calls)
+      expect((c[0] as { decision: unknown }).decision).toEqual({ hospitalityMilestone: null, milestoneQuote: null, guestEtas: [] });
   });
 });
 
@@ -286,6 +287,13 @@ describe("Observabilidade dos bastidores · o 'não avançou' sempre deixa o mot
   it("leitura sem motivo ⇒ reader_no_signal; leitor indisponível ⇒ reader_model_failed", async () => {
     expect((await run({ extractOps: async () => empty as never })).mock.calls[0]![0]).toMatchObject({ code: "reader_no_signal" });
     expect((await run({ extractOps: async () => null })).mock.calls[0]![0]).toMatchObject({ code: "reader_model_failed" });
+  });
+  it("leitor indisponível ⇒ as travas determinísticas (entrada assistida, late checkout da equipe) ainda rodam (caso Ary)", async () => {
+    const ops = vi.fn(async (_i: unknown) => ({ status: "done" }));
+    const n = await run({ extractOps: async () => null }, ops);
+    expect(ops).toHaveBeenCalledTimes(1);
+    expect((ops.mock.calls[0]![0] as { decision: unknown }).decision).toEqual(empty);
+    expect(n).not.toHaveBeenCalled();
   });
   it("sinal avaliado pela política (done) ⇒ não registra 'não avançou' (a política já grava aplicada ou recusada)", async () => {
     const n = await run({ extractOps: async () => empty as never }, async () => ({ status: "done" }));

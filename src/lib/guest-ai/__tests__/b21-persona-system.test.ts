@@ -358,7 +358,7 @@ describe("aviso de chegada coerente com canal e dossiê (system.2026-11-11.3)", 
   const arrival = sys.slice(sys.indexOf("Aviso de deslocamento"), sys.indexOf("Continue declarando guestEtas"));
 
   it("versão do roteiro", () => {
-    expect(SYSTEM_PROMPT_VERSION).toBe("system.2026-11-12.2");
+    expect(SYSTEM_PROMPT_VERSION).toBe("system.2026-11-12.3");
   });
 
   it("corrobora o histórico em vez de vetar a palavra guia", () => {
@@ -438,5 +438,18 @@ describe("defeito e manutenção: o anfitrião assume, o hóspede não vira zela
     expect(ex).toMatch(/Vou acionar o técnico de manutenção/);
     expect(ex).not.toMatch(/o quanto antes|em instantes|logo|daqui a pouco|já já/);
     expect(ex).not.toMatch(/desligue|bacia|toalha/i);
+  });
+});
+
+describe("saudação pura no dia do check-in não presume entrada (system.2026-11-12.3, caso Ary)", () => {
+  const sys = buildSystemPrompt("airbnb");
+  it("responde pelo nome sem perguntar se já chegaram ou entraram", () => {
+    expect(sys).toMatch(/Saudação pura no dia do check-in/);
+    expect(sys).toMatch(/sem perguntar se já chegaram, se já entraram, se conseguiram acessar ou se já se instalaram/);
+  });
+  it("o relógio nunca é evidência de entrada; a pergunta de chegada só com aviso ou passo de acesso ativo", () => {
+    expect(sys).toMatch(/O relógio ter passado do horário de check-in NUNCA é evidência de entrada consumada/);
+    expect(sys).toMatch(/só cabe quando o hóspede avisou expressamente que chegou/);
+    expect(sys).toMatch(/passo ativo das instruções de acesso/);
   });
 });

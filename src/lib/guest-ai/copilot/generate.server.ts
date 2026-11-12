@@ -658,8 +658,25 @@ export async function generateCopilotSuggestion(
       if (!opsPhase || !history || history.status !== "available") return;
       if (opsPhase !== "pre_stay" && opsPhase !== "in_stay" && opsPhase !== "post_checkout") return;
       readerRan = true;
+      // Sem leitura do modelo, as travas DETERMINÍSTICAS da política (entrada assistida e late checkout
+      // concedidos pela equipe) ainda rodam sobre o histórico (caso Ary, 12/11/2026): custo zero, sem modelo.
+      const deterministicOnly = async (): Promise<void> => {
+        try {
+          await trackOps({
+            turn,
+            decision: { hospitalityMilestone: null, milestoneQuote: null, guestEtas: [] },
+            history,
+            phase: opsPhase!,
+            timezone: opsTimezone,
+            suggestionId: claimed?.suggestionId ?? null,
+          });
+        } catch {
+          console.error("[copilot] travas determinísticas falharam");
+        }
+      };
       if (controller.signal.aborted || remainingMs() < READER_MIN_MS) {
         noAdvanceReason = "reader_deadline";
+        await deterministicOnly();
         return;
       }
       try {
@@ -677,6 +694,7 @@ export async function generateCopilotSuggestion(
         const signals = reading.signals;
         if (!signals) {
           noAdvanceReason = reading.reason ?? "reader_model_failed";
+          await deterministicOnly();
           return;
         }
         if (!hasOpsSignal(signals)) noAdvanceReason = reading.reason ?? "reader_no_signal";
