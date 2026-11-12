@@ -24,7 +24,7 @@ import {
   type OutboundContext,
 } from "@/lib/guest-ai/outbound-text";
 import type { GuestSurface } from "@/lib/guest-ai/types";
-import { buildDecisionAckText, parseBurstRequests, requestsFromBurst } from "@/lib/guest-ai-decision";
+import { parseBurstRequests, requestsFromBurst } from "@/lib/guest-ai-decision";
 
 export type GuestAiSurface = GuestSurface;
 
@@ -127,7 +127,7 @@ export interface SlotDeps {
     triggerMessageId: string;
     formalChangeRequests: readonly string[];
     internalQuestion: string | null;
-  }) => Promise<{ opened: boolean; code?: string; reason?: string; ack?: DecisionAckData }>;
+  }) => Promise<{ opened: boolean; code?: string; reason?: string }>;
   /** Textos do hóspede da rajada atual (fallback sem modelo). */
   loadBurst?: (req: GuestAiRequest) => Promise<string[]>;
   /** Tempo máximo da cadeia do modelo antes do fallback determinístico. */
@@ -135,15 +135,6 @@ export interface SlotDeps {
 }
 
 /** Dados da resposta imediata ao abrir a decisão (horários oficiais + pedido). */
-export interface DecisionAckData {
-  guestName: string | null;
-  officialCheckin: string | null;
-  officialCheckout: string | null;
-  late: { time: string | null; day: number | null } | null;
-  early: { time: string | null; day: number | null } | null;
-  sameDayArrival?: boolean | null;
-  sameDayDeparture?: boolean | null;
-}
 
 /**
  * Teto da cadeia do modelo no turno autônomo. O normal leva 5–10 s; acima disso o turno não pode ficar mudo: cai
@@ -151,7 +142,6 @@ export interface DecisionAckData {
  */
 export const GENERATION_FALLBACK_MS = 20_000;
 
-const ackReply = (ack: DecisionAckData | undefined): string => (ack ? buildDecisionAckText(ack) : "");
 
 /** Urgência do chamado de decisão (push prioritário). */
 export const DECISION_HANDOFF_URGENCY = "high";
@@ -228,7 +218,8 @@ export async function requestGuestAiReply(req: GuestAiRequest, deps: SlotDeps = 
       }),
     ]);
     if (timer) clearTimeout(timer);
-    // FALLBACK DETERMINÍSTICO (sem modelo): pedido de saída/entrada fora do horário NUNCA fica sem botões.
+    // FALLBACK DETERMINÍSTICO (sem modelo): pedido de saída/entrada fora do horário NUNCA fica sem botões para a
+    // equipe; ao hóspede não vai texto fixo (encaminhamento silencioso).
     if (raced === TIMED_OUT || raced === null) {
       return await deterministicFallback(req, deps);
     }
@@ -250,9 +241,9 @@ export async function requestGuestAiReply(req: GuestAiRequest, deps: SlotDeps = 
     // 4a) PEDIDO DE EXCEÇÃO (late check-out, entrada antecipada, concessão): abre UMA decisão com botões para a
     //     equipe (push prioritário). MENSAGEM MISTA (11/11/2026, diretiva do titular): o texto validado do modelo
     //     (que já passou pelas travas de compromisso: não promete exceção sem autorização) é PRESERVADO, para não
-    //     jogar fora a resposta das outras perguntas; só sem texto do modelo entra o texto determinístico.
+    //     jogar fora a resposta das outras perguntas. Sem texto validado do modelo ⇒ encaminhamento silencioso:
+    //     nenhum texto fixo vai ao hóspede (diretiva de 11/11/2026, caso Ary).
     let decisionReason: string | null = null;
-    let decisionAck: string | null = null;
     let decisionUrgency: string = DECISION_HANDOFF_URGENCY;
     if ((res.formalChangeRequests ?? []).length > 0) {
       const open = deps.openDecision
@@ -270,14 +261,13 @@ export async function requestGuestAiReply(req: GuestAiRequest, deps: SlotDeps = 
           });
       if (open.opened) {
         decisionReason = open.reason ?? null;
-        decisionAck = ackReply(open.ack);
-        if (!(r.state === "available" && (res.text ?? "").trim())) return toHandoff(decisionAck, decisionReason, DECISION_HANDOFF_URGENCY);
+        // sem texto validado do modelo ⇒ encaminhamento SILENCIOSO (nenhum texto fixo inventado; diretiva 11/11/2026)
+        if (!(r.state === "available" && (res.text ?? "").trim())) return toHandoff("", decisionReason, DECISION_HANDOFF_URGENCY);
       } else if (open.code === "same_day_turnover") {
         // virada no mesmo dia: nada a decidir; a saída é pontual e a equipe só é avisada (urgência normal)
         decisionReason = open.reason ?? null;
-        decisionAck = ackReply(open.ack);
         decisionUrgency = "normal";
-        if (!(r.state === "available" && (res.text ?? "").trim())) return toHandoff(decisionAck, decisionReason, decisionUrgency);
+        if (!(r.state === "available" && (res.text ?? "").trim())) return toHandoff("", decisionReason, decisionUrgency);
       } else if (open.code === "pending_exists" || open.code === "exists") return toHandoff("", open.reason, DECISION_HANDOFF_URGENCY);
     }
     // 4b) ALTERAÇÃO FORMAL (titular, 10/11/2026): cancelamento, datas, valor, nº de hóspedes ou condições
@@ -315,7 +305,7 @@ export async function requestGuestAiReply(req: GuestAiRequest, deps: SlotDeps = 
         ? toHandoff(text, reason, urgency)
         : { reply: sanitizeResidualTags(text), handoff: false };
     }
-    if (decisionAck !== null) return toHandoff(decisionAck, reason, decisionUrgency);
+    if (decisionReason !== null) return toHandoff("", reason, decisionUrgency);
     if (r.state === "no_suggestion" && !mustHandoff) return SILENT; // silêncio legítimo
     return toHandoff(text, reason, urgency);
   } catch {
@@ -349,8 +339,9 @@ async function deterministicFallback(req: GuestAiRequest, deps: SlotDeps): Promi
     const open = deps.openDecision
       ? await deps.openDecision(input)
       : await (await import("@/lib/guest-ai-decision.server")).openHumanDecision(input);
-    if (open.opened) return toHandoff(ackReply(open.ack), open.reason, DECISION_HANDOFF_URGENCY);
-    if (open.code === "same_day_turnover") return toHandoff(ackReply(open.ack), open.reason, "normal");
+    // fallback sem modelo: decisão aberta para a equipe, hóspede sem texto fixo (encaminhamento silencioso)
+    if (open.opened) return toHandoff("", open.reason, DECISION_HANDOFF_URGENCY);
+    if (open.code === "same_day_turnover") return toHandoff("", open.reason, "normal");
     if (open.code === "pending_exists" || open.code === "exists") return toHandoff("", open.reason, DECISION_HANDOFF_URGENCY);
     return toHandoff("", undefined, "normal");
   } catch {

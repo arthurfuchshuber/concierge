@@ -129,6 +129,9 @@ export interface QuestionInput {
   /** Rajada (pedidos distintos do hóspede): quando os dois existem, o cartão lista ambos sem mesclar. */
   late?: ExceptionRequest | null;
   early?: ExceptionRequest | null;
+  /** Chegada depois do limite de check-in (recepção tardia) e o limite oficial do imóvel. */
+  lateArrival?: ExceptionRequest | null;
+  officialCheckinMax?: string | null;
 }
 
 /** Pergunta curta (~35 palavras, nunca mais de 45) para a equipe decidir. */
@@ -143,6 +146,10 @@ export function buildDecisionQuestion(q: QuestionInput): string {
       q.sameDayArrival === true ? "Há entrada de outro hóspede no dia da saída." : "",
     ].filter(Boolean).join(" ");
     s = `${who} pede ${inn} e ${out}.${notes ? ` ${notes}` : ""} Aprovar os dois como cortesia?`;
+  } else if (q.kind === "operational_concession" && q.lateArrival) {
+    const when = q.lateArrival.time ? `por volta das ${formatHour(q.lateArrival.time)}` : "depois do horário";
+    const limit = q.officialCheckinMax ? ` (check-in até ${formatHour(q.officialCheckinMax)})` : "";
+    s = `${who} avisa que vai chegar ${when}${limit}. Viabilizar a recepção tardia?`;
   } else if (q.kind === "late_checkout") {
     const official = q.officialCheckout ? ` (oficial ${formatHour(q.officialCheckout)})` : "";
     const when = q.time
@@ -204,6 +211,20 @@ export interface ExceptionRequest {
 export interface BurstRequests {
   late: ExceptionRequest | null;
   early: ExceptionRequest | null;
+  /**
+   * Chegada DEPOIS do limite de check-in do imóvel (caso Ary, 11/11/2026: "iremos chegar após as 23"). Nunca é
+   * entrada antecipada; vira concessão operacional (recepção tardia) para a equipe decidir.
+   */
+  lateArrival?: ExceptionRequest | null;
+  /** Alguma chegada com horário DENTRO da janela oficial (previsão normal, não exceção). */
+  arrivalInWindow?: boolean;
+}
+
+/** Horários oficiais do imóvel usados para classificar o pedido (todos opcionais, "HH:MM"). */
+export interface OfficialTimes {
+  officialCheckin?: string | null;
+  officialCheckinMax?: string | null;
+  officialCheckout?: string | null;
 }
 
 const fold = (t: string) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
@@ -225,35 +246,97 @@ export function extractRequestedDay(text: string | null | undefined): number | n
   return m ? Number(m[1]) : null;
 }
 
+/** Hora citada numa oração de chegada/saída, mesmo sem "h" ("após as 23", "por volta da meia-noite"). */
+function clauseTime(c: string): string | null {
+  const t = extractRequestedTime(c);
+  if (t) return t;
+  if (/\bmeia[\s-]?noite\b/.test(c)) return "00:00";
+  const m = /\b(?:as|das|a partir das|depois das|apos as|apos|por volta das|ate as|umas)\s+([01]?\d|2[0-3])\b(?!\s*(?:dias?|noites?|pessoas?|hospedes?|\/))/.exec(c);
+  return m ? `${String(Number(m[1])).padStart(2, "0")}:00` : null;
+}
+const minutes = (hhmm: string | null | undefined): number | null => {
+  const m = /^(\d{1,2}):(\d{2})/.exec(hhmm ?? "");
+  return m ? Number(m[1]) * 60 + Number(m[2]) : null;
+};
+/** Madrugada (00:00–04:59) é a noite da chegada: depois de qualquer limite noturno. */
+const nightMinutes = (hhmm: string | null | undefined): number | null => {
+  const v = minutes(hhmm);
+  return v === null ? null : v < 5 * 60 ? v + 24 * 60 : v;
+};
+/** Sinais de chegada DEPOIS (atraso, madrugada, "após as 23"): nunca é entrada antecipada. */
+const LATE_ARRIVAL_CUE = /\b(apos|depois d[ae]s?|mais tarde|atras\w*|madrugada|meia[\s-]?noite|tarde da noite)\b/;
+/** Pedido explícito de chegar ANTES. */
+const EARLY_WORDS = /(mais cedo|antecipad|adiantar|antes d[ao]s?|early check)/;
+
 /**
- * Pedidos de saída tardia / entrada antecipada em UMA mensagem. `strict` (fallback sem modelo) só aceita cláusula
- * com horário ou pedido explícito de flexibilidade ("check-in às 15h?" de dúvida simples não abre decisão).
+ * Pedidos de saída tardia / entrada antecipada / chegada tardia em UMA mensagem. `strict` (fallback sem modelo)
+ * só aceita oração com horário ou pedido explícito de flexibilidade ("check-in às 15h?" de dúvida simples não abre
+ * decisão). Com os horários oficiais (diretiva de 11/11/2026, caso Ary): chegada no horário de check-in ou depois
+ * dele NUNCA é entrada antecipada; depois do limite (`officialCheckinMax`) ou na madrugada é chegada tardia; saída
+ * até o horário oficial de check-out não é saída tardia. Sem horários oficiais, entrada antecipada só com pedido
+ * explícito de chegar antes (mais cedo, antecipar).
  */
-export function parseExceptionRequests(text: string | null | undefined, opts: { strict?: boolean } = {}): BurstRequests {
-  const out: BurstRequests = { late: null, early: null };
+export function parseExceptionRequests(text: string | null | undefined, opts: { strict?: boolean } & OfficialTimes = {}): BurstRequests {
+  const out: BurstRequests = { late: null, early: null }; // lateArrival/arrivalInWindow só quando existem
+  const cin = minutes(opts.officialCheckin);
+  const cinMax = nightMinutes(opts.officialCheckinMax);
+  const cout = minutes(opts.officialCheckout);
   for (const c of clauses(text ?? "")) {
     const isLate = LATE_CUE.test(c);
     const isEarly = EARLY_CUE.test(c);
     if (!isLate && !isEarly) continue;
-    const time = extractRequestedTime(c);
-    if (opts.strict && !time && !FLEX_CUE.test(c)) continue;
+    const time = clauseTime(c);
+    const lateArrivalCue = LATE_ARRIVAL_CUE.test(c);
+    if (opts.strict && !time && !FLEX_CUE.test(c) && !lateArrivalCue) continue;
     const req: ExceptionRequest = { time, day: extractRequestedDay(c) };
-    // cláusula com os dois sinais: o verbo mais próximo do início manda (ex.: "para sair às 16h" ⇒ saída)
+    // oração com os dois sinais: o verbo mais próximo do início manda (ex.: "para sair às 16h" ⇒ saída)
     const lateAt = isLate ? c.search(LATE_CUE) : Infinity;
     const earlyAt = isEarly ? c.search(EARLY_CUE) : Infinity;
-    if (lateAt <= earlyAt) out.late = { time: req.time ?? out.late?.time ?? null, day: req.day ?? out.late?.day ?? null };
-    else out.early = { time: req.time ?? out.early?.time ?? null, day: req.day ?? out.early?.day ?? null };
+    if (lateAt <= earlyAt) {
+      const t = minutes(time);
+      if (t !== null && cout !== null && t <= cout && !FLEX_CUE.test(c.replace(/\d/g, ""))) continue; // dentro do horário
+      out.late = { time: req.time ?? out.late?.time ?? null, day: req.day ?? out.late?.day ?? null };
+      continue;
+    }
+    // CHEGADA: antes do check-in = antecipada; depois do limite (ou madrugada/atraso) = chegada tardia
+    const t = nightMinutes(time);
+    const explicitEarly = EARLY_WORDS.test(c) && !lateArrivalCue;
+    const afterWord = /\b(apos|depois d[ae]s?)\b/.test(c); // "após as 23" = depois das 23
+    const afterLimit = t !== null && cinMax !== null && (t > cinMax || (afterWord && t >= cinMax));
+    const markLate = () => (out.lateArrival = { time: req.time ?? out.lateArrival?.time ?? null, day: req.day ?? out.lateArrival?.day ?? null });
+    if (afterLimit) {
+      markLate();
+      continue;
+    }
+    if (lateArrivalCue && !explicitEarly) {
+      if (cinMax === null) markLate(); // sem o limite do imóvel (fallback): quem confirma é openHumanDecision
+      else if (t === null) {
+        if (/\b(madrugada|meia[\s-]?noite)\b/.test(c)) markLate();
+      } else out.arrivalInWindow = true; // atraso, mas ainda dentro da janela
+      continue;
+    }
+    // sem horário oficial conhecido (fallback sem banco), chegada com horário e sem sinal de atraso ainda é
+    // candidata; quem confirma com os horários do imóvel é `openHumanDecision`
+    const early = explicitEarly || (t !== null && t >= 5 * 60 && (cin === null ? true : t < cin));
+    if (!early) {
+      if (t !== null) out.arrivalInWindow = true; // chegada dentro da janela: previsão normal, não é exceção
+      continue;
+    }
+    out.early = { time: req.time ?? out.early?.time ?? null, day: req.day ?? out.early?.day ?? null };
   }
   return out;
 }
 
 /** Junta as mensagens da rajada (da mais antiga à mais nova): o dado mais recente de cada tipo prevalece. */
-export function parseBurstRequests(messages: ReadonlyArray<string | null | undefined>, opts: { strict?: boolean } = {}): BurstRequests {
+export function parseBurstRequests(messages: ReadonlyArray<string | null | undefined>, opts: { strict?: boolean } & OfficialTimes = {}): BurstRequests {
   const acc: BurstRequests = { late: null, early: null };
+  const merge = (prev: ExceptionRequest | null | undefined, next: ExceptionRequest) => ({ time: next.time ?? prev?.time ?? null, day: next.day ?? prev?.day ?? null });
   for (const m of messages) {
     const r = parseExceptionRequests(m, opts);
-    if (r.late) acc.late = { time: r.late.time ?? acc.late?.time ?? null, day: r.late.day ?? acc.late?.day ?? null };
-    if (r.early) acc.early = { time: r.early.time ?? acc.early?.time ?? null, day: r.early.day ?? acc.early?.day ?? null };
+    if (r.late) acc.late = merge(acc.late, r.late);
+    if (r.early) acc.early = merge(acc.early, r.early);
+    if (r.lateArrival) acc.lateArrival = merge(acc.lateArrival, r.lateArrival);
+    if (r.arrivalInWindow) acc.arrivalInWindow = true;
   }
   return acc;
 }
@@ -271,46 +354,7 @@ export function requestsFromBurst(b: BurstRequests): string[] {
   const r: string[] = [];
   if (b.late) r.push("late_checkout");
   if (b.early) r.push("early_checkin");
+  if (b.lateArrival && !b.early) r.push("other_conditions"); // recepção tardia = concessão operacional
   return r;
 }
 
-/**
- * Resposta imediata e segura ao hóspede enquanto a equipe decide: horários oficiais, motivo e o registro do
- * pedido. Não promete aprovação, não recusa antes da equipe e não cita prazo.
- */
-export function buildDecisionAckText(p: {
-  guestName: string | null;
-  officialCheckin: string | null;
-  officialCheckout: string | null;
-  late: ExceptionRequest | null;
-  early: ExceptionRequest | null;
-  sameDayArrival?: boolean | null;
-  sameDayDeparture?: boolean | null;
-}): string {
-  // Diretiva do titular (11/11/2026): horário oficial como padrão, sem fórmula de SAC ("registrei o seu pedido",
-  // "levei à equipe", "te retorno"), sem prometer exceção e sem recusar antes da equipe — salvo virada no mesmo
-  // dia, em que a saída é pontual.
-  const who = (p.guestName ?? "").trim().split(/\s+/)[0];
-  const lead = who ? `${who}, ` : "";
-  const parts: string[] = [];
-  if (p.early) {
-    const hour = p.officialCheckin ? `às ${formatHour(p.officialCheckin)}` : "no horário da sua reserva";
-    parts.push(
-      `nosso check-in é ${hour}. Faremos o possível para liberar o seu acesso antes, caso a acomodação fique pronta; havendo essa possibilidade, nossa equipe fala com você no próprio dia.`,
-    );
-  }
-  if (p.late) {
-    const hour = p.officialCheckout ? `até as ${formatHour(p.officialCheckout)}` : "no horário da sua reserva";
-    parts.push(
-      p.sameDayArrival === true
-        ? `o check-out é ${hour} e, nesse dia, já há outro check-in programado na casa; por isso a saída precisa ser pontual, para a higienização e a preparação do espaço.`
-        : `o check-out é ${hour}. Havendo possibilidade de estender um pouco o seu horário nesse dia, nossa equipe te avisa por aqui.`,
-    );
-  }
-  if (parts.length === 0) {
-    return `${lead}os horários oficiais seguem o que consta na sua reserva, porque o intervalo entre as estadias é usado para a limpeza e a preparação do imóvel.`;
-  }
-  const [first, ...rest] = parts;
-  const head = `${lead}${first}`;
-  return [head.charAt(0).toUpperCase() + head.slice(1), ...rest.map((x) => x.charAt(0).toUpperCase() + x.slice(1))].join("\n\n");
-}

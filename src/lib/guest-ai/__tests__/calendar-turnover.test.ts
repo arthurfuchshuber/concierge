@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { loadTurnoverFlags } from "@/lib/guest-ai-decision.server";
-import { buildDecisionAckText, buildDecisionQuestion } from "@/lib/guest-ai-decision";
+import { buildDecisionQuestion } from "@/lib/guest-ai-decision";
 
 type Row = Record<string, unknown>;
 function fakeDb(rows: Row[]) {
@@ -51,12 +51,5 @@ describe("cartão e resposta com as viradas", () => {
   it("entrada antecipada com saída no mesmo dia: o cartão avisa que depende da higienização", () => {
     const q = buildDecisionQuestion({ kind: "early_checkin", guestName: "Ana", time: "11:00", officialCheckout: "11:00", officialCheckin: "15:00", sameDayArrival: null, sameDayDeparture: true, internalQuestion: null, guestMessage: null });
     expect(q).toMatch(/Há saída de outro hóspede no mesmo dia: a entrada depende da higienização/);
-  });
-  it("resposta ao hóspede: entrada antecipada só se confirma no próprio dia; saída com virada é pontual", () => {
-    const early = buildDecisionAckText({ guestName: "Ana", officialCheckin: "15:00", officialCheckout: "11:00", late: null, early: { time: "11:00", day: null }, sameDayDeparture: true });
-    expect(early).toMatch(/^Ana, nosso check-in é às 15h\. Faremos o possível para liberar o seu acesso antes/);
-    expect(early).toMatch(/no próprio dia/);
-    const late = buildDecisionAckText({ guestName: "Ana", officialCheckin: "15:00", officialCheckout: "11:00", late: { time: "14:00", day: null }, early: null, sameDayArrival: true });
-    expect(late).toMatch(/já há outro check-in programado na casa; por isso a saída precisa ser pontual/);
   });
 });

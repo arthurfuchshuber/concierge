@@ -37,7 +37,7 @@ async function adminDb(): Promise<DecisionDb> {
   return (await import("@/integrations/supabase/client.server")).supabaseAdmin as unknown as DecisionDb;
 }
 
-const PROPERTY_COLUMNS = "id, name, owner_id, checkout_time, checkin_time, wifi_password, gate_code, lock_code, pin_code";
+const PROPERTY_COLUMNS = "id, name, owner_id, checkout_time, checkin_time, checkin_time_max, wifi_password, gate_code, lock_code, pin_code";
 
 /** Há decisão pendente na conversa? Erro de leitura (ou tabela ausente) ⇒ `false` (segue o fluxo de antes). */
 export async function hasPendingDecision(conversationId: string, deps: { db?: DecisionDb } = {}): Promise<boolean> {
@@ -65,23 +65,11 @@ export interface OpenDecisionInput {
 }
 
 export type OpenDecisionResult =
-  | { opened: true; id: string; kind: DecisionKind; reason: string; ack?: DecisionAck }
+  | { opened: true; id: string; kind: DecisionKind; reason: string }
   | { opened: false; code: "not_an_exception" | "already_authorized" | "pending_exists" | "exists" | "invalid" | "error"; reason?: string }
   /** Saída tardia com OUTRO check-in no dia da saída: não há o que decidir; a saída é pontual (aviso à equipe). */
-  | { opened: false; code: "same_day_turnover"; reason: string; ack: DecisionAck };
+  | { opened: false; code: "same_day_turnover"; reason: string };
 
-/** Dados para a resposta imediata ao hóspede (horários oficiais + o que foi pedido). */
-export interface DecisionAck {
-  guestName: string | null;
-  officialCheckin: string | null;
-  officialCheckout: string | null;
-  late: ExceptionRequest | null;
-  early: ExceptionRequest | null;
-  /** Outro hóspede faz check-in no dia da saída (virada no mesmo dia). */
-  sameDayArrival?: boolean | null;
-  /** Outro hóspede faz check-out no dia da entrada (a entrada depende da higienização). */
-  sameDayDeparture?: boolean | null;
-}
 
 /**
  * Viradas no mesmo dia da reserva da conversa (11/11/2026): outra reserva CONFIRMADA do mesmo imóvel chegando no
@@ -183,12 +171,24 @@ export async function openHumanDecision(input: OpenDecisionInput, deps: { db?: D
     const triggerText = typeof msg?.content === "string" ? msg.content : "";
     // RAJADA: o pedido é lido em todas as mensagens do hóspede desde a última resposta, não só na última.
     const burstTexts = await loadGuestBurst(db, input.conversationId, input.triggerMessageId).catch(() => [triggerText]);
-    const burst = parseBurstRequests(burstTexts);
+    // horários oficiais do imóvel: chegada DEPOIS do início do check-in nunca é entrada antecipada (caso Ary)
+    const burst = parseBurstRequests(burstTexts, {
+      officialCheckin: prop.checkin_time ?? null,
+      officialCheckinMax: prop.checkin_time_max ?? null,
+      officialCheckout: prop.checkout_time ?? null,
+    });
     const guestMessage = burstTexts.length > 0 ? burstTexts.join("\n") : triggerText;
+    // Chegada DENTRO da janela oficial rotulada como "entrada antecipada" (pelo modelo ou pelo fallback): não é
+    // exceção; não se abre cartão (diretiva de 11/11/2026, caso Ary).
+    if (modelKind === "early_checkin" && !burst.early && !burst.late && !burst.lateArrival && burst.arrivalInWindow) {
+      return { opened: false, code: "not_an_exception" };
+    }
     // o modelo diz que HÁ exceção; a rajada diz QUAL (e corrige rótulo trocado). Os dois tipos juntos ⇒ um cartão só.
     let kind: DecisionKind = modelKind;
     const both = !!(burst.late && burst.early);
     if (both) kind = "operational_concession";
+    // chegada tardia (depois do limite de check-in): recepção fora do horário é concessão, nunca "entrada antecipada"
+    else if (burst.lateArrival && !burst.early && !burst.late) kind = "operational_concession";
     else if (modelKind !== "operational_concession" || burst.late || burst.early) {
       if (burst.late && !burst.early) kind = "late_checkout";
       else if (burst.early && !burst.late) kind = "early_checkin";
@@ -213,18 +213,9 @@ export async function openHumanDecision(input: OpenDecisionInput, deps: { db?: D
     }
     // Viradas no mesmo dia (saída: outra entrada; entrada: outra saída), consideradas as listagens gêmeas.
     const { sameDayArrival, sameDayDeparture } = await loadTurnoverFlags(db, conv.property_id, conv.reservation_id ?? null);
-    const baseAck: DecisionAck = {
-      guestName: conv.guest_name ?? null,
-      officialCheckin: prop.checkin_time ?? null,
-      officialCheckout: prop.checkout_time ?? null,
-      late: burst.late ?? (kind === "late_checkout" ? { time, day: null } : null),
-      early: burst.early ?? (kind === "early_checkin" ? { time, day: null } : null),
-      sameDayArrival,
-      sameDayDeparture,
-    };
     // Só saída tardia, com outro check-in no dia da saída: a saída é pontual; não se abre cartão de aprovação.
     if (kind === "late_checkout" && !both && sameDayArrival === true) {
-      return { opened: false, code: "same_day_turnover", reason: "Pediu saída tardia, mas há outro check-in no mesmo dia: saída pontual informada ao hóspede.", ack: baseAck };
+      return { opened: false, code: "same_day_turnover", reason: "Pediu saída tardia, mas há outro check-in no mesmo dia: a saída é pontual no horário oficial." };
     }
 
     const question = buildDecisionQuestion({
@@ -239,8 +230,15 @@ export async function openHumanDecision(input: OpenDecisionInput, deps: { db?: D
       guestMessage,
       late: burst.late,
       early: burst.early,
+      lateArrival: kind === "operational_concession" && !both ? burst.lateArrival : null,
+      officialCheckinMax: prop.checkin_time_max ?? null,
     });
-    const options = both
+    const lateArrivalCard = kind === "operational_concession" && !both && !!burst.lateArrival;
+    const options = lateArrivalCard
+      ? buildDecisionOptions("operational_concession", null).map((o) =>
+          o.id === "approve" ? { ...o, label: "Receber mais tarde" } : o,
+        )
+      : both
       ? buildDecisionOptions("operational_concession", null).map((o) =>
           o.id === "approve" ? { ...o, label: "Aprovar os dois (cortesia)" } : o,
         )
@@ -257,8 +255,7 @@ export async function openHumanDecision(input: OpenDecisionInput, deps: { db?: D
     if (error) return { opened: false, code: "error" };
     const reason = decisionHandoffReason(kind, time);
     const r = (data ?? {}) as { result?: string; id?: string };
-    const ack = baseAck;
-    if (r.result === "opened" && r.id) return { opened: true, id: r.id, kind, reason, ack };
+    if (r.result === "opened" && r.id) return { opened: true, id: r.id, kind, reason };
     if (r.result === "pending_exists" || r.result === "exists") return { opened: false, code: r.result, reason };
     return { opened: false, code: "invalid" };
   } catch {

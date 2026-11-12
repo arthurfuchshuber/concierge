@@ -111,7 +111,7 @@ describe("Diálogo investigativo, sem bordões, sem prazo e encaminhamento silen
   it("prompt: bordões, prazos e anúncio de transferência proibidos; urgência só nos campos estruturados", () => {
     expect(sys).toMatch(/Sem bordões de suporte/);
     expect(sys).toMatch(/Zero promessa de prazo/);
-    expect(sys).toMatch(/Encaminhamento 100% silencioso, fora do reparo em primeira pessoa descrito acima: a urgência vai só em handoff/);
+    expect(sys).toMatch(/Encaminhamento 100% silencioso, fora do reparo em primeira pessoa e da verificação interna de pedidos de exceção descritos neste roteiro: a urgência vai só em handoff/);
     // os bordões só aparecem dentro da própria proibição
     const outsideBan = sys.replace(/Sem bordões de suporte[^\n]*/, "").replace(/Zero promessa de prazo[^\n]*/, "").replace(/Nada de voz passiva[^\n]*/, "");
     expect(outsideBan).not.toMatch(BORDOES);
@@ -358,7 +358,7 @@ describe("aviso de chegada coerente com canal e dossiê (system.2026-11-11.3)", 
   const arrival = sys.slice(sys.indexOf("Aviso de deslocamento"), sys.indexOf("Continue declarando guestEtas"));
 
   it("versão do roteiro", () => {
-    expect(SYSTEM_PROMPT_VERSION).toBe("system.2026-11-11.8");
+    expect(SYSTEM_PROMPT_VERSION).toBe("system.2026-11-12.1");
   });
 
   it("corrobora o histórico em vez de vetar a palavra guia", () => {
