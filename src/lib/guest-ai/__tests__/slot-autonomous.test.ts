@@ -3,7 +3,7 @@
  * (validação, posse humana e geração injetadas).
  */
 import { describe, expect, it, vi } from "vitest";
-import { AUTONOMOUS_HANDOFF_REASON, autonomousPropertyAllowed, requestGuestAiReply } from "@/lib/guest-ai/slot.server";
+import { AUTONOMOUS_HANDOFF_REASON, CONTINGENCY_REASON, CONTINGENCY_REPLY, autonomousPropertyAllowed, requestGuestAiReply } from "@/lib/guest-ai/slot.server";
 
 const ON = { GUEST_AI_AUTONOMOUS: "on" };
 const REQ = { surface: "guide_chat" as const, conversationId: "c1", messageId: "m1", expectedOwnerId: "o1" };
@@ -71,11 +71,15 @@ describe("slot autônomo · projeção da cadeia para o canal", () => {
     const d = deps({ generate: vi.fn(async () => stored("no_suggestion", { handoffNeeded: true, handoffUrgency: "high" })) });
     expect(await requestGuestAiReply(REQ, d)).toMatchObject({ reply: "", handoff: true, handoffUrgency: "high", handoffReason: AUTONOMOUS_HANDOFF_REASON });
   });
-  it("falha da geração, teto diário, recusa: encaminha à equipe com motivo padrão", async () => {
+  it("falha da geração, teto diário, erro: o hóspede recebe o aviso de contingência e a equipe, urgência alta (caso Gilmar)", async () => {
     for (const r of [stored("generation_failed", {}), { status: "daily_budget_exceeded", suggestionId: "s" }, { status: "skipped", code: "internal_error", detail: null }]) {
-      const out = await requestGuestAiReply(REQ, deps({ generate: vi.fn(async () => r) }));
-      expect(out).toMatchObject({ reply: "", handoff: true, handoffReason: AUTONOMOUS_HANDOFF_REASON, handoffUrgency: "normal" });
+      const out = await requestGuestAiReply(REQ, deps({ generate: vi.fn(async () => r), loadBurst: async () => ["Qual a senha do Wi-Fi?"] }));
+      expect(out).toEqual({ reply: CONTINGENCY_REPLY, handoff: true, handoffReason: CONTINGENCY_REASON, handoffUrgency: "high" });
     }
+  });
+  it("falha da geração com mensagem só de cortesia: silêncio e equipe avisada com o motivo padrão", async () => {
+    const out = await requestGuestAiReply(REQ, deps({ generate: vi.fn(async () => stored("generation_failed", {})), loadBurst: async () => ["Obrigado!"] }));
+    expect(out).toMatchObject({ reply: "", handoff: true, handoffReason: AUTONOMOUS_HANDOFF_REASON, handoffUrgency: "normal" });
   });
   it("rajada: mensagem mais nova chegou ⇒ esta fica em silêncio (a mais nova responde)", async () => {
     const d = deps({ generate: vi.fn(async () => ({ status: "skipped", code: "superseded_by_newer_message", detail: null })) });

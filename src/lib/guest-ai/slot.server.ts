@@ -25,6 +25,7 @@ import {
 } from "@/lib/guest-ai/outbound-text";
 import type { GuestSurface } from "@/lib/guest-ai/types";
 import { parseBurstRequests, requestsFromBurst } from "@/lib/guest-ai-decision";
+import { isAffirmativeStatement, isBareAcknowledgment } from "@/lib/guest-ai/ack-silence";
 
 export type GuestAiSurface = GuestSurface;
 
@@ -140,7 +141,16 @@ export interface SlotDeps {
  * Teto da cadeia do modelo no turno autônomo. O normal leva 5–10 s; acima disso o turno não pode ficar mudo: cai
  * no fallback determinístico (decisão com botões + resposta com os horários oficiais). A Gateway corta em 30 s.
  */
-export const GENERATION_FALLBACK_MS = 20_000;
+export const GENERATION_FALLBACK_MS = 25_000;
+
+/**
+ * Contingência de tempo (12/11/2026, caso Gilmar: "não consigo acesso a senha wifi" ficou sem resposta porque a
+ * geração estourou e o fallback só tratava pedidos de horário). Mensagem com conteúdo nunca fica muda: este aviso
+ * vai ao hóspede e a conversa sobe para a equipe com urgência alta. Sem prazo ("em instantes" é proibido pelo
+ * roteiro) e sem justificativa inventada.
+ */
+export const CONTINGENCY_REPLY = "Recebi sua mensagem e já acionei nossa equipe para te orientar por aqui.";
+export const CONTINGENCY_REASON = "Dúvida do hóspede sem resposta da IA (contingência de tempo): responder pela equipe.";
 
 
 /** Urgência do chamado de decisão (push prioritário). */
@@ -229,6 +239,8 @@ export async function requestGuestAiReply(req: GuestAiRequest, deps: SlotDeps = 
     if (r?.status === "skipped" && r.code === "superseded_by_newer_message") return SILENT; // a mensagem mais nova responde
     if (r?.status === "stale") return toHandoff("", undefined, "normal"); // a mensagem mais nova assume o turno
     if (r?.status !== "stored" || !r.result) return await deterministicFallback(req, deps);
+    // a geração foi gravada como falha (prazo, erro do modelo): mesma contingência, o hóspede não fica mudo
+    if (r.state === "generation_failed") return await deterministicFallback(req, deps);
     const res = r.result as {
       text: string | null;
       handoffNeeded: boolean;
@@ -329,7 +341,13 @@ async function deterministicFallback(req: GuestAiRequest, deps: SlotDeps): Promi
         })();
     const burst = parseBurstRequests(texts, { strict: true });
     const requests = requestsFromBurst(burst);
-    if (requests.length === 0) return toHandoff("", undefined, "normal");
+    if (requests.length === 0) {
+      // dúvida operacional (Wi-Fi, portaria, chuveiro…) sem resposta do modelo: nunca emudece o chat. Só cortesia
+      // ("ok", "obrigado") segue em silêncio, como no fluxo normal.
+      const content = texts.filter((t) => (t ?? "").trim());
+      if (!content.length || content.every((t) => isBareAcknowledgment(t) || isAffirmativeStatement(t))) return toHandoff("", undefined, "normal");
+      return toHandoff(CONTINGENCY_REPLY, CONTINGENCY_REASON, "high");
+    }
     const input = {
       conversationId: req.conversationId,
       triggerMessageId: req.messageId,
@@ -345,6 +363,7 @@ async function deterministicFallback(req: GuestAiRequest, deps: SlotDeps): Promi
     if (open.code === "pending_exists" || open.code === "exists") return toHandoff("", open.reason, DECISION_HANDOFF_URGENCY);
     return toHandoff("", undefined, "normal");
   } catch {
-    return toHandoff("", undefined, "normal");
+    // nem a leitura da rajada deu certo: ainda assim o hóspede não fica sem resposta
+    return toHandoff(CONTINGENCY_REPLY, CONTINGENCY_REASON, "high");
   }
 }

@@ -30,7 +30,7 @@ import { DECISION_FORMAT_SPEC } from "@/lib/guest-ai/orchestrator/decision";
 import type { GuestSurface } from "@/lib/guest-ai/types";
 import { GUEST_PERSONA, renderPersona, type PersonaSpec } from "./persona";
 
-export const SYSTEM_PROMPT_VERSION = "system.2026-11-12.1";
+export const SYSTEM_PROMPT_VERSION = "system.2026-11-12.2";
 
 /** Nomes dos blocos de dados da mensagem de usuário (o composer usa os mesmos). */
 export const CONTEXT_TAG = "dados_validados";
@@ -225,6 +225,8 @@ const HOSPITALITY_RITUALS = [
 ].join("\n");
 
 const CONTEXT_READING = [
+  "Cinco pilares da verdade, cada um soberano no seu assunto; fora deles, não afirme: (1) Dossiê do imóvel (<dossies>): regras da casa, horários oficiais, tipo de acesso, portaria, comodidades; credenciais só pela política de liberação (ctx:liberacao_credenciais) e pelo marcador de credenciais. (2) Documento vivo (<documento_vivo>): costumes da casa, preferências do anfitrião e o que a equipe já ensinou; complementa o dossiê e nunca vale contra ele em senhas, liberação de credenciais, valores, horários oficiais ou exceções. (3) Detalhes da reserva (ctx:reserva_status, ctx:checkin_oficial, ctx:checkout_oficial, ctx:titular_da_reserva, ctx:fase e as previsões de horário): datas contratadas, horários de entrada e saída, número de hóspedes e titular. (4) Calendário de ocupação (ctx:calendario_ocupacao): consulta obrigatória antes de qualquer diária extra, extensão ou checagem de virada no mesmo dia. (5) Fontes integradas (ferramentas de consulta): status de voo, trajeto e distância reais, clima; sem retorno da ferramenta, não afirme esses dados.",
+  "Dúvida operacional ou de acesso durante a estadia ou no check-in (Wi-Fi, portaria, fechadura, comodidades): consulte o dossiê e responda de imediato, com clareza e acolhimento direto. Se a liberação de credenciais estiver permitida, entregue o que o hóspede precisa pelo marcador de credenciais, sem rodeios nem fórmulas de atendimento; se não estiver, diga com naturalidade quando os dados de acesso ficam disponíveis.",
   `O bloco <${CONTEXT_TAG}> traz fatos estruturados validados pelo backend, cada um com um id (por exemplo ctx:fase ou case:c1). Cite em groundedOn os ids dos fatos e mensagens que sustentarem a sua resposta, exatamente como aparecem.`,
   "O interlocutor não tem identidade verificada e o titular da reserva não consta neste contexto, salvo quando um fato validado disser o contrário.",
   "Horários oficiais estão em ISO 8601 e valem no fuso IANA informado do imóvel. Um campo com status nao_informado ou uma seção listada como indisponível significa desconhecido: não suponha o valor.",
