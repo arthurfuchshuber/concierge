@@ -70,6 +70,8 @@ export type CleaningApprovalItem = {
   doneByName: string | null;
   priceCents: number | null;
   normalPriceCents: number | null;
+  logId: string | null;
+  reservationId: string | null;
 };
 
 const ListInput = z.object({
@@ -98,7 +100,7 @@ export const listCleaningApprovals = createServerFn({ method: "GET" })
 
     const { data: rows, error } = await context.supabase
       .from("guest_arrival_status")
-      .select("id, property_id, concluded_at, cleaning_price_cents, cleaning_done_by")
+      .select("id, property_id, concluded_at, cleaning_price_cents, cleaning_done_by, log_id, reservation_id")
       .in("property_id", propIds)
       .eq("kind", "checkout")
       .eq("cleaning_approval_status", "pending")
@@ -113,6 +115,8 @@ export const listCleaningApprovals = createServerFn({ method: "GET" })
       concluded_at: string | null;
       cleaning_price_cents: number | null;
       cleaning_done_by: string | null;
+      log_id: string | null;
+      reservation_id: string | null;
     };
     const list = (rows ?? []) as Row[];
     if (list.length === 0) return { canApprove, items: [] as CleaningApprovalItem[] };
@@ -189,6 +193,8 @@ export const listCleaningApprovals = createServerFn({ method: "GET" })
         doneByName: r.cleaning_done_by ? (nameByUser.get(r.cleaning_done_by) ?? null) : null,
         priceCents: r.cleaning_price_cents,
         normalPriceCents: p?.cleaning_price_normal_cents ?? null,
+        logId: r.log_id ?? null,
+        reservationId: r.reservation_id ?? null,
       };
     });
     return { canApprove, items };

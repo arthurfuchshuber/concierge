@@ -1,6 +1,5 @@
 import { OwnerLine } from "@/components/dashboard/OwnerLine";
 import { SearchActionRow } from "./SearchActionRow";
-import { useSearch } from "@tanstack/react-router";
 import { searchScore } from "@/lib/search-score";
 import { forwardRef, useEffect, useMemo, useRef, useState } from "react";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -534,8 +533,9 @@ export function RecordsWorkspace() {
   const counts = q.data?.counts;
 
   // `?q=` vem do detalhe do lançamento (imóvel ou hóspede): abre já filtrado.
-  const urlSearch = useSearch({ strict: false }) as { q?: string };
-  const [search, setSearch] = useState(urlSearch.q ?? "");
+  const [search, setSearch] = useState(() =>
+    typeof window === "undefined" ? "" : (new URLSearchParams(window.location.search).get("q") ?? "").slice(0, 120),
+  );
   const groups = useMemo<Group[]>(() => {
     const map = new Map<string, Group>();
     for (const r of records) {
