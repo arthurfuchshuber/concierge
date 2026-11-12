@@ -4,7 +4,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { ExternalLink, Play } from "lucide-react";
+import { ChevronRight, ExternalLink, Play } from "lucide-react";
 import { OwnerLine } from "@/components/dashboard/OwnerLine";
 import { DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { getFinanceEntryDetail } from "@/lib/finance-entry.functions";
@@ -64,6 +64,11 @@ export function FinanceEntryDetail({ entry, onNavigate }: { entry: FinanceEntry;
     staleTime: 60_000,
   });
   const d = q.data;
+  /** Abre os Registros já filtrados (imóvel ou hóspede) e fecha a janela. */
+  const openRecords = (term: string) => {
+    onNavigate();
+    void navigate({ to: "/admin/dashboard/registros", search: { q: term } });
+  };
   const ext = entry.kind === "extra";
   const title = ext ? entry.item.situationName : entry.item.cleaningType === "completa" ? "Limpeza completa" : "Limpeza normal";
   const subtitle = ext ? "Serviço extra · concluído" : "Limpeza · concluída";
@@ -89,8 +94,24 @@ export function FinanceEntryDetail({ entry, onNavigate }: { entry: FinanceEntry;
           </Field>
         ) : null}
         {it.concludedAt ? <Field label={ext ? "Concluído em" : "Concluída em"}>{fmtWhenFull(it.concludedAt)}</Field> : null}
-        {it.doneByName ? <Field label={ext ? "Executado por" : "Executada por"}>{it.doneByName}</Field> : null}
-        {reservaTxt ? <Field label={ext ? "Reserva" : "Reserva (saída)"}>{reservaTxt}</Field> : null}
+        {it.doneByName ? (
+          <Field label={ext ? "Executado por" : "Executada por"}>
+            {[it.doneByName, ext ? entry.item.doneByRole : null].filter(Boolean).join(" · ")}
+          </Field>
+        ) : null}
+        {reservaTxt ? (
+          <button
+            type="button"
+            onClick={() => openRecords(d?.reservation?.guestName || it.propertyName)}
+            className="flex w-full cursor-pointer items-center justify-between gap-3 border-b border-border/60 px-4 py-3 text-left transition-colors active:bg-foreground/[0.05]"
+          >
+            <span className="min-w-0">
+              <span className={`block ${CAP}`}>{ext ? "Reserva" : "Reserva (saída)"}</span>
+              <span className="mt-1 block break-words text-[13.5px] font-semibold leading-5 text-foreground">{reservaTxt}</span>
+            </span>
+            <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+          </button>
+        ) : null}
         <div className="flex items-baseline justify-between gap-3 border-b border-border/60 px-4 py-3">
           <span className={CAP}>Valor</span>
           <span className="font-display text-[20px] font-bold tabular-nums text-foreground">{brl(it.priceCents)}</span>
@@ -131,10 +152,7 @@ export function FinanceEntryDetail({ entry, onNavigate }: { entry: FinanceEntry;
       <div className="shrink-0 border-t border-border/60 px-4 py-3 sm:mx-6">
         <button
           type="button"
-          onClick={() => {
-            onNavigate();
-            void navigate({ to: "/admin/dashboard/registros" });
-          }}
+          onClick={() => openRecords(it.propertyName)}
           className="flex h-11 w-full cursor-pointer items-center justify-center gap-1.5 rounded-[12px] border border-border bg-transparent text-[13px] font-bold text-foreground transition-colors hover:bg-foreground/[0.06]"
         >
           <ExternalLink className="size-3.5" />

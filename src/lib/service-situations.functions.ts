@@ -372,10 +372,12 @@ export const getServiceExtras = createServerFn({ method: "GET" })
     }
     const provIds = Array.from(new Set(rows.map((r) => r.providerId).filter((v): v is string => !!v)));
     const provName = new Map<string, string>();
+    const provRole = new Map<string, string>();
     if (provIds.length > 0) {
-      const { data: pv } = await db.from("service_providers").select("id, name, trade_name").in("id", provIds);
-      for (const p of (pv ?? []) as Array<{ id: string; name: string | null; trade_name: string | null }>) {
+      const { data: pv } = await db.from("service_providers").select("id, name, trade_name, category").in("id", provIds);
+      for (const p of (pv ?? []) as Array<{ id: string; name: string | null; trade_name: string | null; category: string | null }>) {
         provName.set(p.id, (p.trade_name || p.name || "").trim());
+        if (p.category) provRole.set(p.id, providerRoleLabel(p.category));
       }
     }
     const customIds = Array.from(new Set(rows.map((r) => r.situation).filter((s) => !isSystemSituation(s))));
@@ -404,6 +406,7 @@ export const getServiceExtras = createServerFn({ method: "GET" })
           priceCents: r.cents,
           concludedAt: r.at,
           doneByName: r.providerId ? (provName.get(r.providerId) ?? null) : null,
+          doneByRole: r.providerId ? (provRole.get(r.providerId) ?? null) : null,
           logId: r.logId,
           reservationId: r.reservationId,
         };
@@ -575,3 +578,21 @@ export const createServiceRecord = createServerFn({ method: "POST" })
     }
     return { id: taskId, situationName, groupId };
   });
+
+const ROLE_LABELS: Record<string, string> = {
+  limpeza: "Limpeza",
+  manutencao: "Manutenção",
+  portaria: "Portaria",
+  lavanderia: "Lavanderia",
+  jardinagem: "Jardinagem",
+  piscina: "Piscina",
+  outros: "Outros",
+};
+
+/** Slug da categoria do prestador → rótulo (categorias personalizadas: slug legível). */
+function providerRoleLabel(slug: string): string {
+  const k = slug.trim().toLowerCase();
+  if (ROLE_LABELS[k]) return ROLE_LABELS[k];
+  const t = k.replace(/-/g, " ");
+  return t.charAt(0).toUpperCase() + t.slice(1);
+}
