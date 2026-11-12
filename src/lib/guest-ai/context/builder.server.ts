@@ -34,6 +34,8 @@ import { fetchListingFacts, detectListingConflicts } from "@/lib/guest-ai/data/l
 import { fetchDossierKnowledge } from "@/lib/guest-ai/data/dossier.server";
 import { fetchReservationState, type ReservationLookup } from "@/lib/guest-ai/data/reservation.server";
 import { fetchCancellationTerms } from "@/lib/guest-ai/data/cancellation-terms.server";
+import { fetchPropertyOccupancy } from "@/lib/guest-ai/data/property-calendar.server";
+import { localDate, type CalendarFact } from "@/lib/guest-ai/calendar-occupancy";
 import { freeCancellationStatus } from "@/lib/guest-ai/playbooks/airbnb-cancellation";
 import { emptyReservationState, type ReservationState } from "@/lib/guest-ai/data/reservation-facts";
 import { fetchSensitiveCredentials } from "@/lib/guest-ai/data/credentials.server";
@@ -56,6 +58,7 @@ export interface BuilderDeps {
   validateTurnScope?: typeof validateTurnScope;
   fetchReservationState?: typeof fetchReservationState;
   fetchCancellationTerms?: typeof fetchCancellationTerms;
+  fetchPropertyOccupancy?: typeof fetchPropertyOccupancy;
   fetchListingFacts?: typeof fetchListingFacts;
   fetchDossierKnowledge?: typeof fetchDossierKnowledge;
   fetchSensitiveCredentials?: (grant: CredentialGrant) => Promise<GuestCredentials | null>;
@@ -201,6 +204,18 @@ export async function buildGuestContext(input: TurnInput, deps: BuilderDeps = {}
     }
     throwIfAborted(signal);
   }
+  // Calendário do imóvel (11/11/2026): só datas de outras reservas e bloqueios; falha ⇒ indisponível (nunca presume livre).
+  let calendar: CalendarFact = { status: "unavailable" };
+  const today = localDate(nowIso, timezone);
+  if (today) {
+    try {
+      const occ = await (deps.fetchPropertyOccupancy ?? fetchPropertyOccupancy)(turn, { today }, { db });
+      calendar = { status: "available", ...occ };
+    } catch {
+      /* indisponível */
+    }
+    throwIfAborted(signal);
+  }
   const { audiences } = decideAudiences({ stayExists: state.exists, status: state.status, phase, noShow: state.noShow });
   const audienceSet = new Set<GuestAudience>(audiences);
 
@@ -273,6 +288,7 @@ export async function buildGuestContext(input: TurnInput, deps: BuilderDeps = {}
           freeCancellation,
         }
       : null,
+    calendar,
     audiences,
     access: { credentialsAllowed: policy.allowed && credentials !== null, policyResult: policy },
     credentials,

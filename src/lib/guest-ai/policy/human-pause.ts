@@ -31,9 +31,9 @@
  */
 import { parseInstant } from "./wall-clock";
 
-export const HUMAN_PAUSE_VERSION = "human-pause.2026-11-03.1";
-/** Janela homologada (decisões 1 e 7 da B3.0 Rev. 1). Não é configurável. */
-export const HUMAN_PAUSE_WINDOW_MS = 10 * 60_000;
+export const HUMAN_PAUSE_VERSION = "human-pause.2026-11-11.1";
+/** 60 min desde a última intervenção humana (11/11/2026; eram 10): a IA nunca atravessa um atendimento recente. */
+export const HUMAN_PAUSE_WINDOW_MS = 60 * 60_000;
 
 export type InterventionClass = "human_verified" | "human_channel" | "system_unproven" | "unknown_non_guest";
 

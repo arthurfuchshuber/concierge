@@ -224,6 +224,11 @@ export interface GuestContext {
      */
     freeCancellation?: { status: "open" | "closed" | "unknown"; until: string | null; policyLabel: string | null };
   } | null;
+  /**
+   * Ocupação do calendário do imóvel (reservas confirmadas de outros hóspedes e bloqueios manuais), só datas,
+   * sem PII (11/11/2026, caso Gleison). Ausente/`unavailable` ⇒ a IA não presume disponibilidade.
+   */
+  calendar?: import("@/lib/guest-ai/calendar-occupancy").CalendarFact;
   audiences: GuestAudience[];
   access: {
     credentialsAllowed: boolean;

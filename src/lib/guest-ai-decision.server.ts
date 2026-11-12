@@ -66,7 +66,9 @@ export interface OpenDecisionInput {
 
 export type OpenDecisionResult =
   | { opened: true; id: string; kind: DecisionKind; reason: string; ack?: DecisionAck }
-  | { opened: false; code: "not_an_exception" | "already_authorized" | "pending_exists" | "exists" | "invalid" | "error"; reason?: string };
+  | { opened: false; code: "not_an_exception" | "already_authorized" | "pending_exists" | "exists" | "invalid" | "error"; reason?: string }
+  /** Saída tardia com OUTRO check-in no dia da saída: não há o que decidir; a saída é pontual (aviso à equipe). */
+  | { opened: false; code: "same_day_turnover"; reason: string; ack: DecisionAck };
 
 /** Dados para a resposta imediata ao hóspede (horários oficiais + o que foi pedido). */
 export interface DecisionAck {
@@ -75,6 +77,47 @@ export interface DecisionAck {
   officialCheckout: string | null;
   late: ExceptionRequest | null;
   early: ExceptionRequest | null;
+  /** Outro hóspede faz check-in no dia da saída (virada no mesmo dia). */
+  sameDayArrival?: boolean | null;
+  /** Outro hóspede faz check-out no dia da entrada (a entrada depende da higienização). */
+  sameDayDeparture?: boolean | null;
+}
+
+/**
+ * Viradas no mesmo dia da reserva da conversa (11/11/2026): outra reserva CONFIRMADA do mesmo imóvel chegando no
+ * dia da nossa saída, ou saindo no dia da nossa entrada. Anúncios gêmeos (`channex_twin_links`) não têm imóvel
+ * próprio no ConciergeIA: as reservas deles já entram no `property_id` do imóvel principal, então a consulta
+ * por imóvel cobre as duas listagens. Sem reserva ou falha de leitura ⇒ `null` (desconhecido).
+ */
+export async function loadTurnoverFlags(
+  db: DecisionDb,
+  propertyId: string,
+  reservationId: string | null,
+): Promise<{ sameDayArrival: boolean | null; sameDayDeparture: boolean | null }> {
+  const unknown = { sameDayArrival: null, sameDayDeparture: null };
+  if (!reservationId) return unknown;
+  try {
+    const { data: res } = await db.from("property_reservations").select("checkin_date, checkout_date").eq("id", reservationId).maybeSingle();
+    const checkin = typeof res?.checkin_date === "string" ? res.checkin_date : null;
+    const checkout = typeof res?.checkout_date === "string" ? res.checkout_date : null;
+    const other = async (col: "checkin_date" | "checkout_date", date: string | null) => {
+      if (!date) return null;
+      const { data, error } = await db
+        .from("property_reservations")
+        .select("id")
+        .eq("property_id", propertyId)
+        .eq(col, date)
+        .neq("id", reservationId)
+        .eq("status", "confirmed")
+        .limit(1);
+      if (error) return null;
+      return Array.isArray(data) ? data.length > 0 : null;
+    };
+    const [sameDayArrival, sameDayDeparture] = await Promise.all([other("checkin_date", checkout), other("checkout_date", checkin)]);
+    return { sameDayArrival, sameDayDeparture };
+  } catch {
+    return unknown;
+  }
 }
 
 /** Janela da rajada: mensagens do hóspede desde a última resposta (IA/equipe), no máximo 3 minutos antes do gatilho. */
@@ -158,7 +201,6 @@ export async function openHumanDecision(input: OpenDecisionInput, deps: { db?: D
           : null;
 
     // late check-out já concedido no card ⇒ não há o que decidir (a IA responde normalmente)
-    let sameDayArrival: boolean | null = null;
     if (kind === "late_checkout" && conv.reservation_id) {
       const { data: card } = await db
         .from("guest_arrival_status")
@@ -168,22 +210,21 @@ export async function openHumanDecision(input: OpenDecisionInput, deps: { db?: D
         .limit(1);
       if ((card as Array<{ late_checkout_time?: string | null }> | null)?.[0]?.late_checkout_time)
         return { opened: false, code: "already_authorized" };
-      const { data: res } = await db
-        .from("property_reservations")
-        .select("checkout_date")
-        .eq("id", conv.reservation_id)
-        .maybeSingle();
-      if (res?.checkout_date) {
-        const { data: next } = await db
-          .from("property_reservations")
-          .select("id")
-          .eq("property_id", conv.property_id)
-          .eq("checkin_date", res.checkout_date)
-          .neq("id", conv.reservation_id)
-          .eq("status", "confirmed")
-          .limit(1);
-        sameDayArrival = Array.isArray(next) ? next.length > 0 : null;
-      }
+    }
+    // Viradas no mesmo dia (saída: outra entrada; entrada: outra saída), consideradas as listagens gêmeas.
+    const { sameDayArrival, sameDayDeparture } = await loadTurnoverFlags(db, conv.property_id, conv.reservation_id ?? null);
+    const baseAck: DecisionAck = {
+      guestName: conv.guest_name ?? null,
+      officialCheckin: prop.checkin_time ?? null,
+      officialCheckout: prop.checkout_time ?? null,
+      late: burst.late ?? (kind === "late_checkout" ? { time, day: null } : null),
+      early: burst.early ?? (kind === "early_checkin" ? { time, day: null } : null),
+      sameDayArrival,
+      sameDayDeparture,
+    };
+    // Só saída tardia, com outro check-in no dia da saída: a saída é pontual; não se abre cartão de aprovação.
+    if (kind === "late_checkout" && !both && sameDayArrival === true) {
+      return { opened: false, code: "same_day_turnover", reason: "Pediu saída tardia, mas há outro check-in no mesmo dia: saída pontual informada ao hóspede.", ack: baseAck };
     }
 
     const question = buildDecisionQuestion({
@@ -193,6 +234,7 @@ export async function openHumanDecision(input: OpenDecisionInput, deps: { db?: D
       officialCheckout: prop.checkout_time ?? null,
       officialCheckin: prop.checkin_time ?? null,
       sameDayArrival,
+      sameDayDeparture,
       internalQuestion: both ? null : input.internalQuestion,
       guestMessage,
       late: burst.late,
@@ -215,13 +257,7 @@ export async function openHumanDecision(input: OpenDecisionInput, deps: { db?: D
     if (error) return { opened: false, code: "error" };
     const reason = decisionHandoffReason(kind, time);
     const r = (data ?? {}) as { result?: string; id?: string };
-    const ack: DecisionAck = {
-      guestName: conv.guest_name ?? null,
-      officialCheckin: prop.checkin_time ?? null,
-      officialCheckout: prop.checkout_time ?? null,
-      late: burst.late ?? (kind === "late_checkout" ? { time, day: null } : null),
-      early: burst.early ?? (kind === "early_checkin" ? { time, day: null } : null),
-    };
+    const ack = baseAck;
     if (r.result === "opened" && r.id) return { opened: true, id: r.id, kind, reason, ack };
     if (r.result === "pending_exists" || r.result === "exists") return { opened: false, code: r.result, reason };
     return { opened: false, code: "invalid" };

@@ -121,6 +121,8 @@ export interface QuestionInput {
   officialCheckin: string | null;
   /** `true`/`false` quando se sabe se há entrada no mesmo dia da saída; `null` = desconhecido. */
   sameDayArrival: boolean | null;
+  /** `true`/`false` quando se sabe se outro hóspede sai no dia da entrada; `null`/ausente = desconhecido. */
+  sameDayDeparture?: boolean | null;
   /** Pergunta interna do modelo (quando houver) e a mensagem do hóspede, só para concessões. */
   internalQuestion: string | null;
   guestMessage: string | null;
@@ -136,7 +138,11 @@ export function buildDecisionQuestion(q: QuestionInput): string {
   if (q.late && q.early) {
     const out = `${describeRequest("late_checkout", q.late)}${q.officialCheckout ? ` (oficial ${formatHour(q.officialCheckout)})` : ""}`;
     const inn = `${describeRequest("early_checkin", q.early)}${q.officialCheckin ? ` (oficial ${formatHour(q.officialCheckin)})` : ""}`;
-    s = `${who} pede ${inn} e ${out}. Aprovar os dois como cortesia?`;
+    const notes = [
+      q.sameDayDeparture === true ? "Há saída de outro hóspede no dia da entrada (depende da higienização)." : "",
+      q.sameDayArrival === true ? "Há entrada de outro hóspede no dia da saída." : "",
+    ].filter(Boolean).join(" ");
+    s = `${who} pede ${inn} e ${out}.${notes ? ` ${notes}` : ""} Aprovar os dois como cortesia?`;
   } else if (q.kind === "late_checkout") {
     const official = q.officialCheckout ? ` (oficial ${formatHour(q.officialCheckout)})` : "";
     const when = q.time
@@ -150,7 +156,13 @@ export function buildDecisionQuestion(q: QuestionInput): string {
     const when = q.time
       ? `${describeRequest("early_checkin", { time: q.time, day: q.early?.day ?? null })}${official}`
       : `entrar mais cedo${official}, sem horário definido`;
-    s = `${who} pede ${when}. Aprovar como cortesia?`;
+    const day =
+      q.sameDayDeparture === true
+        ? " Há saída de outro hóspede no mesmo dia: a entrada depende da higienização."
+        : q.sameDayDeparture === false
+          ? " Não há saída no mesmo dia."
+          : "";
+    s = `${who} pede ${when}.${day} Aprovar como cortesia?`;
   } else {
     const base = (q.internalQuestion ?? "").trim();
     s = base
@@ -272,20 +284,33 @@ export function buildDecisionAckText(p: {
   officialCheckout: string | null;
   late: ExceptionRequest | null;
   early: ExceptionRequest | null;
+  sameDayArrival?: boolean | null;
+  sameDayDeparture?: boolean | null;
 }): string {
+  // Diretiva do titular (11/11/2026): horário oficial como padrão, sem fórmula de SAC ("registrei o seu pedido",
+  // "levei à equipe", "te retorno"), sem prometer exceção e sem recusar antes da equipe — salvo virada no mesmo
+  // dia, em que a saída é pontual.
   const who = (p.guestName ?? "").trim().split(/\s+/)[0];
-  const parts: string[] = [];
-  if (p.late) parts.push(describeRequest("late_checkout", p.late));
-  if (p.early) parts.push(describeRequest("early_checkin", p.early));
-  const hours: string[] = [];
-  if (p.officialCheckin) hours.push(`check-in a partir das ${formatHour(p.officialCheckin)}`);
-  if (p.officialCheckout) hours.push(`check-out até as ${formatHour(p.officialCheckout)}`);
   const lead = who ? `${who}, ` : "";
-  const first = hours.length
-    ? `${lead}o horário oficial da casa é ${hours.join(" e ")}, porque esse intervalo é usado para a limpeza e a preparação do imóvel.`
-    : `${lead}os horários oficiais seguem o que consta na sua reserva, porque o intervalo entre as estadias é usado para a limpeza e a preparação do imóvel.`;
-  const second = parts.length
-    ? `Registrei o seu pedido de ${parts.join(" e ")} e levei à equipe para avaliar a flexibilidade.`
-    : "Registrei o seu pedido e levei à equipe para avaliar a flexibilidade.";
-  return `${first}\n\n${second} Assim que houver uma posição, te retorno por aqui.`;
+  const parts: string[] = [];
+  if (p.early) {
+    const hour = p.officialCheckin ? `às ${formatHour(p.officialCheckin)}` : "no horário da sua reserva";
+    parts.push(
+      `nosso check-in é ${hour}. Faremos o possível para liberar o seu acesso antes, caso a acomodação fique pronta; havendo essa possibilidade, nossa equipe fala com você no próprio dia.`,
+    );
+  }
+  if (p.late) {
+    const hour = p.officialCheckout ? `até as ${formatHour(p.officialCheckout)}` : "no horário da sua reserva";
+    parts.push(
+      p.sameDayArrival === true
+        ? `o check-out é ${hour} e, nesse dia, já há outro check-in programado na casa; por isso a saída precisa ser pontual, para a higienização e a preparação do espaço.`
+        : `o check-out é ${hour}. Havendo possibilidade de estender um pouco o seu horário nesse dia, nossa equipe te avisa por aqui.`,
+    );
+  }
+  if (parts.length === 0) {
+    return `${lead}os horários oficiais seguem o que consta na sua reserva, porque o intervalo entre as estadias é usado para a limpeza e a preparação do imóvel.`;
+  }
+  const [first, ...rest] = parts;
+  const head = `${lead}${first}`;
+  return [head.charAt(0).toUpperCase() + head.slice(1), ...rest.map((x) => x.charAt(0).toUpperCase() + x.slice(1))].join("\n\n");
 }

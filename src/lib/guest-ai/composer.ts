@@ -32,6 +32,7 @@
  *
  * Não é instalado em lugar nenhum: o padrão de produção do Orchestrator continua `NO_COMPOSER`.
  */
+import { calendarFactValue } from "@/lib/guest-ai/calendar-occupancy";
 import type { ComposedPrompt, ConversationContext } from "@/lib/guest-ai/orchestrator/contracts";
 import type { HistoryEntry, HistoryResult, HistoryUnavailableReason } from "./history";
 import { PERSONA_VERSION } from "./persona";
@@ -336,6 +337,14 @@ function buildContextData(ctx: ConversationContext, guarded: Guarded, unavailabl
   } else {
     facts.push({ id: "ctx:reserva_status", valor: { status: "nao_informado" }, origem: "backend" });
   }
+  // Calendário do imóvel (11/11/2026, caso Gleison + calendário dinâmico): só datas, sem dados de outros hóspedes,
+  // na janela que interessa (estadia, datas citadas pelo hóspede ou próximos 14 dias) e com o resumo já calculado.
+  const cal = g.calendar;
+  facts.push({
+    id: "ctx:calendario_ocupacao",
+    valor: cal && cal.status === "available" ? calendarFactValue(cal) : { status: "indisponivel" },
+    origem: "calendario_oficial_do_imovel",
+  });
   facts.push(
     {
       id: "ctx:liberacao_credenciais",
