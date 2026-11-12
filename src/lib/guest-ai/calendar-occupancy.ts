@@ -39,6 +39,146 @@ export interface MentionedDateSummary {
   otherCheckinOnDay: boolean;
 }
 
+// ─────────────── período pedido, mínimo de noites e portfólio (diretiva de 12/11/2026, caso Tais) ───────────────
+
+/** Regras de estadia do anúncio (`raw_settings.availability_rule` da Channex/Airbnb). */
+export interface StayRules {
+  defaultMinNights: number | null;
+  seasonal: ReadonlyArray<{ start: string; end: string; minNights: number }>;
+  /** Mínimo por dia da semana da CHEGADA (0 = domingo); valores ≤ 0 = sem regra. */
+  dayOfWeekMin: readonly number[] | null;
+  /** Até quantos dias à frente o anúncio aceita reserva. */
+  maxDaysNotice: number | null;
+}
+
+/** Período pedido pelo hóspede: [entrada, saída). */
+export interface RequestedPeriod {
+  checkin: string;
+  checkout: string;
+  nights: number;
+}
+
+export type Bookable = "sim" | "nao" | "desconhecido";
+
+export interface PeriodAssessment extends RequestedPeriod {
+  /** Cada noite do período: livre ou ocupada no NOSSO calendário. */
+  nightStatus: ReadonlyArray<{ date: string; status: "livre" | "ocupada" }>;
+  allNightsFree: boolean;
+  /** Mínimo de noites exigido pelo anúncio para essa chegada (`null` = regra desconhecida). */
+  minNights: number | null;
+  meetsMinNights: boolean | null;
+  /** Dentro do horizonte de reserva do anúncio (`null` = desconhecido). */
+  withinBookingWindow: boolean | null;
+  /** Dá para reservar exatamente esse período no anúncio? Só "sim" com noites livres E regra conhecida e cumprida. */
+  bookable: Bookable;
+}
+
+/** Outro imóvel do MESMO anfitrião, livre e reservável no período pedido, com o link oficial do anúncio. */
+export interface PortfolioAlternative {
+  name: string;
+  url: string;
+  checkin: string;
+  checkout: string;
+  nights: number;
+  minNights: number;
+}
+
+const posInt = (v: unknown): number | null => {
+  const n = typeof v === "string" ? Number(v) : v;
+  return typeof n === "number" && Number.isInteger(n) && n > 0 ? n : null;
+};
+
+/** Lê as regras do anúncio. Formato inesperado ⇒ `null` (regra desconhecida: nunca presume reservável). */
+export function parseStayRules(availabilityRule: unknown): StayRules | null {
+  if (!availabilityRule || typeof availabilityRule !== "object") return null;
+  const a = availabilityRule as Record<string, unknown>;
+  const defaultMinNights = posInt(a.default_min_nights);
+  const seasonal: Array<{ start: string; end: string; minNights: number }> = [];
+  if (Array.isArray(a.seasonal_min_nights)) {
+    for (const s of a.seasonal_min_nights as Array<Record<string, unknown>>) {
+      const start = typeof s?.start_date === "string" ? s.start_date : "";
+      const end = typeof s?.end_date === "string" ? s.end_date : "";
+      const min = posInt(s?.min_nights);
+      if (ISO_DATE.test(start) && ISO_DATE.test(end) && min) seasonal.push({ start, end, minNights: min });
+    }
+  }
+  const dow = Array.isArray(a.day_of_week_min_nights) && a.day_of_week_min_nights.length === 7
+    ? (a.day_of_week_min_nights as unknown[]).map((v) => (typeof v === "number" ? v : -1))
+    : null;
+  if (defaultMinNights === null && seasonal.length === 0) return null;
+  return { defaultMinNights, seasonal, dayOfWeekMin: dow, maxDaysNotice: posInt(a.max_days_notice) };
+}
+
+/** Mínimo de noites para uma chegada: regra sazonal da data ⇒ regra do dia da semana ⇒ padrão do anúncio. */
+export function minNightsFor(rules: StayRules | null | undefined, arrival: string): number | null {
+  if (!rules || !ISO_DATE.test(arrival)) return null;
+  const season = rules.seasonal.find((s) => s.start <= arrival && arrival <= s.end);
+  if (season) return season.minNights;
+  const dow = rules.dayOfWeekMin?.[new Date(`${arrival}T00:00:00Z`).getUTCDay()];
+  if (typeof dow === "number" && dow > 0) return dow;
+  return rules.defaultMinNights;
+}
+
+const daysBetween = (a: string, b: string) => Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 86_400_000);
+
+/** Avalia o período pedido num calendário (noites livres + mínimo de noites + horizonte do anúncio). */
+export function assessPeriod(
+  occ: Pick<PropertyCalendarOccupancy, "occupiedRanges" | "today">,
+  period: RequestedPeriod,
+  rules: StayRules | null | undefined,
+): PeriodAssessment {
+  const nightStatus: Array<{ date: string; status: "livre" | "ocupada" }> = [];
+  for (let d = period.checkin; d < period.checkout; d = addDays(d, 1)) {
+    nightStatus.push({ date: d, status: isNightOccupied(occ, d) ? "ocupada" : "livre" });
+  }
+  const allNightsFree = nightStatus.every((n) => n.status === "livre");
+  const minNights = minNightsFor(rules, period.checkin);
+  const meetsMinNights = minNights === null ? null : period.nights >= minNights;
+  const withinBookingWindow =
+    rules?.maxDaysNotice == null ? null : daysBetween(occ.today, period.checkin) <= rules.maxDaysNotice && period.checkin >= occ.today;
+  const bookable: Bookable = !allNightsFree || meetsMinNights === false || withinBookingWindow === false || period.checkin < occ.today
+    ? "nao"
+    : meetsMinNights === true
+      ? "sim"
+      : "desconhecido";
+  return { ...period, nightStatus, allNightsFree, minNights, meetsMinNights, withinBookingWindow, bookable };
+}
+
+const NIGHT_WORDS: Record<string, number> = { uma: 1, um: 1, duas: 2, dois: 2, tres: 3, quatro: 4, cinco: 5, seis: 6, sete: 7 };
+/** "do dia 19 a 21", "19 ao 21", "de 19 até 21": o segundo número é a saída. */
+const DAY_RANGE = /\b(?:dias?|de|do|entre)\s+(?:dia\s+)?(\d{1,2})(?:\/(\d{1,2}))?\s*(?:a|ao|ate|-)\s*(?:o\s+)?(?:dia\s+)?(\d{1,2})(?:\/(\d{1,2}))?\b/;
+
+/**
+ * Período pedido na MENSAGEM mais recente do hóspede que cita datas: duas datas ⇒ [primeira, última); uma data ⇒
+ * a quantidade de noites citada ("uma noite", "2 noites") ou uma noite. Mais de 30 noites ou nada ⇒ `null`.
+ */
+export function extractRequestedPeriod(text: string, today: string): RequestedPeriod | null {
+  const n = norm(text ?? "");
+  const dates = new Set(extractMentionedDates(text, today));
+  const range = DAY_RANGE.exec(n);
+  if (range) {
+    const a = resolveDate(Number(range[1]), range[2] ? Number(range[2]) : null, today);
+    const monthB = range[4] ? Number(range[4]) : range[2] ? Number(range[2]) : null;
+    let b = a ? resolveDate(Number(range[3]), monthB, a) : null;
+    if (a && b && b <= a && monthB === null) b = resolveDate(Number(range[3]), null, addDays(a, 1));
+    if (a) dates.add(a);
+    if (b) dates.add(b);
+  }
+  const sorted = [...dates].sort();
+  if (sorted.length === 0) return null;
+  let checkin = sorted[0]!;
+  let checkout = sorted.length > 1 ? sorted[sorted.length - 1]! : "";
+  if (!checkout) {
+    const m = /\b(\d{1,2}|uma|um|duas|dois|tres|quatro|cinco|seis|sete) (noites?|diarias?)\b/.exec(n);
+    const k = m ? (NIGHT_WORDS[m[1]!] ?? Number(m[1])) : 1;
+    if (!Number.isInteger(k) || k < 1) return null;
+    checkout = addDays(checkin, k);
+  }
+  const nights = daysBetween(checkin, checkout);
+  if (nights < 1 || nights > 30) return null;
+  return { checkin, checkout, nights };
+}
+
 export interface PropertyCalendarOccupancy {
   propertyId: string;
   /** Hoje no fuso do imóvel (YYYY-MM-DD). */
@@ -52,6 +192,10 @@ export interface PropertyCalendarOccupancy {
   sameDayTurnovers: readonly string[];
   stay: StayTurnoverSummary | null;
   mentionedDates: readonly MentionedDateSummary[];
+  /** Período pedido na mensagem mais recente com datas (consulta sem estadia), avaliado neste imóvel. */
+  requested?: PeriodAssessment | null;
+  /** Outros imóveis do anfitrião reserváveis no período (`null` = não consultado; `[]` = nenhum). */
+  alternatives?: readonly PortfolioAlternative[] | null;
 }
 
 export type CalendarFact = ({ status: "available" } & PropertyCalendarOccupancy) | { status: "unavailable" };
@@ -271,6 +415,45 @@ export function calendarFactValue(occ: PropertyCalendarOccupancy): Record<string
     ...(occ.mentionedDates.length
       ? { datas_citadas: occ.mentionedDates.map((m) => ({ data: m.date, noite_ocupada: m.nightOccupied, outro_checkin_no_dia: m.otherCheckinOnDay })) }
       : {}),
+    ...(occ.requested ? { periodo_consultado: periodFactValue(occ.requested) } : {}),
+    ...(occ.alternatives
+      ? {
+          alternativas_portfolio: occ.alternatives.map((a) => ({
+            acomodacao: a.name,
+            link_airbnb: a.url,
+            entrada: a.checkin,
+            saida: a.checkout,
+            noites: a.nights,
+            minimo_noites: a.minNights,
+            situacao: "livre e reservável no período",
+          })),
+        }
+      : {}),
     leitura: "noite D ocupada se entrada <= D < saida; fora dos intervalos = livre no nosso calendário (a plataforma tem a palavra final); fora da janela, não se sabe",
+  };
+}
+
+const br = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
+
+/** Recorte do período pedido para o prompt: status claro por noite, mínimo de noites e se dá para reservar. */
+export function periodFactValue(p: PeriodAssessment): Record<string, unknown> {
+  // agrupa noites seguidas com o mesmo status: "18/11: LIVRE; 19/11 a 23/11: OCUPADO"
+  const parts: string[] = [];
+  let i = 0;
+  while (i < p.nightStatus.length) {
+    let j = i;
+    while (j + 1 < p.nightStatus.length && p.nightStatus[j + 1]!.status === p.nightStatus[i]!.status) j += 1;
+    const label = p.nightStatus[i]!.status === "livre" ? "LIVRE" : "OCUPADO";
+    parts.push(i === j ? `noite de ${br(p.nightStatus[i]!.date)}: ${label}` : `noites de ${br(p.nightStatus[i]!.date)} a ${br(p.nightStatus[j]!.date)}: ${label}`);
+    i = j + 1;
+  }
+  return {
+    entrada: p.checkin,
+    saida: p.checkout,
+    noites: p.nights,
+    noites_status: parts.join("; "),
+    minimo_noites_na_chegada: p.minNights ?? "desconhecido",
+    cumpre_minimo: p.meetsMinNights ?? "desconhecido",
+    reservavel_neste_anuncio: p.bookable,
   };
 }

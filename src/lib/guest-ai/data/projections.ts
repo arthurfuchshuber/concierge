@@ -153,6 +153,19 @@ export const GUEST_IMAGE_MESSAGE_COLUMNS = [
 /** Sem `guest_contacts` (telefone/PII) nem valores financeiros. */
 export const RESERVATION_COLUMNS = ["id", "property_id", "status", "source", "checkin_date", "checkout_date"] as const;
 /** Calendário (11/11/2026): só para achar DATAS citadas pelo hóspede da própria conversa; o texto não vai ao modelo por aqui. */
+/**
+ * Portfólio (12/11/2026, sugestão de outro imóvel do anfitrião): só identificação pública e link do anúncio.
+ * Das configurações do anúncio, SÓ a regra de disponibilidade (mínimo de noites, horizonte), por caminho JSON:
+ * nada de mensagem de boas-vindas, preços, taxas ou dados de conta.
+ */
+export const PORTFOLIO_PROPERTY_COLUMNS = ["id", "name", "city", "owner_id", "archived_at", "airbnb_listing_url"] as const;
+export const LISTING_STAY_RULE_COLUMNS = [
+  "property_id",
+  "airbnb_listing_id",
+  "sync_paused_at",
+  "not_found_at",
+  "availability_rule:raw_settings->availability_rule",
+] as const;
 export const CALENDAR_GUEST_TEXT_COLUMNS = ["id", "conversation_id", "role", "sender_type", "is_internal_note", "content", "created_at"] as const;
 /** Modalidade de cancelamento DA RESERVA (playbook de cancelamento, 10/11/2026). Sem valores nem contatos. */
 export const RESERVATION_CANCELLATION_COLUMNS = ["id", "property_id", "checkin_date", "checkout_date", "cancellation_policy_category", "is_non_refundable", "created_at"] as const;

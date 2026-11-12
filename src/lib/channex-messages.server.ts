@@ -361,9 +361,21 @@ async function resolveListing(admin: any, m: Inbound): Promise<ListingRow | null
   return null; // incerto → não responde
 }
 
+/** Link de anúncio do próprio Airbnb (sugestão de portfólio, 12/11/2026): o único link que atravessa a limpeza. */
+export const AIRBNB_LISTING_LINK = /https:\/\/(?:www\.)?airbnb\.com(?:\.br)?\/rooms\/\d{6,24}\b/g;
+
 /** O chat do Airbnb não renderiza Markdown: remove marcações antes do envio. */
 export function toAirbnbPlainText(text: string): string {
-  // O Airbnb bloqueia mensagens com links (message_has_prohibited_content).
+  // O Airbnb bloqueia mensagens com links (message_has_prohibited_content); só o link de anúncio do Airbnb passa.
+  const kept: string[] = [];
+  const guarded = text.replace(AIRBNB_LISTING_LINK, (u) => {
+    kept.push(u);
+    return `\u0000L${kept.length - 1}\u0000`;
+  });
+  return stripForAirbnb(guarded).replace(/\u0000L(\d+)\u0000/g, (_, i) => kept[Number(i)] ?? "");
+}
+
+function stripForAirbnb(text: string): string {
   return text
     .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, "")
     .replace(/\[([^\]]+)\]\(([^)]+)\)/g, "$1")
@@ -439,6 +451,26 @@ export async function deliverToAirbnbThread(
 ): Promise<{ ok: boolean; messageId?: string; externalId: string | null; text: string; failure?: string }> {
   const text = toAirbnbPlainText(p.text);
   if (!text) return { ok: false, externalId: null, text };
+  // TRAVA DE DUPLICATA (12/11/2026): a IA nunca reenvia o mesmo texto da última mensagem nossa em menos de 60 s.
+  if (p.senderType === "ai") {
+    try {
+      const { data: last } = await admin
+        .from("property_chat_messages")
+        .select("content, created_at")
+        .eq("conversation_id", p.conversationId)
+        .eq("role", "assistant")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const { isDuplicateRecentReply } = await import("@/lib/chat/burst-guard");
+      if (isDuplicateRecentReply(last as never, text, Date.now())) {
+        console.warn("[channex-messages] resposta duplicada da IA não reenviada");
+        return { ok: false, externalId: null, text, failure: "duplicate_suppressed" };
+      }
+    } catch {
+      /* leitura falhou: segue o envio (nunca perder a resposta por erro de leitura) */
+    }
+  }
   let externalId: string | null = null;
   let status: "sent" | "failed" = "sent";
   let failure: string | undefined;
@@ -611,7 +643,7 @@ export async function handleChannexMessage(payload: unknown): Promise<void> {
       delivery_status: "delivered",
       ...attachmentFields,
     })
-    .select("id")
+    .select("id, created_at")
     .single();
 
   await admin
@@ -675,6 +707,32 @@ export async function handleChannexMessage(payload: unknown): Promise<void> {
 
   if (!prop) return;
 
+  // ─── RAJADA (12/11/2026): respiro curto; se o hóspede já mandou outra mensagem, esta não gera resposta avulsa
+  // (a mais nova responde o bloco inteiro). Falha de leitura ⇒ segue (nunca perder a resposta).
+  const guestRow = guestMsg as { id?: string; created_at?: string } | null;
+  const newerGuestMessage = async (): Promise<boolean> => {
+    if (!guestRow?.id || !guestRow.created_at) return false;
+    try {
+      const { data } = await admin
+        .from("property_chat_messages")
+        .select("id")
+        .eq("conversation_id", convId)
+        .eq("role", "user")
+        .eq("sender_type", "guest")
+        .gt("created_at", guestRow.created_at)
+        .neq("id", guestRow.id)
+        .limit(1);
+      return Array.isArray(data) && data.length > 0;
+    } catch {
+      return false;
+    }
+  };
+  {
+    const { AIRBNB_BURST_QUIET_MS } = await import("@/lib/chat/burst-guard");
+    await new Promise((r) => setTimeout(r, AIRBNB_BURST_QUIET_MS));
+    if (await newerGuestMessage()) return;
+  }
+
   // ─── IA de atendimento: ponto de extensão (sem implementação instalada).
   // Sem IA, a conversa vai para a fila humana e a equipe é avisada por push.
   const { requestGuestAiReply, NO_AI_HANDOFF_REASON } = await import("@/lib/guest-ai/slot.server");
@@ -717,6 +775,8 @@ export async function handleChannexMessage(payload: unknown): Promise<void> {
     }
   }
   const finalReply = (ai?.reply ?? "").trim();
+  // chegou mensagem nova do hóspede enquanto a IA pensava: a resposta antiga não atropela a pergunta nova
+  if (finalReply && (await newerGuestMessage())) return;
   if (finalReply) {
     await deliverToAirbnbThread(admin, {
       conversationId: convId,

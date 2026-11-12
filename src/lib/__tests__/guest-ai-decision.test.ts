@@ -32,12 +32,17 @@ function fakeDb(rows: Rows, rpc: (fn: string, args: Record<string, unknown>) => 
   const db: DecisionDb = {
     from(table: string) {
       const filters: Array<[string, unknown]> = [];
+      const gts: Array<[string, string]> = [];
       let patch: Record<string, unknown> | null = null;
       let insertRow: Record<string, unknown> | null = null;
-      const match = () => (rows[table] ?? []).filter((r) => filters.every(([k, v]) => r[k] === v));
+      const match = () =>
+        (rows[table] ?? []).filter(
+          (r) => filters.every(([k, v]) => r[k] === v) && gts.every(([k, v]) => typeof r[k] !== "string" || (r[k] as string) > v),
+        );
       const q: Record<string, unknown> = {
         select: () => q,
         eq: (k: string, v: unknown) => (filters.push([k, v]), q),
+        gt: (k: string, v: string) => (gts.push([k, v]), q),
         neq: () => q,
         in: () => q,
         order: () => q,
@@ -247,6 +252,36 @@ describe("Decisão · abertura no servidor", () => {
     const r = await openHumanDecision({ conversationId: "c1", triggerMessageId: "m1", formalChangeRequests: ["late_checkout"], internalQuestion: null }, { db: f.db });
     expect(r).toEqual({ opened: false, code: "already_authorized" });
     expect(f.calls).toHaveLength(0);
+  });
+
+  describe("prazo de 2 h e fala humana (caso Carlos, 12/11/2026)", () => {
+    const NOW = Date.parse("2026-11-12T14:00:00Z");
+    const rowsWith = (openedAt: string, msgs: Array<Record<string, unknown>> = []) => ({
+      guest_ai_human_decisions: [{ id: "d1", conversation_id: "c1", status: "pending", created_at: openedAt }],
+      property_chat_messages: msgs,
+    });
+    const pending = (rows: Rows) => hasPendingDecision("c1", { db: fakeDb(rows, () => ({})).db, now: () => NOW });
+    it("aberta há 30 min, sem fala humana depois ⇒ ainda cala a IA", async () => {
+      expect(await pending(rowsWith("2026-11-12T13:30:00Z"))).toBe(true);
+    });
+    it("aberta há mais de 2 h ⇒ não cala mais a IA", async () => {
+      expect(await pending(rowsWith("2026-11-11T14:04:36Z"))).toBe(false);
+    });
+    it("atendente humano falou depois de aberta ⇒ pendência tratada, a IA volta", async () => {
+      const msgs = [{ id: "h1", conversation_id: "c1", role: "assistant", sender_type: "human", created_at: "2026-11-12T13:45:00Z" }];
+      expect(await pending(rowsWith("2026-11-12T13:30:00Z", msgs))).toBe(false);
+    });
+    it("mensagem automática (sistema) ou da IA depois não conta como fala humana", async () => {
+      const msgs = [
+        { id: "s1", conversation_id: "c1", role: "assistant", sender_type: "system", created_at: "2026-11-12T13:45:00Z" },
+        { id: "a1", conversation_id: "c1", role: "assistant", sender_type: "ai", created_at: "2026-11-12T13:46:00Z" },
+      ];
+      expect(await pending(rowsWith("2026-11-12T13:30:00Z", msgs))).toBe(true);
+    });
+    it("fala humana ANTES da abertura não libera", async () => {
+      const msgs = [{ id: "h0", conversation_id: "c1", role: "assistant", sender_type: "human", created_at: "2026-11-12T13:00:00Z" }];
+      expect(await pending(rowsWith("2026-11-12T13:30:00Z", msgs))).toBe(true);
+    });
   });
 
   it("leitura da pendência falhando (tabela ainda não aplicada) ⇒ não silencia a IA", async () => {
