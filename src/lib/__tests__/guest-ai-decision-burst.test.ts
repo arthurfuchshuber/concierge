@@ -14,7 +14,7 @@ import {
   requestsFromBurst,
 } from "@/lib/guest-ai-decision";
 import { openHumanDecision, resolvePendingDecisionsOnHumanMessage, type DecisionDb } from "@/lib/guest-ai-decision.server";
-import { GENERATION_FALLBACK_MS, requestGuestAiReply } from "@/lib/guest-ai/slot.server";
+import { CONTINGENCY_REPLY, GENERATION_FALLBACK_MS, requestGuestAiReply } from "@/lib/guest-ai/slot.server";
 
 const SRC = path.resolve(__dirname, "../..");
 const REQ = { surface: "airbnb" as const, conversationId: "c1", messageId: "m2", expectedOwnerId: "o1" };
@@ -157,14 +157,14 @@ describe("slot · fallback determinístico (sem modelo)", () => {
       expect(r).toMatchObject({ reply: "", handoff: true, handoffUrgency: "high" });
     }
   });
-  it("sem pedido de exceção na mensagem ⇒ encaminhamento de sempre, sem decisão nem texto", async () => {
+  it("sem pedido de exceção na mensagem ⇒ sem decisão; aviso de contingência ao hóspede e equipe com urgência alta (caso Gilmar)", async () => {
     const openDecision = vi.fn();
     const r = await requestGuestAiReply(
       REQ,
       base({ generate: async () => ({ status: "failed" }), loadBurst: async () => ["Qual o horário do check-in?"], openDecision }) as never,
     );
     expect(openDecision).not.toHaveBeenCalled();
-    expect(r).toMatchObject({ reply: "", handoff: true });
+    expect(r).toMatchObject({ reply: CONTINGENCY_REPLY, handoff: true, handoffUrgency: "high" });
   });
   it("já há decisão aberta: o fallback não duplica nem fala de novo", async () => {
     const r = await requestGuestAiReply(

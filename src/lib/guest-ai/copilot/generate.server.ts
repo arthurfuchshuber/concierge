@@ -322,9 +322,10 @@ export function refusalCodeWithReason(code: string, structural: readonly string[
 /**
  * Teto de cada chamada da tentativa ELÁSTICA (`auto`). Auditoria de 10/11/2026 à noite: em perguntas difíceis
  * (cancelamento, adiar datas) o Flash em `auto` pensou 23–35 s e não entregou nada, mesmo com a cadeia em 30 s.
- * Passou de 12 s ⇒ a chamada é cancelada e o turno refaz com raciocínio `low`, que responde em poucos segundos.
+ * Passou do teto ⇒ a chamada é cancelada e o turno refaz com raciocínio `low`, que responde em poucos segundos.
+ * 12/11/2026 (caso Gilmar): 12 s cortava turnos densos, que levam 8–13 s; o teto passou a 20 s.
  */
-export const COPILOT_AUTO_CALL_MAX_MS = 12_000;
+export const COPILOT_AUTO_CALL_MAX_MS = 20_000;
 /** Tempo mínimo restante para a nova tentativa com raciocínio `low` após saída truncada ou chamada lenta. */
 export const TRUNCATED_RETRY_MIN_MS = 6_000;
 
