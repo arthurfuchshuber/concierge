@@ -227,6 +227,7 @@ import {
   type CleaningDailyPoint,
   type FreeProperty,
 } from "@/lib/dashboard.functions";
+import { CleaningPendencyStrip } from "@/components/dashboard/CleaningPendencies";
 import { sortCheckinRowsCore, sortCheckoutRows, sortCleaningRows } from "@/lib/arrival-sorting";
 import {
   createTask,
@@ -10459,6 +10460,8 @@ function ArrivalCard({
          ordem em que os cards aparecem no DOM. */
       className="group relative isolate flex cursor-pointer snap-start flex-col rounded-[12px] border border-border bg-[var(--card-surface)] p-3.5 gap-2 transition-colors hover:bg-[var(--card-surface-hover)]"
     >
+      {/* FAIXA "PENDÊNCIAS DE LIMPEZA!" (mockup 13/11/2026): só no card da Fila de Limpeza e só com pendência aberta. */}
+      {mode === "cleaning" && <CleaningPendencyStrip row={row} />}
       <CleaningPriceDialog
         open={priceOpen}
         onOpenChange={setPriceOpen}
