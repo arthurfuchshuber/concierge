@@ -46,6 +46,7 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { PropertyPendingWindow, RecurrenceChip, useRecurrences } from "@/components/dashboard/RecurrencePanels";
 import { Popover, PopoverTrigger } from "@/components/ui/popover";
 import {
   Select,
@@ -259,6 +260,18 @@ function recordTitle(r: AccountRecord): string {
 }
 
 /** Falso quando o título exibido é o marcador de ausência, não texto da pessoa. */
+/** "registrado hoje / ontem / há N dias" (janela Pendências do imóvel). */
+function agoLabel(iso: string): string {
+  const d = new Date(iso);
+  const a = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const n = new Date();
+  const b = new Date(n.getFullYear(), n.getMonth(), n.getDate()).getTime();
+  const days = Math.max(0, Math.round((b - a) / 86_400_000));
+  if (days === 0) return "registrado hoje";
+  if (days === 1) return "registrado ontem";
+  return `registrado há ${days} dias`;
+}
+
 function hasTitle(r: AccountRecord): boolean {
   return recordTitle(r) !== UNTITLED;
 }
@@ -395,6 +408,13 @@ export function RecordsWorkspace() {
    * uma abrir a outra sem ninguém ter pedido.
    */
   const [openPending, setOpenPending] = useState<string | null>(null);
+  // Recorrências (13/11/2026): uma leitura só; o cartão de cada imóvel mostra o chip ↻ com o total.
+  const recAll = useRecurrences(null);
+  const recCountByProperty = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const s of recAll.data?.series ?? []) m.set(s.propertyId, (m.get(s.propertyId) ?? 0) + 1);
+    return m;
+  }, [recAll.data]);
   const [opened, setOpened] = useState<AccountRecord | null>(null);
   const [resolving, setResolving] = useState<AccountRecord | null>(null);
   /**
@@ -659,6 +679,7 @@ export function RecordsWorkspace() {
       onToggleStrip={() => setOpenStrip((cur) => (cur === g.key ? null : g.key))}
       pendingOpen={openPending === g.key}
       onTogglePending={() => setOpenPending((cur) => (cur === g.key ? null : g.key))}
+      recCount={g.coverUrl !== undefined ? (recCountByProperty.get(g.propertyId) ?? 0) : 0}
       category={category}
       hideHistory={strictPending}
     />
@@ -1610,9 +1631,12 @@ function PropertyCard({
   onToggleStrip,
   pendingOpen,
   onTogglePending,
+  recCount = 0,
   category = null,
   hideHistory = false,
 }: {
+  /** Séries de recorrência do imóvel (ativas + pausadas): chip ↻ e aba "Recorrências". */
+  recCount?: number;
   /** Categoria filtrada: o acervo passa a se chamar "Histórico de <categoria>". */
   category?: RecordCategory | null;
   /** Filtro estrito: o histórico (já resolvido) não aparece. */
@@ -1632,6 +1656,7 @@ function PropertyCard({
   // espera de um "+N". Recolher zera: reabrir mostrando a lista inteira, sem
   // ninguém ter pedido, é surpresa — e surpresa em tela de operação é ruído.
   const hasPending = group.pending.length > 0;
+  const [recOpen, setRecOpen] = useState(false);
   // A CÂMERA MOSTRA TODOS OS REGISTROS (pedido explícito, 05/10/2026): com ou
   // sem pendência, ela é o HISTÓRICO inteiro do imóvel — as pendências abertas
   // também entram, e não só os já resolvidos.
@@ -1737,6 +1762,7 @@ function PropertyCard({
                 {/* JANELA CENTRADA NA TELA (pedido explícito, 05/10/2026): o
                     popover nascia colado no chip e ficava torto/cortado.
                     Como Dialog ela centraliza sozinha e herda raio 16. */}
+                {recCount === 0 && (
                 <Dialog
                   open={pendingOpen}
                   onOpenChange={(v) => v !== pendingOpen && onTogglePending()}
@@ -1748,6 +1774,7 @@ function PropertyCard({
                     <PendingPopoverBody group={group} onOpen={onOpen} onResolve={onResolve} />
                   </DialogContent>
                 </Dialog>
+                )}
               </>
             )}
             {showRest && (
@@ -1760,6 +1787,36 @@ function PropertyCard({
                 aria-label={restLabel}
                 title={restLabel}
               />
+            )}
+            {recCount > 0 && (
+              <>
+                <RecurrenceChip
+                  count={recCount}
+                  open={recOpen}
+                  onClick={() => setRecOpen(true)}
+                  aria-label={`${recCount} ${recCount === 1 ? "recorrência" : "recorrências"}`}
+                  title={`${recCount} ${recCount === 1 ? "recorrência" : "recorrências"}`}
+                />
+                <PropertyPendingWindow
+                  open={pendingOpen || recOpen}
+                  onClose={() => {
+                    if (pendingOpen) onTogglePending();
+                    setRecOpen(false);
+                  }}
+                  initialTab={recOpen ? "rec" : "pend"}
+                  propertyId={group.propertyId}
+                  name={group.label}
+                  covers={[...(group.coverUrls ?? []), group.coverUrl]}
+                  owner={group.sublabel ? { name: group.sublabel, phone: group.ownerPhone, country: group.ownerPhoneCountry } : null}
+                  pending={group.pending.map((r) => ({
+                    id: r.id,
+                    title: recordTitle(r),
+                    categoryLabel: CATEGORY_BY_KEY.get(r.category)?.label ?? "Registro",
+                    when: agoLabel(r.createdAt),
+                    onDetails: () => onOpen(r),
+                  }))}
+                />
+              </>
             )}
             {/* "Último registro" na MESMA linha do chip (mockup de 08/11/2026): o cartão de 96px
                 não comporta uma linha a mais. */}

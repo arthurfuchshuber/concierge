@@ -1413,6 +1413,13 @@ export const listAccountRecords = createServerFn({ method: "GET" })
       requested && requested.length > 0
         ? accessible.filter((id) => requested.includes(id))
         : accessible;
+    // Recorrências (13/11/2026): a data que venceu vira pendência ANTES da leitura, sem cron.
+    try {
+      const { materializeDue } = await import("@/lib/recurrences.functions");
+      if (propIds.length > 0) await materializeDue(supabase, context.userId, propIds);
+    } catch (e) {
+      console.error("materializeDue", (e as Error).message);
+    }
     const empty: AccountRecordsResult = {
       records: [],
       counts: emptyCounts(),

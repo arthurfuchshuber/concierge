@@ -17,6 +17,7 @@ import { getChangePulse } from "@/lib/change-pulse.functions";
 const TABLES = [
   "tasks",
   "task_completions",
+  "task_recurrences",
   "reservation_records",
   "guest_arrival_status",
   "property_reservations",

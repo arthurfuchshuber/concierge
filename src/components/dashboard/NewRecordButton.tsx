@@ -2,12 +2,15 @@ import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { CalendarCheck, Home, Plus } from "lucide-react";
+import { CoverImage } from "@/components/ui/cover-image";
+import { PhoneActionButton } from "@/components/PhoneActionButton";
 import { ACTION_ICON, ACTION_SEGMENT } from "@/components/dashboard/panel-chrome";
 import {
   Choice,
   PickList,
   PropertyPickRow,
   PropertySummary,
+  SelectAllRow,
   guestShort,
   Step,
   TrailDialog,
@@ -50,6 +53,9 @@ const QUESTIONS = [
   "Qual categoria?",
 ] as const;
 
+/** Com vários imóveis só valem as categorias que podem repetir (regra de 13/11/2026). */
+const MULTI_CATEGORIES: RecordCategory[] = ["maintenance", "cleaning_audit"];
+
 type Link = "imovel" | "reserva";
 
 export function NewRecordButton() {
@@ -59,11 +65,14 @@ export function NewRecordButton() {
   const [step, setStep] = useState(1);
   const [link, setLink] = useState<Link | null>(null);
   const [propertyId, setPropertyId] = useState<string | null>(null);
+  /** Imóveis marcados (só no vínculo "Imóvel"; mais de um = uma situação para cada). */
+  const [propertyIds, setPropertyIds] = useState<string[]>([]);
   const [reservationId, setReservationId] = useState<string | null>(null);
   const [category, setCategory] = useState<RecordCategory | null>(null);
   const [search, setSearch] = useState("");
   const [sheet, setSheet] = useState<{
     propertyId: string;
+    propertyIds: string[];
     reservationId: string | null;
     category: RecordCategory;
   } | null>(null);
@@ -87,6 +96,7 @@ export function NewRecordButton() {
     setStep(1);
     setLink(null);
     setPropertyId(null);
+    setPropertyIds([]);
     setReservationId(null);
     setCategory(null);
     setSearch("");
@@ -115,16 +125,21 @@ export function NewRecordButton() {
     [reservations, properties, sq],
   );
 
-  const answered = [
-    !!link,
-    link === "reserva" ? !!reservation : !!property,
-    !!category,
-  ];
+  const multiSel = link === "imovel" ? properties.filter((p) => propertyIds.includes(p.id)) : [];
+  const many = multiSel.length > 1;
+  const step2Done = link === "reserva" ? !!reservation : step > 2 && multiSel.length > 0;
+  const answered = [!!link, step2Done, !!category];
   const answers = [
     link === "imovel" ? "Imóvel" : link === "reserva" ? "Reserva" : undefined,
-    link === "reserva" ? (reservation ? resLabel(reservation) : undefined) : property?.name,
+    link === "reserva" ? (reservation ? resLabel(reservation) : undefined) : multiSel[0]?.name,
     category ? CATEGORIES.find((c) => c.key === category)?.label : undefined,
   ];
+  const ownersLabel = (() => {
+    const names = Array.from(new Set(multiSel.map((p) => p.ownerName).filter((n): n is string => !!n)));
+    if (names.length === 0) return null;
+    return names.length <= 2 ? names.join(", ") : `${names.slice(0, 2).join(", ")} +${names.length - 2}`;
+  })();
+  const firstOwner = multiSel.find((p) => p.ownerName);
   /** Resposta estruturada do passo 2 (mockup 0m): uma informação por linha. */
   const step2Summary =
     link === "reserva" && reservation ? (
@@ -136,24 +151,69 @@ export function NewRecordButton() {
         ownerPhone={property?.ownerPhone}
         ownerPhoneCountry={property?.ownerPhoneCountry}
       />
-    ) : link === "imovel" && property ? (
+    ) : link === "imovel" && many ? (
+      <span className="grid min-w-0 gap-[5px]">
+        <span className="flex min-w-0 items-center gap-2.5">
+          <span className="flex shrink-0 -space-x-2.5">
+            {multiSel.slice(0, 3).map((p) => (
+              <span
+                key={p.id}
+                className="relative size-6 overflow-hidden rounded-full bg-foreground/[0.08] ring-2 ring-[var(--panel)]"
+              >
+                <CoverImage urls={[p.photoUrl]} />
+              </span>
+            ))}
+          </span>
+          <span className="min-w-0 truncate text-[13px] font-bold leading-snug text-foreground">
+            {multiSel.length} imóveis
+          </span>
+        </span>
+        {ownersLabel ? (
+          <span className="flex min-w-0 items-center gap-[5px] text-[11.5px] leading-[1.35] text-muted-foreground">
+            <span className="min-w-0 truncate">{ownersLabel}</span>
+            <span className="-my-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
+              <PhoneActionButton phone={firstOwner?.ownerPhone} country={firstOwner?.ownerPhoneCountry} size={13} alwaysShow />
+            </span>
+          </span>
+        ) : null}
+      </span>
+    ) : link === "imovel" && multiSel.length === 1 ? (
       <PropertySummary
         showMaps
-        name={property.name}
-        ownerName={property.ownerName}
-        ownerPhone={property.ownerPhone}
-        ownerPhoneCountry={property.ownerPhoneCountry}
-        address={property.address}
-        mapsUrl={property.mapsUrl}
-        garageMapsUrl={property.garageMapsUrl}
+        name={multiSel[0].name}
+        ownerName={multiSel[0].ownerName}
+        ownerPhone={multiSel[0].ownerPhone}
+        ownerPhoneCountry={multiSel[0].ownerPhoneCountry}
+        address={multiSel[0].address}
+        mapsUrl={multiSel[0].mapsUrl}
+        garageMapsUrl={multiSel[0].garageMapsUrl}
       />
     ) : undefined;
   const question2 =
-    link === "reserva" ? "Qual reserva?" : link === "imovel" ? "Qual imóvel?" : QUESTIONS[1];
+    link === "reserva"
+      ? "Qual reserva?"
+      : link === "imovel"
+        ? step > 2 && many
+          ? "Quais imóveis?"
+          : step > 2
+            ? "Qual imóvel?"
+            : "Qual imóvel? (um ou mais)"
+        : QUESTIONS[1];
   const ready = answered.every(Boolean) && step === 3;
+  const categories = many ? CATEGORIES.filter((c) => MULTI_CATEGORIES.includes(c.key)) : CATEGORIES;
+  const toggleProp = (id: string) =>
+    setPropertyIds((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]));
+  const allShownOn = shownProps.length > 0 && shownProps.every((p) => propertyIds.includes(p.id));
+  const toggleAll = () =>
+    setPropertyIds((cur) =>
+      allShownOn
+        ? cur.filter((id) => !shownProps.some((p) => p.id === id))
+        : Array.from(new Set([...cur, ...shownProps.map((p) => p.id)])),
+    );
 
   const pickProperty = (id: string, resId: string | null) => {
     setPropertyId(id);
+    setPropertyIds([id]);
     setReservationId(resId);
     setSearch("");
     setStep(3);
@@ -185,16 +245,28 @@ export function NewRecordButton() {
         footer={
             <button
               type="button"
-              disabled={!ready}
+              disabled={step === 2 && link === "imovel" ? multiSel.length === 0 : !ready}
               onClick={() => {
-                if (!property || !category) return;
+                if (step === 2 && link === "imovel") {
+                  setSearch("");
+                  // Categoria já escolhida que não vale para vários imóveis sai da seleção.
+                  if (multiSel.length > 1 && category && !MULTI_CATEGORIES.includes(category)) setCategory(null);
+                  setStep(3);
+                  return;
+                }
+                const ids = link === "imovel" ? multiSel.map((p) => p.id) : property ? [property.id] : [];
+                if (ids.length === 0 || !category) return;
                 markDialogHandoff();
-                setSheet({ propertyId: property.id, reservationId, category });
+                setSheet({ propertyId: ids[0], propertyIds: ids, reservationId, category });
                 setOpen(false);
               }}
               className="ds-surface inline-flex h-10 w-full items-center justify-center gap-1.5 bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] px-2 text-[13px] font-bold text-white disabled:opacity-40"
             >
-              <span className="truncate">Continuar</span>
+              <span className="truncate">
+                {step === 2 && link === "imovel" && multiSel.length > 0
+                  ? `Continuar · ${multiSel.length} ${multiSel.length === 1 ? "imóvel" : "imóveis"}`
+                  : "Continuar"}
+              </span>
             </button>
         }
       >
@@ -217,6 +289,7 @@ export function NewRecordButton() {
                     if (link !== "imovel") {
                       setReservationId(null);
                       if (link) setPropertyId(null);
+                      setPropertyIds([]);
                     }
                     setLink("imovel");
                     setSearch("");
@@ -232,6 +305,7 @@ export function NewRecordButton() {
                     if (link !== "reserva") {
                       setReservationId(null);
                       setPropertyId(null);
+                      setPropertyIds([]);
                     }
                     setLink("reserva");
                     setSearch("");
@@ -305,6 +379,11 @@ export function NewRecordButton() {
                           : null
                   }
                 >
+                  <SelectAllRow
+                    selected={shownProps.filter((p) => propertyIds.includes(p.id)).length}
+                    total={shownProps.length}
+                    onToggle={toggleAll}
+                  />
                   {shownProps.map((p, i) => (
                     <PropertyPickRow
                       key={p.id}
@@ -317,8 +396,9 @@ export function NewRecordButton() {
                       address={p.address}
                       mapsUrl={p.mapsUrl}
                       garageMapsUrl={p.garageMapsUrl}
-                      selected={p.id === propertyId}
-                      onClick={() => pickProperty(p.id, null)}
+                      multi
+                      selected={propertyIds.includes(p.id)}
+                      onClick={() => toggleProp(p.id)}
                       last={i === shownProps.length - 1}
                     />
                   ))}
@@ -335,21 +415,21 @@ export function NewRecordButton() {
               onReopen={() => answered[1] && setStep(3)}
             >
               <PickList empty={null}>
-                {CATEGORIES.map((c, i) => (
+                {categories.map((c, i) => (
                   <button
                     key={c.key}
                     type="button"
                     onClick={() => setCategory(c.key)}
                     className={cn(
                       "flex w-full min-w-0 items-center gap-2.5 px-3.5 py-2 text-left transition-colors hover:bg-foreground/[0.04]",
-                      i < CATEGORIES.length - 1 && "border-b border-[var(--panel-div)]",
+                      i < categories.length - 1 && "border-b border-[var(--panel-div)]",
                       category === c.key && "bg-accent/[0.10]",
                     )}
                   >
                     <span className={cn("size-2 shrink-0 rounded-full", c.dot)} />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-[12.5px] font-semibold text-foreground">
-                        {c.label}
+                        {many && c.key === "cleaning_audit" ? "Auditoria" : c.label}
                       </span>
                       <span className="block truncate text-[10.5px] text-muted-foreground">
                         {c.hint}
@@ -358,6 +438,11 @@ export function NewRecordButton() {
                   </button>
                 ))}
               </PickList>
+              {many ? (
+                <p className="mt-2 text-[11.5px] leading-snug text-muted-foreground">
+                  Com vários imóveis, só Manutenção e Auditoria.
+                </p>
+              ) : null}
             </Step>
           </ol>
       </TrailDialog>
@@ -372,6 +457,17 @@ export function NewRecordButton() {
             }
           }}
           propertyId={sheet.propertyId}
+          extraProperties={sheet.propertyIds
+            .slice(1)
+            .map((id) => properties.find((p) => p.id === id))
+            .filter((p): p is NonNullable<typeof p> => !!p)
+            .map((p) => ({
+              id: p.id,
+              name: p.name,
+              photoUrl: p.photoUrl,
+              owner: { name: p.ownerName, phone: p.ownerPhone, country: p.ownerPhoneCountry },
+            }))}
+          propertyPhotoUrl={sheetProperty?.photoUrl ?? null}
           propertyLabel={sheetProperty?.name ?? "Imóvel"}
           owner={
             sheetProperty
