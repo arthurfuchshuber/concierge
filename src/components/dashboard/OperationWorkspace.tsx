@@ -8642,13 +8642,13 @@ function OccupancyPanel({
             inputRef={searchInputRef}
             actions={
               <>
-                {/* Só no desktop: o "Hoje" mora aqui, à esquerda dos botões de período/filtro
-                    (no tablet/celular continua no cabeçalho da coluna "Imóvel"). */}
+                {/* O "Hoje" mora aqui, à esquerda dos botões de período/filtro, em todos os tamanhos
+                    (pedido de 13/11/2026: no celular saiu do cabeçalho da coluna "Imóvel"). */}
                 <button
                   type="button"
                   data-action-wide
                   onClick={() => scrollToToday()}
-                  className="hidden h-full items-center justify-center gap-1.5 text-sm font-semibold leading-none text-foreground/70 transition-colors hover:text-foreground lg:inline-flex"
+                  className="inline-flex h-full items-center justify-center gap-1.5 text-sm font-semibold leading-none text-foreground/70 transition-colors hover:text-foreground"
                   title="Rolar para o dia vigente"
                   aria-label="Rolar calendário para o dia de hoje"
                 >
@@ -8789,16 +8789,6 @@ function OccupancyPanel({
                             style={{ width: nameColW, minWidth: nameColW }}
                           >
                             <span className="ds-eyebrow block min-w-0 flex-1 truncate pl-[10px]">Imóvel</span>
-                            <button
-                              type="button"
-                              onClick={() => scrollToToday()}
-                              className="mr-1 inline-flex shrink-0 items-center gap-1 rounded-md bg-primary/10 px-2 py-1 text-[11px] font-semibold text-primary transition-colors hover:bg-primary/20 lg:hidden"
-                              title="Rolar para o dia vigente"
-                              aria-label="Rolar calendário para o dia de hoje"
-                            >
-                              <span className="size-1.5 rounded-full bg-primary" />
-                              Hoje
-                            </button>
                             {/* Fio da coluna fixa: estica 4 px além do rodapé para encostar na linha de baixo. */}
                             <span aria-hidden className="pointer-events-none absolute -bottom-1 right-0 top-0 w-px bg-[var(--grid-line-v)]" />
                           </div>
