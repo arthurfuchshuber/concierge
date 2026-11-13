@@ -342,7 +342,8 @@ export function RecordSituationSheet({
     setRepeat((r) => ({
       unit,
       interval,
-      checklist: r?.checklist ?? true,
+      // Limpeza (Auditoria) já nasce com a chavinha ligada; Manutenção, desligada (pedido de 13/11/2026).
+      checklist: r?.checklist ?? category === "cleaning_audit",
       startTouched: r?.startTouched ?? false,
       start: r?.startTouched ? r.start : defaultStart(unit, interval),
     }));
