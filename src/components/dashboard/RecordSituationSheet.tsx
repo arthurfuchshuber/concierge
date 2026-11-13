@@ -8,6 +8,9 @@ import { notifyAction } from "@/components/UndoActionBar";
 import {
   AlertTriangle,
   Camera,
+  ChevronRight,
+  Check,
+  Repeat,
   RotateCcw,
   FileText,
   Images,
@@ -33,6 +36,15 @@ import {
   type RascunhoSituacao,
 } from "@/lib/offline/situation-draft";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { CoverImage } from "@/components/ui/cover-image";
+import { Switch } from "@/components/ui/switch";
+import { createRecurrences } from "@/lib/recurrences.functions";
+import {
+  advance,
+  describeFrequency,
+  fmtBR,
+  type RecurrenceUnit,
+} from "@/lib/recurrence-dates";
 import { AudioPill } from "@/components/records/AudioPill";
 import { AudioRecorderButton, type RecordedAudio } from "@/components/handoff/AudioRecorderButton";
 import { CATEGORY_BY_KEY } from "@/components/dashboard/record-categories";
@@ -116,6 +128,7 @@ export function DictationField({
   multiline,
   dictation = true,
   uniformFont = false,
+  onAudio,
 }: {
   label: string;
   required?: boolean;
@@ -129,6 +142,8 @@ export function DictationField({
   dictation?: boolean;
   /** Mesma fonte do texto da descrição também no campo de uma linha (board de 08/11/2026). */
   uniformFont?: boolean;
+  /** Com isto o microfone NÃO transcreve: o áudio gravado vai inteiro para quem chamou (Descrição, 13/11/2026). */
+  onAudio?: (audio: RecordedAudio) => void;
 }) {
   const transcribeFn = useServerFn(transcribeRecordAudio);
   const [recording, setRecording] = useState(false);
@@ -136,6 +151,10 @@ export function DictationField({
 
   async function onRecorded(audio: RecordedAudio) {
     setRecording(false);
+    if (onAudio) {
+      onAudio(audio);
+      return;
+    }
     setBusy(true);
     try {
       const base64 = await blobToBase64(audio.blob);
@@ -164,7 +183,7 @@ export function DictationField({
           {required && <RequiredMark />}
         </span>
         {maxLength && (
-          <span className="ml-auto text-[9.5px] font-semibold tabular-nums text-muted-foreground">
+          <span className="ds-eyebrow tabular-nums text-muted-foreground">
             {value.length}/{maxLength}
           </span>
         )}
@@ -241,6 +260,8 @@ export function RecordSituationSheet({
   onSaved,
   owner,
   contextLine,
+  extraProperties,
+  propertyPhotoUrl,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
@@ -254,6 +275,15 @@ export function RecordSituationSheet({
   owner?: { name: string | null; phone: string | null; country: string | null } | null;
   /** Linha extra do cabeçalho — a reserva, quando o registro é ligado a uma. */
   contextLine?: string | null;
+  /** Demais imóveis marcados no "+ Registro": uma situação para cada (13/11/2026). */
+  extraProperties?: Array<{
+    id: string;
+    name: string;
+    photoUrl?: string | null;
+    owner: { name: string | null; phone: string | null; country: string | null };
+  }>;
+  /** Capa do imóvel principal, no cabeçalho com foto. */
+  propertyPhotoUrl?: string | null;
   /** Primeira mídia, capturada antes da folha abrir. */
   initial: DraftItem | null;
   /** Texto já digitado no campo "Descrever situação" — vira o título. */
@@ -276,6 +306,47 @@ export function RecordSituationSheet({
   const [description, setDescription] = useState("");
   const [saving, setSaving] = useState(false);
   const savingLockRef = useRef(false);
+  // REPETIR (13/11/2026): só Manutenção e Auditoria, no "+" da página Registros (sem reserva).
+  const recurFn = useServerFn(createRecurrences);
+  const canRepeat =
+    (category === "maintenance" || category === "cleaning_audit") &&
+    cardMode === null &&
+    !target.reservationId &&
+    !target.logId;
+  const [view, setView] = useState<"form" | "repeat">("form");
+  type RepeatCfg = { unit: RecurrenceUnit; interval: number; start: string; startTouched: boolean; checklist: boolean };
+  const [repeat, setRepeat] = useState<RepeatCfg | null>(null);
+  const [custom, setCustom] = useState(false);
+  const recurDoneRef = useRef(false);
+  const gruposRef = useRef<Map<string, string>>(new Map());
+  const multi = (extraProperties?.length ?? 0) > 0;
+  const nProps = 1 + (extraProperties?.length ?? 0);
+  const allOwners = Array.from(
+    new Set(
+      [owner?.name, ...(extraProperties ?? []).map((e) => e.owner.name)].filter((n): n is string => !!n),
+    ),
+  );
+  const ownersText = allOwners.length <= 2 ? allOwners.join(", ") : `${allOwners.slice(0, 2).join(", ")} +${allOwners.length - 2}`;
+  const todayIso = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  };
+  const defaultStart = (unit: RecurrenceUnit, interval: number) =>
+    advance(todayIso(), unit, interval, Number(todayIso().slice(8, 10)));
+  const FREQS: Array<{ label: string; unit: RecurrenceUnit; interval: number }> = [
+    { label: "Toda semana", unit: "week", interval: 1 },
+    { label: "Todo mês", unit: "month", interval: 1 },
+    { label: "A cada 3 meses", unit: "month", interval: 3 },
+  ];
+  function pickFreq(unit: RecurrenceUnit, interval: number) {
+    setRepeat((r) => ({
+      unit,
+      interval,
+      checklist: r?.checklist ?? true,
+      startTouched: r?.startTouched ?? false,
+      start: r?.startTouched ? r.start : defaultStart(unit, interval),
+    }));
+  }
   /** Quantos arquivos já foram resolvidos e quanto do atual já subiu.
    *
    *  O `pct` existe por causa do relato de 11/09: "o botão ficou carregando
@@ -655,7 +726,7 @@ export function RecordSituationSheet({
       return;
     }
     // Descrição obrigatória (board de 08/11/2026).
-    if (!description.trim()) {
+    if (!description.trim() && !items.some((i) => i.kind === "audio")) {
       setErro(
         transcribing
           ? "Ainda estou transcrevendo o áudio para a descrição. Aguarde um instante e toque em registrar de novo."
@@ -693,33 +764,67 @@ export function RecordSituationSheet({
          nunca duplica — ver `situation-outbox.ts`. */
       const groupId = grupoRef.current ?? crypto.randomUUID();
       grupoRef.current = groupId;
-      const gravou = await enfileirarSituacao({
-        groupId,
-        criadoEm: Date.now(),
-        propertyId,
-        logId: target.logId,
-        reservationId: target.reservationId,
-        cardMode: cardMode ?? null,
-        category,
-        title: title.trim() || null,
-        description: description.trim() || null,
-        criada: false,
-        midias: items.map((it) => ({
-          key: it.key,
-          blob: it.blob,
-          kind: it.kind,
-          mime: it.mime,
-          name: it.name,
-          durationMs: it.durationMs,
-        })),
-      });
+      const alvos = [
+        { id: propertyId, groupId, primary: true },
+        ...(extraProperties ?? []).map((e) => {
+          const g = gruposRef.current.get(e.id) ?? crypto.randomUUID();
+          gruposRef.current.set(e.id, g);
+          return { id: e.id, groupId: g, primary: false };
+        }),
+      ];
+      // A série nasce ANTES de guardar as situações; uma vez criada, "tentar de novo" não a repete.
+      if (repeat && canRepeat && !recurDoneRef.current) {
+        await chamarServidor(() =>
+          recurFn({
+            data: {
+              propertyIds: alvos.map((a) => a.id),
+              category: category === "cleaning_audit" ? "cleaning" : "maintenance",
+              title: title.trim(),
+              description: description.trim() || null,
+              frequency: { unit: repeat.unit, interval: repeat.interval },
+              startDate: repeat.start,
+              endsOn: null,
+              inCleaningChecklist: repeat.checklist,
+            },
+          }),
+        );
+        recurDoneRef.current = true;
+      }
+      let gravou = true;
+      for (const a of alvos) {
+        const ok = await enfileirarSituacao({
+          groupId: a.groupId,
+          criadoEm: Date.now(),
+          propertyId: a.id,
+          logId: target.logId,
+          reservationId: target.reservationId,
+          cardMode: cardMode ?? null,
+          category,
+          title: title.trim() || null,
+          description: description.trim() || null,
+          criada: false,
+          midias: items.map((it) => ({
+            key: a.primary ? it.key : crypto.randomUUID(),
+            blob: it.blob,
+            kind: it.kind,
+            mime: it.mime,
+            name: it.name,
+            durationMs: it.durationMs,
+          })),
+        });
+        if (!ok) gravou = false;
+      }
       if (!gravou) {
         setErro("Não consegui guardar no aparelho (armazenamento cheio ou bloqueado). Libere espaço e toque em “Tentar de novo”.");
         return;
       }
       if (items.length > 0) {
-        toast.message("Situação guardada — enviando em segundo plano", { position: "top-center" });
+        toast.message(
+          nProps > 1 ? `${nProps} situações guardadas — enviando em segundo plano` : "Situação guardada — enviando em segundo plano",
+          { position: "top-center" },
+        );
       }
+      if (repeat && canRepeat) toast.success("Recorrência criada", { position: "top-center" });
       for (const it of items) if (it.previewUrl) URL.revokeObjectURL(it.previewUrl);
       setItems([]);
       void apagarRascunho(chave);
@@ -748,28 +853,51 @@ export function RecordSituationSheet({
       <DialogContent
         className="flex w-[calc(100vw-2rem)] flex-col gap-0 overflow-hidden p-0 sm:w-full sm:max-w-sm"
         aria-describedby={undefined}
+        onBack={view === "repeat" ? () => setView("form") : undefined}
       >
-        <DialogHeader className="shrink-0 space-y-0 border-b border-border/50 px-3.5 pb-2.5 pr-12 pt-3.5 text-left">
-          {/* Etiqueta da categoria ACIMA do título (board de 08/11/2026), no respiro superior. */}
-          <span
-            className={`mb-1 inline-flex w-fit rounded-[0.25rem] px-1.5 py-0.5 text-[8.5px] font-extrabold uppercase tracking-[0.05em] ${meta?.tone ?? ""}`}
-          >
-            {meta?.short ?? "Registro"}
-          </span>
-          <DialogTitle className="ds-card-title min-w-0 truncate">Nova situação</DialogTitle>
-          <span className="mt-0.5 block truncate text-[10.5px] text-muted-foreground">
-            {propertyLabel}
-          </span>
-          {owner?.name && (
-            <OwnerLine name={owner.name} phone={owner.phone} country={owner.country} phonePosition="adjacent" className="mt-0.5 text-[11px]" />
-          )}
-          {contextLine && (
-            <span className="mt-0.5 block truncate text-[10.5px] text-muted-foreground">
-              {contextLine}
-            </span>
-          )}
-        </DialogHeader>
+        {/* CABEÇALHO COM A CAPA DO IMÓVEL (mockups de recorrência, 13/11/2026): mesma capa borrada de
+            "Pendências do imóvel"; eyebrow + título + proprietário sobre a foto. */}
+        <div className="relative h-[140px] shrink-0 overflow-hidden bg-secondary/60">
+          <div className="absolute inset-0 origin-center scale-[1.04] [filter:blur(1.5px)_brightness(.9)]">
+            <CoverImage urls={[propertyPhotoUrl, ...(extraProperties ?? []).map((e) => e.photoUrl)]} empty={false} />
+          </div>
+          <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-black/60 to-[var(--panel)]" />
+          <div className="absolute inset-x-4 bottom-2.5 min-w-0 pr-12 text-left">
+            <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/80">
+              {view === "repeat" ? "Repetir" : `Nova situação · ${meta?.short ?? "Registro"}`}
+            </div>
+            <DialogTitle className="mt-1 block truncate text-sm font-bold leading-tight text-white">
+              {view === "repeat" ? title.trim() || "Nova situação" : multi ? `${nProps} imóveis` : propertyLabel}
+            </DialogTitle>
+            {view === "repeat" ? (
+              <span className="mt-0.5 block truncate text-[12px] text-white/90">
+                {multi ? `${nProps} imóveis` : propertyLabel}
+              </span>
+            ) : multi ? (
+              ownersText ? (
+                <span className="mt-0.5 flex min-w-0 items-center gap-[5px] text-[12px] text-white">
+                  <span className="min-w-0 truncate">{ownersText}</span>
+                  <span className="-my-1.5 shrink-0">
+                    <PhoneActionButton phone={owner?.phone} country={owner?.country} size={13} alwaysShow />
+                  </span>
+                </span>
+              ) : null
+            ) : owner?.name ? (
+              <OwnerLine
+                name={owner.name}
+                phone={owner.phone}
+                country={owner.country}
+                phonePosition="adjacent"
+                className="mt-0.5 [&>span:first-child]:text-white"
+              />
+            ) : null}
+            {contextLine && view === "form" && !multi ? (
+              <span className="mt-0.5 block truncate text-[10.5px] text-white/75">{contextLine}</span>
+            ) : null}
+          </div>
+        </div>
 
+        {view === "form" ? (
         <div className="sg-elegant-scroll min-h-0 flex-1 space-y-3.5 overflow-y-auto px-3.5 py-3">
           {/* O QUE FICOU PARA TRÁS (11/09/2026). Aparece só quando existe algo
               guardado deste mesmo imóvel e reserva — na folha limpa do dia a
@@ -810,7 +938,7 @@ export function RecordSituationSheet({
           <div>
             <div className="mb-1.5 flex items-center gap-1.5">
               <span className="ds-eyebrow text-muted-foreground">Mídias</span>
-              <span className="ml-auto text-[9.5px] font-semibold tabular-nums text-muted-foreground">
+              <span className="ds-eyebrow tabular-nums text-muted-foreground">
                 {items.filter((i) => i.kind !== "audio").length}/{SITUATION_MEDIA_MAX}
               </span>
             </div>
@@ -950,7 +1078,6 @@ export function RecordSituationSheet({
             placeholder="Em poucas palavras, o que houve"
             propertyId={propertyId}
             maxLength={RECORD_TITLE_MAX}
-            dictation={false}
             uniformFont
           />
 
@@ -962,7 +1089,12 @@ export function RecordSituationSheet({
             placeholder={transcribing ? "Transcrevendo o áudio…" : "Onde, desde quando, o que precisa ser feito"}
             propertyId={propertyId}
             multiline
-            dictation={false}
+            onAudio={(a) =>
+              setItems((prev) => [
+                ...prev.filter((i) => i.kind !== "audio"),
+                draftItemFrom(a.blob, { name: `descricao.${extFor("audio", a.mime)}`, mime: a.mime, durationMs: a.durationMs }),
+              ])
+            }
           />
 
           {/* O áudio gravado, compacto, no lugar da antiga dica "Prefere falar?". */}
@@ -976,7 +1108,127 @@ export function RecordSituationSheet({
                 <AudioPill blob={it.blob} durationMs={it.durationMs} onDelete={() => removeItem(it.key)} />
               </div>
             ))}
+
+          {canRepeat && (
+            <button
+              type="button"
+              onClick={() => {
+                if (!repeat) pickFreq("month", 1);
+                setView("repeat");
+              }}
+              className="flex w-full items-center gap-3 rounded-[0.35rem] border border-border/60 bg-background/60 px-3 py-3 text-left"
+            >
+              <Repeat className="size-[18px] shrink-0 text-[#E82DAE]" />
+              <span className="text-[13px] font-bold text-foreground">Repetir</span>
+              <span className="ml-auto min-w-0 truncate text-[12.5px] font-semibold text-[#E82DAE]">
+                {repeat
+                  ? describeFrequency(repeat.unit, repeat.interval, Number(repeat.start.slice(8, 10)))
+                  : "Nunca"}
+              </span>
+              <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
+            </button>
+          )}
         </div>
+        ) : (
+        <div className="sg-elegant-scroll min-h-0 flex-1 space-y-3.5 overflow-y-auto px-3.5 py-3">
+          <div>
+            <div className="mb-1.5 ds-eyebrow text-muted-foreground">Frequência</div>
+            <div className="overflow-hidden rounded-[0.6rem] border border-border/50 bg-secondary/30">
+              {[
+                { label: "Não repetir", unit: null as RecurrenceUnit | null, interval: 0 },
+                ...FREQS,
+              ].map((f, i) => {
+                const on =
+                  f.unit === null
+                    ? repeat === null && !custom
+                    : !custom && repeat?.unit === f.unit && repeat.interval === f.interval;
+                return (
+                  <button
+                    key={f.label}
+                    type="button"
+                    onClick={() => {
+                      setCustom(false);
+                      if (f.unit === null) setRepeat(null);
+                      else pickFreq(f.unit, f.interval);
+                    }}
+                    className={`flex w-full items-center px-3.5 py-3 text-left text-[13px] font-semibold text-foreground ${
+                      i > 0 ? "border-t border-border/50" : ""
+                    } ${on ? "bg-[#E82DAE]/[0.14]" : ""}`}
+                  >
+                    <span className="flex-1">{f.label}</span>
+                    {on && <Check className="size-4 text-[#E82DAE]" />}
+                  </button>
+                );
+              })}
+              <button
+                type="button"
+                onClick={() => {
+                  setCustom(true);
+                  if (!repeat) pickFreq("month", 2);
+                }}
+                className={`flex w-full items-center border-t border-border/50 px-3.5 py-3 text-left text-[13px] font-semibold text-foreground ${
+                  custom ? "bg-[#E82DAE]/[0.14]" : ""
+                }`}
+              >
+                <span className="flex-1">Personalizar…</span>
+                {custom ? <Check className="size-4 text-[#E82DAE]" /> : <ChevronRight className="size-4 text-muted-foreground" />}
+              </button>
+              {custom && repeat && (
+                <div className="flex items-center gap-2 border-t border-border/50 px-3.5 py-3 text-[13px] text-foreground">
+                  <span className="text-muted-foreground">A cada</span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={365}
+                    value={repeat.interval}
+                    onChange={(e) => pickFreq(repeat.unit, Math.max(1, Math.min(365, Number(e.target.value) || 1)))}
+                    className="h-8 w-16 rounded-[0.3rem] border border-border/60 bg-background/60 px-2 text-center text-[13px] font-semibold outline-none"
+                  />
+                  <select
+                    value={repeat.unit}
+                    onChange={(e) => pickFreq(e.target.value as RecurrenceUnit, repeat.interval)}
+                    className="h-8 rounded-[0.3rem] border border-border/60 bg-background/60 px-2 text-[13px] font-semibold outline-none"
+                  >
+                    <option value="day">dias</option>
+                    <option value="week">semanas</option>
+                    <option value="month">meses</option>
+                    <option value="year">anos</option>
+                  </select>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {repeat && (
+            <div className="overflow-hidden rounded-[0.6rem] border border-border/50 bg-secondary/30">
+              <label className="relative flex w-full cursor-pointer items-center px-3.5 py-3">
+                <span className="flex-1 text-[13px] font-semibold text-foreground">Começa em</span>
+                <span className="text-[13px] font-bold tabular-nums text-foreground">{fmtBR(repeat.start)}</span>
+                <ChevronRight className="ml-2 size-4 text-muted-foreground" />
+                <input
+                  type="date"
+                  value={repeat.start}
+                  min={todayIso()}
+                  onChange={(e) => {
+                    if (e.target.value) setRepeat({ ...repeat, start: e.target.value, startTouched: true });
+                  }}
+                  className="absolute inset-0 size-full cursor-pointer opacity-0"
+                  aria-label="Começa em"
+                />
+              </label>
+              <div className="flex items-center gap-3 border-t border-border/50 px-3.5 py-3">
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[13px] font-semibold text-foreground">Entra no checklist de limpeza</span>
+                  <span className="block text-[11.5px] leading-snug text-muted-foreground">
+                    {repeat.checklist ? "Aparecerá no checklist do dia" : "Vira pendência no dia, sem ligar a uma limpeza"}
+                  </span>
+                </span>
+                <Switch checked={repeat.checklist} onCheckedChange={(v) => setRepeat({ ...repeat, checklist: v })} />
+              </div>
+            </div>
+          )}
+        </div>
+        )}
 
         <input
           ref={photoRef}
@@ -1034,6 +1286,17 @@ export function RecordSituationSheet({
         )}
 
         {/* "Descartar" e "Registrar situação" juntos, à direita (board de 08/11/2026). */}
+        {view === "repeat" ? (
+          <div className="shrink-0 border-t border-border/50 bg-secondary/20 px-3.5 py-2.5">
+            <button
+              type="button"
+              onClick={() => setView("form")}
+              className="inline-flex h-11 w-full items-center justify-center rounded-[0.5rem] bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] text-[13px] font-bold text-white"
+            >
+              Concluir
+            </button>
+          </div>
+        ) : (
         <div className="flex shrink-0 items-center justify-end gap-2 border-t border-border/50 bg-secondary/20 px-3.5 py-2.5">
           {/* NUNCA PRENDER NINGUÉM (11/09/2026): antes este botão ficava
               desabilitado durante o envio e o diálogo não fechava, então um
@@ -1057,9 +1320,12 @@ export function RecordSituationSheet({
               ? `Enviando ${Math.min(progresso.feitos + 1, progresso.total)} de ${progresso.total} · ${pctGeral}%`
               : erro
                 ? "Tentar de novo"
-                : "Registrar situação"}
+                : nProps > 1
+                  ? `Registrar ${nProps} situações`
+                  : "Registrar situação"}
           </button>
         </div>
+        )}
       </DialogContent>
     </Dialog>
   );

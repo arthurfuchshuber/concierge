@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { CalendarDays, Check, MapPin, Search, User, type LucideIcon } from "lucide-react";
+import { CalendarDays, Check, Minus, MapPin, Search, User, type LucideIcon } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { ClampName } from "@/components/ui/clamp-name";
 import { CoverImage } from "@/components/ui/cover-image";
@@ -303,6 +303,7 @@ export function PropertyPickRow({
   lines,
   selected,
   last,
+  multi,
   onClick,
 }: {
   name: string;
@@ -310,6 +311,8 @@ export function PropertyPickRow({
   ownerName?: string | null;
   ownerPhone?: string | null;
   ownerPhoneCountry?: string | null;
+  /** Seleção de VÁRIOS imóveis (13/11/2026, mockup de recorrência): caixa quadrada à esquerda. */
+  multi?: boolean;
   city?: string | null;
   address?: string | null;
   mapsUrl?: string | null;
@@ -325,7 +328,7 @@ export function PropertyPickRow({
   const stop = (e: { stopPropagation: () => void }) => e.stopPropagation();
   return (
     <div
-      role="radio"
+      role={multi ? "checkbox" : "radio"}
       aria-checked={selected}
       aria-label={`Selecionar ${name}`}
       tabIndex={0}
@@ -344,6 +347,7 @@ export function PropertyPickRow({
         selected && "bg-accent/10 hover:bg-accent/10",
       )}
     >
+      {multi ? <CheckBox on={selected} /> : null}
       <span className="relative size-[52px] shrink-0 overflow-hidden rounded-lg bg-foreground/[0.05] text-muted-foreground">
         <CoverImage urls={[photoUrl]} />
       </span>
@@ -512,6 +516,51 @@ export function ProviderPickRow({
       <span className="min-w-0 truncate text-[12.5px] font-bold">
         {name}
         {activity ? <span className="font-medium text-muted-foreground"> · {activity}</span> : null}
+      </span>
+    </button>
+  );
+}
+
+/** Caixa quadrada de cantos arredondados (regra do projeto). `partial` = traço (alguns marcados). */
+export function CheckBox({ on, partial }: { on: boolean; partial?: boolean }) {
+  return (
+    <span
+      aria-hidden
+      className={cn(
+        "grid size-5 self-center shrink-0 place-items-center rounded-[6px] border transition-colors",
+        on || partial
+          ? "border-[#E82DAE] bg-[#E82DAE] text-white"
+          : "border-foreground/30 bg-transparent",
+      )}
+    >
+      {partial ? <Minus className="size-3.5" strokeWidth={3} /> : on ? <Check className="size-3.5" strokeWidth={3} /> : null}
+    </span>
+  );
+}
+
+/** "Selecionar todos · N de M" no topo da lista de vários imóveis. */
+export function SelectAllRow({
+  selected,
+  total,
+  onToggle,
+}: {
+  selected: number;
+  total: number;
+  onToggle: () => void;
+}) {
+  const all = total > 0 && selected === total;
+  return (
+    <button
+      type="button"
+      role="checkbox"
+      aria-checked={all ? true : selected > 0 ? "mixed" : false}
+      onClick={onToggle}
+      className="flex w-full items-center gap-2.5 border-b border-[var(--panel-div)] px-3 py-2 text-left hover:bg-foreground/[0.03]"
+    >
+      <CheckBox on={all} partial={!all && selected > 0} />
+      <span className="min-w-0 flex-1 text-[12.5px] font-bold text-foreground">Selecionar todos</span>
+      <span className="shrink-0 text-[11.5px] tabular-nums text-muted-foreground">
+        {selected} de {total}
       </span>
     </button>
   );
