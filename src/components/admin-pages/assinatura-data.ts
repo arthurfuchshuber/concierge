@@ -107,7 +107,7 @@ export function buildAssinatura(info: SubscriptionInfo, payments: PaymentRow[]) 
       faturas.push({
         id: `isenta-${d.toISOString()}`,
         titulo: `Fatura ${monthLabel(d)}`,
-        sub: `Isenta em ${fmtDate(d)} · ${qtd} ${qtd === 1 ? "anúncio" : "anúncios"}`,
+        sub: `Isenta em ${fmtDate(d)}`, // mockups adm-d-assinatura-isento-a/b: sem a contagem de anúncios
         valor: courtesy ? "Cortesia" : brl(monthly),
         cor: MUTED,
         url: null,

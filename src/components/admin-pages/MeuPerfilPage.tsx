@@ -262,9 +262,10 @@ export function MeuPerfilPage() {
             />
           </UField>
           <div className="grid grid-cols-1 gap-[18px]">
-            <UField
-              label="Número do CPF"
-              badge={
+            {/* Mockup adm-d-perfil-assinatura: o cadeado fica DENTRO da linha, à direita do valor. */}
+            <UField label="Número do CPF">
+              <div aria-disabled="true" className={`${UROW} cursor-not-allowed text-muted-foreground`}>
+                <span className="min-w-0 flex-1 truncate">{cpfDigits ? formatCPF(cpfDigits) : "—"}</span>
                 <span
                   role="button"
                   aria-label="Alteração apenas via suporte"
@@ -273,26 +274,10 @@ export function MeuPerfilPage() {
                 >
                   <Lock className="size-3.5" />
                 </span>
-              }
-            >
-              <div aria-disabled="true" className={`${UROW} cursor-not-allowed text-muted-foreground`}>
-                <span className="min-w-0 flex-1 truncate">{cpfDigits ? formatCPF(cpfDigits) : "—"}</span>
               </div>
             </UField>
-            <UField
-              label="Nascimento"
-              required
-              badge={
-                <button
-                  type="button"
-                  aria-label="Abrir calendário"
-                  onClick={() => birthRef.current?.showPicker?.()}
-                  className="flex cursor-pointer text-[var(--faint)]"
-                >
-                  <CalendarDays className="size-3.5" />
-                </button>
-              }
-            >
+            {/* Mockup: o ícone do calendário fica dentro da linha; tocar em qualquer ponto abre o seletor. */}
+            <UField label="Nascimento" required>
               <div className={`${UROW} relative`}>
                 <input
                   ref={birthRef}
@@ -302,6 +287,7 @@ export function MeuPerfilPage() {
                   onChange={(e) => setBirthDate(e.target.value)}
                   className={`${UINPUT_BARE} [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-0`}
                 />
+                <CalendarDays className="pointer-events-none size-3.5 shrink-0 text-[var(--faint)]" />
               </div>
             </UField>
           </div>
@@ -448,7 +434,7 @@ function UField({
         {info ? (
           <Popover>
             <PopoverTrigger asChild>
-              <button type="button" aria-label="Mais informações" className="flex cursor-pointer text-[var(--faint)]">
+              <button type="button" aria-label="Mais informações" className="ml-auto flex cursor-pointer text-[var(--faint)]">
                 <Info className="size-[13px]" strokeWidth={2} />
               </button>
             </PopoverTrigger>
