@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { encryptConnectionKey } from "@/lib/connection-key-crypto.server";
 import { formatCertificateLabel, parseCertificateExpiry, scrubCertificate, validateCertificateInput } from "../certificate";
@@ -137,8 +137,8 @@ describe("projeção segura do status", () => {
 });
 
 describe("não existe caminho de download/exportação do certificado", () => {
-  const walk = (d: string): string[] => readdirSync(d).flatMap((n) => { const p = join(d, n); return statSync(p).isDirectory() && n !== "__tests__" ? walk(p) : p.endsWith(".ts") || p.endsWith(".tsx") ? [p] : []; });
-  const files = [...walk("src/lib/fiscal"), ...walk("src/components/fiscal"), ...walk("src/routes/api/public").filter((f) => /fiscal/.test(f)), "src/routes/_authenticated/admin.fiscal.tsx"];
+  const walk = (d: string): string[] => !existsSync(d) ? [] : readdirSync(d).flatMap((n) => { const p = join(d, n); return statSync(p).isDirectory() && n !== "__tests__" ? walk(p) : p.endsWith(".ts") || p.endsWith(".tsx") ? [p] : []; });
+  const files = [...walk("src/lib/fiscal"), ...walk("src/components/fiscal"), ...walk("src/routes/api/public").filter((f) => /fiscal/.test(f))];
   it("nenhuma server fn/rota/botão de baixar certificado, exportar .pfx ou ver senha", () => {
     const re = /(baixar|download|exportar|export)[a-z_\s-]*(certificad|\.pfx|pfx)|(ver|visualizar|mostrar|reveal|show)[a-z_\s-]*senha|getCertificate|downloadCertificate|exportPfx/i;
     for (const f of files) expect(readFileSync(f, "utf8"), f).not.toMatch(re);

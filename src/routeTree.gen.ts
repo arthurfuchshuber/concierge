@@ -38,7 +38,6 @@ import { Route as AuthenticatedAdminAtendimentoRouteImport } from './routes/_aut
 import { Route as AuthenticatedAdminDashboardRouteImport } from './routes/_authenticated/admin.dashboard'
 import { Route as AuthenticatedAdminEngajamentoRouteImport } from './routes/_authenticated/admin.engajamento'
 import { Route as AuthenticatedAdminEquipeRouteImport } from './routes/_authenticated/admin.equipe'
-import { Route as AuthenticatedAdminFiscalRouteImport } from './routes/_authenticated/admin.fiscal'
 import { Route as AuthenticatedAdminGuiasRouteImport } from './routes/_authenticated/admin.guias'
 import { Route as AuthenticatedAdminHospedesRouteImport } from './routes/_authenticated/admin.hospedes'
 import { Route as AuthenticatedAdminIaRouteImport } from './routes/_authenticated/admin.ia'
@@ -247,12 +246,6 @@ const AuthenticatedAdminEquipeRoute =
   AuthenticatedAdminEquipeRouteImport.update({
     id: '/equipe',
     path: '/equipe',
-    getParentRoute: () => AuthenticatedAdminRoute,
-  } as any)
-const AuthenticatedAdminFiscalRoute =
-  AuthenticatedAdminFiscalRouteImport.update({
-    id: '/fiscal',
-    path: '/fiscal',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
 const AuthenticatedAdminGuiasRoute = AuthenticatedAdminGuiasRouteImport.update({
@@ -595,7 +588,6 @@ export interface FileRoutesByFullPath {
   '/admin/dashboard': typeof AuthenticatedAdminDashboardRouteWithChildren
   '/admin/engajamento': typeof AuthenticatedAdminEngajamentoRoute
   '/admin/equipe': typeof AuthenticatedAdminEquipeRoute
-  '/admin/fiscal': typeof AuthenticatedAdminFiscalRoute
   '/admin/guias': typeof AuthenticatedAdminGuiasRoute
   '/admin/hospedes': typeof AuthenticatedAdminHospedesRoute
   '/admin/ia': typeof AuthenticatedAdminIaRoute
@@ -678,7 +670,6 @@ export interface FileRoutesByTo {
   '/admin/atendimento': typeof AuthenticatedAdminAtendimentoRoute
   '/admin/engajamento': typeof AuthenticatedAdminEngajamentoRoute
   '/admin/equipe': typeof AuthenticatedAdminEquipeRoute
-  '/admin/fiscal': typeof AuthenticatedAdminFiscalRoute
   '/admin/guias': typeof AuthenticatedAdminGuiasRoute
   '/admin/hospedes': typeof AuthenticatedAdminHospedesRoute
   '/admin/ia': typeof AuthenticatedAdminIaRoute
@@ -766,7 +757,6 @@ export interface FileRoutesById {
   '/_authenticated/admin/dashboard': typeof AuthenticatedAdminDashboardRouteWithChildren
   '/_authenticated/admin/engajamento': typeof AuthenticatedAdminEngajamentoRoute
   '/_authenticated/admin/equipe': typeof AuthenticatedAdminEquipeRoute
-  '/_authenticated/admin/fiscal': typeof AuthenticatedAdminFiscalRoute
   '/_authenticated/admin/guias': typeof AuthenticatedAdminGuiasRoute
   '/_authenticated/admin/hospedes': typeof AuthenticatedAdminHospedesRoute
   '/_authenticated/admin/ia': typeof AuthenticatedAdminIaRoute
@@ -854,7 +844,6 @@ export interface FileRouteTypes {
     | '/admin/dashboard'
     | '/admin/engajamento'
     | '/admin/equipe'
-    | '/admin/fiscal'
     | '/admin/guias'
     | '/admin/hospedes'
     | '/admin/ia'
@@ -937,7 +926,6 @@ export interface FileRouteTypes {
     | '/admin/atendimento'
     | '/admin/engajamento'
     | '/admin/equipe'
-    | '/admin/fiscal'
     | '/admin/guias'
     | '/admin/hospedes'
     | '/admin/ia'
@@ -1024,7 +1012,6 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/dashboard'
     | '/_authenticated/admin/engajamento'
     | '/_authenticated/admin/equipe'
-    | '/_authenticated/admin/fiscal'
     | '/_authenticated/admin/guias'
     | '/_authenticated/admin/hospedes'
     | '/_authenticated/admin/ia'
@@ -1343,13 +1330,6 @@ declare module '@tanstack/react-router' {
       path: '/equipe'
       fullPath: '/admin/equipe'
       preLoaderRoute: typeof AuthenticatedAdminEquipeRouteImport
-      parentRoute: typeof AuthenticatedAdminRoute
-    }
-    '/_authenticated/admin/fiscal': {
-      id: '/_authenticated/admin/fiscal'
-      path: '/fiscal'
-      fullPath: '/admin/fiscal'
-      preLoaderRoute: typeof AuthenticatedAdminFiscalRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
     '/_authenticated/admin/guias': {
@@ -1777,7 +1757,6 @@ interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminDashboardRoute: typeof AuthenticatedAdminDashboardRouteWithChildren
   AuthenticatedAdminEngajamentoRoute: typeof AuthenticatedAdminEngajamentoRoute
   AuthenticatedAdminEquipeRoute: typeof AuthenticatedAdminEquipeRoute
-  AuthenticatedAdminFiscalRoute: typeof AuthenticatedAdminFiscalRoute
   AuthenticatedAdminGuiasRoute: typeof AuthenticatedAdminGuiasRoute
   AuthenticatedAdminHospedesRoute: typeof AuthenticatedAdminHospedesRoute
   AuthenticatedAdminIaRoute: typeof AuthenticatedAdminIaRoute
@@ -1801,7 +1780,6 @@ const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
     AuthenticatedAdminDashboardRouteWithChildren,
   AuthenticatedAdminEngajamentoRoute: AuthenticatedAdminEngajamentoRoute,
   AuthenticatedAdminEquipeRoute: AuthenticatedAdminEquipeRoute,
-  AuthenticatedAdminFiscalRoute: AuthenticatedAdminFiscalRoute,
   AuthenticatedAdminGuiasRoute: AuthenticatedAdminGuiasRoute,
   AuthenticatedAdminHospedesRoute: AuthenticatedAdminHospedesRoute,
   AuthenticatedAdminIaRoute: AuthenticatedAdminIaRoute,
