@@ -4,7 +4,7 @@
  * do tempo dentro da reserva (ReservationRecords) e a aba "Registros"
  * (RecordsWorkspace). Mesmo motivo de `card-colors.ts` existir separado.
  */
-import { Package, AlertTriangle, Sparkles, Wrench, StickyNote, Siren } from "lucide-react";
+import { Package, AlertTriangle, Sparkles, Wrench, StickyNote, Siren, Brush } from "lucide-react";
 import type { RecordCategory } from "@/lib/reservation-records.functions";
 
 // "Registros da reserva" (pedido explícito, 07/09/2026): mesmo ícone em
@@ -50,12 +50,22 @@ export type CategoryMeta = {
 export const CATEGORIES: CategoryMeta[] = [
   {
     key: "forgotten",
-    label: "Objetos Esquecidos",
+    label: "Esquecidos",
     short: "Esquecidos",
     hint: "Achados e perdidos",
     icon: Package,
     tone: "bg-[#c9a962]/10 text-[#c9a962] border-[#c9a962]/30",
     dot: "bg-[#c9a962]",
+    createsTask: true,
+  },
+  {
+    key: "cleaning",
+    label: "Limpeza",
+    short: "Limpeza",
+    hint: "Serviço de limpeza a executar",
+    icon: Brush,
+    tone: "bg-[#7fb79a]/10 text-[#7fb79a] border-[#7fb79a]/30",
+    dot: "bg-[#7fb79a]",
     createsTask: true,
   },
   {
@@ -80,12 +90,12 @@ export const CATEGORIES: CategoryMeta[] = [
   },
   {
     key: "cleaning_audit",
-    label: "Auditoria de Limpeza",
-    short: "Limpeza",
-    hint: "Pronto pro próximo hóspede",
+    label: "Auditoria",
+    short: "Auditoria",
+    hint: "Prova de que está pronto pro próximo hóspede",
     icon: Sparkles,
-    tone: "bg-[#7fb79a]/10 text-[#7fb79a] border-[#7fb79a]/30",
-    dot: "bg-[#7fb79a]",
+    tone: "bg-[#6fa8b5]/10 text-[#6fa8b5] border-[#6fa8b5]/30",
+    dot: "bg-[#6fa8b5]",
     createsTask: false,
   },
   {
@@ -100,7 +110,7 @@ export const CATEGORIES: CategoryMeta[] = [
   },
   {
     key: "other",
-    label: "Observação / Outros",
+    label: "Outros (antigos)",
     short: "Outros",
     hint: "Registro comum",
     icon: StickyNote,
@@ -109,6 +119,13 @@ export const CATEGORIES: CategoryMeta[] = [
     createsTask: false,
   },
 ];
+
+/**
+ * Categorias que a pessoa pode ESCOLHER ao registrar (14/11/2026), na ordem da trilha.
+ * "other" (Observação) saiu da escolha — continua em `CATEGORIES` só para exibir
+ * registros antigos que já foram gravados com ela.
+ */
+export const SELECTABLE_CATEGORIES: CategoryMeta[] = CATEGORIES.filter((c) => c.key !== "other");
 
 export const CATEGORY_BY_KEY = new Map(CATEGORIES.map((c) => [c.key, c]));
 

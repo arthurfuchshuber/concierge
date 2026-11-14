@@ -8,11 +8,13 @@ import {
   createRecordSituation,
   undoRecordSituation,
 } from "@/lib/reservation-records.functions";
+import { createRecurrences } from "@/lib/recurrences.functions";
 import {
   configurarFila,
   envioEmAndamento,
   ouvirFila,
   processarFila,
+  resumoFila,
   trabalhosPendentes,
 } from "@/lib/offline/situation-outbox";
 
@@ -28,6 +30,7 @@ export function SituationOutboxRunner() {
     configurarFila({
       criar: (data) => createRecordSituation({ data: data as never }) as never,
       anexar: (data) => appendSituationMedia({ data: data as never }),
+      serie: (data) => createRecurrences({ data: data as never }),
     });
 
     const pos = { position: "top-center" as const };
@@ -75,15 +78,22 @@ export function SituationOutboxRunner() {
           metadata: { groupId: e.job.groupId, propertyId: e.job.propertyId, tentativas: e.job.tentativas, erro: e.erro },
         });
         // Oscilações passageiras se resolvem sozinhas: só avisa após 3 rodadas.
-        if ((e.job.tentativas ?? 0) < 3) {
+        // Erro que a internet não resolve (sessão, permissão) avisa na hora — o registro continua guardado.
+        if (!e.definitivo && (e.job.tentativas ?? 0) < 3) {
           toast.dismiss(id);
           return;
         }
-        toast.message("Envio pausado — continua sozinho", {
-          id,
-          description: "Os arquivos estão guardados no aparelho e serão enviados automaticamente assim que a conexão estabilizar.",
-          duration: 5000,
-          ...pos,
+        void resumoFila().then((r) => {
+          const fila = `${r.registros} registro${r.registros === 1 ? "" : "s"} aguardando · ${r.arquivos} arquivo${r.arquivos === 1 ? "" : "s"}`;
+          toast.message(e.definitivo ? "Envio parado — precisa da sua atenção" : "Envio pausado — continua sozinho", {
+            id,
+            description: e.definitivo
+              ? `${e.erro} O registro está guardado neste aparelho e nada foi perdido. ${fila}.`
+              : `Guardado neste aparelho; sobe assim que a internet voltar. Nada será perdido. ${fila}.`,
+            duration: Infinity,
+            action: { label: "Enviar agora", onClick: () => void processarFila() },
+            ...pos,
+          });
         });
       }
     });

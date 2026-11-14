@@ -1218,7 +1218,7 @@ export function buildAssistantTools(ctx: AssistantToolContext): AgentTool[] {
        */
       name: "preparar_anexar_midia",
       description:
-        "Monta (SEM gravar) o anexo do arquivo que veio nesta conversa a uma estadia/limpeza, como registro do imóvel. Só funciona se a pessoa tiver anexado um arquivo à mensagem. Descubra antes o imóvel (listar_imoveis) e a estadia (agenda ou reservas_do_imovel). Categoria: cleaning_audit para vídeo/foto de limpeza, damage para estrago, maintenance para conserto, forgotten para objeto esquecido, other para o resto. Dano, manutenção e objeto esquecido EXIGEM título e abrem pendência no Kanban.",
+        "Monta (SEM gravar) o anexo do arquivo que veio nesta conversa a uma estadia/limpeza, como registro do imóvel. Só funciona se a pessoa tiver anexado um arquivo à mensagem. Descubra antes o imóvel (listar_imoveis) e a estadia (agenda ou reservas_do_imovel). Categoria: cleaning_audit para vídeo/foto que PROVA a limpeza feita (Auditoria), cleaning para uma limpeza a executar, damage para estrago, maintenance para conserto, forgotten para objeto esquecido, other para o resto. Dano, manutenção, limpeza e objeto esquecido EXIGEM título e abrem pendência no Kanban.",
       parameters: schema(
         {
           propertyId: { type: "string" },
@@ -1231,7 +1231,7 @@ export function buildAssistantTools(ctx: AssistantToolContext): AgentTool[] {
           },
           categoria: {
             type: "string",
-            enum: ["cleaning_audit", "damage", "incident", "maintenance", "forgotten", "other"],
+            enum: ["cleaning", "cleaning_audit", "damage", "incident", "maintenance", "forgotten", "other"],
           },
           titulo: { type: ["string", "null"], description: "Máx. 120 caracteres." },
           descricao: { type: ["string", "null"] },
@@ -1269,7 +1269,7 @@ export function buildAssistantTools(ctx: AssistantToolContext): AgentTool[] {
             ? args.descricao.trim().slice(0, 2000)
             : null;
         if (!titulo && categoria !== "cleaning_audit" && categoria !== "other") {
-          return { erro: "Dano, manutenção e objeto esquecido precisam de um título." };
+          return { erro: "Dano, manutenção, limpeza e objeto esquecido precisam de um título." };
         }
 
         // Confere o imóvel e a estadia no banco em vez de aceitar o que o
@@ -1307,10 +1307,11 @@ export function buildAssistantTools(ctx: AssistantToolContext): AgentTool[] {
           file: "Arquivo",
         };
         const CATEGORIA_LABEL: Record<string, string> = {
-          cleaning_audit: "Auditoria de limpeza",
+          cleaning: "Limpeza",
+          cleaning_audit: "Auditoria",
           damage: "Dano",
           maintenance: "Manutenção",
-          forgotten: "Objeto esquecido",
+          forgotten: "Esquecidos",
           other: "Outros",
         };
         const mb = anexo.sizeBytes / 1_000_000;

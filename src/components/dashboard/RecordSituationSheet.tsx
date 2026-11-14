@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { RequiredMark } from "@/components/ds/RequiredMark";
 import { PhoneActionButton } from "@/components/PhoneActionButton";
 import { OwnerLine } from "@/components/dashboard/OwnerLine";
 import { useServerFn } from "@tanstack/react-start";
@@ -25,8 +24,8 @@ import { toast } from "sonner";
 import { track } from "@/lib/trail";
 import { comprimirImagem } from "@/lib/image-compress";
 import { comprimirVideo } from "@/lib/video-compress";
-import { chamarServidor, ehFalhaDeRede, enviarMidia } from "@/lib/media-upload";
-import { enfileirarSituacao } from "@/lib/offline/situation-outbox";
+import { chamarServidor, enviarMidia } from "@/lib/media-upload";
+import { enfileirarSituacao, guardadoSoNaMemoria } from "@/lib/offline/situation-outbox";
 import {
   apagarRascunho,
   chaveRascunho,
@@ -39,7 +38,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { CoverImage } from "@/components/ui/cover-image";
 import { cn } from "@/lib/utils";
 import { Switch } from "@/components/ui/switch";
-import { createRecurrences } from "@/lib/recurrences.functions";
 import { CheckoutCalendar } from "@/components/dashboard/CheckoutCalendar";
 import {
   advance,
@@ -182,9 +180,13 @@ export function DictationField({
       <div className="mb-1.5 flex items-center gap-1.5">
         <span className="ds-eyebrow text-muted-foreground">
           {label}
-          {required && <RequiredMark />}
+          {required && (
+            <span className="ml-0.5 text-destructive" aria-label="obrigatório">
+              *
+            </span>
+          )}
         </span>
-        {maxLength && value.length > 0 && (
+        {maxLength && (
           <span className="ds-eyebrow tabular-nums text-muted-foreground">
             {value.length}/{maxLength}
           </span>
@@ -313,10 +315,9 @@ export function RecordSituationSheet({
   const [description, setDescription] = useState("");
   const [saving, setSaving] = useState(false);
   const savingLockRef = useRef(false);
-  // REPETIR (13/11/2026): só Manutenção e Auditoria, no "+" da página Registros (sem reserva).
-  const recurFn = useServerFn(createRecurrences);
+  // REPETIR (13/11/2026): só Manutenção e Limpeza, no "+" da página Registros (sem reserva).
   const canRepeat =
-    (category === "maintenance" || category === "cleaning_audit") &&
+    (category === "maintenance" || category === "cleaning") &&
     cardMode === null &&
     !target.reservationId &&
     !target.logId;
@@ -328,10 +329,10 @@ export function RecordSituationSheet({
   const [repeat, setRepeat] = useState<RepeatCfg | null>(null);
   const [agendaMode, setAgendaMode] = useState<"next" | "date">("next");
   const [specificDate, setSpecificDate] = useState<string>(() => todayStr());
-  const [dateChecklist, setDateChecklist] = useState(category === "cleaning_audit");
+  const [dateChecklist, setDateChecklist] = useState(category === "cleaning");
   // "Próximo checkout": Limpeza nasce com a chave ligada, o resto (Manutenção) desligada.
-  const [nextChecklist, setNextChecklist] = useState(category === "cleaning_audit");
-  const recurDoneRef = useRef(false);
+  const [nextChecklist, setNextChecklist] = useState(category === "cleaning");
+  const serieKeyRef = useRef<string | null>(null);
   const gruposRef = useRef<Map<string, string>>(new Map());
   const multi = (extraProperties?.length ?? 0) > 0;
   const nProps = 1 + (extraProperties?.length ?? 0);
@@ -354,7 +355,7 @@ export function RecordSituationSheet({
       unit,
       interval,
       // Limpeza (Auditoria) já nasce com a chavinha ligada; Manutenção, desligada (pedido de 13/11/2026).
-      checklist: r?.checklist ?? category === "cleaning_audit",
+      checklist: r?.checklist ?? category === "cleaning",
       startTouched: r?.startTouched ?? false,
       start: r?.startTouched ? r.start : defaultStart(unit, interval),
     }));
@@ -436,6 +437,7 @@ export function RecordSituationSheet({
     setErro(null);
     setRascunho(null);
     grupoRef.current = null;
+    serieKeyRef.current = null;
     let vivo = true;
     void lerRascunho(chave).then((r) => {
       if (vivo && r) setRascunho(r);
@@ -650,6 +652,14 @@ export function RecordSituationSheet({
   // Mockup da folha (13/11/2026, decisão do titular): "Registrar" fica apagado até Título e Descrição
   // (os dois obrigatórios) estarem preenchidos.
   const canSave = !saving && !!title.trim() && !!description.trim();
+  const faltaTexto =
+    !title.trim() && !description.trim()
+      ? "Falta título e descrição para registrar"
+      : !title.trim()
+        ? "Falta o título para registrar"
+        : !description.trim()
+          ? "Falta a descrição para registrar"
+          : null;
   const pctGeral = items.length
     ? Math.round(items.reduce((s, it) => s + (pctPorItem[it.key] ?? 0), 0) / items.length)
     : 0;
@@ -787,24 +797,23 @@ export function RecordSituationSheet({
           return { id: e.id, groupId: g, primary: false };
         }),
       ];
-      // A série nasce ANTES de guardar as situações; uma vez criada, "tentar de novo" não a repete.
-      if (repeat && canRepeat && !recurDoneRef.current) {
-        await chamarServidor(() =>
-          recurFn({
-            data: {
+      // A série do "Repetir" vai DENTRO do trabalho guardado no aparelho (só no principal) e é enviada
+      // pela fila, com retentativa e chave própria: nenhuma oscilação de internet trava ou perde o registro.
+      if (repeat && canRepeat && !serieKeyRef.current) serieKeyRef.current = crypto.randomUUID();
+      const serie =
+        repeat && canRepeat && serieKeyRef.current
+          ? {
+              seriesKey: serieKeyRef.current,
               propertyIds: alvos.map((a) => a.id),
-              category: category === "cleaning_audit" ? "cleaning" : "maintenance",
+              category: (category === "cleaning" ? "cleaning" : "maintenance") as "cleaning" | "maintenance",
               title: title.trim(),
               description: description.trim() || null,
               frequency: { unit: repeat.unit, interval: repeat.interval },
               startDate: repeat.start,
               endsOn: null,
               inCleaningChecklist: repeat.checklist,
-            },
-          }),
-        );
-        recurDoneRef.current = true;
-      }
+            }
+          : null;
       let gravou = true;
       for (const a of alvos) {
         const ok = await enfileirarSituacao({
@@ -825,6 +834,7 @@ export function RecordSituationSheet({
                 : { mode: "next_checkout" as const, checklist: nextChecklist }
               : undefined,
           criada: false,
+          serie: a.primary ? serie : null,
           midias: items.map((it) => ({
             key: a.primary ? it.key : crypto.randomUUID(),
             blob: it.blob,
@@ -836,9 +846,10 @@ export function RecordSituationSheet({
         });
         if (!ok) gravou = false;
       }
-      if (!gravou) {
-        setErro("Não consegui guardar no aparelho (armazenamento cheio ou bloqueado). Libere espaço e toque em “Tentar de novo”.");
-        return;
+      // `enfileirarSituacao` nunca devolve falso: sem armazenamento no aparelho, o trabalho fica em
+      // memória e a fila continua enviando. Só avisamos para a pessoa não fechar o app.
+      if (!gravou || guardadoSoNaMemoria()) {
+        toast.warning("Guardado só nesta tela — não feche o app até terminar o envio", { position: "top-center" });
       }
       if (items.length > 0) {
         toast.message(
@@ -846,7 +857,7 @@ export function RecordSituationSheet({
           { position: "top-center" },
         );
       }
-      if (repeat && canRepeat) toast.success("Recorrência criada", { position: "top-center" });
+      if (repeat && canRepeat) toast.success("Recorrência guardada — a fila cria sozinha", { position: "top-center" });
       for (const it of items) if (it.previewUrl) URL.revokeObjectURL(it.previewUrl);
       setItems([]);
       void apagarRascunho(chave);
@@ -859,9 +870,7 @@ export function RecordSituationSheet({
           ? "O servidor demorou demais para responder. Toque em “Tentar de novo” — nada foi perdido."
           : m === "CANCELADO"
             ? "Envio cancelado. O que você digitou continua aqui."
-            : ehFalhaDeRede(e)
-              ? "A internet oscilou e o registro não chegou ao servidor. Toque em “Tentar de novo” — nada foi perdido."
-              : m || "Não consegui registrar a situação.",
+            : m || "Não consegui guardar o registro neste aparelho. Toque em “Tentar de novo” — o que você digitou continua aqui.",
       );
     } finally {
       cancelarRef.current = null;
@@ -887,7 +896,13 @@ export function RecordSituationSheet({
           <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-black/60 to-[var(--panel)]" />
           <div className="absolute inset-x-4 bottom-2.5 min-w-0 pr-12 text-left">
             <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/80">
-              {view === "repeat" ? "Repetir" : multi ? `Nova situação · ${meta?.short ?? "Registro"}` : "Nova situação"}
+              {view === "repeat" ? "Repetir" : "Nova situação"}
+              {view === "form" && meta ? (
+                <span className="ml-2 inline-flex items-center gap-[5px] rounded-full bg-white/[0.14] px-2 py-0.5 align-[1px] text-[10.5px] font-semibold normal-case tracking-normal text-white">
+                  <span className={cn("size-1.5 rounded-full", meta.dot)} />
+                  {meta.short}
+                </span>
+              ) : null}
             </div>
             <DialogTitle className="mt-1 block truncate text-sm font-bold leading-tight text-white">
               {view === "repeat" ? title.trim() || "Nova situação" : multi ? `${nProps} imóveis` : propertyLabel}
@@ -921,7 +936,7 @@ export function RecordSituationSheet({
         </div>
 
         {view === "form" ? (
-        <div className="sg-elegant-scroll min-h-0 flex-auto space-y-3.5 overflow-y-auto px-3.5 py-3">
+        <div className="sg-elegant-scroll min-h-0 flex-auto space-y-3.5 overflow-y-auto px-4 py-3">
           {/* O QUE FICOU PARA TRÁS (11/09/2026). Aparece só quando existe algo
               guardado deste mesmo imóvel e reserva — na folha limpa do dia a
               dia esta faixa não existe. */}
@@ -958,6 +973,43 @@ export function RecordSituationSheet({
             </div>
           )}
 
+          {/* Board de 08/11/2026: sem microfone nos campos (o áudio vem do microfone do modal e já chega
+              transcrito), Título com a mesma fonte da Descrição, Descrição obrigatória. */}
+          <DictationField
+            label="Título"
+            required
+            value={title}
+            onChange={setTitle}
+            placeholder="Em poucas palavras, o que houve"
+            propertyId={propertyId}
+            maxLength={RECORD_TITLE_MAX}
+            uniformFont
+            dictation={false}
+          />
+
+          <DictationField
+            label="Descrição"
+            required
+            value={description}
+            onChange={setDescription}
+            placeholder={transcribing ? "Transcrevendo o áudio…" : "Onde, desde quando, o que precisa ser feito"}
+            propertyId={propertyId}
+            multiline
+            dictation={false}
+          />
+
+          {/* O áudio gravado, compacto, no lugar da antiga dica "Prefere falar?". */}
+          {items
+            .filter((i) => i.kind === "audio")
+            .map((it) => (
+              <div
+                key={it.key}
+                className="rounded-full border border-border/60 bg-secondary/30 py-1 pl-1 pr-3"
+              >
+                <AudioPill blob={it.blob} durationMs={it.durationMs} onDelete={() => removeItem(it.key)} />
+              </div>
+            ))}
+
           <div>
             <div className="mb-1.5 flex items-center gap-1.5">
               <span className="ds-eyebrow text-muted-foreground">Mídias</span>
@@ -965,7 +1017,7 @@ export function RecordSituationSheet({
                 {items.filter((i) => i.kind !== "audio").length}/{SITUATION_MEDIA_MAX}
               </span>
             </div>
-            <div className="flex flex-wrap gap-1.5">
+            <div className={cn("flex-wrap gap-1.5", items.some((i) => i.kind !== "audio") ? "flex" : "hidden")}>
               {/* Áudio não entra no quadro de mídias: aparece como player logo abaixo da Descrição (08/11/2026). */}
               {items.filter((i) => i.kind !== "audio").map((it) => {
                 const Icon = KIND_ICON[it.kind];
@@ -1038,7 +1090,7 @@ export function RecordSituationSheet({
               {/* SÓ O "+", centrado (pedido explícito, 10/09/2026): a legenda
                   "mesma situação" dentro do quadrado confundia mais do que
                   explicava. O que ele faz continua dito no `title`. */}
-              {items.length < SITUATION_MEDIA_MAX && (
+              {items.length < SITUATION_MEDIA_MAX && items.some((i) => i.kind !== "audio") && (
                 <button
                   type="button"
                   onClick={() => galleryRef.current?.click()}
@@ -1058,75 +1110,38 @@ export function RecordSituationSheet({
                 um lê depois; anexo de voz obrigaria a operação a parar e
                 escutar. */}
             {items.length < SITUATION_MEDIA_MAX && (
-              <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+              <div className={cn("grid grid-cols-4 gap-1.5", items.some((i) => i.kind !== "audio") && "mt-1.5")}>
                 <button
                   type="button"
                   onClick={() => photoRef.current?.click()}
-                  className="inline-flex items-center gap-1.5 rounded-[0.3rem] border border-border/60 bg-secondary/30 px-2 py-1 text-[10.5px] font-medium text-foreground/80 hover:bg-secondary/50"
+                  className="inline-flex min-w-0 items-center justify-center gap-1.5 rounded-[0.3rem] border border-border/60 bg-secondary/30 px-1.5 py-2 text-[11px] font-medium text-foreground/80 hover:bg-secondary/50"
                 >
                   <Camera className="size-3" /> Foto
                 </button>
                 <button
                   type="button"
                   onClick={() => videoRef.current?.click()}
-                  className="inline-flex items-center gap-1.5 rounded-[0.3rem] border border-border/60 bg-secondary/30 px-2 py-1 text-[10.5px] font-medium text-foreground/80 hover:bg-secondary/50"
+                  className="inline-flex min-w-0 items-center justify-center gap-1.5 rounded-[0.3rem] border border-border/60 bg-secondary/30 px-1.5 py-2 text-[11px] font-medium text-foreground/80 hover:bg-secondary/50"
                 >
                   <Video className="size-3" /> Vídeo
                 </button>
                 <button
                   type="button"
                   onClick={() => galleryRef.current?.click()}
-                  className="inline-flex items-center gap-1.5 rounded-[0.3rem] border border-border/60 bg-secondary/30 px-2 py-1 text-[10.5px] font-medium text-foreground/80 hover:bg-secondary/50"
+                  className="inline-flex min-w-0 items-center justify-center gap-1.5 rounded-[0.3rem] border border-border/60 bg-secondary/30 px-1.5 py-2 text-[11px] font-medium text-foreground/80 hover:bg-secondary/50"
                 >
                   <Images className="size-3" /> Galeria
                 </button>
                 <button
                   type="button"
                   onClick={() => fileRef.current?.click()}
-                  className="inline-flex items-center gap-1.5 rounded-[0.3rem] border border-border/60 bg-secondary/30 px-2 py-1 text-[10.5px] font-medium text-foreground/80 hover:bg-secondary/50"
+                  className="inline-flex min-w-0 items-center justify-center gap-1.5 rounded-[0.3rem] border border-border/60 bg-secondary/30 px-1.5 py-2 text-[11px] font-medium text-foreground/80 hover:bg-secondary/50"
                 >
                   <FileText className="size-3" /> Arquivo
                 </button>
               </div>
             )}
           </div>
-
-          {/* Board de 08/11/2026: sem microfone nos campos (o áudio vem do microfone do modal e já chega
-              transcrito), Título com a mesma fonte da Descrição, Descrição obrigatória. */}
-          <DictationField
-            label="Título"
-            required
-            value={title}
-            onChange={setTitle}
-            placeholder="Em poucas palavras, o que houve"
-            propertyId={propertyId}
-            maxLength={RECORD_TITLE_MAX}
-            uniformFont
-            dictation={false}
-          />
-
-          <DictationField
-            label="Descrição"
-            required
-            value={description}
-            onChange={setDescription}
-            placeholder={transcribing ? "Transcrevendo o áudio…" : "Onde, desde quando, o que precisa ser feito"}
-            propertyId={propertyId}
-            multiline
-            dictation={false}
-          />
-
-          {/* O áudio gravado, compacto, no lugar da antiga dica "Prefere falar?". */}
-          {items
-            .filter((i) => i.kind === "audio")
-            .map((it) => (
-              <div
-                key={it.key}
-                className="rounded-full border border-border/60 bg-secondary/30 py-1 pl-1 pr-3"
-              >
-                <AudioPill blob={it.blob} durationMs={it.durationMs} onDelete={() => removeItem(it.key)} />
-              </div>
-            ))}
 
           {canRepeat && (
             <button
@@ -1146,6 +1161,10 @@ export function RecordSituationSheet({
               <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
             </button>
           )}
+
+          {faltaTexto && !saving ? (
+            <p className="-mt-1.5 text-[10.5px] leading-snug text-muted-foreground">{faltaTexto}</p>
+          ) : null}
         </div>
         ) : (
         <div className="sg-elegant-scroll min-h-0 flex-auto space-y-3.5 overflow-y-auto px-4 py-3.5">
@@ -1307,7 +1326,7 @@ export function RecordSituationSheet({
             pessoa precisa ler o que houve E ter o botão de tentar de novo
             embaixo, sem perder nada do que já digitou. */}
         {erro && (
-          <p className="flex shrink-0 items-start gap-1.5 border-t border-amber-500/30 bg-amber-500/[0.08] px-3.5 py-2 text-[11px] leading-snug text-amber-600 dark:text-amber-400">
+          <p className="mx-4 mb-3 flex shrink-0 items-start gap-1.5 rounded-[0.3rem] border border-amber-500/30 bg-amber-500/[0.08] px-3 py-2 text-[11px] leading-snug text-amber-600 dark:text-amber-400">
             <AlertTriangle className="mt-px size-3.5 shrink-0" />
             <span>{erro}</span>
           </p>
@@ -1317,7 +1336,7 @@ export function RecordSituationSheet({
             operacional mata o envio. A barra e a porcentagem existem para
             segurá-la aqui — foi a falta delas que fez o envio parecer travado. */}
         {progresso && (
-          <div className="shrink-0 border-t border-border/60 bg-amber-500/[0.07] px-3.5 py-2">
+          <div className="mx-4 mb-3 shrink-0 rounded-[0.3rem] bg-amber-500/[0.07] px-3 py-2">
             <div className="h-1 w-full overflow-hidden rounded-full bg-amber-500/20">
               <div
                 className="h-full rounded-full bg-gradient-to-r from-[#7C1AD8] to-[#E82DAE] transition-[width] duration-300"
@@ -1342,7 +1361,7 @@ export function RecordSituationSheet({
             </button>
           </div>
         ) : (
-        <div className="flex shrink-0 items-center justify-end gap-2 border-t border-border/50 bg-secondary/20 px-3.5 py-2.5">
+        <div className="flex shrink-0 items-center justify-end gap-2 border-t border-border/50 bg-secondary/20 px-4 py-2.5">
           {/* NUNCA PRENDER NINGUÉM (11/09/2026): antes este botão ficava
               desabilitado durante o envio e o diálogo não fechava, então um
               envio pendurado só saía recarregando a página — e aí perdia
@@ -1358,7 +1377,7 @@ export function RecordSituationSheet({
             type="button"
             disabled={!canSave}
             onClick={save}
-            className="inline-flex items-center gap-1.5 rounded-[0.3rem] bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] px-3.5 py-2 text-[12px] font-bold text-white disabled:from-muted disabled:to-muted disabled:text-muted-foreground"
+            className="inline-flex items-center gap-1.5 rounded-[0.3rem] bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] px-3.5 py-2 text-[12px] font-bold text-white disabled:opacity-40"
           >
             {saving && <Loader2 className="size-3.5 animate-spin" />}
             {progresso

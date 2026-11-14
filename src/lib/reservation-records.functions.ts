@@ -70,6 +70,7 @@ async function signPathsCached(supabase: AnyClient, paths: string[]): Promise<Ma
  */
 const RECORD_CATEGORIES = [
   "forgotten",
+  "cleaning",
   "damage",
   "incident",
   "cleaning_audit",
@@ -106,7 +107,7 @@ const OTHER_SERVICE_RULE = {
 const SITUATION_BY_CATEGORY: Record<string, string> = {
   damage: "damage",
   maintenance: "maintenance",
-  cleaning_audit: "cleaning",
+  cleaning: "cleaning",
 };
 
 /** Situação avulsa de Limpeza/Auditoria agendada pelo "Repetir" (próximo checkout ou data). */
@@ -172,6 +173,9 @@ const TASK_RULES: Record<
     showInCleaning: true,
     prefix: "Manutenção",
   },
+  // "Limpeza" (14/11/2026) é um serviço a executar — abre pendência e entra no
+  // checklist da faxina. É DISTINTA de "Auditoria", que é só prova (sem pendência).
+  cleaning: SCHEDULED_CLEANING_RULE,
 };
 
 // Mesma identidade estável usada em toda a esteira (advanceArrival,
@@ -416,7 +420,7 @@ async function createLinkedTask(
     !!input.schedule &&
     !input.reservationId &&
     !input.logId &&
-    (input.category === "maintenance" || input.category === "cleaning_audit");
+    (input.category === "maintenance" || input.category === "cleaning");
   const rule =
     TASK_RULES[input.category] ??
     (scheduled ? SCHEDULED_CLEANING_RULE : input.situation ? OTHER_SERVICE_RULE : undefined);
@@ -1436,7 +1440,7 @@ export type AccountRecordsResult = {
 };
 
 function emptyCounts(): Record<RecordCategory, number> {
-  return { forgotten: 0, damage: 0, incident: 0, cleaning_audit: 0, maintenance: 0, other: 0 };
+  return { forgotten: 0, cleaning: 0, damage: 0, incident: 0, cleaning_audit: 0, maintenance: 0, other: 0 };
 }
 
 export const listAccountRecords = createServerFn({ method: "GET" })

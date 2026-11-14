@@ -201,7 +201,7 @@ export async function materializeDue(db: AnyClient, userId: string, propertyIds?
         id: gid,
         group_id: gid,
         property_id: s.property_id,
-        category: s.category === "cleaning" ? "cleaning_audit" : "maintenance",
+        category: s.category === "cleaning" ? "cleaning" : "maintenance",
         kind: "note",
         body: composeRecordBody(s.title, s.description) ?? s.title,
         created_by: s.created_by ?? userId,
@@ -237,6 +237,8 @@ const CreateInput = z.object({
   startDate: DateStr,
   endsOn: DateStr.nullable().optional(),
   inCleaningChecklist: z.boolean(),
+  /** Gerada no aparelho: reenviar a mesma série (fila com retentativa) nunca a duplica. */
+  seriesKey: z.string().uuid().optional(),
 });
 
 export const createRecurrences = createServerFn({ method: "POST" })
@@ -261,8 +263,14 @@ export const createRecurrences = createServerFn({ method: "POST" })
       ends_on: data.endsOn ?? null,
       in_cleaning_checklist: data.inCleaningChecklist,
       created_by: context.userId,
+      series_key: data.seriesKey ?? null,
     }));
-    const { data: ins, error } = await db.from("task_recurrences").insert(rows).select("id");
+    // Com `seriesKey`: repetição da mesma série (mesmo imóvel) é ignorada pelo índice único,
+    // então a fila do aparelho pode reenviar quantas vezes precisar sem duplicar.
+    const q = data.seriesKey
+      ? db.from("task_recurrences").upsert(rows, { onConflict: "series_key,property_id", ignoreDuplicates: true })
+      : db.from("task_recurrences").insert(rows);
+    const { data: ins, error } = await q.select("id");
     if (error) throw new Error(error.message);
     await materializeDue(db, context.userId, data.propertyIds);
     return { ids: ((ins ?? []) as Array<{ id: string }>).map((r) => r.id) };

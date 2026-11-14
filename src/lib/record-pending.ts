@@ -9,9 +9,10 @@
  *
  * Pedido explícito (03/10/2026): a faixa soma TODAS as pendências — também as
  * de OBJETO ESQUECIDO, que abrem tarefa no Kanban. Auditoria de limpeza e
- * "outros" nunca geram tarefa: são prova, não trabalho.
+ * "outros" nunca geram tarefa: são prova, não trabalho. LIMPEZA (14/11/2026) é
+ * serviço a executar: abre tarefa e entra aqui.
  */
-export const PENDING_CATEGORIES = ["damage", "maintenance", "incident", "forgotten"] as const;
+export const PENDING_CATEGORIES = ["damage", "maintenance", "incident", "forgotten", "cleaning"] as const;
 export type PendingCategory = (typeof PENDING_CATEGORIES)[number];
 
 export function isPendingCategory(c: string): c is PendingCategory {

@@ -6,7 +6,9 @@
  *
  * Agora "Registrar situação" só GRAVA no aparelho (IndexedDB, com os arquivos)
  * e fecha. Esta fila envia em segundo plano e:
- *  · nunca perde nada: o trabalho só some do aparelho quando tudo chegou;
+ *  · nunca perde nada: o trabalho só some do aparelho quando tudo chegou — e
+ *    nunca por idade. Se o armazenamento do aparelho falhar, fica guardado em
+ *    memória e continua sendo enviado (mesmo modelo da fila de "Finalizar Limpeza");
  *  · retoma sozinha ao voltar para o app, ao voltar a internet, ao reabrir
  *    o navegador e a cada 30 s;
  *  · é idempotente: o ID da situação nasce no aparelho e cada arquivo tem
@@ -25,7 +27,6 @@ import { comprimirVideo } from "@/lib/video-compress";
 import { extFor } from "@/components/dashboard/record-draft";
 
 const PREFIXO = "fila-situacao:";
-const VALIDADE_MS = 1000 * 60 * 60 * 24 * 7;
 const PRAZO_CHAMADA_MS = 90_000;
 /** Quanto tempo a situação escolhida na aba Serviços espera a folha ser registrada. */
 const VALIDADE_ARMADA_MS = 1000 * 60 * 60;
@@ -44,6 +45,19 @@ export type MidiaFila = {
   anexada?: boolean;
 };
 
+/** Série "Repetir": vai dentro do trabalho guardado e é enviada pela fila (idempotente por `seriesKey`). */
+export type SerieFila = {
+  seriesKey: string;
+  propertyIds: string[];
+  category: "maintenance" | "cleaning";
+  title: string;
+  description: string | null;
+  frequency: { unit: "day" | "week" | "month" | "year"; interval: number };
+  startDate: string;
+  endsOn: string | null;
+  inCleaningChecklist: boolean;
+};
+
 export type TrabalhoSituacao = {
   groupId: string;
   criadoEm: number;
@@ -58,6 +72,9 @@ export type TrabalhoSituacao = {
   situationId?: string | null;
   /** "Repetir" da Nova situação (13/11/2026): próximo checkout ou data específica. */
   agenda?: { mode: "next_checkout"; checklist?: boolean } | { mode: "date"; date: string; checklist: boolean } | null;
+  /** Série a criar antes da situação (só no trabalho principal). */
+  serie?: SerieFila | null;
+  serieFeita?: boolean;
   /** true quando a situação já existe no servidor (ou é um anexo a uma existente). */
   criada: boolean;
   taskId?: string | null;
@@ -71,7 +88,7 @@ export type EventoFila =
   | { tipo: "progresso"; job: TrabalhoSituacao; feitos: number; total: number; pct: number }
   | { tipo: "criada"; job: TrabalhoSituacao }
   | { tipo: "concluida"; job: TrabalhoSituacao }
-  | { tipo: "pendente"; job: TrabalhoSituacao; erro: string };
+  | { tipo: "pendente"; job: TrabalhoSituacao; erro: string; definitivo: boolean };
 
 type Ouvinte = (e: EventoFila) => void;
 const ouvintes = new Set<Ouvinte>();
@@ -93,6 +110,7 @@ function emitir(e: EventoFila) {
 export type ServidorFila = {
   criar: (data: Record<string, unknown>) => Promise<{ groupId?: string; taskId?: string | null; taskCreated?: boolean }>;
   anexar: (data: Record<string, unknown>) => Promise<unknown>;
+  serie?: (data: Record<string, unknown>) => Promise<unknown>;
 };
 let servidor: ServidorFila | null = null;
 export function configurarFila(s: ServidorFila) {
@@ -106,6 +124,13 @@ export function envioEmAndamento(): boolean {
 
 /* Situação escolhida na aba Serviços, à espera da folha de registro. Uma por
    imóvel; vale por uma hora e é consumida pelo primeiro trabalho gravado. */
+/* Cópia em memória: rede de segurança quando o IndexedDB falha (armazenamento cheio ou
+   bloqueado). Enquanto a aba estiver aberta o trabalho continua sendo enviado. */
+const memoria = new Map<string, TrabalhoSituacao>();
+export function guardadoSoNaMemoria(): boolean {
+  return memoria.size > 0;
+}
+
 const armadas = new Map<string, { situationId: string; em: number }>();
 
 /** Deixa a situação escolhida pronta para o próximo registro daquele imóvel. */
@@ -126,22 +151,43 @@ export async function enfileirarSituacao(job: TrabalhoSituacao): Promise<boolean
     }
   }
   const ok = await idbGravar(PREFIXO + job.groupId, job);
-  if (ok) void processarFila();
-  return ok;
+  if (!ok) memoria.set(job.groupId, job);
+  void processarFila();
+  // Sempre `true`: ou está no aparelho ou está na memória, e a fila já está enviando.
+  return true;
 }
 
 export async function trabalhosPendentes(): Promise<TrabalhoSituacao[]> {
   const chaves = await idbChaves(PREFIXO);
-  const lista: TrabalhoSituacao[] = [];
+  const porId = new Map<string, TrabalhoSituacao>();
   for (const k of chaves) {
     const j = await idbLer<TrabalhoSituacao>(k);
-    if (j) lista.push(j);
+    if (j) porId.set(j.groupId, j);
   }
-  return lista.sort((a, b) => a.criadoEm - b.criadoEm);
+  for (const [id, j] of memoria) if (!porId.has(id)) porId.set(id, j);
+  return [...porId.values()].sort((a, b) => a.criadoEm - b.criadoEm);
 }
 
-function salvar(job: TrabalhoSituacao) {
-  return idbGravar(PREFIXO + job.groupId, job);
+/** Quantos registros e arquivos ainda esperam envio (para o aviso "N aguardando"). */
+export async function resumoFila(): Promise<{ registros: number; arquivos: number }> {
+  const l = await trabalhosPendentes();
+  return { registros: l.length, arquivos: l.reduce((n, j) => n + j.midias.filter((m) => !m.anexada).length, 0) };
+}
+
+async function salvar(job: TrabalhoSituacao) {
+  const ok = await idbGravar(PREFIXO + job.groupId, job);
+  if (!ok) memoria.set(job.groupId, job);
+  else memoria.delete(job.groupId);
+}
+
+async function remover(job: TrabalhoSituacao) {
+  memoria.delete(job.groupId);
+  await idbApagar(PREFIXO + job.groupId);
+}
+
+/** Erros que a internet não resolve: a pessoa precisa saber (o trabalho continua guardado). */
+export function ehErroDefinitivo(msg: string): boolean {
+  return /sess[aã]o expirada|n[aã]o tem permiss[aã]o|permiss[aã]o|servidor recusou|n[aã]o autorizad/i.test(msg);
 }
 
 export function caminhoMidia(job: TrabalhoSituacao, m: MidiaFila): string {
@@ -160,10 +206,6 @@ export function processarFila(): Promise<void> {
       if (navigator.onLine === false) return;
       const lista = await trabalhosPendentes();
       for (const job of lista) {
-        if (Date.now() - job.criadoEm > VALIDADE_MS) {
-          await idbApagar(PREFIXO + job.groupId);
-          continue;
-        }
         await processarUm(job);
       }
     } finally {
@@ -179,6 +221,12 @@ async function processarUm(job: TrabalhoSituacao): Promise<void> {
   try {
     const token = await garantirToken();
     if (!token) throw new Error("Sessão expirada — entre de novo para concluir o envio.");
+
+    if (job.serie && !job.serieFeita && s.serie) {
+      await chamarServidor(() => s.serie!(job.serie as unknown as Record<string, unknown>), { prazoMs: PRAZO_CHAMADA_MS });
+      job.serieFeita = true;
+      await salvar(job);
+    }
 
     if (!job.criada) {
       const r = await chamarServidor(() =>
@@ -262,14 +310,14 @@ async function processarUm(job: TrabalhoSituacao): Promise<void> {
       await salvar(job);
     }
 
-    await idbApagar(PREFIXO + job.groupId);
+    await remover(job);
     emitir({ tipo: "concluida", job });
   } catch (e) {
     const rawMsg = e instanceof Error ? e.message : String(e ?? "");
     // Registro excluído/desfeito no servidor: não é oscilação de internet. Descarta o
     // trabalho do aparelho na hora (sem somar tentativa, sem ficar no IndexedDB).
     if (/situa[cç][aã]o n[aã]o encontrada/i.test(rawMsg)) {
-      await idbApagar(PREFIXO + job.groupId);
+      await remover(job);
       // midias vazias: a tela só atualiza e some com o aviso, sem "arquivos enviados" falso.
       emitir({ tipo: "concluida", job: { ...job, midias: [] } });
       return;
@@ -278,7 +326,7 @@ async function processarUm(job: TrabalhoSituacao): Promise<void> {
     job.tentativas = (job.tentativas ?? 0) + 1;
     job.ultimoErro = msg;
     await salvar(job);
-    emitir({ tipo: "pendente", job, erro: msg });
+    emitir({ tipo: "pendente", job, erro: msg, definitivo: ehErroDefinitivo(msg) });
   } finally {
     ativos -= 1;
   }

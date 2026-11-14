@@ -18,7 +18,7 @@ import {
   norm,
 } from "@/components/dashboard/TrailParts";
 import { RecordSituationSheet } from "@/components/dashboard/RecordSituationSheet";
-import { CATEGORIES } from "@/components/dashboard/record-categories";
+import { CATEGORIES, SELECTABLE_CATEGORIES } from "@/components/dashboard/record-categories";
 import { getNewRecordOptions, type RecordCategory } from "@/lib/reservation-records.functions";
 import { markDialogHandoff } from "@/lib/global-overlay-store";
 import { useImpersonation } from "@/hooks/useImpersonation";
@@ -54,7 +54,7 @@ const QUESTIONS = [
 ] as const;
 
 /** Com vários imóveis só valem as categorias que podem repetir (regra de 13/11/2026). */
-const MULTI_CATEGORIES: RecordCategory[] = ["maintenance", "cleaning_audit"];
+const MULTI_CATEGORIES: RecordCategory[] = ["maintenance", "cleaning", "cleaning_audit"];
 
 type Link = "imovel" | "reserva";
 
@@ -67,6 +67,8 @@ export function NewRecordButton() {
   const [propertyId, setPropertyId] = useState<string | null>(null);
   /** Imóveis marcados (só no vínculo "Imóvel"; mais de um = uma situação para cada). */
   const [propertyIds, setPropertyIds] = useState<string[]>([]);
+  /** Modo de seleção em massa: liga com o toque longo num cartão (14/11/2026); desligado, tocar escolhe UM imóvel e segue. */
+  const [selecting, setSelecting] = useState(false);
   const [reservationId, setReservationId] = useState<string | null>(null);
   const [category, setCategory] = useState<RecordCategory | null>(null);
   const [search, setSearch] = useState("");
@@ -97,6 +99,7 @@ export function NewRecordButton() {
     setLink(null);
     setPropertyId(null);
     setPropertyIds([]);
+    setSelecting(false);
     setReservationId(null);
     setCategory(null);
     setSearch("");
@@ -199,19 +202,26 @@ export function NewRecordButton() {
             : "Qual imóvel? (um ou mais)"
         : QUESTIONS[1];
   const ready = answered.every(Boolean) && step === 3;
-  // Mockup g: com vários imóveis a ordem é Manutenção, depois Auditoria.
+  // Com vários imóveis só Manutenção, Limpeza e Auditoria (na ordem geral da lista).
   const categories = many
-    ? MULTI_CATEGORIES.map((k) => CATEGORIES.find((c) => c.key === k)!).filter(Boolean)
-    : CATEGORIES;
+    ? SELECTABLE_CATEGORIES.filter((c) => MULTI_CATEGORIES.includes(c.key))
+    : SELECTABLE_CATEGORIES;
   const toggleProp = (id: string) =>
     setPropertyIds((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]));
   const allShownOn = shownProps.length > 0 && shownProps.every((p) => propertyIds.includes(p.id));
-  const toggleAll = () =>
+  const toggleAll = () => {
+    setSelecting(true);
     setPropertyIds((cur) =>
       allShownOn
         ? cur.filter((id) => !shownProps.some((p) => p.id === id))
         : Array.from(new Set([...cur, ...shownProps.map((p) => p.id)])),
     );
+  };
+  /** Toque longo: liga a seleção e marca o cartão segurado. */
+  const startSelecting = (id: string) => {
+    setSelecting(true);
+    setPropertyIds((cur) => (cur.includes(id) ? cur : [...cur, id]));
+  };
 
   const pickProperty = (id: string, resId: string | null) => {
     setPropertyId(id);
@@ -294,6 +304,7 @@ export function NewRecordButton() {
                       if (link) setPropertyId(null);
                       setPropertyIds([]);
                     }
+                    setSelecting(false);
                     setLink("imovel");
                     setSearch("");
                     setStep(2);
@@ -368,6 +379,7 @@ export function NewRecordButton() {
                   })}
                 </PickList>
               ) : (
+                <>
                 <PickList
                   search={search}
                   onSearch={setSearch}
@@ -402,11 +414,21 @@ export function NewRecordButton() {
                       hideMaps
                       multi
                       selected={propertyIds.includes(p.id)}
-                      onClick={() => toggleProp(p.id)}
+                      onLongPress={() => startSelecting(p.id)}
+                      onClick={() => {
+                        if (selecting) toggleProp(p.id);
+                        else pickProperty(p.id, null);
+                      }}
                       last={i === shownProps.length - 1}
                     />
                   ))}
                 </PickList>
+                {!selecting ? (
+                  <p className="mt-2 text-[11.5px] leading-snug text-muted-foreground">
+                    Toque para escolher um imóvel. Segure um cartão para selecionar vários.
+                  </p>
+                ) : null}
+                </>
               )}
             </Step>
             <Step
@@ -434,7 +456,7 @@ export function NewRecordButton() {
                     <span className={cn("size-2 shrink-0 rounded-full", c.dot)} />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-[12.5px] font-semibold text-foreground">
-                        {c.key === "cleaning_audit" ? "Auditoria" : c.key === "other" ? "Observação" : c.label}
+                        {c.label}
                       </span>
                       <span className="block truncate text-[10.5px] text-muted-foreground">
                         {c.hint}
@@ -445,7 +467,7 @@ export function NewRecordButton() {
               </PickList>
               {many ? (
                 <p className="mt-2 text-[11.5px] leading-snug text-muted-foreground">
-                  Com vários imóveis, só Manutenção e Auditoria.
+                  Com vários imóveis, só Manutenção, Limpeza e Auditoria.
                 </p>
               ) : null}
             </Step>

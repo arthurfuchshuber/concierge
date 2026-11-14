@@ -292,7 +292,8 @@ const CATEGORY_SOLID: Record<RecordCategory, string> = {
   forgotten: "bg-[#c9a962] text-[#1a1408]",
   damage: "bg-[#c98c8c] text-[#1a0a0a]",
   incident: "bg-[#c98c8c] text-[#1a0a0a]",
-  cleaning_audit: "bg-[#7fb79a] text-[#05140d]",
+  cleaning: "bg-[#7fb79a] text-[#05140d]",
+  cleaning_audit: "bg-[#6fa8b5] text-[#06141a]",
   maintenance: "bg-[#c98c8c] text-[#1a0a0a]",
   other: "bg-muted-foreground text-background",
 };
@@ -301,7 +302,8 @@ const CATEGORY_BAND: Record<RecordCategory, string> = {
   forgotten: "bg-[#c9a962]/15 text-[#c9a962]",
   damage: "bg-[#c98c8c]/15 text-[#c98c8c]",
   incident: "bg-[#c98c8c]/15 text-[#c98c8c]",
-  cleaning_audit: "bg-[#7fb79a]/15 text-[#7fb79a]",
+  cleaning: "bg-[#7fb79a]/15 text-[#7fb79a]",
+  cleaning_audit: "bg-[#6fa8b5]/15 text-[#6fa8b5]",
   maintenance: "bg-[#c98c8c]/15 text-[#c98c8c]",
   other: "bg-muted-foreground/15 text-muted-foreground",
 };
@@ -334,6 +336,7 @@ const CARD_ORDER: readonly RecordCategory[] = [
   "damage",
   "incident",
   "forgotten",
+  "cleaning",
   "other",
   "cleaning_audit",
 ];
@@ -798,7 +801,7 @@ export function RecordsWorkspace() {
             placeholder="Buscar por imóvel, proprietário…"
             actions={recordActions}
           />
-          <div className="ds-card-grid grid-cols-2 lg:grid-cols-4">
+          <div className="ds-card-grid grid-cols-2 lg:grid-cols-5 [&>*:last-child:nth-child(odd)]:col-span-2 lg:[&>*:last-child:nth-child(odd)]:col-span-1">
             {STATUS_CELLS.map((c) => (
               <StatusCell
                 key={c.key}
@@ -1247,7 +1250,8 @@ const CARD_ICON_TONE: Record<RecordCategory, string> = {
   damage: "#c98c8c",
   incident: "#c98c8c",
   forgotten: "#c9a962",
-  cleaning_audit: "#7fb79a",
+  cleaning: "#7fb79a",
+  cleaning_audit: "#6fa8b5",
   other: "#c9a962",
 };
 
@@ -1483,11 +1487,12 @@ const STRIPE_GRADIENT: Record<RecordCategory, string> = {
   maintenance: "bg-gradient-to-b from-transparent via-[#c98c8c] to-transparent",
   forgotten: "bg-gradient-to-b from-transparent via-[#c9a962] to-transparent",
   other: "bg-gradient-to-b from-transparent via-muted-foreground to-transparent",
-  cleaning_audit: "bg-gradient-to-b from-transparent via-[#7fb79a] to-transparent",
+  cleaning: "bg-gradient-to-b from-transparent via-[#7fb79a] to-transparent",
+  cleaning_audit: "bg-gradient-to-b from-transparent via-[#6fa8b5] to-transparent",
 };
 
 /** Ordem de desempate, da mais grave para a menos. */
-const STRIPE_PRIORITY: RecordCategory[] = ["damage", "maintenance", "forgotten", "other"];
+const STRIPE_PRIORITY: RecordCategory[] = ["damage", "maintenance", "forgotten", "cleaning", "other"];
 
 function stripeCategory(records: ReadonlyArray<AccountRecord>): RecordCategory | null {
   if (records.length === 0) return null;

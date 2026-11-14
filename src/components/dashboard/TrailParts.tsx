@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { CalendarDays, Check, Minus, MapPin, Search, User, type LucideIcon } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { ClampName } from "@/components/ui/clamp-name";
@@ -139,11 +139,14 @@ export function Choice({
           : "bg-[var(--panel-well)] hover:bg-foreground/[0.07]",
       )}
     >
-      <Icon
-        className={cn("size-4", selected ? "text-accent" : "text-muted-foreground")}
-        strokeWidth={2}
-      />
-      <span className="truncate text-[12.5px] font-bold text-foreground">{title}</span>
+      {/* Título AO LADO do ícone (14/11/2026); a descrição desce para a linha de baixo. */}
+      <span className="flex min-w-0 items-center gap-2">
+        <Icon
+          className={cn("size-4 shrink-0", selected ? "text-accent" : "text-muted-foreground")}
+          strokeWidth={2}
+        />
+        <span className="truncate text-[12.5px] font-bold text-foreground">{title}</span>
+      </span>
       <span className="text-[10.5px] leading-tight text-muted-foreground">{sub}</span>
     </button>
   );
@@ -227,13 +230,15 @@ export function TrailDialog({
         onBack={onBack}
         className="flex h-auto max-h-[90dvh] w-[min(560px,calc(100vw-24px))] max-w-none flex-col gap-0 overflow-hidden border-[var(--panel-border)] bg-[var(--panel)] p-0 sm:max-w-none"
       >
-        <div className="flex shrink-0 items-center gap-2.5 border-b border-[var(--panel-div)] py-2.5 pl-4 pr-14 data-[back=true]:pr-24" data-back={onBack ? "true" : "false"}>
+        {/* CABEÇALHO PADRÃO DAS JANELAS (Regra 5, 14/11/2026): faixa de 48px, título Manrope 14px
+            bold, margem esquerda de 16px e filete embaixo. A "X" (e o voltar) ficam à direita. */}
+        <div className="flex min-h-12 shrink-0 items-center gap-2.5 border-b border-[var(--panel-div)] py-1.5 pl-4 pr-14 data-[back=true]:pr-24" data-back={onBack ? "true" : "false"}>
           <div className="min-w-0 flex-1">
-            <DialogTitle className="block truncate font-display text-[16px] font-bold leading-tight text-foreground">
+            <DialogTitle className="block truncate font-display text-[14px] font-bold leading-tight text-foreground">
               {title}
             </DialogTitle>
             {subtitle ? (
-              <span className="mt-0.5 block truncate text-[11.5px] leading-tight text-muted-foreground">{subtitle}</span>
+              <span className="mt-0.5 block truncate text-[12px] leading-tight text-muted-foreground">{subtitle}</span>
             ) : null}
           </div>
           {progress ? (
@@ -275,6 +280,60 @@ type PickLine = {
   suffix?: string;
 };
 
+/**
+ * TOQUE LONGO (≈0,45 s) sem biblioteca: arma um temporizador no pressionar e o cancela se o dedo
+ * andar mais de 8px (rolagem da lista), soltar ou sair. Depois de disparar, o clique que o navegador
+ * ainda emite ao soltar é descartado por `consumeClick`.
+ */
+function useLongPress(onLongPress?: () => void, ms = 450) {
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const origin = useRef<{ x: number; y: number } | null>(null);
+  const fired = useRef(false);
+  const cb = useRef(onLongPress);
+  cb.current = onLongPress;
+  const clear = () => {
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = null;
+    origin.current = null;
+  };
+  useEffect(() => clear, []);
+  const enabled = !!onLongPress;
+  return {
+    consumeClick: () => {
+      const was = fired.current;
+      fired.current = false;
+      return was;
+    },
+    handlers: enabled
+      ? {
+          onPointerDown: (e: React.PointerEvent) => {
+            if (e.button !== undefined && e.button > 0) return;
+            fired.current = false;
+            origin.current = { x: e.clientX, y: e.clientY };
+            timer.current = setTimeout(() => {
+              timer.current = null;
+              fired.current = true;
+              try {
+                navigator.vibrate?.(12);
+              } catch {
+                /* sem vibração: tudo bem */
+              }
+              cb.current?.();
+            }, ms);
+          },
+          onPointerMove: (e: React.PointerEvent) => {
+            const o = origin.current;
+            if (o && Math.hypot(e.clientX - o.x, e.clientY - o.y) > 8) clear();
+          },
+          onPointerUp: clear,
+          onPointerLeave: clear,
+          onPointerCancel: clear,
+          onContextMenu: (e: React.MouseEvent) => e.preventDefault(),
+        }
+      : {},
+  };
+}
+
 function LineIcon({ icon }: { icon: PickLine["icon"] }) {
   return icon === "user" ? <User className="size-3 shrink-0" /> : <CalendarDays className="size-3 shrink-0" />;
 }
@@ -307,6 +366,7 @@ export function PropertyPickRow({
   selected,
   last,
   multi,
+  onLongPress,
   onClick,
 }: {
   name: string;
@@ -314,8 +374,13 @@ export function PropertyPickRow({
   ownerName?: string | null;
   ownerPhone?: string | null;
   ownerPhoneCountry?: string | null;
-  /** Seleção de VÁRIOS imóveis (13/11/2026, mockup de recorrência): caixa quadrada à esquerda. */
+  /**
+   * Lista de VÁRIOS imóveis (14/11/2026): sem caixinhas. Segurar o cartão uma vez liga o modo de
+   * seleção (`onLongPress`); com ele ligado, o toque marca/desmarca. O cartão marcado ganha fundo rosa.
+   */
   multi?: boolean;
+  /** Segurar o cartão (≈0,45 s). */
+  onLongPress?: () => void;
   city?: string | null;
   address?: string | null;
   mapsUrl?: string | null;
@@ -329,6 +394,7 @@ export function PropertyPickRow({
   onClick: () => void;
 }) {
   const stop = (e: { stopPropagation: () => void }) => e.stopPropagation();
+  const hold = useLongPress(onLongPress);
   return (
     <div
       role={multi ? "checkbox" : "radio"}
@@ -336,7 +402,15 @@ export function PropertyPickRow({
       aria-label={`Selecionar ${name}`}
       tabIndex={0}
       data-clip-row
-      onClick={onClick}
+      {...hold.handlers}
+      onClick={(e) => {
+        // O clique que sucede um toque longo não pode selecionar/avançar.
+        if (hold.consumeClick()) {
+          e.preventDefault();
+          return;
+        }
+        onClick();
+      }}
       onKeyDown={(e) => {
         if (e.target !== e.currentTarget) return;
         if (e.key === "Enter" || e.key === " ") {
@@ -345,12 +419,11 @@ export function PropertyPickRow({
         }
       }}
       className={cn(
-        "relative flex cursor-pointer items-start gap-2.5 px-3 py-2.5 outline-none transition-colors hover:bg-foreground/[0.03] focus-visible:bg-foreground/[0.05]",
+        "relative flex cursor-pointer select-none items-start gap-2.5 px-3 py-2.5 outline-none transition-colors [-webkit-touch-callout:none] hover:bg-foreground/[0.03] focus-visible:bg-foreground/[0.05]",
         !last && "border-b border-[var(--panel-div)]",
         selected && "bg-accent/10 hover:bg-accent/10",
       )}
     >
-      {multi ? <CheckBox on={selected} /> : null}
       <span className="relative size-[52px] shrink-0 overflow-hidden rounded-lg bg-foreground/[0.05] text-muted-foreground">
         <CoverImage urls={[photoUrl]} />
       </span>
@@ -558,11 +631,13 @@ export function SelectAllRow({
       role="checkbox"
       aria-checked={all ? true : selected > 0 ? "mixed" : false}
       onClick={onToggle}
-      className="flex w-full items-center gap-2.5 border-b border-[var(--panel-div)] px-3 py-2 text-left hover:bg-foreground/[0.03]"
+      className={cn(
+        "flex w-full items-center gap-2.5 border-b border-[var(--panel-div)] px-3 py-2 text-left transition-colors hover:bg-foreground/[0.03]",
+        all && "bg-accent/10 hover:bg-accent/10",
+      )}
     >
-      <CheckBox on={all} partial={!all && selected > 0} />
       <span className="min-w-0 flex-1 text-[12.5px] font-bold text-foreground">Selecionar todos</span>
-      <span className="shrink-0 text-[11.5px] tabular-nums text-muted-foreground">
+      <span className={cn("shrink-0 text-[11.5px] tabular-nums", selected > 0 ? "font-bold text-accent" : "text-muted-foreground")}>
         {selected} de {total}
       </span>
     </button>
