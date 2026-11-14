@@ -28,6 +28,7 @@ import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } fr
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedChannexCertificationRouteImport } from './routes/_authenticated/channex-certification'
 import { Route as ApiAssistantStreamRouteImport } from './routes/api/assistant-stream'
+import { Route as ApiFiscalConnectionRouteImport } from './routes/api/fiscal-connection'
 import { Route as GSlugRouteImport } from './routes/g.$slug'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
@@ -189,6 +190,11 @@ const AuthenticatedChannexCertificationRoute =
 const ApiAssistantStreamRoute = ApiAssistantStreamRouteImport.update({
   id: '/api/assistant-stream',
   path: '/api/assistant-stream',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiFiscalConnectionRoute = ApiFiscalConnectionRouteImport.update({
+  id: '/api/fiscal-connection',
+  path: '/api/fiscal-connection',
   getParentRoute: () => rootRouteImport,
 } as any)
 const GSlugRoute = GSlugRouteImport.update({
@@ -579,6 +585,7 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AuthenticatedAdminRouteWithChildren
   '/channex-certification': typeof AuthenticatedChannexCertificationRoute
   '/api/assistant-stream': typeof ApiAssistantStreamRoute
+  '/api/fiscal-connection': typeof ApiFiscalConnectionRoute
   '/g/$slug': typeof GSlugRouteWithChildren
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
@@ -663,6 +670,7 @@ export interface FileRoutesByTo {
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/channex-certification': typeof AuthenticatedChannexCertificationRoute
   '/api/assistant-stream': typeof ApiAssistantStreamRoute
+  '/api/fiscal-connection': typeof ApiFiscalConnectionRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/admin/administrativo': typeof AuthenticatedAdminAdministrativoRoute
@@ -748,6 +756,7 @@ export interface FileRoutesById {
   '/_authenticated/admin': typeof AuthenticatedAdminRouteWithChildren
   '/_authenticated/channex-certification': typeof AuthenticatedChannexCertificationRoute
   '/api/assistant-stream': typeof ApiAssistantStreamRoute
+  '/api/fiscal-connection': typeof ApiFiscalConnectionRoute
   '/g/$slug': typeof GSlugRouteWithChildren
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
@@ -835,6 +844,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/channex-certification'
     | '/api/assistant-stream'
+    | '/api/fiscal-connection'
     | '/g/$slug'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
@@ -919,6 +929,7 @@ export interface FileRouteTypes {
     | '/.well-known/oauth-protected-resource'
     | '/channex-certification'
     | '/api/assistant-stream'
+    | '/api/fiscal-connection'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/admin/administrativo'
@@ -1003,6 +1014,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin'
     | '/_authenticated/channex-certification'
     | '/api/assistant-stream'
+    | '/api/fiscal-connection'
     | '/g/$slug'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
@@ -1088,6 +1100,7 @@ export interface RootRouteChildren {
   Char91DotmcpChar93ListToolsRoute: typeof Char91DotmcpChar93ListToolsRoute
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   ApiAssistantStreamRoute: typeof ApiAssistantStreamRoute
+  ApiFiscalConnectionRoute: typeof ApiFiscalConnectionRoute
   GSlugRoute: typeof GSlugRouteWithChildren
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
@@ -1260,6 +1273,13 @@ declare module '@tanstack/react-router' {
       path: '/api/assistant-stream'
       fullPath: '/api/assistant-stream'
       preLoaderRoute: typeof ApiAssistantStreamRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/fiscal-connection': {
+      id: '/api/fiscal-connection'
+      path: '/api/fiscal-connection'
+      fullPath: '/api/fiscal-connection'
+      preLoaderRoute: typeof ApiFiscalConnectionRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/g/$slug': {
@@ -1847,6 +1867,7 @@ const rootRouteChildren: RootRouteChildren = {
   Char91DotwellKnownChar93OauthProtectedResourceRoute:
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
   ApiAssistantStreamRoute: ApiAssistantStreamRoute,
+  ApiFiscalConnectionRoute: ApiFiscalConnectionRoute,
   GSlugRoute: GSlugRouteWithChildren,
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
