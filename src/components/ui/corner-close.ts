@@ -20,3 +20,14 @@ export const CORNER_CLOSE_CLASS =
  */
 export const CORNER_BACK_CLASS =
   "absolute right-0 top-0 z-[10] flex h-8 cursor-pointer items-center gap-0.5 rounded-bl-[12px] rounded-tr-[calc(var(--win-radius,12px)-1px)] bg-[color-mix(in_oklab,var(--foreground)_9%,transparent)] pl-2.5 pr-3.5 text-[12px] font-bold text-foreground/80 transition-colors hover:bg-[color-mix(in_oklab,var(--foreground)_16%,transparent)] hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+
+/**
+ * ABA DE CANTO SOBRE A CAPA (13/11/2026, mockups de Limpeza e Recorrência — decisão do titular: "mockup nas
+ * janelas com capa"). Quando a janela abre com a foto do imóvel no topo, a aba é um VÉU ESCURO translúcido
+ * (rgba(20,18,16,.62)) com texto branco, para ler sobre a foto. "X": 32px, curva 12px embaixo à esquerda.
+ * "‹ Voltar": 38px de altura, 13px negrito, curva 14px.
+ */
+export const CORNER_COVER_CLOSE_CLASS =
+  "absolute right-0 top-0 z-[10] grid size-8 cursor-pointer place-items-center rounded-bl-[12px] rounded-tr-[15px] bg-[rgba(20,18,16,.62)] text-white transition-colors hover:bg-[rgba(20,18,16,.78)] focus:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none";
+export const CORNER_COVER_BACK_CLASS =
+  "absolute right-0 top-0 z-[10] inline-flex h-[38px] cursor-pointer items-center gap-[3px] rounded-bl-[14px] rounded-tr-[16px] bg-[rgba(20,18,16,.62)] pl-2.5 pr-3.5 text-[13px] font-bold text-white transition-colors hover:bg-[rgba(20,18,16,.78)] focus:outline-none focus-visible:ring-2 focus-visible:ring-ring";

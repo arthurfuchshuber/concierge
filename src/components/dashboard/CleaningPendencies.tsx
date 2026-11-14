@@ -196,7 +196,9 @@ function CleaningPendenciesWindow({
         <DialogContent
           aria-describedby={undefined}
           className="flex max-h-[min(90dvh,calc(100dvh_-_var(--kb-inset,0px)_-_3rem))] w-[min(372px,calc(100vw-2rem))] flex-col gap-0 overflow-hidden p-0"
-          onBack={detail ? () => setView({ kind: "list" }) : undefined}
+          cover
+          /* Mockup real-limpeza-pend: a lista também mostra "‹ Voltar" (volta ao quadro); no detalhe, volta à lista. */
+          onBack={detail ? () => setView({ kind: "list" }) : onClose}
         >
           <div className="relative h-[140px] shrink-0 overflow-hidden bg-secondary/60">
             <div className="absolute inset-0 origin-center scale-[1.04] [filter:blur(1.5px)_brightness(.9)]">

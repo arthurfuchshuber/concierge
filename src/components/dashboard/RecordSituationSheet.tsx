@@ -184,7 +184,7 @@ export function DictationField({
           {label}
           {required && <RequiredMark />}
         </span>
-        {maxLength && (
+        {maxLength && value.length > 0 && (
           <span className="ds-eyebrow tabular-nums text-muted-foreground">
             {value.length}/{maxLength}
           </span>
@@ -430,7 +430,8 @@ export function RecordSituationSheet({
     setItems(initial ? [initial, ...(initialExtra ?? [])] : []);
     // Rotina repetitiva (ex.: limpeza): o título já vem preenchido com a
     // categoria; a pessoa pode trocar se quiser.
-    setTitle(initialTitle?.trim() ? initialTitle : (meta?.label ?? ""));
+    // Mockup da folha (13/11/2026, decisão do titular): o título começa vazio.
+    setTitle(initialTitle?.trim() ? initialTitle : "");
     setDescription(initialDescription?.trim() ?? "");
     setErro(null);
     setRascunho(null);
@@ -646,7 +647,9 @@ export function RecordSituationSheet({
 
   // Título sempre obrigatório (25/09/2026). O botão fica ativo para que, ao
   // tocar sem título, a pessoa receba a explicação clara em vez de nada.
-  const canSave = !saving;
+  // Mockup da folha (13/11/2026, decisão do titular): "Registrar" fica apagado até Título e Descrição
+  // (os dois obrigatórios) estarem preenchidos.
+  const canSave = !saving && !!title.trim() && !!description.trim();
   const pctGeral = items.length
     ? Math.round(items.reduce((s, it) => s + (pctPorItem[it.key] ?? 0), 0) / items.length)
     : 0;
@@ -871,6 +874,7 @@ export function RecordSituationSheet({
     <Dialog open={open} onOpenChange={(v) => !saving && onOpenChange(v)}>
       <DialogContent
         className={cn("flex w-[calc(100vw-2rem)] flex-col gap-0 overflow-hidden p-0 sm:w-full sm:max-w-sm", view === "repeat" && "max-h-[min(98dvh,calc(100dvh_-_var(--kb-inset,0px)_-_1rem))]")}
+        cover
         aria-describedby={undefined}
         onBack={view === "repeat" ? () => setView("form") : undefined}
       >
@@ -883,7 +887,7 @@ export function RecordSituationSheet({
           <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-black/60 to-[var(--panel)]" />
           <div className="absolute inset-x-4 bottom-2.5 min-w-0 pr-12 text-left">
             <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/80">
-              {view === "repeat" ? "Repetir" : `Nova situação · ${meta?.short ?? "Registro"}`}
+              {view === "repeat" ? "Repetir" : multi ? `Nova situação · ${meta?.short ?? "Registro"}` : "Nova situação"}
             </div>
             <DialogTitle className="mt-1 block truncate text-sm font-bold leading-tight text-white">
               {view === "repeat" ? title.trim() || "Nova situação" : multi ? `${nProps} imóveis` : propertyLabel}
@@ -1098,6 +1102,7 @@ export function RecordSituationSheet({
             propertyId={propertyId}
             maxLength={RECORD_TITLE_MAX}
             uniformFont
+            dictation={false}
           />
 
           <DictationField
@@ -1108,12 +1113,7 @@ export function RecordSituationSheet({
             placeholder={transcribing ? "Transcrevendo o áudio…" : "Onde, desde quando, o que precisa ser feito"}
             propertyId={propertyId}
             multiline
-            onAudio={(a) =>
-              setItems((prev) => [
-                ...prev.filter((i) => i.kind !== "audio"),
-                draftItemFrom(a.blob, { name: `descricao.${extFor("audio", a.mime)}`, mime: a.mime, durationMs: a.durationMs }),
-              ])
-            }
+            dictation={false}
           />
 
           {/* O áudio gravado, compacto, no lugar da antiga dica "Prefere falar?". */}
