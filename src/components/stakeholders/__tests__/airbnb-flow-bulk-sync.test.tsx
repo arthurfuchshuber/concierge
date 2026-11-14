@@ -154,7 +154,7 @@ describe("sincronizar em massa (de → para)", () => {
       { accountOwnerId: null, listingId: "L1", propertyId: "p1" },
       { accountOwnerId: null, listingId: "L2", propertyId: "p2" },
     ]);
-    await waitFor(() => expect(screen.getByText("2 de 2 sincronizados")).toBeTruthy());
+    await waitFor(() => expect(screen.getByText("2 imóveis sincronizados")).toBeTruthy());
   });
 
   it("sem imóvel livre, o anúncio que sobrou vai direto para imóvel novo (só pergunta o proprietário)", async () => {
@@ -235,7 +235,7 @@ describe("sincronizar em massa (de → para)", () => {
     expect(fns.syncAirbnbPair.mock.calls.map((c) => c[0].data.listingId)).toEqual(["L1", "L2"]);
   });
 
-  it("uma falha não derruba as demais e dá para tentar de novo só o que faltou", async () => {
+  it("uma falha não derruba as demais e aparece na lista do que faltou", async () => {
     fns.syncAirbnbPair
       .mockResolvedValueOnce({ kind: "linked", propertyId: "p1", title: "Casa Um", pending: [] })
       .mockRejectedValueOnce(new Error("Anúncio já ligado."))
@@ -246,11 +246,10 @@ describe("sincronizar em massa (de → para)", () => {
     await pickListing(0, "Casa Dois");
     await waitFor(() => expect(btn().textContent).toMatch(/Sincronizar 2 imóveis/));
     fireEvent.click(btn());
-    await waitFor(() => expect(screen.getByText("1 de 2 sincronizados")).toBeTruthy());
-    expect(screen.getByText("Anúncio já ligado.")).toBeTruthy();
-    fireEvent.click(screen.getByText("Tentar o que faltou"));
-    await waitFor(() => expect(screen.getByText("2 de 2 sincronizados")).toBeTruthy());
-    expect(fns.syncAirbnbPair).toHaveBeenCalledTimes(3);
+    await waitFor(() => expect(screen.getByText("1 imóvel sincronizado")).toBeTruthy());
+    expect(screen.getByText(/: Anúncio já ligado\./)).toBeTruthy();
+    expect(screen.getByText(/Um imóvel não foi sincronizado/)).toBeTruthy();
+    expect(fns.syncAirbnbPair).toHaveBeenCalledTimes(2);
   });
 
   it("'Não sincronizar' tira o imóvel da lista (e do aviso) e 'Desfazer' devolve", async () => {

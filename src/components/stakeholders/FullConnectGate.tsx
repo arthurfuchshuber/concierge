@@ -3,7 +3,10 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { getPendingFullConnections, confirmFullConnectionFn } from "@/lib/channex-full-connect.functions";
+import {
+  getPendingFullConnections,
+  confirmFullConnectionFn,
+} from "@/lib/channex-full-connect.functions";
 import { useUnsyncedProperties } from "./useUnsyncedProperties";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { ClampName } from "@/components/ui/clamp-name";
@@ -248,7 +251,9 @@ export function FullConnectGate() {
                       className="text-[13px] font-bold"
                     />
                     {it.address ? (
-                      <small className="block min-w-0 truncate text-[11px] text-muted-foreground">{it.address}</small>
+                      <small className="block min-w-0 truncate text-[11px] text-muted-foreground">
+                        {it.address}
+                      </small>
                     ) : null}
                     {it.ownerName ? (
                       <small className="flex min-w-0 items-center gap-1.5 text-[11px] text-muted-foreground">

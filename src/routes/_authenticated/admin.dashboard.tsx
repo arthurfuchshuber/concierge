@@ -1,12 +1,7 @@
 import { useEffect, useState } from "react";
 import { createFileRoute, Outlet } from "@tanstack/react-router";
 import { SyncAlertBanner } from "@/components/stakeholders/SyncAlertBanner";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/_authenticated/admin/dashboard")({
@@ -36,25 +31,22 @@ function OperationLayout() {
       <Outlet />
       <Dialog open={!!returned} onOpenChange={(o) => !o && setReturned(null)}>
         <DialogContent className="max-w-[380px]">
-          <DialogTitle>Você Voltou do Airbnb</DialogTitle>
+          <DialogTitle className="pr-11 font-display text-[16px] font-extrabold leading-[1.2]">
+            Você voltou do Airbnb
+          </DialogTitle>
           <DialogDescription asChild>
-            <div className="grid gap-2 text-[13px] leading-relaxed">
+            <div className="grid gap-2 text-[13px] leading-[1.55]">
               {returned === "falhou" ? (
                 <p>A autorização não foi concluída no Airbnb. Nenhum anúncio foi importado.</p>
-              ) : (
-                <p>
-                  O Airbnb devolveu você ao ConciergeIA automaticamente. Se a sua conta já estava
-                  aberta no Airbnb e já tinha autorizado antes, ele não pede login de novo.
-                </p>
-              )}
+              ) : null}
               <p>
-                Volte para a aba anterior: a janela de conexão confere sozinha se uma conta nova
+                Retorne à aba anterior: a janela de conexão confere sozinha se uma conta nova
                 entrou.
               </p>
               <p>
-                <b className="text-foreground">Queria conectar outra conta?</b> Na janela de
-                conexão, toque em “Copiar link de conexão”, abra numa janela anônima e entre com a
-                conta certa.
+                <b className="text-foreground">Quer conectar outra conta?</b> Na janela de conexão,
+                toque em “Copiar link de conexão”, abra numa janela anônima e entre com a conta
+                certa.
               </p>
             </div>
           </DialogDescription>
