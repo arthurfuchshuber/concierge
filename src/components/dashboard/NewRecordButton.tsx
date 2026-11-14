@@ -160,7 +160,7 @@ export function NewRecordButton() {
                 key={p.id}
                 className="relative size-6 overflow-hidden rounded-full bg-foreground/[0.08] ring-2 ring-[var(--panel)]"
               >
-                <CoverImage urls={[p.photoUrl]} />
+                <CoverImage urls={[p.photoUrl]} empty={false} />
               </span>
             ))}
           </span>
@@ -179,7 +179,6 @@ export function NewRecordButton() {
       </span>
     ) : link === "imovel" && multiSel.length === 1 ? (
       <PropertySummary
-        showMaps
         name={multiSel[0].name}
         ownerName={multiSel[0].ownerName}
         ownerPhone={multiSel[0].ownerPhone}
@@ -200,7 +199,10 @@ export function NewRecordButton() {
             : "Qual imóvel? (um ou mais)"
         : QUESTIONS[1];
   const ready = answered.every(Boolean) && step === 3;
-  const categories = many ? CATEGORIES.filter((c) => MULTI_CATEGORIES.includes(c.key)) : CATEGORIES;
+  // Mockup g: com vários imóveis a ordem é Manutenção, depois Auditoria.
+  const categories = many
+    ? MULTI_CATEGORIES.map((k) => CATEGORIES.find((c) => c.key === k)!).filter(Boolean)
+    : CATEGORIES;
   const toggleProp = (id: string) =>
     setPropertyIds((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]));
   const allShownOn = shownProps.length > 0 && shownProps.every((p) => propertyIds.includes(p.id));
@@ -370,6 +372,7 @@ export function NewRecordButton() {
                   search={search}
                   onSearch={setSearch}
                   placeholder="Buscar imóvel ou proprietário…"
+                  listClassName="max-h-[min(430px,52dvh)] sm:max-h-[430px]"
                   empty={
                     q.isLoading
                       ? "Carregando…"
@@ -409,7 +412,8 @@ export function NewRecordButton() {
             <Step
               n={3}
               active={step === 3}
-              done={answered[2]}
+              /* Mockup e3: com a categoria marcada o passo 3 segue ativo (número), sem o ✓. */
+              done={answered[2] && step !== 3}
               last
               question={QUESTIONS[2]}
               answer={answers[2]}
@@ -430,7 +434,7 @@ export function NewRecordButton() {
                     <span className={cn("size-2 shrink-0 rounded-full", c.dot)} />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-[12.5px] font-semibold text-foreground">
-                        {many && c.key === "cleaning_audit" ? "Auditoria" : c.label}
+                        {c.key === "cleaning_audit" ? "Auditoria" : c.key === "other" ? "Observação" : c.label}
                       </span>
                       <span className="block truncate text-[10.5px] text-muted-foreground">
                         {c.hint}

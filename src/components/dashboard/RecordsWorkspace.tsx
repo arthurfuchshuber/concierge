@@ -1862,7 +1862,7 @@ function PropertyCard({
               Pendências. Tocar numa linha abre o registro por cima; fechar
               volta para esta lista. */}
           <Dialog open={moreOpen} onOpenChange={setMoreOpen}>
-            <DialogContent
+            <DialogContent cover
               className="flex max-h-[90dvh] w-[min(372px,calc(100vw-2rem))] flex-col gap-0 overflow-hidden p-0"
               aria-describedby={undefined}
             >
@@ -2257,7 +2257,7 @@ function RecordViewerDialog({
 }) {
   return (
     <Dialog open={!!record} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent
+      <DialogContent cover
         className="flex w-[calc(100vw-2rem)] flex-col gap-0 overflow-hidden p-0 sm:w-full sm:max-w-md"
         aria-describedby={undefined}
       >

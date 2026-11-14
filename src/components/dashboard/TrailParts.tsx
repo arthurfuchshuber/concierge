@@ -155,12 +155,15 @@ export function PickList({
   onSearch,
   placeholder,
   empty,
+  listClassName,
   children,
 }: {
   search?: string;
   onSearch?: (v: string) => void;
   placeholder?: string;
   empty: string | null;
+  /** Altura máxima da lista quando a tela pede outra (ex.: seleção em massa de imóveis, mockup e = 430px). */
+  listClassName?: string;
   children: ReactNode;
 }) {
   return (
@@ -176,7 +179,7 @@ export function PickList({
           />
         </label>
       )}
-      <div className="sg-elegant-scroll max-h-[min(320px,46dvh)] overflow-y-auto overscroll-contain sm:max-h-[380px]">
+      <div className={cn("sg-elegant-scroll max-h-[min(320px,46dvh)] overflow-y-auto overscroll-contain sm:max-h-[380px]", listClassName)}>
         {empty ? (
           <p className="px-3.5 py-3 text-[12px] text-muted-foreground">{empty}</p>
         ) : (
