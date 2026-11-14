@@ -116,7 +116,7 @@ export function OwnerPropertiesList({
     try {
       const r = await retryChatFn({ data: { accountOwnerId, propertyId } });
       if (r.ok) toast.success("Chat ativado.");
-      else toast.error("A Channex ainda não ativou o chat. Tente de novo em instantes.");
+      else toast.error("O provedor ainda não ativou o chat. Tente de novo em instantes.");
       qc.invalidateQueries({ queryKey: ["stakeholders"] });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Não foi possível ativar o chat.");

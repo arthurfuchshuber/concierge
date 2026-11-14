@@ -1076,7 +1076,7 @@ function AirbnbAccountFlowInner({
       setResult({ ...result, pending: remaining });
       refreshAll();
       if (remaining.some((p) => p.kind === "chat"))
-        toast.error("A Channex ainda não ativou o chat de todos. Tente de novo em instantes.");
+        toast.error("O provedor ainda não ativou o chat de todos. Tente de novo em instantes.");
       else toast.success("Chat ativado.");
     } finally {
       setBusy(false);
@@ -1429,7 +1429,7 @@ function AirbnbAccountFlowInner({
           {step === "noNew" ? (
             <>
               <div className="grid grid-cols-[minmax(0,1fr)] gap-y-3">
-                <Title>Nenhuma conta nova encontrada</Title>
+                <Title>Nenhuma conta encontrada</Title>
                 <Desc>
                   Copie o link abaixo, abra numa janela anônima e entre com a conta nova que deseja
                   sincronizar.
@@ -1528,8 +1528,7 @@ function AirbnbAccountFlowInner({
                 <Desc>
                   A conta{" "}
                   <b className="font-bold text-foreground">{account?.title ?? "do Airbnb"}</b>{" "}
-                  precisa ser autorizada de novo para sincronizar. Os imóveis dela continuam no
-                  sistema.
+                  precisa ser conectada de novo para ReSincronizar.
                 </Desc>
               </div>
               <div className="grid grid-cols-[minmax(0,1fr)] gap-2">
@@ -1913,7 +1912,7 @@ function AirbnbAccountFlowInner({
           {/* ---------- Passo 3 de 3: vincular proprietários (1 ou mais anúncios) ---------- */}
           {step === "owner" || step === "pairs" ? (
             <>
-              <Stepper step={3} label="Passo 3 de 3 · Vincular proprietários" />
+              <Stepper step={3} label="Passo 3 de 3 · Vincular anúncios" />
               <ListHeader
                 title="Quem é o respectivo proprietário?"
                 description="Só dá para concluir com todos vinculados. Escolha entre os proprietários já cadastrados."
@@ -2280,9 +2279,9 @@ function AirbnbAccountFlowInner({
                 <Title>Nenhum anúncio disponível</Title>
                 <Desc>
                   {account
-                    ? "Todos os anúncios desta conta já estão vinculados a um imóvel."
+                    ? "Todos os anúncios da conta já estão ligados a um imóvel."
                     : "Não há conta do Airbnb conectada e ativa."}{" "}
-                  Conecte outra conta do Airbnb para ver mais anúncios.
+                  Conecte outra conta do Airbnb.
                 </Desc>
               </div>
               <div className="grid grid-cols-[minmax(0,1fr)] gap-2">
@@ -2744,7 +2743,7 @@ function AirbnbAccountFlowInner({
                             (p) =>
                               [
                                 TriangleAlert,
-                                `${p.title}: ${p.kind === "chat" ? "chat da plataforma ainda pendente de ativação" : "pendente de configuração na Channex"}`,
+                                `${p.title}: ${p.kind === "chat" ? "chat da plataforma ainda pendente de ativação" : "pendente de configuração no provedor"}`,
                               ] as [typeof Check, string],
                           ),
                         ]}
@@ -2835,9 +2834,11 @@ function AirbnbAccountFlowInner({
                     <> e sincronização pausada. Se reconectar a conta, a sincronização volta.</>
                   ) : (
                     <>
-                      , mas a Channex não confirmou o desligamento do chat de{" "}
-                      {plural(disc.chatFailures, "imóvel", "imóveis")}. Confira o app de mensagens
-                      no painel da Channex.
+                      , mas o provedor não confirmou o desligamento do chat de{" "}
+                      {plural(disc.chatFailures, "imóvel", "imóveis")}.
+                      <br />
+                      <br />
+                      Confira o app de mensagens no painel do provedor.
                     </>
                   )}
                 </Desc>

@@ -61,7 +61,7 @@ export function FilterSheetButton(props: FilterSheetProps) {
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetContent
           side="bottom"
-          className="rounded-t-2xl max-h-[85vh] overflow-y-auto sm:max-w-md sm:mx-auto"
+          className="rounded-t-2xl max-h-[90dvh] overflow-y-auto sm:max-w-md sm:mx-auto"
         >
           <SheetHeader>
             <SheetTitle className="ds-section-title">Filtros</SheetTitle>
