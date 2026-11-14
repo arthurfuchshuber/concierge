@@ -74,7 +74,8 @@ create table public.fiscal_operations (
   state text not null default 'awaiting_authorization' check (state in ('awaiting_authorization', 'authorized_by_human', 'queued', 'in_flight', 'completed', 'failed_definitive', 'expired', 'unknown_result')),
   state_reason text,
   ref text not null,                                -- determinística: 'cia-' || id  (v4.4 §4.9)
-  payload_hash text not null,
+  payload jsonb not null,                           -- conteúdo exato a enviar; imutável (guarda)
+  payload_hash text not null,                       -- sha256 do payload::text, calculado PELO BANCO
   created_by uuid not null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -225,7 +226,7 @@ begin
   if not public.fiscal_operation_transition_allowed(old.state, new.state) then
     raise exception 'fiscal_transition_forbidden: operação % -> %', old.state, new.state using errcode = 'P0001';
   end if;
-  if new.ref <> old.ref or new.payload_hash <> old.payload_hash or new.kind <> old.kind or new.owner_id <> old.owner_id or new.company_id <> old.company_id then
+  if new.ref <> old.ref or new.payload_hash <> old.payload_hash or new.payload is distinct from old.payload or new.kind <> old.kind or new.owner_id <> old.owner_id or new.company_id <> old.company_id then
     raise exception 'fiscal_immutable_field: identidade da operação não muda' using errcode = 'P0001';
   end if;
   new.updated_at := clock_timestamp();
@@ -251,22 +252,22 @@ create trigger trg_fiscal_guard_attempt before update on public.fiscal_operation
 -- ============================================================================================
 
 -- Cria a operação com ref determinística. Para `issue`, o documento sai de draft para pending_issue.
-create function public.fiscal_operation_create(p_owner uuid, p_company uuid, p_document uuid, p_kind text, p_payload_hash text, p_created_by uuid)
+create function public.fiscal_operation_create(p_owner uuid, p_company uuid, p_document uuid, p_kind text, p_payload jsonb, p_created_by uuid)
 returns uuid language plpgsql security definer set search_path = pg_catalog, public, pg_temp as $$
 declare v_id uuid := gen_random_uuid(); v_company public.fiscal_companies; v_doc public.fiscal_documents;
 begin
   select * into v_company from public.fiscal_companies where id = p_company and owner_id = p_owner and soft_deleted_at is null;
   if not found then raise exception 'fiscal_company_not_found' using errcode = 'P0001'; end if;
   if v_company.status <> 'active' then raise exception 'fiscal_company_not_active' using errcode = 'P0001'; end if;
-  if p_payload_hash is null or length(p_payload_hash) < 16 then raise exception 'fiscal_payload_hash_required' using errcode = 'P0001'; end if;
+  if p_payload is null or jsonb_typeof(p_payload) <> 'object' then raise exception 'fiscal_payload_required' using errcode = 'P0001'; end if;
   if p_document is not null then
     select * into v_doc from public.fiscal_documents where id = p_document and owner_id = p_owner and company_id = p_company for update;
     if not found then raise exception 'fiscal_document_not_found' using errcode = 'P0001'; end if;
   elsif p_kind <> 'inutilize' and p_kind <> 'event' then
     raise exception 'fiscal_document_required' using errcode = 'P0001';
   end if;
-  insert into public.fiscal_operations (id, owner_id, company_id, document_id, kind, ref, payload_hash, created_by)
-  values (v_id, p_owner, p_company, p_document, p_kind, 'cia-' || v_id::text, p_payload_hash, p_created_by);
+  insert into public.fiscal_operations (id, owner_id, company_id, document_id, kind, ref, payload, payload_hash, created_by)
+  values (v_id, p_owner, p_company, p_document, p_kind, 'cia-' || v_id::text, p_payload, encode(sha256(convert_to(p_payload::text, 'UTF8')), 'hex'), p_created_by);
   if p_kind = 'issue' then
     update public.fiscal_documents set status = 'pending_issue', ref = 'cia-' || v_id::text where id = p_document;
   elsif p_kind = 'cancel' then
@@ -552,7 +553,7 @@ revoke update, delete, truncate on public.fiscal_operation_authorizations, publi
 revoke all on sequence public.fiscal_audit_id_seq from public, anon, authenticated;
 
 revoke all on function
-  public.fiscal_operation_create(uuid, uuid, uuid, text, text, uuid),
+  public.fiscal_operation_create(uuid, uuid, uuid, text, jsonb, uuid),
   public.fiscal_authorization_issue(uuid, uuid, text, bigint, text, text, interval),
   public.fiscal_attempt_plan(uuid, text),
   public.fiscal_attempt_record_payload(uuid, text, jsonb),
@@ -564,7 +565,7 @@ revoke all on function
   public.fiscal_operation_confirm_absence(uuid, int, interval)
   from public, anon, authenticated;
 grant execute on function
-  public.fiscal_operation_create(uuid, uuid, uuid, text, text, uuid),
+  public.fiscal_operation_create(uuid, uuid, uuid, text, jsonb, uuid),
   public.fiscal_authorization_issue(uuid, uuid, text, bigint, text, text, interval),
   public.fiscal_attempt_plan(uuid, text),
   public.fiscal_attempt_record_payload(uuid, text, jsonb),

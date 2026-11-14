@@ -3,6 +3,7 @@
  * Prova: isolamento de clientes, trilhas append-only, uso único da autorização sob concorrência, prazo,
  * sequência P→S4 com `sent` comprometido antes do HTTP, unknown_result só por consulta, I-1 (2xx não autoriza).
  */
+import { createHash } from "node:crypto";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { PG_AVAILABLE, startCluster, type PgCluster } from "../../guest-ai/__tests__/pg/pg-cluster";
@@ -12,7 +13,7 @@ const MIGRATION = path.join(ROOT, "supabase/migrations/20261114200000_fiscal_cor
 
 const OWNER = "11111111-1111-4111-8111-111111111111";
 const USER = "22222222-2222-4222-8222-222222222222";
-const HASH = "h".repeat(64);
+const HASH = createHash("sha256").update('{"n": 1}').digest("hex");  // payload::text do jsonb
 const SIG = "s".repeat(64);
 const svc = { role: "service_role" } as const;
 
@@ -24,7 +25,7 @@ describe.skipIf(!PG_AVAILABLE)("Fiscal core · migration contra PostgreSQL real"
 
   async function newOperation(kind = "issue"): Promise<{ op: string; doc: string }> {
     const doc = await q1(`insert into public.fiscal_documents (owner_id, company_id, direction, document_kind, natural_key) values ('${OWNER}','${company}','issued','nfse', gen_random_uuid()::text) returning id`);
-    const op = await q1(`select public.fiscal_operation_create('${OWNER}','${company}','${doc}','${kind}','${HASH}','${USER}')`);
+    const op = await q1(`select public.fiscal_operation_create('${OWNER}','${company}','${doc}','${kind}','{"n":1}'::jsonb,'${USER}')`);
     return { op, doc };
   }
   async function authorize(op: string, ttl = "10 minutes"): Promise<string> {

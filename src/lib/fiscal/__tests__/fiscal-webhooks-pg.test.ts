@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { PG_AVAILABLE, startCluster, type PgCluster } from "../../guest-ai/__tests__/pg/pg-cluster";
@@ -7,7 +8,7 @@ const M1 = path.join(ROOT, "supabase/migrations/20261114200000_fiscal_core.sql")
 const M2 = path.join(ROOT, "supabase/migrations/20261114210000_fiscal_enablement_webhooks.sql");
 const OWNER = "11111111-1111-4111-8111-111111111111";
 const svc = { role: "service_role" } as const;
-const H = "h".repeat(64);
+const H = createHash("sha256").update('{"n": 1}').digest("hex");
 
 describe.skipIf(!PG_AVAILABLE)("Fiscal · habilitação, webhooks e reconciliação (PostgreSQL real)", () => {
   let pg: PgCluster;
@@ -51,7 +52,7 @@ describe.skipIf(!PG_AVAILABLE)("Fiscal · habilitação, webhooks e reconciliaç
   it("candidatos à reconciliação: só operações desconhecidas/processando e parados", async () => {
     const company = await q1(`insert into public.fiscal_companies (owner_id, connection_id, tax_id, legal_name, status) values ('${OWNER}','${conn}','98765432000100','Emp','active') returning id`);
     const doc = await q1(`insert into public.fiscal_documents (owner_id, company_id, direction, document_kind, natural_key) values ('${OWNER}','${company}','issued','nfse','n1') returning id`);
-    const op = await q1(`select public.fiscal_operation_create('${OWNER}','${company}','${doc}','issue','${H}','${OWNER}')`);
+    const op = await q1(`select public.fiscal_operation_create('${OWNER}','${company}','${doc}','issue','{"n":1}'::jsonb,'${OWNER}')`);
     const auth = await q1(`select public.fiscal_authorization_issue('${op}','${OWNER}','${H}',1,'fp','${"s".repeat(32)}','10 minutes'::interval)`);
     const att = await q1(`select public.fiscal_attempt_plan('${op}','v')`);
     await pg.sql(`select public.fiscal_attempt_record_payload('${att}','${H}','{}'::jsonb)`);
