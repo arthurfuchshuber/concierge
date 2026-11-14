@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { linkTwin } from "@/lib/channex-twins.functions";
 import {
   Archive,
+  ArrowDown,
   ArrowRight,
   Check,
   ChevronDown,
@@ -21,6 +22,7 @@ import {
   Sparkles,
   TriangleAlert,
   X,
+  RefreshCcw,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -55,6 +57,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ClampName } from "@/components/ui/clamp-name";
 import { PropertyThumb } from "@/components/ui/property-thumb";
+import { OnbProgress, OnbSteps } from "@/components/stakeholders/AirbnbOnboardingSteps";
 import { PhoneActionButton } from "@/components/PhoneActionButton";
 import { useUnsyncedProperties } from "./useUnsyncedProperties";
 import { StakeholderFormDialog, emptyStakeholderForm } from "./StakeholderFormDialog";
@@ -94,6 +97,7 @@ type SyncPropertyInfo = {
   id: string;
   name: string;
   city?: string | null;
+  address?: string | null;
   ownerName: string | null;
   ownerPhone?: string | null;
   ownerPhoneCountry?: string | null;
@@ -107,6 +111,7 @@ type Step =
   | "timeout"
   | "noNew"
   | "already"
+  | "connected"
   | "pickAccount"
   | "expired"
   | "mode"
@@ -285,10 +290,22 @@ function Box({ state }: { state: "off" | "on" | "locked" }) {
     </span>
   );
 }
+/** Telefone para leitura (mockup abnb-syncConfirm): Brasil "(48) 99999-0000"; outros "+código número". */
+function formatPhoneDisplay(phone: string | null | undefined, country?: string | null): string {
+  let d = String(phone ?? "").replace(/\D+/g, "");
+  if (!d) return "";
+  const br = !country || /^(BR|\+?55)$/i.test(country.trim());
+  if (br && d.length >= 12 && d.startsWith("55")) d = d.slice(2);
+  if (!br || d.length < 10 || d.length > 11) return String(phone).trim();
+  return d.length === 11
+    ? `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`
+    : `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+}
+
 const rowCls = (state: "off" | "on" | "locked") =>
   `flex w-full items-center gap-[11px] rounded-md px-3 py-2.5 text-left ${INSET} ${
     state === "locked"
-      ? "bg-foreground/[0.025]"
+      ? "bg-foreground/[0.025] !shadow-none opacity-70"
       : state === "on"
         ? "bg-foreground/[0.06] shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_20%,transparent)]"
         : "bg-foreground/[0.03] hover:bg-foreground/[0.05]"
@@ -689,6 +706,7 @@ function AirbnbAccountFlowInner({
   const [connectUrl, setConnectUrl] = useState<string | null>(null);
   const [baseline, setBaseline] = useState<string[]>([]);
   const [alreadyTitle, setAlreadyTitle] = useState("");
+  const [afterConnect, setAfterConnect] = useState<"mode" | "listings">("listings");
   const [result, setResult] = useState<{
     imported: number;
     failed: Array<{ title: string; error: string }>;
@@ -865,7 +883,9 @@ function AirbnbAccountFlowInner({
               staleTime: 0,
             })
             .catch(() => null);
-          setStep(m && !m.modeChangedAt && m.mode === "light" ? "mode" : "listings");
+          // Mockup abnbx-onb1: logo após autorizar, mostra as 5 etapas antes de seguir.
+          setAfterConnect(m && !m.modeChangedAt && m.mode === "light" ? "mode" : "listings");
+          setStep("connected");
         }
       } catch {
         /* tenta de novo no próximo ciclo */
@@ -1288,31 +1308,6 @@ function AirbnbAccountFlowInner({
     (l) => looseIsNew(l.listingId) && !looseOwner(l.listingId),
   ).length;
   const bulkRowsN = bulkProps.length + bulkLoose.length;
-  const syncChip = syncProp ? (
-    <div className="flex min-w-0 items-center gap-2.5 rounded-sm bg-foreground/[0.04] px-[11px] py-[9px] text-[12.5px] font-bold">
-      <PropertyThumb
-        src={syncProp.imageUrl}
-        fallbacks={syncProp.imageUrls}
-        className="size-[34px] rounded-[9px]"
-        iconClassName="size-4"
-      />
-      <span className="grid min-w-0 flex-1 gap-[3px]">
-        <ClampName text={syncProp.name} />
-        {syncProp.ownerName ? (
-          <small className="flex items-center gap-[5px] text-[11px] font-medium text-muted-foreground">
-            <b className="truncate font-semibold text-foreground">{syncProp.ownerName}</b>
-            <PhoneActionButton
-              phone={syncProp.ownerPhone}
-              country={syncProp.ownerPhoneCountry}
-              size={11}
-              alwaysShow
-              className="shrink-0 !p-0"
-            />
-          </small>
-        ) : null}
-      </span>
-    </div>
-  ) : null;
   const freeListings = listings.filter((l) => !l.imported && !l.notFound);
   const chosenSync =
     (inv.data?.listings ?? []).find((l) => l.listingId === syncListing && !l.imported) ?? null;
@@ -1339,6 +1334,8 @@ function AirbnbAccountFlowInner({
                 ? CONTENT_A
                 : CONTENT_B
           }
+          /* Telas de progresso (mockups abnb-importing/syncing/bulkRunning): sem X, não dá para fechar. */
+          hideClose={step === "importing" || step === "syncing" || step === "bulkRunning"}
           /* "Voltar" de passo = aba no canto no lugar do X (regra de 11/11/2026). */
           onBack={
             step === "bulkPairs"
@@ -1355,10 +1352,7 @@ function AirbnbAccountFlowInner({
           {step === "start" ? (
             <>
               <Stepper step={1} label="Passo 1 de 3 · Conectar" />
-              <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-3 gap-y-1.5">
-                <IconBox kind="ok">
-                  <Link2 className="size-[22px]" />
-                </IconBox>
+              <div className="grid grid-cols-[minmax(0,1fr)] gap-y-3">
                 <Title>Conectar conta do Airbnb</Title>
                 <Desc>
                   Você entra no Airbnb em uma janela segura e autoriza o acesso. O ConciergeIA nunca
@@ -1398,10 +1392,7 @@ function AirbnbAccountFlowInner({
           {/* ---------- Conectar: aguardando autorização ---------- */}
           {step === "authorizing" ? (
             <>
-              <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-3 gap-y-1.5">
-                <IconBox kind="ok">
-                  <RefreshCw className="size-[22px] animate-spin" />
-                </IconBox>
+              <div className="grid grid-cols-[minmax(0,1fr)] gap-y-3">
                 <Title>Aguardando autorização</Title>
                 <Desc>
                   Conclua a autorização na janela do Airbnb. Esta janela continua sozinha quando
@@ -1437,10 +1428,7 @@ function AirbnbAccountFlowInner({
           {/* ---------- Conectar: Airbnb voltou sem conta nova ---------- */}
           {step === "noNew" ? (
             <>
-              <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-3 gap-y-1.5">
-                <IconBox kind="falta">
-                  <TriangleAlert className="size-[22px]" />
-                </IconBox>
+              <div className="grid grid-cols-[minmax(0,1fr)] gap-y-3">
                 <Title>Nenhuma conta nova encontrada</Title>
                 <Desc>
                   Copie o link abaixo, abra numa janela anônima e entre com a conta nova que deseja
@@ -1465,10 +1453,7 @@ function AirbnbAccountFlowInner({
           {/* ---------- Conectar: não concluída ---------- */}
           {step === "timeout" ? (
             <>
-              <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-3 gap-y-1.5">
-                <IconBox kind="falta">
-                  <TriangleAlert className="size-[22px]" />
-                </IconBox>
+              <div className="grid grid-cols-[minmax(0,1fr)] gap-y-3">
                 <Title>Autorização não concluída</Title>
                 <Desc>
                   Não recebemos a autorização do Airbnb.{" "}
@@ -1484,13 +1469,41 @@ function AirbnbAccountFlowInner({
             </>
           ) : null}
 
+          {/* ---------- Conta conectada: onboarding (mockup abnbx-onb1) ---------- */}
+          {step === "connected" ? (
+            <>
+              <div className="grid grid-cols-[minmax(0,1fr)] gap-y-3">
+                <Title>Conta conectada.</Title>
+                <Desc>Agora conecte os anúncios ao ConciergeIA.</Desc>
+              </div>
+              <OnbProgress doneCount={1} />
+              <OnbSteps
+                done={[true, false, false, false, false]}
+                subs={[
+                  account ? `${account.title} conectada` : "",
+                  account?.listings != null
+                    ? plural(
+                        Math.max(0, account.listings - account.imported),
+                        "anúncio disponível",
+                        "anúncios disponíveis",
+                      )
+                    : "",
+                  "",
+                  "",
+                  "",
+                ]}
+              />
+              <div className="grid grid-cols-[minmax(0,1fr)] gap-2">
+                <PrimaryBtn onClick={() => setStep(afterConnect)}>Escolher os anúncios</PrimaryBtn>
+                <SecondaryBtn onClick={close}>Continuar depois</SecondaryBtn>
+              </div>
+            </>
+          ) : null}
+
           {/* ---------- Conta já conectada ---------- */}
           {step === "already" ? (
             <>
-              <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-3 gap-y-1.5">
-                <IconBox kind="ok">
-                  <Link2 className="size-[22px]" />
-                </IconBox>
+              <div className="grid grid-cols-[minmax(0,1fr)] gap-y-3">
                 <Title>Conta já conectada</Title>
                 <Desc>
                   A conta <b className="font-bold text-foreground">{alreadyTitle}</b> já está
@@ -1510,10 +1523,7 @@ function AirbnbAccountFlowInner({
           {/* ---------- Autorização expirou ---------- */}
           {step === "expired" ? (
             <>
-              <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-3 gap-y-1.5">
-                <IconBox kind="falta">
-                  <TriangleAlert className="size-[22px]" />
-                </IconBox>
+              <div className="grid grid-cols-[minmax(0,1fr)] gap-y-3">
                 <Title>Autorização expirou</Title>
                 <Desc>
                   A conta{" "}
@@ -1542,7 +1552,7 @@ function AirbnbAccountFlowInner({
                     ? "Escolha a conta onde estão os anúncios destes imóveis."
                     : request?.type === "syncProperty"
                       ? "Escolha a conta onde está o anúncio deste imóvel."
-                      : "Escolha a conta que você quer atualizar. Uma de cada vez."
+                      : "Escolha a conta que você quer ReSincronizar."
                 }
               />
               <div className="grid grid-cols-[minmax(0,1fr)] gap-2">
@@ -1633,13 +1643,13 @@ function AirbnbAccountFlowInner({
                   [
                     [
                       "light",
-                      "Leve",
-                      "Você gerencia calendário e preços direto na plataforma. O ConciergeIA recebe reservas, financeiro e mensagens, sem mexer em datas ou preços.",
+                      "Modo Leve",
+                      "Você gerencia o calendário e preços direto pelas plataformas. O ConciergeIA não gerencia calendário, mas recebe reservas e mensagens.",
                     ],
                     [
                       "full",
-                      "Full",
-                      "ConciergeIA assume o controle de disponibilidade do seu calendário como bloqueios manuais, enquanto sua ferramenta de precificação gerencia o preço do calendário por completo.",
+                      "Modo Full",
+                      "O ConciergeIA assume o controle total do seu calendário, enquanto sua ferramenta de precificação gerencia os preços diretamente.",
                     ],
                   ] as const
                 ).map(([key, name, text]) => (
@@ -1649,10 +1659,21 @@ function AirbnbAccountFlowInner({
                     onClick={() => setModeChoice(key)}
                     className={`${rowCls(modeChoice === key ? "on" : "off")} !items-start !p-3`}
                   >
-                    <Box state={modeChoice === key ? "on" : "off"} />
+                    <span
+                      aria-hidden
+                      className={`grid size-[18px] shrink-0 place-items-center rounded-full ${
+                        modeChoice === key
+                          ? "bg-gradient-to-br from-brand-purple to-brand-magenta"
+                          : "shadow-[inset_0_0_0_1.5px_color-mix(in_oklab,var(--foreground)_25%,transparent)]"
+                      }`}
+                    >
+                      {modeChoice === key ? (
+                        <span className="size-1.5 rounded-full bg-white" />
+                      ) : null}
+                    </span>
                     <span className="grid min-w-0 flex-1 gap-1">
-                      <b className="text-[13px] font-bold">{name}</b>
-                      <small className="text-[11.5px] leading-[1.45] text-muted-foreground">
+                      <b className="text-[13.5px] font-extrabold">{name}</b>
+                      <small className="text-[11.5px] leading-[1.5] text-muted-foreground">
                         {text}
                       </small>
                     </span>
@@ -1669,7 +1690,6 @@ function AirbnbAccountFlowInner({
                   {busy ? <Loader2 className="size-4 animate-spin" /> : null}
                   Continuar
                 </PrimaryBtn>
-                <SecondaryBtn onClick={close}>Voltar</SecondaryBtn>
               </div>
             </>
           ) : null}
@@ -1678,15 +1698,13 @@ function AirbnbAccountFlowInner({
           {step === "fullValidate" ? (
             <>
               <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-3 gap-y-1.5">
-                <IconBox kind="ok">
-                  <Link2 className="size-6" />
+                <IconBox kind="neutral">
+                  <RefreshCcw className="size-[22px]" />
                 </IconBox>
-                <Title>Validar tarifas para o modo Full do Concierge</Title>
+                <Title>Tarifas do Calendário</Title>
                 <Desc>
-                  O ConciergeIA assume só a{" "}
-                  <b className="font-bold text-foreground">disponibilidade</b>; ele não define
-                  preços. Antes de ativar, sua ferramenta de precificação precisa ter sincronizado
-                  as diárias.
+                  O ConciergeIA assume só a disponibilidade; ele não define preços. Antes de ativar,
+                  sua ferramenta de precificação precisa ter sincronizado as diárias.
                 </Desc>
               </div>
               <InfoBox
@@ -1699,11 +1717,7 @@ function AirbnbAccountFlowInner({
               />
               <div className="grid grid-cols-[minmax(0,1fr)] gap-2">
                 <PrimaryBtn disabled={busy} onClick={() => void validateAndActivate()}>
-                  {busy ? (
-                    <Loader2 className="size-4 animate-spin" />
-                  ) : (
-                    <RefreshCw className="size-4" />
-                  )}
+                  {busy ? <Loader2 className="size-4 animate-spin" /> : null}
                   Validar envio de tarifas
                 </PrimaryBtn>
                 <SecondaryBtn onClick={() => void keepLight()}>Continuar no modo Leve</SecondaryBtn>
@@ -1731,9 +1745,7 @@ function AirbnbAccountFlowInner({
                       .
                     </>
                   )}{" "}
-                  Sincronize as diárias na sua ferramenta de precificação e valide novamente. Sua
-                  conta do Concierge segue em modo <b className="font-bold text-foreground">Leve</b>
-                  .
+                  Envie as diárias na sua ferramenta de precificação e valide de novo.
                 </Desc>
               </div>
               {valRes.checked > 0 ? (
@@ -1749,11 +1761,7 @@ function AirbnbAccountFlowInner({
               ) : null}
               <div className="grid grid-cols-[minmax(0,1fr)] gap-2">
                 <PrimaryBtn disabled={busy} onClick={() => void validateAndActivate()}>
-                  {busy ? (
-                    <Loader2 className="size-4 animate-spin" />
-                  ) : (
-                    <RefreshCw className="size-4" />
-                  )}
+                  {busy ? <Loader2 className="size-4 animate-spin" /> : null}
                   Validar de novo
                 </PrimaryBtn>
                 <SecondaryBtn onClick={() => void keepLight()}>Continuar no modo Leve</SecondaryBtn>
@@ -1766,17 +1774,17 @@ function AirbnbAccountFlowInner({
             <>
               <Stepper step={2} label="Passo 2 de 3 · Escolher anúncios" />
               <ListHeader
-                title={account?.title ?? "Conta do Airbnb"}
+                title={`Conta Airbnb · ${account?.title ?? "—"}`}
                 description="Marque os anúncios que entram no sistema. No próximo passo, cada um recebe um proprietário."
               />
               <SearchBox value={q} onChange={setQ} placeholder="Buscar anúncio…" />
-              <div className="flex items-center justify-between gap-2 text-[12px] text-muted-foreground">
-                <span className="font-bold text-foreground/85">
+              <div className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
+                <span>
                   {plural(inv.data?.listings.length ?? 0, "anúncio", "anúncios")} na conta
                 </span>
                 <span>{plural(importedN, "já importado", "já importados")}</span>
               </div>
-              <div className="grid grid-cols-[minmax(0,1fr)] gap-2">
+              <div className="grid grid-cols-[minmax(0,1fr)] gap-1.5">
                 {inv.isLoading ? (
                   <p className="py-6 text-center text-[12.5px] text-muted-foreground">
                     Buscando anúncios no Airbnb…
@@ -1792,50 +1800,39 @@ function AirbnbAccountFlowInner({
                   const inner = (
                     <>
                       <Box state={locked ? "locked" : on ? "on" : "off"} />
-                      <span
-                        className={`grid size-[46px] shrink-0 place-items-center rounded-sm bg-foreground/[0.05] text-muted-foreground ${locked ? "opacity-60" : ""}`}
-                      >
-                        <Home className="size-[18px]" />
-                      </span>
+                      {/* Mockup abnb-listings: foto de 46px, cidade (ou endereço completo + proprietário
+                          no importado), "Importado" com cadeado à direita. */}
+                      <PropertyThumb
+                        src={l.imageUrl}
+                        className="size-[46px] shrink-0 rounded-[6px]"
+                        iconClassName="size-[18px]"
+                      />
                       <span className="grid min-w-0 flex-1 gap-[3px]">
-                        <span className="flex items-center gap-2">
-                          <ClampName
-                            as="b"
-                            text={l.title}
-                            passThrough
-                            className={`flex-1 text-[13px] font-bold ${locked ? "opacity-60" : ""}`}
-                          />
-                          {l.notFound ? (
-                            <span className="flex shrink-0 items-center gap-[5px] text-[10.5px] font-bold ds-atencao">
-                              <TriangleAlert className="size-3" />
-                              Não encontrado no Airbnb
-                            </span>
-                          ) : locked ? (
-                            <span className="flex shrink-0 items-center gap-[5px] text-[10.5px] font-bold text-[color:var(--faint)]">
-                              <Lock className="size-3" />
-                              Importado
-                            </span>
-                          ) : null}
-                        </span>
-                        {locked && l.ownerName ? (
-                          <small className="flex items-center gap-[5px] text-[11px] text-muted-foreground">
-                            <b className="truncate font-semibold text-foreground/85">
-                              {l.ownerName}
-                            </b>
-                            <PhoneActionButton
-                              phone={l.ownerPhone}
-                              country={l.ownerPhoneCountry}
-                              size={11}
-                              alwaysShow
-                              className="shrink-0 !p-0"
-                            />
-                          </small>
-                        ) : l.city ? (
+                        <ClampName
+                          as="b"
+                          text={l.title}
+                          passThrough
+                          className="text-[13px] font-bold leading-[1.25]"
+                        />
+                        {l.address || l.city ? (
                           <small className="truncate text-[11px] text-muted-foreground">
-                            {l.city}
+                            {l.address || l.city}
+                          </small>
+                        ) : null}
+                        {l.notFound ? (
+                          <small className="text-[11px] ds-atencao">Não encontrado no Airbnb</small>
+                        ) : locked && l.ownerName ? (
+                          <small className="truncate text-[11px] text-muted-foreground">
+                            {l.ownerName}
                           </small>
                         ) : null}
                       </span>
+                      {locked && !l.notFound ? (
+                        <span className="flex shrink-0 items-center gap-1 text-[11px] text-muted-foreground">
+                          <Lock className="size-[13px]" />
+                          Importado
+                        </span>
+                      ) : null}
                     </>
                   );
                   // Importado fica bloqueado: linha não clicável (o telefone do proprietário continua clicável).
@@ -1899,10 +1896,7 @@ function AirbnbAccountFlowInner({
           {/* ---------- Sem anúncios ---------- */}
           {step === "empty" ? (
             <>
-              <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-3 gap-y-1.5">
-                <IconBox kind="neutral">
-                  <Home className="size-5" />
-                </IconBox>
+              <div className="grid grid-cols-[minmax(0,1fr)] gap-y-3">
                 <Title>Nenhum anúncio disponível</Title>
                 <Desc>
                   A conta{" "}
@@ -1921,7 +1915,7 @@ function AirbnbAccountFlowInner({
             <>
               <Stepper step={3} label="Passo 3 de 3 · Vincular proprietários" />
               <ListHeader
-                title="Quem é o proprietário de cada imóvel?"
+                title="Quem é o respectivo proprietário?"
                 description="Só dá para concluir com todos vinculados. Escolha entre os proprietários já cadastrados."
               />
               {(() => {
@@ -1946,20 +1940,22 @@ function AirbnbAccountFlowInner({
                           <div
                             key={id}
                             data-clip-row
-                            className={`grid gap-2.5 rounded-md bg-foreground/[0.03] p-2.5 ${INSET}`}
+                            className={`grid gap-[9px] rounded-md bg-foreground/[0.03] p-3 ${INSET}`}
                           >
-                            <span className="flex min-w-0 items-center gap-2.5">
-                              <span className="grid size-[46px] shrink-0 place-items-center rounded-sm bg-foreground/[0.05] text-muted-foreground">
-                                <Home className="size-[18px]" />
-                              </span>
-                              <span className="grid min-w-0 flex-1 gap-0.5">
+                            <span className="flex min-w-0 items-center gap-[11px]">
+                              <PropertyThumb
+                                src={l.imageUrl}
+                                className="size-[46px] shrink-0 rounded-[6px]"
+                                iconClassName="size-[18px]"
+                              />
+                              <span className="grid min-w-0 flex-1 gap-[3px]">
                                 <ClampName
                                   as="b"
                                   text={l.title}
-                                  className="text-[12.5px] font-bold"
+                                  className="text-[13px] font-bold leading-[1.25]"
                                 />
                                 {l.city ? (
-                                  <small className="truncate text-[10.5px] text-muted-foreground">
+                                  <small className="truncate text-[11px] text-muted-foreground">
                                     {l.city}
                                   </small>
                                 ) : null}
@@ -2078,27 +2074,19 @@ function AirbnbAccountFlowInner({
                 title="Sincronizar com o Airbnb"
                 description="Escolha o anúncio que é este imóvel. O proprietário(a) continua o mesmo."
               />
-              {syncChip}
               <SearchBox value={q} onChange={setQ} placeholder="Buscar anúncio…" />
-              <div className="flex items-center justify-between gap-2 text-[12px] text-muted-foreground">
-                <span className="font-bold text-foreground/85">
-                  {plural(freeListings.length, "anúncio disponível", "anúncios disponíveis")}
-                </span>
-                <span className="flex min-w-0 items-center gap-1">
-                  <span className="truncate">{account?.title ?? "Conta do Airbnb"}</span>
-                  {activeAccounts.length > 1 ? (
-                    <>
-                      <span>·</span>
-                      <button
-                        type="button"
-                        onClick={() => setStep("pickAccount")}
-                        className="shrink-0 font-bold text-accent"
-                      >
-                        Trocar
-                      </button>
-                    </>
-                  ) : null}
-                </span>
+              {/* Mockup abnb-syncPick: "Conta Airbnb · nome" à esquerda e "Trocar" à direita. */}
+              <div className="flex items-center justify-between gap-2 text-[12px]">
+                <b className="min-w-0 truncate font-bold">
+                  Conta Airbnb · {account?.title ?? "—"}
+                </b>
+                <button
+                  type="button"
+                  onClick={() => setStep("pickAccount")}
+                  className="shrink-0 font-bold text-[#a855f7]"
+                >
+                  Trocar
+                </button>
               </div>
               <div className="grid grid-cols-[minmax(0,1fr)] gap-2">
                 {inv.isLoading ? (
@@ -2121,9 +2109,11 @@ function AirbnbAccountFlowInner({
                       className={rowCls(on ? "on" : "off")}
                     >
                       <Radio on={on} />
-                      <span className="grid size-[46px] shrink-0 place-items-center rounded-sm bg-foreground/[0.05] text-muted-foreground">
-                        <Home className="size-[18px]" />
-                      </span>
+                      <PropertyThumb
+                        src={l.imageUrl}
+                        className="size-[46px] shrink-0 rounded-[6px]"
+                        iconClassName="size-[18px]"
+                      />
                       <span className="grid min-w-0 flex-1 gap-[3px]">
                         <ClampName
                           as="b"
@@ -2143,7 +2133,6 @@ function AirbnbAccountFlowInner({
               </div>
               <div className="grid grid-cols-[minmax(0,1fr)] gap-2 pt-1">
                 <PrimaryBtn disabled={!syncListing} onClick={() => setStep("syncConfirm")}>
-                  <ArrowRight className="size-4" />
                   Continuar
                 </PrimaryBtn>
                 <SecondaryBtn onClick={close}>Cancelar</SecondaryBtn>
@@ -2158,45 +2147,50 @@ function AirbnbAccountFlowInner({
                 title="Confirmar sincronização"
                 description="Confira o par antes de sincronizar."
               />
-              <div className="grid grid-cols-[minmax(0,1fr)] gap-2">
-                <div
-                  className={`grid min-w-0 gap-1 rounded-sm bg-foreground/[0.04] px-3 py-2.5 ${INSET}`}
-                >
-                  <span className="text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground">
-                    Imóvel no sistema
-                  </span>
-                  <ClampName as="b" text={syncProp.name} className="text-[12.5px] font-bold" />
-                  {syncProp.ownerName ? (
-                    <small className="flex items-center gap-[5px] text-[11px] text-muted-foreground">
-                      <b className="truncate font-semibold text-foreground">{syncProp.ownerName}</b>
-                      <PhoneActionButton
-                        phone={syncProp.ownerPhone}
-                        country={syncProp.ownerPhoneCountry}
-                        size={11}
-                        alwaysShow
-                        className="shrink-0 !p-0"
-                      />
-                    </small>
-                  ) : null}
-                </div>
-                <ArrowRight className="mx-auto size-4 rotate-90 text-muted-foreground" />
-                <div
-                  className={`grid min-w-0 gap-1 rounded-sm bg-foreground/[0.04] px-3 py-2.5 ${INSET}`}
-                >
-                  <span className="text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground">
+              {/* Mockup abnb-syncConfirm: imóvel (nome, endereço, proprietário · telefone) → anúncio (foto + cidade). */}
+              <div className={`grid min-w-0 gap-1.5 rounded-md bg-foreground/[0.03] p-3 ${INSET}`}>
+                <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-[color:var(--faint)]">
+                  Imóvel no sistema
+                </span>
+                <ClampName as="b" text={syncProp.name} className="text-[13.5px] font-extrabold" />
+                {syncProp.address || syncProp.city ? (
+                  <small className="truncate text-[11px] text-muted-foreground">
+                    {syncProp.address || syncProp.city}
+                  </small>
+                ) : null}
+                {syncProp.ownerName ? (
+                  <small className="truncate text-[12px] text-muted-foreground">
+                    {[
+                      syncProp.ownerName,
+                      formatPhoneDisplay(syncProp.ownerPhone, syncProp.ownerPhoneCountry),
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </small>
+                ) : null}
+              </div>
+              <ArrowDown className="mx-auto size-4 text-foreground/45" />
+              <div className={`flex min-w-0 items-center gap-[11px] rounded-md bg-foreground/[0.03] p-3 ${INSET}`}>
+                <PropertyThumb
+                  src={chosenSync.imageUrl}
+                  className="size-[46px] shrink-0 rounded-[6px]"
+                  iconClassName="size-[18px]"
+                />
+                <span className="grid min-w-0 flex-1 gap-[3px]">
+                  <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-[color:var(--faint)]">
                     Anúncio no Airbnb
                   </span>
-                  <ClampName as="b" text={chosenSync.title} className="text-[12.5px] font-bold" />
+                  <ClampName as="b" text={chosenSync.title} className="text-[13px] font-bold" />
                   {chosenSync.city ? (
                     <small className="truncate text-[11px] text-muted-foreground">
                       {chosenSync.city}
                     </small>
                   ) : null}
-                </div>
+                </span>
               </div>
               <AttentionBox>
-                Os dados do anúncio (descrição, comodidades, regras) passam a ser lidos do Airbnb e
-                ficam bloqueados aqui.
+                Os dados do anúncio (descrição, comodidades, regras) passam a ser lidos diretamente
+                do Airbnb.
               </AttentionBox>
               <div className="grid grid-cols-[minmax(0,1fr)] gap-2">
                 <PrimaryBtn onClick={() => void doSyncProperty()}>
@@ -2208,32 +2202,25 @@ function AirbnbAccountFlowInner({
           ) : null}
 
           {step === "syncing" ? (
-            <>
-              <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-3 gap-y-1.5">
-                <IconBox kind="ok">
-                  <RefreshCw className="size-[22px] animate-spin" />
-                </IconBox>
-                <Title>Sincronizando imóvel</Title>
-                <Desc>
-                  Lendo o anúncio no Airbnb e ligando o chat. Pode levar alguns instantes.
-                </Desc>
+            <div className="grid justify-items-center gap-3.5 pb-2 pt-[18px] text-center">
+              <span className="grid size-12 place-items-center rounded-lg bg-foreground/[0.07] text-muted-foreground">
+                <Loader2 className="size-[22px] animate-spin" strokeWidth={2.4} />
+              </span>
+              <DialogTitle className="font-display text-[18px] font-extrabold leading-[1.2] tracking-[-0.01em]">
+                Sincronizando imóvel
+              </DialogTitle>
+              <DialogDescription className="text-[12.5px] leading-[1.55]">
+                Lendo o anúncio no Airbnb e ligando o chat. Pode levar alguns instantes.
+              </DialogDescription>
+              <div className="h-[5px] w-full overflow-hidden rounded-full bg-foreground/[0.08]">
+                <div className="h-full w-1/2 animate-pulse bg-gradient-to-r from-brand-purple to-brand-magenta" />
               </div>
-              <div className="h-1.5 overflow-hidden rounded-full bg-foreground/[0.08]">
-                <div className="h-full w-1/2 animate-pulse rounded-full bg-gradient-to-r from-brand-purple to-brand-magenta" />
-              </div>
-            </>
+            </div>
           ) : null}
 
           {step === "syncDone" && syncRes && syncProp ? (
             <>
-              <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-3 gap-y-1.5">
-                <IconBox kind={syncRes.pending.length === 0 ? "ok" : "falta"}>
-                  {syncRes.pending.length === 0 ? (
-                    <Check className="size-[22px]" />
-                  ) : (
-                    <TriangleAlert className="size-[22px]" />
-                  )}
-                </IconBox>
+              <div className="grid grid-cols-[minmax(0,1fr)] gap-y-3">
                 <Title>Imóvel sincronizado</Title>
                 <Desc>
                   <b className="font-bold text-foreground">{syncProp.name}</b> agora lê os dados
@@ -2289,10 +2276,7 @@ function AirbnbAccountFlowInner({
 
           {step === "syncEmpty" ? (
             <>
-              <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-3 gap-y-1.5">
-                <IconBox kind="neutral">
-                  <Home className="size-5" />
-                </IconBox>
+              <div className="grid grid-cols-[minmax(0,1fr)] gap-y-3">
                 <Title>Nenhum anúncio disponível</Title>
                 <Desc>
                   {account
@@ -2393,14 +2377,28 @@ function AirbnbAccountFlowInner({
                         <div
                           key={p.id}
                           data-clip-row
-                          className={`grid min-w-0 gap-2 rounded-md bg-foreground/[0.03] p-2.5 ${INSET}`}
+                          className={`grid min-w-0 gap-2 rounded-md bg-foreground/[0.03] px-3 py-[11px] ${INSET}`}
                         >
-                          <div className="flex min-w-0 items-center gap-2">
-                            <ClampName
-                              as="b"
-                              text={p.name}
-                              className="min-w-0 flex-1 text-[13px] font-bold"
+                          {/* Mockup abnb-bulkPairs: foto de 40px + nome + endereço completo. */}
+                          <div className="flex min-w-0 items-center gap-[11px]">
+                            <PropertyThumb
+                              src={p.imageUrl}
+                              fallbacks={p.imageUrls}
+                              className="size-10 shrink-0 rounded-[6px]"
+                              iconClassName="size-4"
                             />
+                            <span className="grid min-w-0 flex-1 gap-[3px]">
+                              <ClampName
+                                as="b"
+                                text={p.name}
+                                className="text-[12.5px] font-bold leading-[1.25]"
+                              />
+                              {p.address || p.city ? (
+                                <small className="truncate text-[11px] text-muted-foreground">
+                                  {p.address || p.city}
+                                </small>
+                              ) : null}
+                            </span>
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                                 <button
@@ -2605,106 +2603,65 @@ function AirbnbAccountFlowInner({
                 return (
                   <>
                     {running ? (
-                      <>
-                        <Title>Sincronizando…</Title>
-                        <Desc>Não feche esta janela. Cada imóvel é ligado ao anúncio dele.</Desc>
-                        <div className="flex items-center justify-between gap-2 text-[12px] text-muted-foreground">
-                          <b className="font-bold text-foreground/85">
-                            {done + failed} de {total} concluídos
-                          </b>
-                        </div>
-                        <div className="h-1.5 overflow-hidden rounded-full bg-foreground/[0.08]">
+                      <div className="grid justify-items-center gap-3.5 pb-2 pt-[18px] text-center">
+                        <span className="grid size-12 place-items-center rounded-lg bg-foreground/[0.07] text-muted-foreground">
+                          <Loader2 className="size-[22px] animate-spin" strokeWidth={2.4} />
+                        </span>
+                        <DialogTitle className="font-display text-[18px] font-extrabold leading-[1.2] tracking-[-0.01em]">
+                          Sincronizando…
+                        </DialogTitle>
+                        <DialogDescription className="text-[12.5px] leading-[1.55]">
+                          Não feche esta janela. Cada imóvel é ligado ao respectivo anúncio dele
+                          próprio.
+                        </DialogDescription>
+                        <div className="h-[5px] w-full overflow-hidden rounded-full bg-foreground/[0.08]">
                           <div
-                            className="h-full rounded-full bg-gradient-to-r from-brand-purple to-brand-magenta transition-[width]"
+                            className="h-full bg-gradient-to-r from-brand-purple to-brand-magenta transition-[width]"
                             style={{
                               width: `${Math.round((100 * (done + failed)) / (total || 1))}%`,
                             }}
                           />
                         </div>
-                      </>
+                        <span className="text-[11.5px] text-muted-foreground">
+                          {done + failed} de {total}
+                        </span>
+                      </div>
                     ) : (
                       <>
-                        <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-3 gap-y-1.5">
-                          <IconBox kind={failed === 0 ? "ok" : "neutral"}>
-                            {failed === 0 ? (
-                              <Check className="size-[22px]" />
-                            ) : (
-                              <RefreshCw className="size-[22px]" />
-                            )}
-                          </IconBox>
+                        <div className="grid grid-cols-[minmax(0,1fr)] gap-y-3">
                           <Title>
-                            {done} de {total} sincronizados
+                            {plural(done, "imóvel sincronizado", "imóveis sincronizados")}
                           </Title>
                           <Desc>
+                            Reservas e mensagens passam a chegar sozinhas.
                             {failed > 0
                               ? failed === 1
-                                ? "Um imóvel não foi sincronizado. Veja em Pendências."
-                                : `${failed} imóveis não foram sincronizados. Veja em Pendências.`
-                              : "Reservas e mensagens passam a chegar sozinhas."}
+                                ? " Um imóvel não foi sincronizado. Veja em Pendências."
+                                : ` ${failed} imóveis não foram sincronizados. Veja em Pendências.`
+                              : ""}
                           </Desc>
                         </div>
+                        {failed > 0 ? (
+                          <InfoBox
+                            kind="falta"
+                            lines={bulkJobs
+                              .filter((j) => j.status === "err")
+                              .map((j) => [
+                                TriangleAlert,
+                                `${j.label}: ${j.error ?? "não sincronizado"}`,
+                              ])}
+                          />
+                        ) : null}
+                        {pendIds.size > 0 ? (
+                          <AttentionBox>
+                            {plural(pendIds.size, "imóvel sincronizado", "imóveis sincronizados")}{" "}
+                            ainda {pendIds.size === 1 ? "precisa" : "precisam"} de ajuste (chat ou
+                            tarifa no Airbnb). Veja em Pendências.
+                          </AttentionBox>
+                        ) : null}
+                        <PrimaryBtn onClick={close}>Concluir</PrimaryBtn>
                       </>
                     )}
-                    <div className="grid grid-cols-[minmax(0,1fr)] gap-2">
-                      {bulkJobs.map((j) => (
-                        <div
-                          key={j.key}
-                          data-clip-row
-                          className={`flex items-start gap-2.5 rounded-md px-3 py-2.5 ${INSET} ${
-                            j.status === "err"
-                              ? "bg-[color-mix(in_oklab,#c98c8c_7%,transparent)] shadow-[inset_0_0_0_1px_color-mix(in_oklab,#c98c8c_40%,transparent)]"
-                              : j.status === "wait"
-                                ? "bg-foreground/[0.025]"
-                                : "bg-foreground/[0.03]"
-                          }`}
-                        >
-                          <span className="mt-0.5 grid size-4 shrink-0 place-items-center">
-                            {j.status === "ok" ? (
-                              <Check className="size-4 ds-ok" strokeWidth={2.6} />
-                            ) : j.status === "err" ? (
-                              <X className="size-4 ds-falta" strokeWidth={2.6} />
-                            ) : j.status === "run" ? (
-                              <Loader2 className="size-3.5 animate-spin text-accent" />
-                            ) : (
-                              <span className="size-3.5 rounded-full shadow-[inset_0_0_0_1.5px_color-mix(in_oklab,var(--foreground)_20%,transparent)]" />
-                            )}
-                          </span>
-                          <span className="grid min-w-0 flex-1 gap-0.5">
-                            <ClampName as="b" text={j.label} className="text-[12.5px] font-bold" />
-                            {j.account ? (
-                              <small className="truncate text-[10.5px] text-muted-foreground">
-                                {j.account}
-                              </small>
-                            ) : null}
-                            {j.status === "err" ? (
-                              <small className="text-[11px] text-muted-foreground">{j.error}</small>
-                            ) : null}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                    {!running && pendIds.size > 0 ? (
-                      <AttentionBox>
-                        {plural(pendIds.size, "imóvel sincronizado", "imóveis sincronizados")} ainda{" "}
-                        {pendIds.size === 1 ? "precisa" : "precisam"} de ajuste (chat ou tarifa no
-                        Airbnb). Veja em Pendências.
-                      </AttentionBox>
-                    ) : null}
-                    {!running ? (
-                      <div className="grid grid-cols-[minmax(0,1fr)] gap-2">
-                        {failed > 0 ? (
-                          <>
-                            <PrimaryBtn onClick={() => void runBulk(bulkJobs)}>
-                              <RefreshCw className="size-4" />
-                              Tentar o que faltou
-                            </PrimaryBtn>
-                            <SecondaryBtn onClick={close}>Fechar</SecondaryBtn>
-                          </>
-                        ) : (
-                          <PrimaryBtn onClick={close}>Concluir</PrimaryBtn>
-                        )}
-                      </div>
-                    ) : null}
                   </>
                 );
               })()}
@@ -2713,29 +2670,21 @@ function AirbnbAccountFlowInner({
 
           {/* ---------- Importando ---------- */}
           {step === "importing" ? (
-            <>
-              <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-3 gap-y-1.5">
-                <IconBox kind="ok">
-                  <RefreshCw className="size-[22px] animate-spin" />
-                </IconBox>
-                <Title>Importando anúncios</Title>
-                <Desc>
-                  Vinculando{" "}
-                  <b className="font-bold text-foreground">{plural(n, "anúncio", "anúncios")}</b> a{" "}
-                  <b className="font-bold text-foreground">
-                    {n > 1
-                      ? "seus proprietários"
-                      : chosenOwner
-                        ? ownerName(chosenOwner)
-                        : "proprietário"}
-                  </b>
-                  . Pode levar alguns instantes. Por favor, aguarde!
-                </Desc>
+            <div className="grid justify-items-center gap-3.5 pb-2 pt-[18px] text-center">
+              <span className="grid size-12 place-items-center rounded-lg bg-foreground/[0.07] text-muted-foreground">
+                <Loader2 className="size-[22px] animate-spin" strokeWidth={2.4} />
+              </span>
+              <DialogTitle className="font-display text-[18px] font-extrabold leading-[1.2] tracking-[-0.01em]">
+                Importando anúncios
+              </DialogTitle>
+              <DialogDescription className="text-[12.5px] leading-[1.55]">
+                Criando os imóveis e ligando cada um ao anúncio do Airbnb. Pode levar alguns
+                instantes.
+              </DialogDescription>
+              <div className="h-[5px] w-full overflow-hidden rounded-full bg-foreground/[0.08]">
+                <div className="h-full w-1/2 animate-pulse bg-gradient-to-r from-brand-purple to-brand-magenta" />
               </div>
-              <div className="h-1.5 overflow-hidden rounded-full bg-foreground/[0.08]">
-                <div className="h-full w-1/2 animate-pulse rounded-full bg-gradient-to-r from-brand-purple to-brand-magenta" />
-              </div>
-            </>
+            </div>
           ) : null}
 
           {/* ---------- Resultado ---------- */}
@@ -2779,7 +2728,7 @@ function AirbnbAccountFlowInner({
                                 : `${k} deles ainda não estão totalmente ativos.`}
                           </>
                         ) : (
-                          "Nenhum anúncio foi criado. Veja o motivo abaixo e tente de novo."
+                          "Nenhum anúncio foi criado. Veja o motivo abaixo."
                         )}
                       </Desc>
                     </div>
@@ -2827,10 +2776,7 @@ function AirbnbAccountFlowInner({
           {/* ---------- Desconectar ---------- */}
           {step === "confirmDisconnect" ? (
             <>
-              <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-3 gap-y-1.5">
-                <IconBox kind="falta">
-                  <TriangleAlert className="size-[22px]" />
-                </IconBox>
+              <div className="grid grid-cols-[minmax(0,1fr)] gap-y-3">
                 <Title>Desconectar conta</Title>
               </div>
               <div className="flex items-center gap-2.5 rounded-sm bg-foreground/[0.04] px-[11px] py-[9px] text-[12.5px] font-bold shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_9%,transparent)]">
@@ -2879,14 +2825,7 @@ function AirbnbAccountFlowInner({
 
           {step === "disconnected" && disc ? (
             <>
-              <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-3 gap-y-1.5">
-                <IconBox kind={disc.chatFailures === 0 ? "ok" : "falta"}>
-                  {disc.chatFailures === 0 ? (
-                    <Check className="size-[22px]" />
-                  ) : (
-                    <TriangleAlert className="size-[22px]" />
-                  )}
-                </IconBox>
+              <div className="grid grid-cols-[minmax(0,1fr)] gap-y-3">
                 <Title>Conta desconectada</Title>
                 <Desc>
                   <b className="font-bold text-foreground">

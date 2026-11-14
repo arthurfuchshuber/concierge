@@ -145,9 +145,7 @@ describe("vincular proprietários (passo 3 de 3)", () => {
     fireEvent.click(screen.getByText("Casa Um"));
     fireEvent.click(screen.getByText("Casa Dois"));
     fireEvent.click(screen.getByText(/Continuar com 2 anúncios/));
-    await waitFor(() =>
-      expect(screen.getByText("Quem é o proprietário de cada imóvel?")).toBeTruthy(),
-    );
+    await waitFor(() => expect(screen.getByText("Quem é o respectivo proprietário?")).toBeTruthy());
   }
   async function pick(index: number, name: string) {
     fireEvent.click(screen.getAllByText("Escolher proprietário")[index]);

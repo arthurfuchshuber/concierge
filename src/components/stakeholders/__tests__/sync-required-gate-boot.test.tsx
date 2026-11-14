@@ -101,11 +101,11 @@ describe("aviso obrigatório: sem piscada ao recarregar", () => {
     expect(screen.getByTestId("flow").textContent).toBe("syncProperties:3");
   });
 
-  it("'Conectar conta' abre o fluxo de conectar", async () => {
+  it("'Conectar nova conta' abre o fluxo de conectar", async () => {
     load({ blocking: true, props: [P("a", "Apê A"), P("b", "Casa B")] });
     render(wrap(<SyncRequiredGate />));
     await screen.findByText("Conta Maria Souza");
-    fireEvent.click(screen.getByText("Conectar conta"));
+    fireEvent.click(screen.getByText("Conectar nova conta"));
     expect(screen.getByTestId("flow").textContent).toBe("connect:1");
   });
 

@@ -38,6 +38,8 @@ export type PendingFullConnection = {
   ownerPhone: string | null;
   ownerPhoneCountry: string | null;
   imageUrl: string | null;
+  /** Endereço do imóvel (linha de apoio do cartão — mockup abnb-gate). */
+  address?: string | null;
 };
 
 async function db() {
@@ -265,12 +267,12 @@ export async function listPendingFullConnections(ownerId: string, userId?: strin
     // Sem condutor registrado (vínculos antigos) → vale para quem tem acesso; com condutor → só ele.
     rows = rows.filter((r: any) => !by.has(r.property_id) || by.get(r.property_id) === userId);
   }
-  const extra = new Map<string, Pick<PendingFullConnection, "ownerName" | "ownerPhone" | "ownerPhoneCountry" | "imageUrl">>();
+  const extra = new Map<string, Pick<PendingFullConnection, "ownerName" | "ownerPhone" | "ownerPhoneCountry" | "imageUrl" | "address">>();
   try {
     const d = await db();
     const ids = rows.map((r: any) => r.property_id).filter(Boolean);
     if (ids.length) {
-      const { data: props } = await d.from("properties").select("id, owner_contact_id, hero_image_url, gallery_images").in("id", ids);
+      const { data: props } = await d.from("properties").select("id, owner_contact_id, hero_image_url, gallery_images, address").in("id", ids);
       const oids = [...new Set(((props ?? []) as any[]).map((p) => p.owner_contact_id).filter(Boolean))];
       const { data: owners } = oids.length
         ? await d.from("property_owners").select("id, name, trade_name, phone, phone_country").in("id", oids)
@@ -283,6 +285,7 @@ export async function listPendingFullConnections(ownerId: string, userId?: strin
           ownerPhone: o?.phone ?? null,
           ownerPhoneCountry: o?.phone_country ?? null,
           imageUrl: p.hero_image_url || (p.gallery_images ?? [])[0] || null,
+          address: p.address ?? null,
         });
       }
     }

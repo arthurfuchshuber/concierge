@@ -1,14 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Loader2, Lock, UserRound } from "lucide-react";
+import { Loader2, UserRound } from "lucide-react";
 import { listAirbnbAccounts, type UnsyncedProperty } from "@/lib/airbnb-account.functions";
 import { useUnsyncedProperties } from "./useUnsyncedProperties";
 import { useAnyWindowOpen } from "@/lib/global-overlay-store";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { ClampName } from "@/components/ui/clamp-name";
 import { PropertyThumb } from "@/components/ui/property-thumb";
-import { PhoneActionButton } from "@/components/PhoneActionButton";
 import { AirbnbAccountFlow, type AirbnbFlowRequest } from "./AirbnbAccountFlow";
 
 /**
@@ -102,6 +101,7 @@ export function SyncRequiredGate() {
     id: p.id,
     name: p.name,
     city: p.city,
+    address: p.address,
     ownerName: p.ownerName,
     ownerPhone: p.ownerPhone,
     ownerPhoneCountry: p.ownerPhoneCountry,
@@ -167,9 +167,6 @@ export function SyncRequiredGate() {
           <div className="grid grid-cols-[minmax(0,1fr)] gap-3">
             <div className="grid min-w-0 gap-2.5 pr-11">
               <DialogTitle className="flex items-center gap-2.5 font-display text-[19px] font-extrabold leading-[1.2] tracking-[-0.01em]">
-                <span className="grid size-[34px] shrink-0 place-items-center rounded-[10px] bg-secondary text-muted-foreground shadow-[inset_0_0_0_1px_var(--border)]">
-                  <Lock className="size-4" />
-                </span>
                 <span className="min-w-0 truncate">Sincronize seus imóveis</span>
               </DialogTitle>
               <DialogDescription className="text-[12.5px] leading-[1.55]">
@@ -181,7 +178,7 @@ export function SyncRequiredGate() {
             </div>
           </div>
           <div className="grid grid-cols-[minmax(0,1fr)] gap-2">
-            <div className="text-[10.5px] font-extrabold uppercase tracking-[0.08em] text-muted-foreground/80">
+            <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
               Contas do Airbnb
             </div>
             {accList.map((a) => {
@@ -241,7 +238,7 @@ export function SyncRequiredGate() {
               onClick={() => setFlow({ type: "connect" })}
               className="flex h-11 items-center justify-center gap-2 rounded-md bg-foreground/[0.04] text-[12.5px] font-bold text-foreground/85 shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_12%,transparent)]"
             >
-              Conectar conta
+              Conectar nova conta
             </button>
             <button
               type="button"
@@ -266,7 +263,7 @@ export function SyncRequiredGate() {
                     <PropertyThumb
                       src={cur.imageUrl}
                       fallbacks={cur.imageUrls}
-                      className="size-[34px] rounded-[9px]"
+                      className="size-[34px] rounded-[6px]"
                     />
                     <div className="grid min-w-0 flex-1 gap-1">
                       <ClampName text={cur.name} passThrough className="text-[13px] font-bold" />
@@ -276,13 +273,6 @@ export function SyncRequiredGate() {
                             <span className="truncate">
                               <b className="font-semibold text-foreground">{cur.ownerName}</b>
                             </span>
-                            <PhoneActionButton
-                              phone={cur.ownerPhone}
-                              country={cur.ownerPhoneCountry}
-                              size={11}
-                              alwaysShow
-                              className="shrink-0 !p-0"
-                            />
                           </>
                         ) : null}
                       </div>
