@@ -31,6 +31,7 @@ vi.mock("@/lib/tasks.functions", () => ({
   restoreTask: "restoreTask",
 }));
 vi.mock("@tanstack/react-start", () => ({
+  createMiddleware: () => ({ server: () => ({}), middleware: () => ({ server: () => ({}) }) }),
   createServerFn: () => ({
     middleware: () => ({ inputValidator: () => ({ handler: () => async () => ({}) }) }),
     inputValidator: () => ({ handler: () => async () => ({}) }),
@@ -41,6 +42,13 @@ vi.mock("@tanstack/react-start", () => ({
     if (fn === "options") return (a?: unknown) => optionsMock(a);
     return async () => ({});
   },
+}));
+vi.mock("@/lib/recurrences.functions", () => ({
+  createRecurrences: "createRecurrences",
+  listRecurrences: "listRecurrences",
+  updateRecurrence: "updateRecurrence",
+  skipRecurrenceOccurrence: "skipRecurrenceOccurrence",
+  listCheckoutDays: "listCheckoutDays",
 }));
 vi.mock("@/hooks/useImpersonation", () => ({ useImpersonation: () => ({ impersonation: null }) }));
 vi.mock("@/components/dashboard/OperationWorkspace", () => ({

@@ -21,6 +21,7 @@ const { bankData, state } = vi.hoisted(() => ({
 }));
 
 vi.mock("@tanstack/react-start", () => ({ useServerFn: (fn: unknown) => fn }));
+vi.mock("@/lib/channex.functions", () => ({ getChannexStatus: "getChannexStatus" }));
 vi.mock("@/lib/clicksign.functions", () => ({ getMyClicksignConfig: () => Promise.resolve({ hasToken: true }) }));
 vi.mock("@/lib/google-calendar.functions", () => ({ getMyGoogleCalendarStatus: () => Promise.resolve({ connected: true }) }));
 vi.mock("@/lib/malvo.functions", () => ({
@@ -71,6 +72,7 @@ describe("IntegracoesPage (celular) — Bancos e Asaas PJ", () => {
   });
 
   it("cards inativos ganham a faixa cinza lateral", async () => {
+    state.empty = true;
     renderPage();
     await waitFor(() => expect(screen.queryAllByTestId("integration-skeleton")).toHaveLength(0));
     expect(screen.queryAllByTestId("inactive-strip").length).toBeGreaterThan(0);
