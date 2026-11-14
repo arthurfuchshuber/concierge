@@ -395,8 +395,8 @@ export function NewRecordButton() {
                       ownerPhoneCountry={p.ownerPhoneCountry}
                       city={p.city}
                       address={p.address}
-                      mapsUrl={p.mapsUrl}
-                      garageMapsUrl={p.garageMapsUrl}
+                      /* Mockup e2/e: a linha do imóvel não tem o botão de localização. */
+                      hideMaps
                       multi
                       selected={propertyIds.includes(p.id)}
                       onClick={() => toggleProp(p.id)}
