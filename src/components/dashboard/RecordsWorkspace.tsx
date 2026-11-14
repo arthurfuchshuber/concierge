@@ -801,7 +801,7 @@ export function RecordsWorkspace() {
             placeholder="Buscar por imóvel, proprietário…"
             actions={recordActions}
           />
-          <div className="ds-card-grid grid-cols-2 lg:grid-cols-5 [&>*:last-child:nth-child(odd)]:col-span-2 lg:[&>*:last-child:nth-child(odd)]:col-span-1">
+          <div className="ds-card-grid grid-cols-2 lg:grid-cols-4">
             {STATUS_CELLS.map((c) => (
               <StatusCell
                 key={c.key}
@@ -1492,7 +1492,7 @@ const STRIPE_GRADIENT: Record<RecordCategory, string> = {
 };
 
 /** Ordem de desempate, da mais grave para a menos. */
-const STRIPE_PRIORITY: RecordCategory[] = ["damage", "maintenance", "forgotten", "cleaning", "other"];
+const STRIPE_PRIORITY: RecordCategory[] = ["damage", "maintenance", "forgotten", "other"];
 
 function stripeCategory(records: ReadonlyArray<AccountRecord>): RecordCategory | null {
   if (records.length === 0) return null;
