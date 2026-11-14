@@ -133,7 +133,7 @@ function PropertyCell({
 }) {
   return (
     <td
-      className={cn(TD, onOpen && "cursor-pointer active:bg-foreground/[0.05]")}
+      className={cn(TD, onOpen && "relative cursor-pointer pr-[34px] active:bg-foreground/[0.05]")}
       onClick={
         onOpen
           ? (e) => {
@@ -152,14 +152,23 @@ function PropertyCell({
       tabIndex={onOpen ? 0 : undefined}
     >
       {onOpen ? (
-        <div className="flex min-w-0 items-center justify-between gap-2">
-          <ClampName text={name} className="min-w-0 font-bold" />
-          <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-        </div>
+        /* Mockup det-lanc-a: nome 14.5px, proprietário 13px com ícone de 15px, seta no meio da linha, à direita. */
+        <>
+          <ClampName text={name} className="min-w-0 text-[14.5px] font-bold leading-[1.25]" />
+          <ChevronRight
+            className="pointer-events-none absolute right-3.5 top-1/2 size-3.5 -translate-y-1/2 text-foreground/45"
+            strokeWidth={2.2}
+            aria-hidden
+          />
+        </>
       ) : (
         <ClampName text={name} className="font-bold" />
       )}
-      <OwnerLine name={owner} phone={phone} country={country} phonePosition="adjacent" />
+      {onOpen ? (
+        <OwnerLine name={owner} phone={phone} country={country} phonePosition="adjacent" size={15} className="mt-[3px] !text-[13px]" />
+      ) : (
+        <OwnerLine name={owner} phone={phone} country={country} phonePosition="adjacent" />
+      )}
       {children}
     </td>
   );
@@ -527,15 +536,17 @@ export function CleaningDayDetailContent({
                       country={r.ownerPhoneCountry}
                       onOpen={onEntryChange ? () => onEntryChange({ kind: "extra", item: r }) : undefined}
                     >
-                      <span className={`mt-0.5 block truncate ${LINE}`} title={`${r.situationName}: ${r.title}`}>
+                      {/* Mockup det-lanc-a: situação 12.5px, título 11.5px apagado, data · hora e valor em negrito. */}
+                      <span className="mt-[5px] block truncate text-[12.5px] text-muted-foreground" title={`${r.situationName}: ${r.title}`}>
                         Situação: {r.situationName}
                       </span>
-                      <span className="block truncate text-[11px] text-muted-foreground" title={r.title}>
+                      <span className="block truncate text-[11.5px] text-[var(--faint)]" title={r.title}>
                         {r.title}
                       </span>
-                      <BottomRow value={<span className="whitespace-nowrap">{brl(r.priceCents ?? 0)}</span>}>
-                        <ActionText text={actionText(r.concludedAt, r.doneByName, null)} />
-                      </BottomRow>
+                      <span className="mt-1 flex min-w-0 items-center justify-between gap-2 text-[12.5px] text-muted-foreground">
+                        <span className="min-w-0 truncate">{[dateSP(r.concludedAt), timeSP(r.concludedAt)].filter(Boolean).join(" · ")}</span>
+                        <span className="shrink-0 whitespace-nowrap font-bold tabular-nums text-foreground">{brl(r.priceCents ?? 0)}</span>
+                      </span>
                     </PropertyCell>
                   </tr>
                 ))}
