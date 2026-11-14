@@ -76,7 +76,7 @@ export async function processHostMilestone(p: { conversationId: string; hostText
 
     // Afirmação explícita ("Check-in confirmado.") é fato consumado: não depende da leitura do modelo.
     const explicit = explicitHostConfirmation(p.hostText);
-    let reading = explicit && allowed.includes(explicit) ? { milestone: explicit, confidence: 1 } : null;
+    let reading: import("./decide").HostReading | null = explicit && allowed.includes(explicit) ? { milestone: explicit, confidence: 1 } : null;
     if (!reading) {
     const { chatJson } = await import("@/lib/llm/gateway.server");
     const { data } = await chatJson<unknown>("content", [
