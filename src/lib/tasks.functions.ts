@@ -180,7 +180,7 @@ export const listTasks = createServerFn({ method: "GET" })
       let query = db
         .from("tasks")
         .select(
-          "id, title, description, category, priority, due_date, show_in_cleaning, status, completed_at, created_at, property_id, owner_contact_id, log_id, reservation_id, amount_spent_cents, recurrence_days, resolved_by_provider_id, resolution_note, amount_due_cents, resolution_received, cost_payer, cost_payer_id, paid_by, paid_by_id, amount_paid_cents, difference_cents, difference_to, difference_to_id",
+          "id, title, description, category, priority, due_date, show_in_cleaning, status, completed_at, created_at, property_id, owner_contact_id, log_id, reservation_id, amount_spent_cents, recurrence_days, resolved_by_provider_id, resolution_note, amount_due_cents, resolution_received, cost_payer, cost_payer_id, paid_by, paid_by_id, amount_paid_cents, difference_cents, difference_to, difference_to_id, recurrence_id",
         )
         .eq("account_owner_id", accountOwnerId)
         .in("status", ["pending", "done"])
@@ -220,6 +220,7 @@ export const listTasks = createServerFn({ method: "GET" })
         difference_cents: number | null;
         difference_to: string | null;
         difference_to_id: string | null;
+        recurrence_id: string | null;
       }>;
 
       // Nomes de imóvel/proprietário em 2 buscas em lote (mesma técnica do
@@ -304,6 +305,7 @@ export const listTasks = createServerFn({ method: "GET" })
           priority: r.priority as TaskPriority,
           dueDate: r.due_date,
           showInCleaning: r.show_in_cleaning,
+          recurrenceId: r.recurrence_id,
           status: r.status as TaskStatus,
           completedAt: r.completed_at,
           createdAt: r.created_at,

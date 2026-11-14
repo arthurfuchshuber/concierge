@@ -40,6 +40,8 @@ export type TaskRow = {
   priority: TaskPriority;
   dueDate: string | null; // YYYY-MM-DD
   showInCleaning: boolean;
+  /** Série de recorrência de onde a ocorrência veio (null = pendência avulsa). */
+  recurrenceId?: string | null;
   status: TaskStatus;
   completedAt: string | null;
   createdAt: string;
