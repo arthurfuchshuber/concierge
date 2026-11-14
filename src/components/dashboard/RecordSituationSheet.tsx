@@ -37,6 +37,7 @@ import {
 } from "@/lib/offline/situation-draft";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { CoverImage } from "@/components/ui/cover-image";
+import { cn } from "@/lib/utils";
 import { Switch } from "@/components/ui/switch";
 import { createRecurrences } from "@/lib/recurrences.functions";
 import { CheckoutCalendar } from "@/components/dashboard/CheckoutCalendar";
@@ -869,7 +870,7 @@ export function RecordSituationSheet({
   return (
     <Dialog open={open} onOpenChange={(v) => !saving && onOpenChange(v)}>
       <DialogContent
-        className="flex w-[calc(100vw-2rem)] flex-col gap-0 overflow-hidden p-0 sm:w-full sm:max-w-sm"
+        className={cn("flex w-[calc(100vw-2rem)] flex-col gap-0 overflow-hidden p-0 sm:w-full sm:max-w-sm", view === "repeat" && "max-h-[min(98dvh,calc(100dvh_-_var(--kb-inset,0px)_-_1rem))]")}
         aria-describedby={undefined}
         onBack={view === "repeat" ? () => setView("form") : undefined}
       >
@@ -916,7 +917,7 @@ export function RecordSituationSheet({
         </div>
 
         {view === "form" ? (
-        <div className="sg-elegant-scroll min-h-0 flex-1 space-y-3.5 overflow-y-auto px-3.5 py-3">
+        <div className="sg-elegant-scroll min-h-0 flex-auto space-y-3.5 overflow-y-auto px-3.5 py-3">
           {/* O QUE FICOU PARA TRÁS (11/09/2026). Aparece só quando existe algo
               guardado deste mesmo imóvel e reserva — na folha limpa do dia a
               dia esta faixa não existe. */}
@@ -1147,10 +1148,10 @@ export function RecordSituationSheet({
           )}
         </div>
         ) : (
-        <div className="sg-elegant-scroll min-h-0 flex-1 space-y-3.5 overflow-y-auto px-3.5 py-3">
+        <div className="sg-elegant-scroll min-h-0 flex-auto space-y-3.5 overflow-y-auto px-4 py-3.5">
           <div>
-            <div className="mb-1.5 ds-eyebrow text-muted-foreground">Frequência</div>
-            <div className="overflow-hidden rounded-[0.6rem] border border-border/50 bg-secondary/30">
+            <div className="mb-2 ds-eyebrow text-muted-foreground">Frequência</div>
+            <div className="overflow-hidden rounded-[10px] bg-[var(--panel-well)]">
               {/* "Próximo checkout" ocupa o lugar do antigo "Não repetir": uma vez, no card do próximo
                   checkout do imóvel. */}
               {(
@@ -1179,15 +1180,15 @@ export function RecordSituationSheet({
                         pickFreq(fr.unit, fr.interval);
                       }
                     }}
-                    className={`flex w-full items-center px-3.5 py-3 text-left text-[13px] font-semibold text-foreground ${
-                      i > 0 ? "border-t border-border/50" : ""
-                    } ${on ? "bg-[#E82DAE]/[0.14]" : ""}`}
+                    className={`flex min-h-0 w-full items-center gap-2.5 px-3.5 py-2.5 text-left text-[12.5px] font-semibold text-foreground ${
+                      i > 0 ? "border-t border-[var(--panel-div)]" : ""
+                    } ${on ? "bg-accent/[0.10]" : ""}`}
                   >
                     <span className="min-w-0 flex-1">
-                      <span className={`block ${on && f.sub ? "font-bold" : ""}`}>{f.label}</span>
-                      {f.sub && <span className="block text-[11px] font-normal text-muted-foreground">{f.sub}</span>}
+                      <span className={`block ${on ? "font-bold" : ""}`}>{f.label}</span>
+                      {f.sub && (f.key !== "date" || on) && <span className="block text-[10.5px] font-normal text-muted-foreground">{f.sub}</span>}
                     </span>
-                    {on && <Check className="size-4 text-[#E82DAE]" />}
+                    {on ? <Check className="size-4 text-accent" strokeWidth={2.6} /> : f.key === "date" ? <ChevronRight className="size-[15px] text-muted-foreground" /> : null}
                   </button>
                 );
               })}
@@ -1195,15 +1196,15 @@ export function RecordSituationSheet({
           </div>
 
           {!repeat && agendaMode === "next" && (
-            <div className="overflow-hidden rounded-[0.6rem] border border-border/50 bg-secondary/30">
-              <div className="flex items-center px-3.5 py-3">
-                <span className="flex-1 text-[13px] font-semibold text-foreground">Começa em</span>
-                <span className="text-[13px] font-bold text-foreground">No checkout</span>
+            <div className="overflow-hidden rounded-[10px] bg-[var(--panel-well)]">
+              <div className="flex items-center gap-2.5 px-3.5 py-2.5">
+                <span className="flex-1 text-[12.5px] font-semibold text-foreground">Começa em</span>
+                <span className="text-[12.5px] font-bold text-foreground">No checkout</span>
               </div>
-              <div className="flex items-center gap-3 border-t border-border/50 px-3.5 py-3">
+              <div className="flex items-center gap-2.5 border-t border-[var(--panel-div)] px-3.5 py-2.5">
                 <span className="min-w-0 flex-1">
-                  <span className="block text-[13px] font-semibold text-foreground">Entra no checklist de limpeza</span>
-                  <span className="block text-[11.5px] leading-snug text-muted-foreground">
+                  <span className="block text-[12.5px] font-semibold text-foreground">Entra no checklist de limpeza</span>
+                  <span className="block text-[10.5px] leading-snug text-muted-foreground">
                     {nextChecklist
                       ? "Fica presa ao card do próximo checkout"
                       : "Vira pendência no dia do checkout, sem ligar a uma limpeza"}
@@ -1215,12 +1216,12 @@ export function RecordSituationSheet({
           )}
 
           {!repeat && agendaMode === "date" && (
-            <div className="overflow-hidden rounded-[0.6rem] border border-border/50 bg-secondary/30">
-              <div className="flex items-center px-3.5 py-3">
-                <span className="flex-1 text-[13px] font-semibold text-foreground">Data</span>
-                <span className="text-[13px] font-bold tabular-nums text-foreground">{fmtBR(specificDate)}</span>
+            <div className="overflow-hidden rounded-[10px] bg-[var(--panel-well)]">
+              <div className="flex items-center gap-2.5 px-3.5 py-2.5">
+                <span className="flex-1 text-[12.5px] font-semibold text-foreground">Data</span>
+                <span className="text-[12.5px] font-bold tabular-nums text-foreground">{fmtBR(specificDate)}</span>
               </div>
-              <div className="border-t border-border/50">
+              <div className="border-t border-[var(--panel-div)]">
                 <CheckoutCalendar
                   value={specificDate}
                   min={todayIso()}
@@ -1229,10 +1230,10 @@ export function RecordSituationSheet({
                   onChange={setSpecificDate}
                 />
               </div>
-              <div className="flex items-center gap-3 border-t border-border/50 px-3.5 py-3">
+              <div className="flex items-center gap-2.5 border-t border-[var(--panel-div)] px-3.5 py-2.5">
                 <span className="min-w-0 flex-1">
-                  <span className="block text-[13px] font-semibold text-foreground">Entra no checklist de limpeza</span>
-                  <span className="block text-[11.5px] leading-snug text-muted-foreground">
+                  <span className="block text-[12.5px] font-semibold text-foreground">Entra no checklist de limpeza</span>
+                  <span className="block text-[10.5px] leading-snug text-muted-foreground">
                     {dateChecklist
                       ? "Fica presa ao checkout mais próximo dessa data"
                       : "Vira pendência no dia, sem ligar a uma limpeza"}
@@ -1244,11 +1245,11 @@ export function RecordSituationSheet({
           )}
 
           {repeat && (
-            <div className="overflow-hidden rounded-[0.6rem] border border-border/50 bg-secondary/30">
-              <label className="relative flex w-full cursor-pointer items-center px-3.5 py-3">
-                <span className="flex-1 text-[13px] font-semibold text-foreground">Começa em</span>
-                <span className="text-[13px] font-bold tabular-nums text-foreground">{fmtBR(repeat.start)}</span>
-                <ChevronRight className="ml-2 size-4 text-muted-foreground" />
+            <div className="overflow-hidden rounded-[10px] bg-[var(--panel-well)]">
+              <label className="relative flex w-full cursor-pointer items-center gap-2.5 px-3.5 py-2.5">
+                <span className="flex-1 text-[12.5px] font-semibold text-foreground">Começa em</span>
+                <span className="text-[12.5px] font-bold tabular-nums text-foreground">{fmtBR(repeat.start)}</span>
+                <ChevronRight className="size-[15px] text-muted-foreground" />
                 <input
                   type="date"
                   value={repeat.start}
@@ -1260,10 +1261,10 @@ export function RecordSituationSheet({
                   aria-label="Começa em"
                 />
               </label>
-              <div className="flex items-center gap-3 border-t border-border/50 px-3.5 py-3">
+              <div className="flex items-center gap-2.5 border-t border-[var(--panel-div)] px-3.5 py-2.5">
                 <span className="min-w-0 flex-1">
-                  <span className="block text-[13px] font-semibold text-foreground">Entra no checklist de limpeza</span>
-                  <span className="block text-[11.5px] leading-snug text-muted-foreground">
+                  <span className="block text-[12.5px] font-semibold text-foreground">Entra no checklist de limpeza</span>
+                  <span className="block text-[10.5px] leading-snug text-muted-foreground">
                     {repeat.checklist ? "Aparecerá no checklist do dia" : "Vira pendência no dia, sem ligar a uma limpeza"}
                   </span>
                 </span>
@@ -1331,11 +1332,11 @@ export function RecordSituationSheet({
 
         {/* "Descartar" e "Registrar situação" juntos, à direita (board de 08/11/2026). */}
         {view === "repeat" ? (
-          <div className="shrink-0 border-t border-border/50 bg-secondary/20 px-3.5 py-2.5">
+          <div className="shrink-0 border-t border-foreground/[0.08] px-4 py-3">
             <button
               type="button"
               onClick={() => setView("form")}
-              className="inline-flex h-11 w-full items-center justify-center rounded-[0.5rem] bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] text-[13px] font-bold text-white"
+              className="inline-flex h-10 w-full items-center justify-center rounded-[10px] bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] text-[13px] font-bold text-white"
             >
               Concluir
             </button>
