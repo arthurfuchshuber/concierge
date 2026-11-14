@@ -2238,7 +2238,7 @@ function AirbnbAccountFlowInner({
                         TriangleAlert,
                         p.kind === "chat"
                           ? "Chat pendente de ativação"
-                          : "Pendente de configuração na Channex",
+                          : "Pendente de configuração no provedor",
                       ] as [typeof Check, string],
                   )}
                 />
@@ -2799,8 +2799,8 @@ function AirbnbAccountFlowInner({
                 <b className="font-bold text-foreground">
                   {plural(account?.imported ?? 0, "imóvel", "imóveis")}
                 </b>{" "}
-                dela serão arquivados, o chat será desligado e a sincronização pausada. O canal na
-                Channex não é alterado.
+                dela serão arquivados, o chat será desligado e a sincronização pausada. O canal no
+                provedor não é alterado.
               </Desc>
               <InfoBox
                 kind="falta"
