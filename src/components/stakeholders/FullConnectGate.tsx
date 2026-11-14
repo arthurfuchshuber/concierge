@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Loader2, Lock } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { getPendingFullConnections, confirmFullConnectionFn } from "@/lib/channex-full-connect.functions";
 import { useUnsyncedProperties } from "./useUnsyncedProperties";
@@ -144,9 +144,12 @@ export function FullConnectGate() {
   }
 
   const apiKey = q.data?.apiKey ?? null;
+  // Mockup abnb-gate (versão atual do board): quatro passos.
   const steps = [
-    'Conecte sua ferramenta de precificação ao fornecedor "Channex" com o código abaixo, importe os anúncios e sincronize as diárias. As reservas confirmadas na plataforma serão importadas automaticamente.',
-    `Volte aqui e toque em "${items.length > 1 ? "Já conectei todos" : "Já conectei"}".`,
+    "Acesse sua ferramenta de precificação e reconecte seus anúncios ao fornecedor “Channex” utilizando o código a seguir.",
+    "Na sequência, configure novamente os preços das diárias e sincronize-as.",
+    "As reservas confirmadas na plataforma serão importadas automaticamente para o Concierge.",
+    `Após sincronizar as diárias, retorne aqui e clique em “${items.length > 1 ? "Já conectei todos" : "Já conectei"}”.`,
   ];
   const eyebrow = "ds-eyebrow text-[10px] tracking-[0.2em] text-muted-foreground";
   const card =
@@ -164,10 +167,8 @@ export function FullConnectGate() {
         onInteractOutside={(e) => e.preventDefault()}
       >
         <div className="grid gap-2">
+          {/* Mockup abnb-gate: título sem o ícone ao lado. */}
           <div className="flex items-center gap-3">
-            <span className="grid size-10 shrink-0 place-items-center rounded-sm bg-[color-mix(in_oklab,#c9a24a_14%,transparent)] shadow-[inset_0_0_0_1px_color-mix(in_oklab,#c9a24a_35%,transparent)] ds-atencao">
-              <Lock className="size-[18px]" />
-            </span>
             <DialogTitle className="min-w-0 font-display text-[18px] font-extrabold leading-[1.2] tracking-[-0.01em]">
               Finalize a ativação
             </DialogTitle>
@@ -246,6 +247,9 @@ export function FullConnectGate() {
                       passThrough
                       className="text-[13px] font-bold"
                     />
+                    {it.address ? (
+                      <small className="block min-w-0 truncate text-[11px] text-muted-foreground">{it.address}</small>
+                    ) : null}
                     {it.ownerName ? (
                       <small className="flex min-w-0 items-center gap-1.5 text-[11px] text-muted-foreground">
                         <b className="min-w-0 truncate font-semibold text-foreground">
