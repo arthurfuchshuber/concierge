@@ -37,7 +37,7 @@ describe("FiscalGuard", () => {
 describe("webhook", () => {
   const SECRET = "segredo-longo-de-teste";
   const mk = (over: Partial<WebhookPorts> = {}) => {
-    const ingest = vi.fn(async () => ({ new: true }));
+    const ingest = vi.fn(async (..._a: Parameters<WebhookPorts["ingest"]>) => ({ new: true }));
     const p: WebhookPorts = { loadConnection: async () => ({ webhookSecretHash: sha256Hex(SECRET), active: true }), ingest, ...over };
     return { p, ingest };
   };
