@@ -1474,7 +1474,7 @@ function AirbnbAccountFlowInner({
             <>
               <div className="grid grid-cols-[minmax(0,1fr)] gap-y-3">
                 <Title>Conta conectada.</Title>
-                <Desc>Agora conecte os anúncios ao ConciergeIA.</Desc>
+                <Desc>Agora traga os anúncios para o ConciergeIA.</Desc>
               </div>
               <OnbProgress doneCount={1} />
               <OnbSteps
