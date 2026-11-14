@@ -10,6 +10,7 @@ import {
   Camera,
   ChevronRight,
   Check,
+  Lock,
   Repeat,
   RotateCcw,
   FileText,
@@ -39,6 +40,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { CoverImage } from "@/components/ui/cover-image";
 import { Switch } from "@/components/ui/switch";
 import { createRecurrences } from "@/lib/recurrences.functions";
+import { CheckoutCalendar } from "@/components/dashboard/CheckoutCalendar";
 import {
   advance,
   describeFrequency,
@@ -244,6 +246,11 @@ export function DictationField({
   );
 }
 
+function todayStr(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 export function RecordSituationSheet({
   open,
   onOpenChange,
@@ -315,8 +322,13 @@ export function RecordSituationSheet({
     !target.logId;
   const [view, setView] = useState<"form" | "repeat">("form");
   type RepeatCfg = { unit: RecurrenceUnit; interval: number; start: string; startTouched: boolean; checklist: boolean };
+  /* AGENDA (mockups p/q, 13/11/2026): sem série (`repeat` nulo) a situação é UMA vez só —
+     "Próximo checkout" (padrão, presa ao card do próximo checkout do imóvel) ou "Personalizar…" = uma data
+     específica. Com série (semana/mês/3 meses) vale o `repeat`. */
   const [repeat, setRepeat] = useState<RepeatCfg | null>(null);
-  const [custom, setCustom] = useState(false);
+  const [agendaMode, setAgendaMode] = useState<"next" | "date">("next");
+  const [specificDate, setSpecificDate] = useState<string>(() => todayStr());
+  const [dateChecklist, setDateChecklist] = useState(category === "cleaning_audit");
   const recurDoneRef = useRef(false);
   const gruposRef = useRef<Map<string, string>>(new Map());
   const multi = (extraProperties?.length ?? 0) > 0;
@@ -327,10 +339,7 @@ export function RecordSituationSheet({
     ),
   );
   const ownersText = allOwners.length <= 2 ? allOwners.join(", ") : `${allOwners.slice(0, 2).join(", ")} +${allOwners.length - 2}`;
-  const todayIso = () => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-  };
+  const todayIso = todayStr;
   const defaultStart = (unit: RecurrenceUnit, interval: number) =>
     advance(todayIso(), unit, interval, Number(todayIso().slice(8, 10)));
   const FREQS: Array<{ label: string; unit: RecurrenceUnit; interval: number }> = [
@@ -803,6 +812,13 @@ export function RecordSituationSheet({
           category,
           title: title.trim() || null,
           description: description.trim() || null,
+          // Sem série, a situação nasce presa ao próximo checkout ou à data escolhida.
+          agenda:
+            canRepeat && !repeat
+              ? agendaMode === "date"
+                ? { mode: "date" as const, date: specificDate, checklist: dateChecklist }
+                : { mode: "next_checkout" as const }
+              : undefined,
           criada: false,
           midias: items.map((it) => ({
             key: a.primary ? it.key : crypto.randomUUID(),
@@ -1113,10 +1129,7 @@ export function RecordSituationSheet({
           {canRepeat && (
             <button
               type="button"
-              onClick={() => {
-                if (!repeat) pickFreq("month", 1);
-                setView("repeat");
-              }}
+              onClick={() => setView("repeat")}
               className="flex w-full items-center gap-3 rounded-[0.35rem] border border-border/60 bg-background/60 px-3 py-3 text-left"
             >
               <Repeat className="size-[18px] shrink-0 text-[#E82DAE]" />
@@ -1124,7 +1137,9 @@ export function RecordSituationSheet({
               <span className="ml-auto min-w-0 truncate text-[12.5px] font-semibold text-[#E82DAE]">
                 {repeat
                   ? describeFrequency(repeat.unit, repeat.interval, Number(repeat.start.slice(8, 10)))
-                  : "Nunca"}
+                  : agendaMode === "date"
+                    ? `Em ${fmtBR(specificDate)}`
+                    : "Próximo checkout"}
               </span>
               <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
             </button>
@@ -1135,70 +1150,96 @@ export function RecordSituationSheet({
           <div>
             <div className="mb-1.5 ds-eyebrow text-muted-foreground">Frequência</div>
             <div className="overflow-hidden rounded-[0.6rem] border border-border/50 bg-secondary/30">
-              {[
-                { label: "Não repetir", unit: null as RecurrenceUnit | null, interval: 0 },
-                ...FREQS,
-              ].map((f, i) => {
+              {/* "Próximo checkout" ocupa o lugar do antigo "Não repetir": uma vez, no card do próximo
+                  checkout do imóvel. */}
+              {(
+                [
+                  { key: "next", label: "Próximo checkout", sub: "Uma vez, no card do próximo checkout" },
+                  ...FREQS.map((f) => ({ key: `${f.unit}-${f.interval}`, label: f.label, sub: null as string | null })),
+                  { key: "date", label: "Personalizar…", sub: "Em uma data específica, uma única vez" },
+                ] as Array<{ key: string; label: string; sub: string | null }>
+              ).map((f, i) => {
                 const on =
-                  f.unit === null
-                    ? repeat === null && !custom
-                    : !custom && repeat?.unit === f.unit && repeat.interval === f.interval;
+                  f.key === "next"
+                    ? !repeat && agendaMode === "next"
+                    : f.key === "date"
+                      ? !repeat && agendaMode === "date"
+                      : !!repeat && `${repeat.unit}-${repeat.interval}` === f.key;
                 return (
                   <button
-                    key={f.label}
+                    key={f.key}
                     type="button"
                     onClick={() => {
-                      setCustom(false);
-                      if (f.unit === null) setRepeat(null);
-                      else pickFreq(f.unit, f.interval);
+                      if (f.key === "next" || f.key === "date") {
+                        setRepeat(null);
+                        setAgendaMode(f.key);
+                      } else {
+                        const fr = FREQS.find((x) => `${x.unit}-${x.interval}` === f.key)!;
+                        pickFreq(fr.unit, fr.interval);
+                      }
                     }}
                     className={`flex w-full items-center px-3.5 py-3 text-left text-[13px] font-semibold text-foreground ${
                       i > 0 ? "border-t border-border/50" : ""
                     } ${on ? "bg-[#E82DAE]/[0.14]" : ""}`}
                   >
-                    <span className="flex-1">{f.label}</span>
+                    <span className="min-w-0 flex-1">
+                      <span className={`block ${on && f.sub ? "font-bold" : ""}`}>{f.label}</span>
+                      {f.sub && <span className="block text-[11px] font-normal text-muted-foreground">{f.sub}</span>}
+                    </span>
                     {on && <Check className="size-4 text-[#E82DAE]" />}
                   </button>
                 );
               })}
-              <button
-                type="button"
-                onClick={() => {
-                  setCustom(true);
-                  if (!repeat) pickFreq("month", 2);
-                }}
-                className={`flex w-full items-center border-t border-border/50 px-3.5 py-3 text-left text-[13px] font-semibold text-foreground ${
-                  custom ? "bg-[#E82DAE]/[0.14]" : ""
-                }`}
-              >
-                <span className="flex-1">Personalizar…</span>
-                {custom ? <Check className="size-4 text-[#E82DAE]" /> : <ChevronRight className="size-4 text-muted-foreground" />}
-              </button>
-              {custom && repeat && (
-                <div className="flex items-center gap-2 border-t border-border/50 px-3.5 py-3 text-[13px] text-foreground">
-                  <span className="text-muted-foreground">A cada</span>
-                  <input
-                    type="number"
-                    min={1}
-                    max={365}
-                    value={repeat.interval}
-                    onChange={(e) => pickFreq(repeat.unit, Math.max(1, Math.min(365, Number(e.target.value) || 1)))}
-                    className="h-8 w-16 rounded-[0.3rem] border border-border/60 bg-background/60 px-2 text-center text-[13px] font-semibold outline-none"
-                  />
-                  <select
-                    value={repeat.unit}
-                    onChange={(e) => pickFreq(e.target.value as RecurrenceUnit, repeat.interval)}
-                    className="h-8 rounded-[0.3rem] border border-border/60 bg-background/60 px-2 text-[13px] font-semibold outline-none"
-                  >
-                    <option value="day">dias</option>
-                    <option value="week">semanas</option>
-                    <option value="month">meses</option>
-                    <option value="year">anos</option>
-                  </select>
-                </div>
-              )}
             </div>
           </div>
+
+          {!repeat && agendaMode === "next" && (
+            <div className="overflow-hidden rounded-[0.6rem] border border-border/50 bg-secondary/30">
+              <div className="flex items-center px-3.5 py-3">
+                <span className="flex-1 text-[13px] font-semibold text-foreground">Começa em</span>
+                <span className="text-[13px] font-bold text-foreground">No checkout</span>
+              </div>
+              <div className="flex items-center gap-3 border-t border-border/50 px-3.5 py-3">
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[13px] font-semibold text-foreground">Entra no checklist de limpeza</span>
+                  <span className="flex items-center gap-1 text-[11.5px] leading-snug text-muted-foreground">
+                    <Lock className="size-3 shrink-0" />
+                    Obrigatório: fica presa ao card do checkout
+                  </span>
+                </span>
+                <Switch checked disabled aria-label="Entra no checklist de limpeza (obrigatório)" />
+              </div>
+            </div>
+          )}
+
+          {!repeat && agendaMode === "date" && (
+            <div className="overflow-hidden rounded-[0.6rem] border border-border/50 bg-secondary/30">
+              <div className="flex items-center px-3.5 py-3">
+                <span className="flex-1 text-[13px] font-semibold text-foreground">Data</span>
+                <span className="text-[13px] font-bold tabular-nums text-foreground">{fmtBR(specificDate)}</span>
+              </div>
+              <div className="border-t border-border/50">
+                <CheckoutCalendar
+                  value={specificDate}
+                  min={todayIso()}
+                  today={todayIso()}
+                  propertyIds={[propertyId, ...(extraProperties ?? []).map((e) => e.id)]}
+                  onChange={setSpecificDate}
+                />
+              </div>
+              <div className="flex items-center gap-3 border-t border-border/50 px-3.5 py-3">
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[13px] font-semibold text-foreground">Entra no checklist de limpeza</span>
+                  <span className="block text-[11.5px] leading-snug text-muted-foreground">
+                    {dateChecklist
+                      ? "Fica presa ao checkout mais próximo dessa data"
+                      : "Vira pendência no dia, sem ligar a uma limpeza"}
+                  </span>
+                </span>
+                <Switch checked={dateChecklist} onCheckedChange={setDateChecklist} />
+              </div>
+            </div>
+          )}
 
           {repeat && (
             <div className="overflow-hidden rounded-[0.6rem] border border-border/50 bg-secondary/30">

@@ -106,12 +106,34 @@ const OTHER_SERVICE_RULE = {
 const SITUATION_BY_CATEGORY: Record<string, string> = {
   damage: "damage",
   maintenance: "maintenance",
+  cleaning_audit: "cleaning",
 };
+
+/** Situação avulsa de Limpeza/Auditoria agendada pelo "Repetir" (próximo checkout ou data). */
+const SCHEDULED_CLEANING_RULE = {
+  taskCategory: "cleaning" as const,
+  priority: "medium" as const,
+  showInCleaning: true,
+  prefix: "Limpeza",
+};
+
+export type SituationSchedule =
+  | { mode: "next_checkout" }
+  | { mode: "date"; date: string; checklist: boolean };
+
+const ScheduleInput = z.discriminatedUnion("mode", [
+  z.object({ mode: z.literal("next_checkout") }),
+  z.object({
+    mode: z.literal("date"),
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    checklist: z.boolean(),
+  }),
+]);
 
 const TASK_RULES: Record<
   string,
   {
-    taskCategory: "maintenance" | "guest_request" | "inspection";
+    taskCategory: "maintenance" | "guest_request" | "inspection" | "cleaning";
     priority: "high" | "medium";
     showInCleaning: boolean;
     prefix: string;
@@ -380,12 +402,24 @@ async function createLinkedTask(
     cardMode?: z.infer<typeof CardMode>;
     /** Situação do Serviço (aba Serviços): chave do sistema ou uuid de situação própria. */
     situation?: string | null;
+    /**
+     * AGENDA da situação avulsa do "Repetir" (13/11/2026): "próximo checkout" (uma vez, no card do
+     * próximo checkout do imóvel) ou uma data específica. Só vale sem reserva e sem registro do hóspede.
+     */
+    schedule?: SituationSchedule | null;
   },
 ): Promise<string | null> {
   // Categoria "Outro" não abre pendência no "+ Registro". Na aba Serviços ela
   // abre (a situação é um serviço com custo), por isso só ganha regra quando
   // vem com situação explícita.
-  const rule = TASK_RULES[input.category] ?? (input.situation ? OTHER_SERVICE_RULE : undefined);
+  const scheduled =
+    !!input.schedule &&
+    !input.reservationId &&
+    !input.logId &&
+    (input.category === "maintenance" || input.category === "cleaning_audit");
+  const rule =
+    TASK_RULES[input.category] ??
+    (scheduled ? SCHEDULED_CLEANING_RULE : input.situation ? OTHER_SERVICE_RULE : undefined);
   if (!rule) return null;
 
   const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
@@ -396,6 +430,24 @@ async function createLinkedTask(
   const typed = (input.body ?? "").trim();
   const title = typed ? `${rule.prefix}: ${typed}`.slice(0, 200) : `${rule.prefix} registrado`;
 
+  const showInCleaning = scheduled
+    ? input.schedule!.mode === "next_checkout"
+      ? true
+      : input.schedule!.checklist
+    : input.cardMode === "cleaning"
+      ? true
+      : rule.showInCleaning;
+  const autoLink = showInCleaning && !input.reservationId && !input.logId;
+  let autoReservationId: string | null = null;
+  if (autoLink) {
+    const { autoLinkReservationId } = await import("@/lib/recurrences.functions");
+    autoReservationId = await autoLinkReservationId(
+      supabase,
+      input.propertyId,
+      scheduled && input.schedule?.mode === "date" ? input.schedule.date : null,
+    );
+  }
+
   const { data: inserted, error } = await supabase
     .from("tasks")
     .insert({
@@ -403,7 +455,6 @@ async function createLinkedTask(
       property_id: input.propertyId,
       owner_contact_id: null,
       log_id: input.logId ?? null,
-      reservation_id: input.reservationId ?? null,
       title,
       description: DESCRICAO_PENDENCIA_AUTOMATICA,
       category: rule.taskCategory,
@@ -412,7 +463,7 @@ async function createLinkedTask(
          que o usuário tenha escolhido uma situação criada por ele. */
       situation: input.situation ?? SITUATION_BY_CATEGORY[input.category] ?? null,
       priority: rule.priority,
-      due_date: null,
+      due_date: scheduled && input.schedule?.mode === "date" ? input.schedule.date : null,
       /* "APARECE NA LIMPEZA" SEGUE A ORIGEM, NÃO SÓ A CATEGORIA (pedido
          explícito, 18/09/2026: "tudo que a própria limpeza abre deve ser
          marcado como 'aparecer na limpeza' automaticamente para que ela faça
@@ -427,7 +478,12 @@ async function createLinkedTask(
          Fora da limpeza, o padrão da categoria continua valendo, e o usuário
          interno continua podendo desmarcar no formulário; desmarcada, não
          aparece no checklist. */
-      show_in_cleaning: input.cardMode === "cleaning" ? true : rule.showInCleaning,
+      show_in_cleaning: showInCleaning,
+      /* TODA situação que entra no checklist precisa estar presa a um card de checkout (13/11/2026):
+         sem reserva escolhida, vale o checkout mais próximo (mesma regra das recorrências). Sem checkout
+         à frente, fica guardada e o religamento a coloca no checklist assim que surgir um. */
+      reservation_id: input.reservationId ?? autoReservationId,
+      auto_link_checkout: autoLink,
       amount_spent_cents: null,
       recurrence_days: null,
       created_by: userId,
@@ -494,6 +550,8 @@ export const createRecordSituation = createServerFn({ method: "POST" })
          * Repetir a chamada (rede lenta, fila do aparelho) devolve o mesmo
          * registro em vez de criar outro. */
         groupId: z.string().uuid().optional(),
+        /* "Repetir" da Nova situação (13/11/2026): próximo checkout ou data específica. */
+        schedule: ScheduleInput.optional().nullable(),
         /* Situação própria criada na aba Serviços (uuid). Vazio = a do sistema. */
         situationId: z
           .string()
@@ -593,6 +651,7 @@ export const createRecordSituation = createServerFn({ method: "POST" })
       body: (data.title ?? "").trim() || null,
       cardMode: data.cardMode ?? undefined,
       situation: data.situationId ?? undefined,
+      schedule: data.schedule ?? null,
     });
     const fileName = await nextRecordName(supabase, data.propertyId);
     const groupId = data.groupId ?? crypto.randomUUID();

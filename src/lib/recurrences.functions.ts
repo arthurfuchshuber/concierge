@@ -19,7 +19,7 @@ type AnyClient = { from: (t: string) => any };
 /** Com o checklist ligado a pendência aparece com 7 dias de antecedência (para caber no checkout mais próximo). */
 const LEAD_DAYS_CHECKLIST = 7;
 
-function todayISO(): string {
+export function todayISO(): string {
   const p = new Intl.DateTimeFormat("en-US", {
     timeZone: "America/Sao_Paulo",
     year: "numeric",
@@ -74,9 +74,64 @@ export async function resolveCleaningFor(db: AnyClient, propertyId: string, due:
   return hit ? { reservationId: hit.id, date } : null;
 }
 
+
+/** Reserva (checkout) que recebe uma pendência avulsa: o mais próximo de `due` (ou de hoje, sem data). */
+export async function autoLinkReservationId(
+  db: AnyClient,
+  propertyId: string,
+  due: string | null,
+): Promise<string | null> {
+  const today = todayISO();
+  const link = await resolveCleaningFor(db, propertyId, due ?? today, today);
+  return link?.reservationId ?? null;
+}
+
+/**
+ * Religa as pendências avulsas de checkout automático (`auto_link_checkout`) ao checkout certo: quando a
+ * reserva muda de data, é cancelada, ou aparece uma reserva para o imóvel que estava sem checkout à frente.
+ * Sem checkout à frente a pendência fica guardada (reservation_id nulo) e entra no checklist quando surgir um.
+ */
+export async function relinkAutoCheckout(db: AnyClient, propertyIds?: string[]): Promise<void> {
+  try {
+    const today = todayISO();
+    let q = db
+      .from("tasks")
+      .select("id, property_id, due_date, reservation_id")
+      .eq("auto_link_checkout", true)
+      .eq("status", "pending")
+      .eq("show_in_cleaning", true)
+      .not("property_id", "is", null);
+    if (propertyIds?.length) q = q.in("property_id", propertyIds);
+    const { data } = await q.limit(1000);
+    const rows = (data ?? []) as Array<{
+      id: string;
+      property_id: string;
+      due_date: string | null;
+      reservation_id: string | null;
+    }>;
+    if (rows.length === 0) return;
+    const cache = new Map<string, Array<{ id: string; date: string }>>();
+    for (const r of rows) {
+      let list = cache.get(r.property_id);
+      if (!list) {
+        list = await checkoutsOf(db, r.property_id, today);
+        cache.set(r.property_id, list);
+      }
+      const date = pickCleaningDate(r.due_date ?? today, today, list.map((c) => c.date));
+      const wanted = date ? (list.find((c) => c.date === date)?.id ?? null) : null;
+      if (wanted !== r.reservation_id) {
+        await db.from("tasks").update({ reservation_id: wanted }).eq("id", r.id);
+      }
+    }
+  } catch (e) {
+    console.error("relinkAutoCheckout", (e as Error).message);
+  }
+}
+
 /** Transforma em pendência a data que venceu e religa as já abertas ao checkout certo. */
 export async function materializeDue(db: AnyClient, userId: string, propertyIds?: string[]): Promise<void> {
   const today = todayISO();
+  await relinkAutoCheckout(db, propertyIds);
   let q = db.from("task_recurrences").select(COLS).eq("status", "active").not("next_date", "is", null);
   if (propertyIds?.length) q = q.in("property_id", propertyIds);
   const { data: series } = await q.limit(500);
@@ -405,4 +460,30 @@ export const skipRecurrenceOccurrence = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     if (row.property_id) await materializeDue(db, context.userId, [row.property_id]);
     return { ok: true };
+  });
+
+const CheckoutDaysInput = z.object({
+  propertyIds: z.array(z.string().uuid()).min(1).max(100),
+  from: DateStr,
+  to: DateStr,
+});
+
+/** Dias (AAAA-MM-DD) com checkout confirmado em QUALQUER dos imóveis: alimenta as bolinhas do calendário. */
+export const listCheckoutDays = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => CheckoutDaysInput.parse(i))
+  .handler(async ({ data, context }): Promise<{ days: string[] }> => {
+    const db = context.supabase as unknown as AnyClient;
+    const { data: rows } = await db
+      .from("property_reservations")
+      .select("checkout_date")
+      .in("property_id", data.propertyIds)
+      .eq("status", "confirmed")
+      .gte("checkout_date", data.from)
+      .lte("checkout_date", data.to)
+      .limit(2000);
+    const days = Array.from(
+      new Set(((rows ?? []) as Array<{ checkout_date: string }>).map((r) => r.checkout_date)),
+    ).sort();
+    return { days };
   });
