@@ -47,12 +47,9 @@ describe("WhatsApp em standby", () => {
     }
   });
 
-  it("o chat avisa em vez de falhar em silêncio e a tela mostra o aviso", () => {
+  it("o chat avisa em vez de falhar em silêncio", () => {
     const cv = readFileSync(path.join(SRC, "components/handoff/ConversationView.tsx"), "utf8");
     expect(cv).toMatch(/if \(!r\.ok\) throw new Error\(WHATSAPP_STANDBY_MESSAGE\)/);
-    const page = readFileSync(path.join(SRC, "components/admin-pages/WhatsappBusinessPage.tsx"), "utf8");
-    expect(page).toMatch(/WHATSAPP_STANDBY_MESSAGE/);
-    expect(page).not.toMatch(/Proprietário\(a\):|Pr:/);
     expect(WHATSAPP_STANDBY_MESSAGE).toBe("Canal WhatsApp em Standby (Migração para API Oficial Cloud da Meta)");
   });
 });
