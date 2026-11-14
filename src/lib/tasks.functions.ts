@@ -176,6 +176,11 @@ export const listTasks = createServerFn({ method: "GET" })
         data.ownerId ?? null,
       );
       const db = context.supabase as unknown as AnyClient;
+      // O checklist da limpeza lê pendências ligadas ao checkout: religa as avulsas antes (agenda mudou).
+      if (data.onlyCleaning) {
+        const { relinkAutoCheckout } = await import("@/lib/recurrences.functions");
+        await relinkAutoCheckout(db);
+      }
 
       let query = db
         .from("tasks")
@@ -419,6 +424,17 @@ export const createTask = createServerFn({ method: "POST" })
       data.ownerId ?? null,
     );
     const db = context.supabase as unknown as AnyClient;
+    const showInCleaning = data.showInCleaning ?? defaultShowInCleaning(data.category);
+    // Toda pendência que entra no checklist precisa estar presa a um card de checkout (13/11/2026):
+    // sem reserva escolhida, vale o checkout mais próximo (mesma regra das recorrências).
+    const autoLink = showInCleaning && !!data.propertyId && !data.reservationId && !data.logId;
+    const autoReservationId = autoLink
+      ? await (await import("@/lib/recurrences.functions")).autoLinkReservationId(
+          db,
+          data.propertyId as string,
+          data.dueDate ?? null,
+        )
+      : null;
     const { data: inserted, error } = await db
       .from("tasks")
       .insert({
@@ -426,7 +442,8 @@ export const createTask = createServerFn({ method: "POST" })
         property_id: data.propertyId ?? null,
         owner_contact_id: data.ownerContactId ?? null,
         log_id: data.logId ?? null,
-        reservation_id: data.reservationId ?? null,
+        reservation_id: data.reservationId ?? autoReservationId,
+        auto_link_checkout: autoLink,
         title: data.title,
         description: data.description ?? null,
         category: data.category,
@@ -439,7 +456,7 @@ export const createTask = createServerFn({ method: "POST" })
               : "other",
         priority: data.priority,
         due_date: data.dueDate ?? null,
-        show_in_cleaning: data.showInCleaning ?? defaultShowInCleaning(data.category),
+        show_in_cleaning: showInCleaning,
         amount_spent_cents: data.amountSpentCents ?? null,
         recurrence_days: data.recurrenceDays ?? null,
         created_by: context.userId,
