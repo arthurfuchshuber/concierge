@@ -1345,7 +1345,7 @@ export function buildAssistantTools(ctx: AssistantToolContext): AgentTool[] {
         ];
         if (titulo) preview.push({ label: "Título", value: titulo });
         if (descricao) preview.push({ label: "Descrição", value: descricao });
-        if (categoria === "damage" || categoria === "maintenance" || categoria === "forgotten") {
+        if (categoria === "damage" || categoria === "maintenance" || categoria === "forgotten" || categoria === "cleaning") {
           preview.push({ label: "Efeito", value: "Também abre uma pendência no Kanban" });
         }
 
