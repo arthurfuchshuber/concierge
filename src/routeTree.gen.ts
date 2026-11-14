@@ -38,6 +38,7 @@ import { Route as AuthenticatedAdminAtendimentoRouteImport } from './routes/_aut
 import { Route as AuthenticatedAdminDashboardRouteImport } from './routes/_authenticated/admin.dashboard'
 import { Route as AuthenticatedAdminEngajamentoRouteImport } from './routes/_authenticated/admin.engajamento'
 import { Route as AuthenticatedAdminEquipeRouteImport } from './routes/_authenticated/admin.equipe'
+import { Route as AuthenticatedAdminFiscalRouteImport } from './routes/_authenticated/admin.fiscal'
 import { Route as AuthenticatedAdminGuiasRouteImport } from './routes/_authenticated/admin.guias'
 import { Route as AuthenticatedAdminHospedesRouteImport } from './routes/_authenticated/admin.hospedes'
 import { Route as AuthenticatedAdminIaRouteImport } from './routes/_authenticated/admin.ia'
@@ -76,6 +77,7 @@ import { Route as ApiPublicCronBillingSyncRouteImport } from './routes/api/publi
 import { Route as ApiPublicCronCardCheckRouteImport } from './routes/api/public/cron.card-check'
 import { Route as ApiPublicCronChannexAriRetryRouteImport } from './routes/api/public/cron.channex-ari-retry'
 import { Route as ApiPublicCronConversationRemindersRouteImport } from './routes/api/public/cron.conversation-reminders'
+import { Route as ApiPublicCronFiscalReconcileRouteImport } from './routes/api/public/cron.fiscal-reconcile'
 import { Route as ApiPublicCronGuestMemoryRouteImport } from './routes/api/public/cron.guest-memory'
 import { Route as ApiPublicCronMalvoSyncRouteImport } from './routes/api/public/cron.malvo-sync'
 import { Route as ApiPublicCronOpsPushRouteImport } from './routes/api/public/cron.ops-push'
@@ -91,6 +93,7 @@ import { Route as ApiPublicWhatsappWebhookRouteImport } from './routes/api/publi
 import { Route as LovableEmailAuthPreviewRouteImport } from './routes/lovable/email/auth/preview'
 import { Route as LovableEmailAuthWebhookRouteImport } from './routes/lovable/email/auth/webhook'
 import { Route as LovableEmailTransactionalPreviewRouteImport } from './routes/lovable/email/transactional/preview'
+import { Route as ApiPublicWebhooksFiscalConnectionIdSecretRouteImport } from './routes/api/public/webhooks.fiscal.$connectionId.$secret'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -244,6 +247,12 @@ const AuthenticatedAdminEquipeRoute =
   AuthenticatedAdminEquipeRouteImport.update({
     id: '/equipe',
     path: '/equipe',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminFiscalRoute =
+  AuthenticatedAdminFiscalRouteImport.update({
+    id: '/fiscal',
+    path: '/fiscal',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
 const AuthenticatedAdminGuiasRoute = AuthenticatedAdminGuiasRouteImport.update({
@@ -462,6 +471,12 @@ const ApiPublicCronConversationRemindersRoute =
     path: '/api/public/cron/conversation-reminders',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicCronFiscalReconcileRoute =
+  ApiPublicCronFiscalReconcileRouteImport.update({
+    id: '/api/public/cron/fiscal-reconcile',
+    path: '/api/public/cron/fiscal-reconcile',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicCronGuestMemoryRoute =
   ApiPublicCronGuestMemoryRouteImport.update({
     id: '/api/public/cron/guest-memory',
@@ -545,6 +560,12 @@ const LovableEmailTransactionalPreviewRoute =
     path: '/lovable/email/transactional/preview',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicWebhooksFiscalConnectionIdSecretRoute =
+  ApiPublicWebhooksFiscalConnectionIdSecretRouteImport.update({
+    id: '/api/public/webhooks/fiscal/$connectionId/$secret',
+    path: '/api/public/webhooks/fiscal/$connectionId/$secret',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -574,6 +595,7 @@ export interface FileRoutesByFullPath {
   '/admin/dashboard': typeof AuthenticatedAdminDashboardRouteWithChildren
   '/admin/engajamento': typeof AuthenticatedAdminEngajamentoRoute
   '/admin/equipe': typeof AuthenticatedAdminEquipeRoute
+  '/admin/fiscal': typeof AuthenticatedAdminFiscalRoute
   '/admin/guias': typeof AuthenticatedAdminGuiasRoute
   '/admin/hospedes': typeof AuthenticatedAdminHospedesRoute
   '/admin/ia': typeof AuthenticatedAdminIaRoute
@@ -611,6 +633,7 @@ export interface FileRoutesByFullPath {
   '/api/public/cron/card-check': typeof ApiPublicCronCardCheckRoute
   '/api/public/cron/channex-ari-retry': typeof ApiPublicCronChannexAriRetryRoute
   '/api/public/cron/conversation-reminders': typeof ApiPublicCronConversationRemindersRoute
+  '/api/public/cron/fiscal-reconcile': typeof ApiPublicCronFiscalReconcileRoute
   '/api/public/cron/guest-memory': typeof ApiPublicCronGuestMemoryRoute
   '/api/public/cron/malvo-sync': typeof ApiPublicCronMalvoSyncRoute
   '/api/public/cron/ops-push': typeof ApiPublicCronOpsPushRoute
@@ -628,6 +651,7 @@ export interface FileRoutesByFullPath {
   '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
   '/admin/dashboard/': typeof AuthenticatedAdminDashboardIndexRoute
   '/admin/recomendacoes-sigma/': typeof AuthenticatedAdminRecomendacoesSigmaIndexRoute
+  '/api/public/webhooks/fiscal/$connectionId/$secret': typeof ApiPublicWebhooksFiscalConnectionIdSecretRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -654,6 +678,7 @@ export interface FileRoutesByTo {
   '/admin/atendimento': typeof AuthenticatedAdminAtendimentoRoute
   '/admin/engajamento': typeof AuthenticatedAdminEngajamentoRoute
   '/admin/equipe': typeof AuthenticatedAdminEquipeRoute
+  '/admin/fiscal': typeof AuthenticatedAdminFiscalRoute
   '/admin/guias': typeof AuthenticatedAdminGuiasRoute
   '/admin/hospedes': typeof AuthenticatedAdminHospedesRoute
   '/admin/ia': typeof AuthenticatedAdminIaRoute
@@ -691,6 +716,7 @@ export interface FileRoutesByTo {
   '/api/public/cron/card-check': typeof ApiPublicCronCardCheckRoute
   '/api/public/cron/channex-ari-retry': typeof ApiPublicCronChannexAriRetryRoute
   '/api/public/cron/conversation-reminders': typeof ApiPublicCronConversationRemindersRoute
+  '/api/public/cron/fiscal-reconcile': typeof ApiPublicCronFiscalReconcileRoute
   '/api/public/cron/guest-memory': typeof ApiPublicCronGuestMemoryRoute
   '/api/public/cron/malvo-sync': typeof ApiPublicCronMalvoSyncRoute
   '/api/public/cron/ops-push': typeof ApiPublicCronOpsPushRoute
@@ -708,6 +734,7 @@ export interface FileRoutesByTo {
   '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
   '/admin/dashboard': typeof AuthenticatedAdminDashboardIndexRoute
   '/admin/recomendacoes-sigma': typeof AuthenticatedAdminRecomendacoesSigmaIndexRoute
+  '/api/public/webhooks/fiscal/$connectionId/$secret': typeof ApiPublicWebhooksFiscalConnectionIdSecretRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -739,6 +766,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/dashboard': typeof AuthenticatedAdminDashboardRouteWithChildren
   '/_authenticated/admin/engajamento': typeof AuthenticatedAdminEngajamentoRoute
   '/_authenticated/admin/equipe': typeof AuthenticatedAdminEquipeRoute
+  '/_authenticated/admin/fiscal': typeof AuthenticatedAdminFiscalRoute
   '/_authenticated/admin/guias': typeof AuthenticatedAdminGuiasRoute
   '/_authenticated/admin/hospedes': typeof AuthenticatedAdminHospedesRoute
   '/_authenticated/admin/ia': typeof AuthenticatedAdminIaRoute
@@ -776,6 +804,7 @@ export interface FileRoutesById {
   '/api/public/cron/card-check': typeof ApiPublicCronCardCheckRoute
   '/api/public/cron/channex-ari-retry': typeof ApiPublicCronChannexAriRetryRoute
   '/api/public/cron/conversation-reminders': typeof ApiPublicCronConversationRemindersRoute
+  '/api/public/cron/fiscal-reconcile': typeof ApiPublicCronFiscalReconcileRoute
   '/api/public/cron/guest-memory': typeof ApiPublicCronGuestMemoryRoute
   '/api/public/cron/malvo-sync': typeof ApiPublicCronMalvoSyncRoute
   '/api/public/cron/ops-push': typeof ApiPublicCronOpsPushRoute
@@ -793,6 +822,7 @@ export interface FileRoutesById {
   '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
   '/_authenticated/admin/dashboard/': typeof AuthenticatedAdminDashboardIndexRoute
   '/_authenticated/admin/recomendacoes-sigma/': typeof AuthenticatedAdminRecomendacoesSigmaIndexRoute
+  '/api/public/webhooks/fiscal/$connectionId/$secret': typeof ApiPublicWebhooksFiscalConnectionIdSecretRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -824,6 +854,7 @@ export interface FileRouteTypes {
     | '/admin/dashboard'
     | '/admin/engajamento'
     | '/admin/equipe'
+    | '/admin/fiscal'
     | '/admin/guias'
     | '/admin/hospedes'
     | '/admin/ia'
@@ -861,6 +892,7 @@ export interface FileRouteTypes {
     | '/api/public/cron/card-check'
     | '/api/public/cron/channex-ari-retry'
     | '/api/public/cron/conversation-reminders'
+    | '/api/public/cron/fiscal-reconcile'
     | '/api/public/cron/guest-memory'
     | '/api/public/cron/malvo-sync'
     | '/api/public/cron/ops-push'
@@ -878,6 +910,7 @@ export interface FileRouteTypes {
     | '/lovable/email/transactional/preview'
     | '/admin/dashboard/'
     | '/admin/recomendacoes-sigma/'
+    | '/api/public/webhooks/fiscal/$connectionId/$secret'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -904,6 +937,7 @@ export interface FileRouteTypes {
     | '/admin/atendimento'
     | '/admin/engajamento'
     | '/admin/equipe'
+    | '/admin/fiscal'
     | '/admin/guias'
     | '/admin/hospedes'
     | '/admin/ia'
@@ -941,6 +975,7 @@ export interface FileRouteTypes {
     | '/api/public/cron/card-check'
     | '/api/public/cron/channex-ari-retry'
     | '/api/public/cron/conversation-reminders'
+    | '/api/public/cron/fiscal-reconcile'
     | '/api/public/cron/guest-memory'
     | '/api/public/cron/malvo-sync'
     | '/api/public/cron/ops-push'
@@ -958,6 +993,7 @@ export interface FileRouteTypes {
     | '/lovable/email/transactional/preview'
     | '/admin/dashboard'
     | '/admin/recomendacoes-sigma'
+    | '/api/public/webhooks/fiscal/$connectionId/$secret'
   id:
     | '__root__'
     | '/'
@@ -988,6 +1024,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/dashboard'
     | '/_authenticated/admin/engajamento'
     | '/_authenticated/admin/equipe'
+    | '/_authenticated/admin/fiscal'
     | '/_authenticated/admin/guias'
     | '/_authenticated/admin/hospedes'
     | '/_authenticated/admin/ia'
@@ -1025,6 +1062,7 @@ export interface FileRouteTypes {
     | '/api/public/cron/card-check'
     | '/api/public/cron/channex-ari-retry'
     | '/api/public/cron/conversation-reminders'
+    | '/api/public/cron/fiscal-reconcile'
     | '/api/public/cron/guest-memory'
     | '/api/public/cron/malvo-sync'
     | '/api/public/cron/ops-push'
@@ -1042,6 +1080,7 @@ export interface FileRouteTypes {
     | '/lovable/email/transactional/preview'
     | '/_authenticated/admin/dashboard/'
     | '/_authenticated/admin/recomendacoes-sigma/'
+    | '/api/public/webhooks/fiscal/$connectionId/$secret'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -1082,6 +1121,7 @@ export interface RootRouteChildren {
   ApiPublicCronCardCheckRoute: typeof ApiPublicCronCardCheckRoute
   ApiPublicCronChannexAriRetryRoute: typeof ApiPublicCronChannexAriRetryRoute
   ApiPublicCronConversationRemindersRoute: typeof ApiPublicCronConversationRemindersRoute
+  ApiPublicCronFiscalReconcileRoute: typeof ApiPublicCronFiscalReconcileRoute
   ApiPublicCronGuestMemoryRoute: typeof ApiPublicCronGuestMemoryRoute
   ApiPublicCronMalvoSyncRoute: typeof ApiPublicCronMalvoSyncRoute
   ApiPublicCronOpsPushRoute: typeof ApiPublicCronOpsPushRoute
@@ -1097,6 +1137,7 @@ export interface RootRouteChildren {
   LovableEmailAuthPreviewRoute: typeof LovableEmailAuthPreviewRoute
   LovableEmailAuthWebhookRoute: typeof LovableEmailAuthWebhookRoute
   LovableEmailTransactionalPreviewRoute: typeof LovableEmailTransactionalPreviewRoute
+  ApiPublicWebhooksFiscalConnectionIdSecretRoute: typeof ApiPublicWebhooksFiscalConnectionIdSecretRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -1302,6 +1343,13 @@ declare module '@tanstack/react-router' {
       path: '/equipe'
       fullPath: '/admin/equipe'
       preLoaderRoute: typeof AuthenticatedAdminEquipeRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/fiscal': {
+      id: '/_authenticated/admin/fiscal'
+      path: '/fiscal'
+      fullPath: '/admin/fiscal'
+      preLoaderRoute: typeof AuthenticatedAdminFiscalRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
     '/_authenticated/admin/guias': {
@@ -1570,6 +1618,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicCronConversationRemindersRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/cron/fiscal-reconcile': {
+      id: '/api/public/cron/fiscal-reconcile'
+      path: '/api/public/cron/fiscal-reconcile'
+      fullPath: '/api/public/cron/fiscal-reconcile'
+      preLoaderRoute: typeof ApiPublicCronFiscalReconcileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/cron/guest-memory': {
       id: '/api/public/cron/guest-memory'
       path: '/api/public/cron/guest-memory'
@@ -1675,6 +1730,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LovableEmailTransactionalPreviewRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/webhooks/fiscal/$connectionId/$secret': {
+      id: '/api/public/webhooks/fiscal/$connectionId/$secret'
+      path: '/api/public/webhooks/fiscal/$connectionId/$secret'
+      fullPath: '/api/public/webhooks/fiscal/$connectionId/$secret'
+      preLoaderRoute: typeof ApiPublicWebhooksFiscalConnectionIdSecretRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -1715,6 +1777,7 @@ interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminDashboardRoute: typeof AuthenticatedAdminDashboardRouteWithChildren
   AuthenticatedAdminEngajamentoRoute: typeof AuthenticatedAdminEngajamentoRoute
   AuthenticatedAdminEquipeRoute: typeof AuthenticatedAdminEquipeRoute
+  AuthenticatedAdminFiscalRoute: typeof AuthenticatedAdminFiscalRoute
   AuthenticatedAdminGuiasRoute: typeof AuthenticatedAdminGuiasRoute
   AuthenticatedAdminHospedesRoute: typeof AuthenticatedAdminHospedesRoute
   AuthenticatedAdminIaRoute: typeof AuthenticatedAdminIaRoute
@@ -1738,6 +1801,7 @@ const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
     AuthenticatedAdminDashboardRouteWithChildren,
   AuthenticatedAdminEngajamentoRoute: AuthenticatedAdminEngajamentoRoute,
   AuthenticatedAdminEquipeRoute: AuthenticatedAdminEquipeRoute,
+  AuthenticatedAdminFiscalRoute: AuthenticatedAdminFiscalRoute,
   AuthenticatedAdminGuiasRoute: AuthenticatedAdminGuiasRoute,
   AuthenticatedAdminHospedesRoute: AuthenticatedAdminHospedesRoute,
   AuthenticatedAdminIaRoute: AuthenticatedAdminIaRoute,
@@ -1826,6 +1890,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicCronChannexAriRetryRoute: ApiPublicCronChannexAriRetryRoute,
   ApiPublicCronConversationRemindersRoute:
     ApiPublicCronConversationRemindersRoute,
+  ApiPublicCronFiscalReconcileRoute: ApiPublicCronFiscalReconcileRoute,
   ApiPublicCronGuestMemoryRoute: ApiPublicCronGuestMemoryRoute,
   ApiPublicCronMalvoSyncRoute: ApiPublicCronMalvoSyncRoute,
   ApiPublicCronOpsPushRoute: ApiPublicCronOpsPushRoute,
@@ -1844,6 +1909,8 @@ const rootRouteChildren: RootRouteChildren = {
   LovableEmailAuthPreviewRoute: LovableEmailAuthPreviewRoute,
   LovableEmailAuthWebhookRoute: LovableEmailAuthWebhookRoute,
   LovableEmailTransactionalPreviewRoute: LovableEmailTransactionalPreviewRoute,
+  ApiPublicWebhooksFiscalConnectionIdSecretRoute:
+    ApiPublicWebhooksFiscalConnectionIdSecretRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

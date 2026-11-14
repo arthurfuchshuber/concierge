@@ -200,6 +200,8 @@ const ADMINISTRATIVO: Def[] = [
   act("tenant.administrativo.integracoes.whatsapp", "WhatsApp", 30),
 ];
 
+
+
 /* ================================================================ ADMIN SAAS */
 
 const SAAS_ENGAJAMENTO: Def[] = [
