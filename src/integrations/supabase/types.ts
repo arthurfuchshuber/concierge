@@ -7639,6 +7639,7 @@ export type Database = {
           interval_n: number
           next_date: string | null
           property_id: string
+          series_key: string | null
           start_date: string
           status: string
           title: string
@@ -7658,6 +7659,7 @@ export type Database = {
           interval_n?: number
           next_date?: string | null
           property_id: string
+          series_key?: string | null
           start_date: string
           status?: string
           title: string
@@ -7677,6 +7679,7 @@ export type Database = {
           interval_n?: number
           next_date?: string | null
           property_id?: string
+          series_key?: string | null
           start_date?: string
           status?: string
           title?: string
