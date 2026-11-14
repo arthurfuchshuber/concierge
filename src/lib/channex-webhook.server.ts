@@ -106,7 +106,26 @@ async function gravarReservaOficial(admin: SupabaseAdmin, booking: ResolvedBooki
   const a = booking as any;
   const propertyId = await imovelDoQuarto(admin, roomTypeId, txt(a.property_id));
   const bookingId = booking._bookingId ?? a.booking_id ?? null;
-  if (!propertyId || !bookingId || !a.arrival_date || !a.departure_date) return;
+  if (!propertyId || !bookingId || !a.arrival_date || !a.departure_date) {
+    const otaCode = txt(booking.ota_reservation_code);
+    const motivo = [
+      !propertyId ? "imóvel não resolvido" : null,
+      !bookingId ? "bookingId ausente" : null,
+      !a.arrival_date ? "data de entrada ausente" : null,
+      !a.departure_date ? "data de saída ausente" : null,
+    ].filter(Boolean).join("; ");
+    console.error("[channex] reserva sem imóvel/datas — não gravada em property_reservations", { bookingId, otaCode, roomTypeId, motivo });
+    // Diagnóstico consultável e idempotente; preserva o raw habitual e o ACK posterior.
+    const { saveRawRecords } = await import("@/lib/channex-raw.server");
+    await saveRawRecords([{
+      entity_type: "booking_revision_unmapped",
+      channex_id: String(booking._revisionId ?? booking.revision_id ?? booking.unique_id ?? booking.ota_reservation_code ?? booking.id),
+      parent_id: booking._bookingId ?? null,
+      payload: booking,
+      source: "webhook",
+    }]);
+    return;
+  }
   const c = a.customer ?? {};
   const main = [c.name, c.surname].filter(Boolean).join(" ").trim();
   const rooms = (a.rooms ?? []) as Array<Record<string, unknown>>;
@@ -204,9 +223,6 @@ async function aplicarReserva(supabaseAdmin: SupabaseAdmin, payload: unknown) {
   const somenteUuid = (v: unknown): string | null =>
     typeof v === "string" && UUID.test(v.trim()) ? v.trim() : null;
   const roomTypeId = somenteUuid(room.room_type_id);
-  const ratePlanId = somenteUuid(room.rate_plan_id);
-  // Mantém a validação do UUID da tarifa; o vínculo oficial usa o quarto.
-  void ratePlanId;
 
   // Reserva oficial do imóvel (API, nunca iCal): grava em property_reservations.
   await gravarReservaOficial(supabaseAdmin, booking, roomTypeId);

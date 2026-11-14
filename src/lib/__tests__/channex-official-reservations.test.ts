@@ -94,11 +94,11 @@ describe("revisão recebida pelo feed de webhooks", () => {
     arrival_date: "2026-11-14", departure_date: "2026-11-15", customer: { name: "Teste" },
     rooms: [{ room_type_id: input.roomTypeId, rate_plan_id: input.ratePlanId }],
   } };
-  function mockNetwork() {
+  function mockNetwork(feedRevision = revision) {
     vi.stubEnv("CHANNEX_API_KEY", "test-only");
     vi.stubGlobal("fetch", vi.fn(async (url: string) => {
       if (url.endsWith("/ack")) state.sequence.push("ACK");
-      return new Response(JSON.stringify(url.endsWith("/feed") ? { data: [revision] } : {}), { status: 200 });
+      return new Response(JSON.stringify(url.endsWith("/feed") ? { data: [feedRevision] } : {}), { status: 200 });
     }));
     state.rows.property_listing_raw_data = [{ property_id: "internal-property" }];
   }
@@ -120,6 +120,34 @@ describe("revisão recebida pelo feed de webhooks", () => {
     state.errors.property_reservations = "write failed";
     expect((await puxarFeedReservas()).falhas).toEqual(["write failed"]);
     expect(state.sequence).not.toContain("ACK");
+  });
+  it.each([
+    ["imóvel", "imóvel não resolvido"],
+    ["booking_id", "bookingId ausente"],
+    ["arrival_date", "data de entrada ausente"],
+    ["departure_date", "data de saída ausente"],
+  ])("registra revisão sem %s e mantém raw → ACK sem gravar reserva", async (missing, motivo) => {
+    const attributes = { ...revision.attributes };
+    if (missing !== "imóvel") Reflect.deleteProperty(attributes, missing);
+    const unmapped = { ...revision, attributes };
+    mockNetwork(unmapped);
+    if (missing === "imóvel") state.rows.property_listing_raw_data = [];
+    const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    try {
+      expect(await puxarFeedReservas()).toEqual({ recebidas: 1, processadas: 1, falhas: [] });
+      expect(state.calls.some(c => c.table === "property_reservations" && c.op === "upsert")).toBe(false);
+      const raw = state.calls.filter(c => c.table === "channex_raw_records" && c.op === "upsert").flatMap(c => c.payload);
+      expect(raw.map(r => r.entity_type)).toEqual(["booking_revision_unmapped", "booking_revision"]);
+      expect(raw[0]).toMatchObject({ channex_id: "revision-1", source: "webhook", payload: expect.objectContaining(attributes) });
+      expect(state.sequence.lastIndexOf("channex_raw_records:upsert")).toBeLessThan(state.sequence.indexOf("ACK"));
+      expect(state.sequence).toContain("ACK");
+      expect(log).toHaveBeenCalledExactlyOnceWith(
+        "[channex] reserva sem imóvel/datas — não gravada em property_reservations",
+        { bookingId: missing === "booking_id" ? null : "booking-1", otaCode: "CODE-1", roomTypeId: input.roomTypeId, motivo },
+      );
+    } finally {
+      log.mockRestore();
+    }
   });
 });
 
