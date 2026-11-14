@@ -31,6 +31,10 @@ type AirbnbAccountListing = {
   ownerName: string | null;
   ownerPhone: string | null;
   ownerPhoneCountry: string | null;
+  /** Foto de capa (mockups abnb "foto + endereço completo"): do imóvel importado ou do anúncio. */
+  imageUrl: string | null;
+  /** Endereço completo do imóvel já importado (anúncio solto só tem a cidade). */
+  address: string | null;
 };
 
 async function ctx(
@@ -49,7 +53,45 @@ async function ctx(
 /** Todos os anúncios dos canais do Airbnb já conectados à conta. */
 type Admin = Awaited<ReturnType<typeof ctx>>["admin"];
 
-const NO_OWNER = { ownerName: null, ownerPhone: null, ownerPhoneCountry: null };
+const NO_OWNER = {
+  ownerName: null,
+  ownerPhone: null,
+  ownerPhoneCountry: null,
+  imageUrl: null,
+  address: null,
+};
+
+/** Busca a capa dos anúncios soltos que ainda não têm (no máximo 24 por chamada, 6 de cada vez). */
+async function fillLooseCovers(
+  out: AirbnbAccountListing[],
+  payloads: Map<string, Record<string, unknown>>,
+) {
+  const todo = out.filter((l) => !l.imported && !l.imageUrl && !coverTried.has(l.listingId)).slice(0, 24);
+  if (todo.length === 0) return;
+  const { fetchListingCover } = await import("@/lib/airbnb-cover.server");
+  const { saveRawRecords } = await import("@/lib/channex-raw.server");
+  for (let i = 0; i < todo.length; i += 6) {
+    await Promise.all(
+      todo.slice(i, i + 6).map(async (l) => {
+        const cover = await fetchListingCover(l.listingId).catch(() => null);
+        l.imageUrl = cover;
+        if (!cover) coverTried.add(l.listingId);
+        if (cover)
+          await saveRawRecords([
+            {
+              entity_type: "channel_listing",
+              channex_id: l.listingId,
+              parent_id: l.channelId,
+              payload: { ...(payloads.get(l.listingId) ?? { id: l.listingId, title: l.title }), _cover: cover },
+              source: "airbnb-accounts",
+            },
+          ]).catch(() => 0);
+      }),
+    );
+  }
+}
+/** Anúncios sem capa no Airbnb nesta instância (evita tentar de novo a cada abertura). */
+const coverTried = new Set<string>();
 
 async function loadInventory(
   admin: Admin,
@@ -89,6 +131,7 @@ async function loadInventory(
   const { saveRawRecords } = await import("@/lib/channex-raw.server");
   type Meta = Record<string, unknown>;
   const out: AirbnbAccountListing[] = [];
+  const payloadById = new Map<string, Meta>();
   for (const channelId of channels) {
     // Catálogo: do cache local (`channex_raw_records`); ao vivo só no ReSincronizar
     // (ou quando a conta acabou de ser conectada e ainda não tem cache).
@@ -124,6 +167,7 @@ async function loadInventory(
     for (const m of values) {
       const id = String(m.id);
       seen.add(id);
+      payloadById.set(id, m);
       const row = byListing.get(id);
       out.push({
         listingId: id,
@@ -135,6 +179,7 @@ async function loadInventory(
         propertyId: row?.property_id ?? twinOf.get(id) ?? null,
         notFound: false,
         ...NO_OWNER,
+        imageUrl: typeof m._cover === "string" ? m._cover : null,
       });
     }
     // Importado que sumiu do Airbnb: só sinaliza ("Não encontrado no Airbnb"). Nunca arquiva nem apaga.
@@ -177,13 +222,23 @@ async function loadInventory(
       }
     }
   }
+  // Capa dos anúncios ainda não importados: lida uma vez do Airbnb (og:image, custo zero)
+  // e guardada no cache do catálogo (`_cover`); `null` guardado = não tentar de novo.
+  await fillLooseCovers(out, payloadById).catch((e) => console.error("[inventory] capas", e));
   // Proprietário de cada imóvel já importado.
   const propIds = [...new Set(out.map((l) => l.propertyId).filter(Boolean) as string[])];
   if (propIds.length > 0) {
     const { data: props } = await admin
       .from("properties")
-      .select("id, owner_contact_id")
+      .select("id, owner_contact_id, hero_image_url, gallery_images, address")
       .in("id", propIds);
+    const propById = new Map((props ?? []).map((p) => [p.id, p]));
+    for (const l of out) {
+      const p = l.propertyId ? propById.get(l.propertyId) : undefined;
+      if (!p) continue;
+      l.imageUrl = p.hero_image_url || (p.gallery_images ?? [])[0] || l.imageUrl;
+      l.address = p.address ?? null;
+    }
     const ownerIds = [
       ...new Set((props ?? []).map((p) => p.owner_contact_id).filter(Boolean) as string[]),
     ];
@@ -505,6 +560,8 @@ export type UnsyncedProperty = {
   imageUrl: string | null;
   /** Todas as fotos conhecidas (capa primeiro), para o app tentar a próxima se uma falhar. */
   imageUrls: string[];
+  /** Endereço completo (mockups de sincronizar: "foto + endereço completo"). */
+  address: string | null;
 };
 
 /**
@@ -520,7 +577,7 @@ export const listUnsyncedProperties = createServerFn({ method: "GET" })
     const baseQ = () =>
       admin
         .from("properties")
-        .select("id, name, city, owner_contact_id, hero_image_url, gallery_images")
+        .select("id, name, city, address, owner_contact_id, hero_image_url, gallery_images")
         .eq("owner_id", accountId)
         .is("archived_at", null);
     // "Não sincronizar este imóvel": quem foi dispensado não trava o painel nem entra no alerta.
@@ -588,6 +645,7 @@ export const listUnsyncedProperties = createServerFn({ method: "GET" })
           id: p.id,
           name: p.name as string,
           city: (p.city as string | null) ?? null,
+          address: ((p as { address?: string | null }).address as string | null) ?? null,
           ownerName: o ? String(o.trade_name || o.name || "") || null : null,
           ownerPhone: o?.phone ?? null,
           ownerPhoneCountry: o?.phone_country ?? null,

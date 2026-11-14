@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { createFileRoute, Outlet } from "@tanstack/react-router";
 import { SyncAlertBanner } from "@/components/stakeholders/SyncAlertBanner";
+import { AirbnbOnboardingCard } from "@/components/stakeholders/AirbnbOnboarding";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 
@@ -27,6 +28,7 @@ function OperationLayout() {
 
   return (
     <>
+      <AirbnbOnboardingCard />
       <SyncAlertBanner />
       <Outlet />
       <Dialog open={!!returned} onOpenChange={(o) => !o && setReturned(null)}>

@@ -25,6 +25,7 @@ const info = (p: UnsyncedProperty) => ({
   id: p.id,
   name: p.name,
   city: p.city,
+  address: p.address,
   ownerName: p.ownerName,
   ownerPhone: p.ownerPhone,
   ownerPhoneCountry: p.ownerPhoneCountry,

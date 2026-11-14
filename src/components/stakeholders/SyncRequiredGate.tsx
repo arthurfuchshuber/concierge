@@ -8,7 +8,6 @@ import { useAnyWindowOpen } from "@/lib/global-overlay-store";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { ClampName } from "@/components/ui/clamp-name";
 import { PropertyThumb } from "@/components/ui/property-thumb";
-import { PhoneActionButton } from "@/components/PhoneActionButton";
 import { AirbnbAccountFlow, type AirbnbFlowRequest } from "./AirbnbAccountFlow";
 
 /**
@@ -102,6 +101,7 @@ export function SyncRequiredGate() {
     id: p.id,
     name: p.name,
     city: p.city,
+    address: p.address,
     ownerName: p.ownerName,
     ownerPhone: p.ownerPhone,
     ownerPhoneCountry: p.ownerPhoneCountry,
@@ -273,13 +273,6 @@ export function SyncRequiredGate() {
                             <span className="truncate">
                               <b className="font-semibold text-foreground">{cur.ownerName}</b>
                             </span>
-                            <PhoneActionButton
-                              phone={cur.ownerPhone}
-                              country={cur.ownerPhoneCountry}
-                              size={11}
-                              alwaysShow
-                              className="shrink-0 !p-0"
-                            />
                           </>
                         ) : null}
                       </div>

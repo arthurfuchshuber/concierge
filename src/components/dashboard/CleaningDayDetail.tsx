@@ -687,11 +687,12 @@ export function CleaningDayDetailContent({
       {/* CABEÇALHO UNIVERSAL DE JANELA AMPLA (07/11/2026, referência: "Check-ins
           amanhã"): sem ícone, título 14px negrito em 1 linha e subtítulo 12px;
           o `pr-14` deixa o "X" oficial (canto superior direito) livre. */}
-      <DialogHeader className="shrink-0 border-b border-border/40 px-4 pb-2.5 pt-3 pr-12 text-left sm:mx-6">
-        <DialogTitle className="truncate text-sm font-bold leading-5 text-foreground" title={heading}>
+      {/* Mockup det-lanc-a (12/11/2026, fonte da verdade): título 16px extranegrito, subtítulo 13px. */}
+      <DialogHeader className="shrink-0 border-b border-foreground/[0.08] pb-3 pl-[18px] pr-14 pt-4 text-left sm:mx-6">
+        <DialogTitle className="truncate text-[16px] font-extrabold leading-[1.25] text-foreground" title={heading}>
           {windowTitle(heading)}
         </DialogTitle>
-        <p className="text-xs leading-4 text-muted-foreground">{subtitle}</p>
+        <p className="text-[13px] leading-[1.35] text-muted-foreground">{subtitle}</p>
       </DialogHeader>
       {/* O rodapé reserva a mesma calha da barra de rolagem da lista, para o
           "Valor Total" cair exatamente na coluna dos valores dos cards. */}

@@ -11,7 +11,6 @@ import { useUnsyncedProperties } from "./useUnsyncedProperties";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { ClampName } from "@/components/ui/clamp-name";
 import { PropertyThumb } from "@/components/ui/property-thumb";
-import { PhoneActionButton } from "@/components/PhoneActionButton";
 import { CopyButton } from "@/components/CopyButton";
 
 /**
@@ -260,13 +259,6 @@ export function FullConnectGate() {
                         <b className="min-w-0 truncate font-semibold text-foreground">
                           {it.ownerName}
                         </b>
-                        <PhoneActionButton
-                          phone={it.ownerPhone}
-                          country={it.ownerPhoneCountry}
-                          size={11}
-                          alwaysShow
-                          className="shrink-0 !p-0"
-                        />
                       </small>
                     ) : null}
                   </span>

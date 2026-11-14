@@ -5,9 +5,8 @@ import { ChevronRight, Clock3 } from "lucide-react";
 import { toast } from "sonner";
 import { FinanceEntryDetail } from "@/components/dashboard/FinanceEntryDetail";
 import { FINANCE_WINDOW_CLASS } from "@/components/dashboard/wide-window";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { OwnerLine } from "@/components/dashboard/OwnerLine";
-import { ClampName } from "@/components/ui/clamp-name";
 import { PANEL_SHELL, PanelHeading, CountPill } from "@/components/dashboard/panel-chrome";
 import { notifyAction } from "@/components/UndoActionBar";
 import {
@@ -64,7 +63,12 @@ export function CleaningApprovalPanel({
   const decideFn = useServerFn(decideCleaningApproval);
   const undoFn = useServerFn(undoCleaningDecision);
   const qc = useQueryClient();
-  const [openItem, setOpenItem] = useState<CleaningApprovalItem | null>(null);
+  /* Janela "Aprovação de limpezas" (mockups det-lanc-d/e): lista e detalhe na MESMA janela.
+     Tocar num cartão abre direto o detalhe; "Voltar" mostra a lista com o cartão tocado em destaque. */
+  const [win, setWin] = useState<{ focusId: string; detail: CleaningApprovalItem | null } | null>(
+    null,
+  );
+  const openItem = win?.detail ?? null;
 
   const q = useQuery({
     queryKey: [CLEANING_APPROVALS_KEY, ownerId ?? "self", propertyIds?.join(",") ?? ""],
@@ -167,13 +171,17 @@ export function CleaningApprovalPanel({
             item={it}
             canApprove={canApprove}
             onDecide={(decision) => decide(it, decision)}
-            onOpen={() => setOpenItem(it)}
+            onOpen={() => setWin({ focusId: it.id, detail: it })}
           />
         ))}
       </div>
-      {/* Detalhe do pedido numa janela (mockup de 12/11/2026): decide-se dali também. */}
-      <Dialog open={!!openItem} onOpenChange={(v) => !v && setOpenItem(null)}>
-        <DialogContent aria-describedby={undefined} className={FINANCE_WINDOW_CLASS}>
+      {/* Janela "Aprovação de limpezas" (mockups det-lanc-d/e de 12/11/2026). */}
+      <Dialog open={!!win && items.length > 0} onOpenChange={(v) => !v && setWin(null)}>
+        <DialogContent
+          aria-describedby={undefined}
+          className={FINANCE_WINDOW_CLASS}
+          onBack={openItem ? () => setWin((w) => (w ? { ...w, detail: null } : w)) : undefined}
+        >
           {openItem ? (
             <FinanceEntryDetail
               entry={{
@@ -195,32 +203,16 @@ export function CleaningApprovalPanel({
                   reservationId: openItem.reservationId,
                 },
               }}
-              onNavigate={() => setOpenItem(null)}
+              onNavigate={() => setWin(null)}
               approval={{
                 normalPriceCents: openItem.normalPriceCents,
                 footer: canApprove ? (
-                  <div className="grid grid-cols-2 gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        decide(openItem, "normal");
-                        setOpenItem(null);
-                      }}
-                      className="h-10 rounded-md border border-border text-[12.5px] font-bold transition-colors hover:bg-secondary/50 active:scale-[0.98]"
-                    >
-                      Foi normal
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        decide(openItem, "approve");
-                        setOpenItem(null);
-                      }}
-                      className="flex h-10 items-center justify-center rounded-md bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] text-[12.5px] font-bold text-white transition-opacity hover:opacity-90 active:scale-[0.98]"
-                    >
-                      Aprovar completa
-                    </button>
-                  </div>
+                  <DecisionButtons
+                    onDecide={(decision) => {
+                      decide(openItem, decision);
+                      setWin((w) => (w ? { ...w, detail: null } : w));
+                    }}
+                  />
                 ) : (
                   <p className="ds-atencao text-center text-[10.5px] font-extrabold uppercase tracking-[0.1em]">
                     Aguardando aprovação
@@ -228,7 +220,32 @@ export function CleaningApprovalPanel({
                 ),
               }}
             />
-          ) : null}
+          ) : (
+            <div className="flex min-h-0 flex-col">
+              <div className="shrink-0 pb-3 pl-[18px] pr-14 pt-4">
+                <DialogTitle className="font-display text-[17px] font-extrabold leading-[1.25]">
+                  Aprovação de limpezas
+                </DialogTitle>
+                <p className="text-[12.5px] text-muted-foreground">
+                  {items.length === 1
+                    ? "1 limpeza aguardando aprovação"
+                    : `${items.length} limpezas aguardando aprovação`}
+                </p>
+              </div>
+              <div className="min-h-0 flex-1 overflow-y-auto pb-2.5">
+                {items.map((it) => (
+                  <ApprovalWindowRow
+                    key={it.id}
+                    item={it}
+                    focused={win?.focusId === it.id}
+                    canApprove={canApprove}
+                    onOpen={() => setWin({ focusId: it.id, detail: it })}
+                    onDecide={(decision) => decide(it, decision)}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </section>
@@ -260,8 +277,14 @@ function ApprovalRow({
       >
         <div className="min-w-0">
           {/* Regra global (29/10/2026): título do imóvel primeiro, proprietário + chat logo abaixo; título em 1 linha. */}
-          <ClampName text={item.propertyName} className="ds-card-title" />
-          <OwnerLine name={item.ownerName} phone={item.ownerPhone} country={item.ownerPhoneCountry} phonePosition="adjacent" />
+          {/* Mockup det-lanc-d: o nome do imóvel quebra em até 2 linhas. */}
+          <p className="ds-card-title line-clamp-2 break-words">{item.propertyName}</p>
+          <OwnerLine
+            name={item.ownerName}
+            phone={item.ownerPhone}
+            country={item.ownerPhoneCountry}
+            phonePosition="adjacent"
+          />
           {meta && <p className="mt-0.5 truncate text-[11px] text-muted-foreground">{meta}</p>}
         </div>
         <div className="shrink-0 text-right">
@@ -275,27 +298,105 @@ function ApprovalRow({
         </div>
       </div>
       {canApprove ? (
-        <div className="grid grid-cols-2 gap-1.5">
-          <button
-            type="button"
-            onClick={() => onDecide("normal")}
-            className="h-10 rounded-md border border-border text-[12.5px] font-bold transition-colors hover:bg-secondary/50 active:scale-[0.98]"
-          >
-            Foi normal
-          </button>
-          <button
-            type="button"
-            onClick={() => onDecide("approve")}
-            className="flex h-10 items-center justify-center rounded-md bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] text-[12.5px] font-bold text-white transition-opacity hover:opacity-90 active:scale-[0.98]"
-          >
-            Aprovar completa
-          </button>
-        </div>
+        <DecisionButtons onDecide={onDecide} />
       ) : (
         <p className="ds-atencao text-[10.5px] font-extrabold uppercase tracking-[0.1em]">
           Aguardando aprovação
         </p>
       )}
+    </div>
+  );
+}
+
+/** "Foi normal" / "Aprovar completa" (mockups det-lanc-d/e: 40px, cantos de 8px, gap de 6px). */
+function DecisionButtons({ onDecide }: { onDecide: (decision: "approve" | "normal") => void }) {
+  return (
+    <div className="grid grid-cols-2 gap-1.5">
+      <button
+        type="button"
+        onClick={() => onDecide("normal")}
+        className="h-10 rounded-lg text-[12.5px] font-bold shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_16%,transparent)] transition-colors hover:bg-secondary/50 active:scale-[0.98]"
+      >
+        Foi normal
+      </button>
+      <button
+        type="button"
+        onClick={() => onDecide("approve")}
+        className="flex h-10 items-center justify-center rounded-lg bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] text-[12.5px] font-bold text-white transition-opacity hover:opacity-90 active:scale-[0.98]"
+      >
+        Aprovar completa
+      </button>
+    </div>
+  );
+}
+
+/** Cartão da janela "Aprovação de limpezas" (mockup det-lanc-d): o tocado fica em destaque. */
+function ApprovalWindowRow({
+  item,
+  focused,
+  canApprove,
+  onOpen,
+  onDecide,
+}: {
+  item: CleaningApprovalItem;
+  focused: boolean;
+  canApprove: boolean;
+  onOpen: () => void;
+  onDecide: (decision: "approve" | "normal") => void;
+}) {
+  const meta = [whenLabel(item.concludedAt), item.doneByName ? `por ${item.doneByName}` : null]
+    .filter(Boolean)
+    .join(" · ");
+  return (
+    <div
+      className={`relative border-t border-foreground/[0.08] px-[18px] py-3 ${
+        focused ? "bg-foreground/[0.07] shadow-[inset_2px_0_0_#a855f7]" : ""
+      }`}
+    >
+      <div
+        className="flex cursor-pointer justify-between gap-2.5"
+        onClick={(e) => {
+          if ((e.target as HTMLElement).closest("button, a, input, [role=button]")) return;
+          onOpen();
+        }}
+      >
+        <div className="min-w-0">
+          <p className="break-words text-[14.5px] font-bold leading-[1.25]">{item.propertyName}</p>
+          <OwnerLine
+            name={item.ownerName}
+            phone={item.ownerPhone}
+            country={item.ownerPhoneCountry}
+            phonePosition="adjacent"
+            size={15}
+            className="mt-[3px] !text-[13px]"
+          />
+          {meta ? <p className="mt-[3px] text-[11.5px] text-muted-foreground">{meta}</p> : null}
+        </div>
+        <div className="shrink-0 text-right">
+          <p className="font-display text-[15px] font-extrabold tabular-nums">
+            {brl(item.priceCents)}
+          </p>
+          {item.normalPriceCents != null ? (
+            <p className="text-[10.5px] text-muted-foreground">
+              normal: {brl(item.normalPriceCents)}
+            </p>
+          ) : null}
+          <ChevronRight
+            className="ml-auto mt-1 size-3.5 text-foreground/45"
+            strokeWidth={2.2}
+            aria-hidden
+          />
+        </div>
+      </div>
+      <div className="mt-2.5">
+        {canApprove ? (
+          <DecisionButtons onDecide={onDecide} />
+        ) : (
+          <p className="ds-atencao text-[10.5px] font-extrabold uppercase tracking-[0.1em]">
+            Aguardando aprovação
+          </p>
+        )}
+      </div>
     </div>
   );
 }
