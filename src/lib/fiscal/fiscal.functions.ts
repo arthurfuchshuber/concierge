@@ -141,6 +141,16 @@ export const fiscalDocumentFiles = createServerFn({ method: "GET" })
     return { files: await s.listDocumentFiles(db, ownerId, data.documentId) };
   });
 
+/** Busca no provedor e guarda XML/PDF de uma nota autorizada (idempotente). */
+export const fiscalCaptureFiles = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => Owner.extend({ documentId: uuid }).parse(i))
+  .handler(async ({ data, context }) => {
+    const s = await svc();
+    const { db, ownerId } = await s.authorizeFiscal(context.userId, data.ownerId, "documentos.consultar");
+    return s.captureDocumentFiles(db, ownerId, data.documentId);
+  });
+
 /** Link assinado curto (60 s) do XML/PDF da nota, só para o titular. */
 export const fiscalDocumentFileUrl = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

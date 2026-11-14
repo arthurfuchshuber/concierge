@@ -5,9 +5,9 @@
 import { createHash, createHmac, randomBytes } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { decryptConnectionKey, encryptConnectionKey } from "@/lib/connection-key-crypto.server";
-import { FocusClient, FocusTransportError, type FetchLike, type FocusDocumentPath, type FocusEnvironment } from "./focus/client";
+import { extractFileLinks, FocusClient, FocusTransportError, type FetchLike, type FocusDocumentPath, type FocusEnvironment } from "./focus/client";
 import { buildCompanyBody, CertificateInputError, formatCertificateLabel, parseCertificateExpiry, scrubCertificate, validateCertificateInput } from "./certificate";
-import { certificateAlert, contentType, FILE_URL_TTL_SECONDS, FISCAL_BUCKET, FiscalFileError, filePath, sha256Bytes, validateFiscalFile, type CertificateAlert, type FileKind } from "./files";
+import { certificateAlert, contentType, FILE_URL_TTL_SECONDS, FISCAL_BUCKET, FiscalFileError, MAX_FILE_BYTES, filePath, sha256Bytes, validateFiscalFile, type CertificateAlert, type FileKind } from "./files";
 import { requireFiscalAccess, type FiscalAction, type FiscalGuardPorts } from "./guard";
 import { redactBody, hashBody } from "./redact";
 import { reconcileOne, type ReconcileCandidate } from "./reconcile";
@@ -144,6 +144,39 @@ export async function storeDocumentFile(db: Db, ownerId: string, userId: string 
   }
   await audit(db, ownerId, userId, "document_file_store", "document", args.documentId, { kind: args.kind, sha256: sha, size: args.bytes.byteLength });
   return { id: ins.data.id as string, created: true };
+}
+
+/**
+ * Captura XML/PDF de um documento AUTORIZADO: consulta o provedor (única fonte), lê `caminho_xml_nota_fiscal` e
+ * `caminho_danfe`/`caminho_pdf`, baixa só de hosts da Focus e grava no bucket privado. Idempotente; falha de um arquivo
+ * não impede o outro. Nunca altera o estado fiscal do documento.
+ */
+export async function captureDocumentFiles(db: Db, ownerId: string, documentId: string, fetchImpl?: FetchLike): Promise<{ stored: FileKind[]; skipped: Array<{ kind: FileKind; reason: string }> }> {
+  const { data: doc } = await db.from("fiscal_documents").select("id, company_id, document_kind, status, ref").eq("id", documentId).eq("owner_id", ownerId).maybeSingle();
+  if (!doc) throw new Error("Documento fiscal não encontrado.");
+  if (doc.status !== "authorized" || !doc.ref) throw new Error("Só documentos autorizados têm arquivos.");
+  const { data: comp } = await db.from("fiscal_companies").select("connection_id").eq("id", doc.company_id).eq("owner_id", ownerId).maybeSingle();
+  if (!comp) throw new Error("Empresa fiscal não encontrada.");
+  const client = await focusFor(db, ownerId, comp.connection_id as string, fetchImpl);
+  const q = await client.query(doc.document_kind as FocusDocumentPath, doc.ref as string);
+  const links = extractFileLinks(q.body);
+  const stored: FileKind[] = [];
+  const skipped: Array<{ kind: FileKind; reason: string }> = [];
+  for (const kind of ["xml", "pdf"] as const) {
+    const link = links[kind];
+    if (!link) { skipped.push({ kind, reason: "link_ausente" }); continue; }
+    try {
+      const f = await client.fetchFile(link, MAX_FILE_BYTES);
+      if ("rejected" in f) { skipped.push({ kind, reason: f.rejected }); continue; }
+      if (f.status < 200 || f.status >= 300) { skipped.push({ kind, reason: `http_${f.status}` }); continue; }
+      await storeDocumentFile(db, ownerId, null, { documentId, kind, bytes: f.bytes });
+      stored.push(kind);
+    } catch (e) {
+      skipped.push({ kind, reason: e instanceof FocusTransportError ? e.reason : e instanceof FiscalFileError ? e.code : "erro" });
+    }
+  }
+  await audit(db, ownerId, null, "document_files_capture", "document", documentId, { stored, skipped });
+  return { stored, skipped };
 }
 
 export async function listDocumentFiles(db: Db, ownerId: string, documentId: string) {
@@ -314,7 +347,7 @@ export async function dispatchOperation(db: Db, ownerId: string, operationId: st
 
 export async function reconcileCandidate(db: Db, ownerId: string, c: ReconcileCandidate, connectionId: string, fetchImpl?: FetchLike) {
   const client = await focusFor(db, ownerId, connectionId, fetchImpl);
-  return reconcileOne(
+  const out = await reconcileOne(
     {
       query: (x) => client.query(x.documentKind, x.ref),
       applyQuery: async (op, result, st, proto, key, h, red) => void must(await db.rpc("fiscal_document_apply_query", { p_operation: op, p_result: result, p_provider_status: st, p_protocol: proto, p_access_key: key, p_body_hash: h, p_body_redacted: red }), "aplicar consulta"),
@@ -322,6 +355,29 @@ export async function reconcileCandidate(db: Db, ownerId: string, c: ReconcileCa
     },
     c,
   );
+  // Melhor esforço: nota recém-autorizada ⇒ guardar XML/PDF. Falha aqui nunca afeta o estado fiscal (há varredura de reparo).
+  if (out.result === "authorized") {
+    try {
+      const op = (await db.from("fiscal_operations").select("document_id").eq("id", c.operationId).maybeSingle()).data;
+      if (op?.document_id) await captureDocumentFiles(db, ownerId, op.document_id as string, fetchImpl);
+    } catch { /* reparado pela varredura */ }
+  }
+  return out;
+}
+
+/** Reparo: documentos autorizados sem XML ou sem PDF guardados. */
+export async function repairMissingFiles(db: Db, fetchImpl?: FetchLike, limit = 10): Promise<number> {
+  const { data: docs } = await db.from("fiscal_documents").select("id, owner_id").eq("status", "authorized").eq("direction", "issued").order("authorized_at", { ascending: false }).limit(50);
+  let n = 0;
+  for (const d of docs ?? []) {
+    if (n >= limit) break;
+    const { data: files } = await db.from("fiscal_document_files").select("kind").eq("document_id", d.id);
+    const kinds = new Set((files ?? []).map((f) => f.kind as string));
+    if (kinds.has("xml") && kinds.has("pdf")) continue;
+    try { await captureDocumentFiles(db, d.owner_id as string, d.id as string, fetchImpl); } catch { /* tenta de novo na próxima */ }
+    n++;
+  }
+  return n;
 }
 
 /** Varredura: marca `sent` órfão como desconhecido, consome webhooks pendentes e consulta candidatos. Nunca reenvia. */
@@ -350,7 +406,8 @@ export async function runReconciliation(db: Db, fetchImpl?: FetchLike, limit = 2
     await reconcileCandidate(db, c.owner_id, { operationId: c.operation_id, ref: c.ref, documentKind: c.document_kind as FocusDocumentPath, opKind: c.op_kind }, comp.connection_id as string, fetchImpl);
     queried++;
   }
-  return { swept, webhookEvents: events.length, webhookOk, queried };
+  const repaired = await repairMissingFiles(db, fetchImpl);
+  return { swept, webhookEvents: events.length, webhookOk, queried, repaired };
 }
 
 /* ------------------------------------------------------------------ leituras */
