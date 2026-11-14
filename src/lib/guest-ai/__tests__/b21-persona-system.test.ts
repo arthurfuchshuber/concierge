@@ -57,7 +57,7 @@ describe("B2.1 · persona", () => {
 describe("Persona sóbria (10/11/2026): solução primeiro, sem coitadismo e sem excessos", () => {
   const persona = renderPersona();
   const sys = buildSystemPrompt("airbnb");
-  const examples = sys.slice(sys.indexOf("Exemplos de tom de hospitalidade"), sys.indexOf("Exemplo 4"));
+  const examples = sys.slice(sys.indexOf("Tom: fale como um anfitrião experiente"), sys.indexOf("Boas respostas costumam"));
   const allExamples = sys.slice(sys.indexOf("Exemplos de tom de hospitalidade"));
   const tones = [...allExamples.matchAll(/Tom ideal: ([^\n]*)/g)].map((m) => m[1]!);
 
@@ -69,11 +69,12 @@ describe("Persona sóbria (10/11/2026): solução primeiro, sem coitadismo e sem
     expect(persona).toMatch(/no máximo um ponto de exclamação por resposta/);
   });
   it("incidentes: sem lamento, sem desculpas protocolares, direto e sereno", () => {
-    expect(sys).toMatch(/não se lamente, não peça desculpas protocolares e não use tom de culpa/);
-    expect(sys).toMatch(/direta, natural e serena, como o próprio anfitrião/);
+    expect(sys).toMatch(/sem lamentos nem culpa/);
+    expect(sys).toMatch(/direto, sereno e em primeira pessoa, como o próprio anfitrião/);
   });
   it("exemplos de ouro: nenhum abre com desculpa ou lamento, no máximo uma exclamação", () => {
-    expect(tones).toHaveLength(5);
+    // 14/11/2026: nenhuma frase pronta no prompt (tons viraram princípios)
+    expect(tones).toHaveLength(0);
     const apology = /^(desculp|perd[aã]o|lamento|poxa|que pena|infelizmente|sinto)/i;
     for (const t of tones) {
       expect(t, t).not.toMatch(apology);
@@ -81,7 +82,7 @@ describe("Persona sóbria (10/11/2026): solução primeiro, sem coitadismo e sem
       expect((t.match(/!/g) ?? []).length, t).toBeLessThanOrEqual(1);
       expect(t, t).not.toMatch(/!!|\?!/);
     }
-    expect(examples).toMatch(/sem desculpas desnecessárias/);
+    expect(examples).toMatch(/sem pedidos de desculpa protocolares/);
   });
 });
 
@@ -109,11 +110,11 @@ describe("Diálogo investigativo, sem bordões, sem prazo e encaminhamento silen
     expect(sys).toMatch(/nunca despeje um manual inteiro/);
   });
   it("prompt: bordões, prazos e anúncio de transferência proibidos; urgência só nos campos estruturados", () => {
-    expect(sys).toMatch(/Sem bordões de suporte/);
+    expect(sys).toMatch(/Estilo: nada de clichês de SAC/);
     expect(sys).toMatch(/Zero promessa de prazo/);
     expect(sys).toMatch(/Encaminhamento 100% silencioso, fora do reparo em primeira pessoa e da verificação interna de pedidos de exceção descritos neste roteiro: a urgência vai só em handoff/);
     // os bordões só aparecem dentro da própria proibição
-    const outsideBan = sys.replace(/Sem bordões de suporte[^\n]*/, "").replace(/Zero promessa de prazo[^\n]*/, "").replace(/Nada de voz passiva[^\n]*/, "");
+    const outsideBan = sys.replace(/Estilo: nada de clichês[^\n]*/, "").replace(/Zero promessa de prazo[^\n]*/, "");
     expect(outsideBan).not.toMatch(BORDOES);
     expect(outsideBan).not.toMatch(/nossa equipe já foi avisada|equipe cuidará disso|equipe está cuidando/i);
   });
@@ -123,11 +124,8 @@ describe("Diálogo investigativo, sem bordões, sem prazo e encaminhamento silen
       expect(t, t).not.toMatch(PRAZO);
       expect(t, t).not.toMatch(TRANSFER);
     }
-    expect(tones[0]).toMatch(/^Para acender o visor da fechadura, passe a palma da mão na tela/);
-    expect(tones[0]).toMatch(/Deu certo para abrir\?/);
-    expect(tones[2]).toMatch(/^Quando você aponta o controle para ele, aparece algum símbolo ou número no visor/);
-    // uma pergunta de diagnóstico, não um manual: no máximo 3 frases antes da observação entre parênteses
-    expect(tones[0]!.replace(/\(.*\)/, "").split(/[.?!]\s/).length).toBeLessThanOrEqual(4); // 2–3 frases de ação + checagem
+    expect(tones).toHaveLength(0);
+    expect(sys).toMatch(/próximo passo físico e simples quando há um bloqueio/);
   });
 });
 
@@ -332,16 +330,15 @@ describe("nome, gênero, fim do SAC, aviso de chegada e acolhimento breve em pre
   });
 
   it("proíbe os clichês de telemarketing no roteiro e na persona", () => {
-    expect(sys).toMatch(/Como posso te ajudar hoje\?/);
-    expect(sys).toMatch(/Fico à disposição para qualquer dúvida/);
-    expect(sys).toMatch(/hospitalidade de hotel boutique/);
+    expect(sys).toMatch(/nada de clichês de SAC ou telemarketing/);
+    expect(sys).toMatch(/fico à disposição/);
     expect(renderPersona()).toMatch(/clichês de telemarketing e de SAC/);
     expect(renderPersona()).not.toMatch(/["“”«»]/);
   });
 
   it("aviso de GPS/chegada: nunca silêncio, acolhe, reforça check-in autônomo e não afrouxa a D9", () => {
     expect(sys).toMatch(/nunca fica em silêncio nem apenas registra o dado/);
-    expect(sys).toMatch(/Só cite fechadura digital ou check-in autônomo se o imóvel realmente tiver/);
+    expect(sys).toMatch(/Só cite fechadura digital ou check-in autônomo com metodo autonomo/);
     expect(sys).toMatch(/ctx:liberacao_credenciais/);
     expect(sys).toMatch(/nunca aprova entrada antecipada/);
   });
@@ -358,7 +355,7 @@ describe("aviso de chegada coerente com canal e dossiê (system.2026-11-11.3)", 
   const arrival = sys.slice(sys.indexOf("Aviso de deslocamento"), sys.indexOf("Continue declarando guestEtas"));
 
   it("versão do roteiro", () => {
-    expect(SYSTEM_PROMPT_VERSION).toBe("system.2026-11-12.4");
+    expect(SYSTEM_PROMPT_VERSION).toBe("system.2026-11-14.1");
   });
 
   it("corrobora o histórico em vez de vetar a palavra guia", () => {
@@ -372,9 +369,12 @@ describe("aviso de chegada coerente com canal e dossiê (system.2026-11-11.3)", 
     expect(airbnbExample).not.toMatch(/guia/i);
   });
 
-  it("não presume check-in autônomo; portaria presencial é citada; D9 intacta", () => {
-    expect(arrival).toMatch(/portaria presencial/);
-    expect(arrival).toMatch(/sem presumir a modalidade/);
+  it("não presume check-in autônomo; portaria do anúncio NUNCA é método de acesso (caso Jayr); D9 intacta", () => {
+    expect(arrival).toMatch(/ctx:metodo_de_acesso/);
+    expect(arrival).toMatch(/NUNCA método de acesso/);
+    expect(arrival).toMatch(/presencial = nenhuma credencial autônoma cadastrada/);
+    expect(arrival).not.toMatch(/cite a portaria/);
+    expect(arrival).toMatch(/não presuma modalidade nenhuma/);
     expect(arrival).toMatch(/retidas pela D9/);
     expect(sys).toMatch(/nunca aprova entrada antecipada/);
   });
@@ -434,10 +434,10 @@ describe("defeito e manutenção: o anfitrião assume, o hóspede não vira zela
   });
 
   it("exemplo de ouro do defeito: assume o reparo, sem prazo, sem pedir para desligar ou secar", () => {
-    const ex = sys.slice(sys.indexOf("Exemplo 5"), sys.indexOf("(Sem pedir que desligue"));
-    expect(ex).toMatch(/Vou acionar o técnico de manutenção/);
-    expect(ex).not.toMatch(/o quanto antes|em instantes|logo|daqui a pouco|já já/);
-    expect(ex).not.toMatch(/desligue|bacia|toalha/i);
+    // 14/11/2026: princípio em vez de frase pronta
+    expect(sys).toMatch(/Reparo em primeira pessoa/);
+    expect(sys).toMatch(/nunca dizer quando o técnico chega/);
+    expect(sys).toMatch(/nunca proponha como solução que ele desligue/);
   });
 });
 
@@ -451,5 +451,16 @@ describe("saudação pura no dia do check-in não presume entrada (system.2026-1
     expect(sys).toMatch(/O relógio ter passado do horário de check-in NUNCA é evidência de entrada consumada/);
     expect(sys).toMatch(/só cabe quando o hóspede avisou expressamente que chegou/);
     expect(sys).toMatch(/passo ativo das instruções de acesso/);
+  });
+});
+
+describe("diretivas literais de 14/11/2026", () => {
+  it("o prompt renderizado contém as duas frases verbatim", async () => {
+    const { buildSystemPrompt } = await import("@/lib/guest-ai/system-prompt");
+    for (const surface of ["airbnb", "whatsapp", "guide_chat"] as const) {
+      const text = buildSystemPrompt(surface as never);
+      expect(text).toContain("a orientação humana PREVALECE categoricamente. Jamais contradiga ou envie instruções opostas.");
+      expect(text).toContain("Comodidades do condomínio (ex: portaria 24h) não definem o método de entrada no apartamento. Siga rigorosamente o fato ctx:metodo_de_acesso.");
+    }
   });
 });

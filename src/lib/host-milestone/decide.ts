@@ -70,7 +70,7 @@ export function parseHostReading(raw: unknown): HostReading | null {
  */
 export function explicitHostConfirmation(text: string): "checkin_done" | "checkout_done" | null {
   const t = text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-  if (/\?|autoriz|liberad|antecipad|pode (entrar|sair|fazer)|ainda nao|nao foi|sera |vai ser|previst/.test(t)) return null;
+  if (/\?|autoriz|liberad|antecipad|pode (entrar|sair|fazer)|ainda nao|nao foi|sera |vai ser|previst|\bpara (amanha|hoje|as? \d|o dia)|\b(as|a partir das?)\s+\d|\bamanha\b/.test(t)) return null;
   const done = "(foi |esta |ja )?(confirmad[oa]|conclui[dt][oa]|realizad[oa]|efetuad[oa]|feito)";
   const ci = new RegExp(`check[\\s-]?in\\s+${done}`).test(t);
   const co = new RegExp(`check[\\s-]?out\\s+${done}`).test(t);

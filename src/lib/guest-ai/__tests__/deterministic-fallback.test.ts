@@ -4,7 +4,7 @@
  * texto vazio: o hóspede ficou sem resposta no Airbnb.
  */
 import { describe, expect, it, vi } from "vitest";
-import { CONTINGENCY_REASON, CONTINGENCY_REPLY, GENERATION_FALLBACK_MS, requestGuestAiReply } from "@/lib/guest-ai/slot.server";
+import { CONTINGENCY_REASON, GENERATION_FALLBACK_MS, requestGuestAiReply } from "@/lib/guest-ai/slot.server";
 import { COPILOT_AUTO_CALL_MAX_MS } from "@/lib/guest-ai/copilot/generate.server";
 import { buildSystemPrompt } from "@/lib/guest-ai/system-prompt";
 
@@ -20,36 +20,40 @@ const deps = (over: Record<string, unknown>) => ({
 const hang = () => new Promise(() => {});
 
 describe("tempos", () => {
-  it("chamada elástica com 20 s e corrida do slot com 25 s (teto da resposta ao hóspede)", () => {
+  it("chamada elástica com 20 s e corrida do slot com 30 s (teto da resposta ao hóspede)", () => {
     expect(COPILOT_AUTO_CALL_MAX_MS).toBe(20_000);
-    expect(GENERATION_FALLBACK_MS).toBe(25_000);
+    expect(GENERATION_FALLBACK_MS).toBe(30_000);
   });
 });
 
 describe("dúvida operacional com o modelo fora do ar", () => {
-  it("caso Gilmar (Wi-Fi) + timeout ⇒ aviso ao hóspede e equipe com urgência alta; nunca texto vazio", async () => {
+  it("caso Gilmar (Wi-Fi) + timeout ⇒ encaminhamento SILENCIOSO à equipe com urgência alta (sem frase de SAC)", async () => {
     const openDecision = vi.fn();
     const r = await requestGuestAiReply(REQ, deps({ generate: hang, loadBurst: async () => ["Porém não consigo acesso a senha wifi"], openDecision }) as never);
     expect(openDecision).not.toHaveBeenCalled();
-    expect(r?.reply).not.toBe("");
-    expect(r).toEqual({ reply: CONTINGENCY_REPLY, handoff: true, handoffReason: CONTINGENCY_REASON, handoffUrgency: "high" });
+    expect(r?.reply).toBe("");
+    expect(r).toEqual({ reply: "", handoff: true, handoffReason: CONTINGENCY_REASON, handoffUrgency: "high" });
   });
-  it("geração que falha (erro ou resultado inválido) ⇒ mesmo aviso", async () => {
+  it("geração que falha (erro ou resultado inválido) ⇒ mesmo encaminhamento silencioso", async () => {
     for (const generate of [async () => { throw new Error("gateway"); }, async () => ({ status: "failed" })]) {
       const r = await requestGuestAiReply(REQ, deps({ generate, loadBurst: async () => ["O chuveiro não esquenta"] }) as never);
-      expect(r).toMatchObject({ reply: CONTINGENCY_REPLY, handoff: true, handoffUrgency: "high" });
+      expect(r).toMatchObject({ reply: "", handoff: true, handoffUrgency: "high" });
     }
   });
-  it("falha até para ler a mensagem ⇒ ainda assim não fica mudo", async () => {
+  it("falha até para ler a mensagem ⇒ equipe avisada, hóspede sem frase pré-fabricada", async () => {
     const r = await requestGuestAiReply(REQ, deps({ generate: hang, loadBurst: async () => { throw new Error("db"); } }) as never);
-    expect(r).toMatchObject({ reply: CONTINGENCY_REPLY, handoff: true, handoffUrgency: "high" });
+    expect(r).toMatchObject({ reply: "", handoff: true, handoffUrgency: "high" });
   });
   it("só cortesia ('ok, obrigado') ⇒ silêncio como no fluxo normal, só a equipe é avisada", async () => {
     const r = await requestGuestAiReply(REQ, deps({ generate: hang, loadBurst: async () => ["Ok, obrigado!"] }) as never);
     expect(r).toMatchObject({ reply: "", handoff: true, handoffUrgency: "normal" });
   });
-  it("o aviso não promete prazo nem inventa justificativa", () => {
-    expect(CONTINGENCY_REPLY).not.toMatch(/instantes|já já|minutos|o quanto antes|de imediato|limpeza/i);
+  it("nenhum texto pré-fabricado de atendimento chega ao hóspede em contingência (auditoria 14/11/2026)", async () => {
+    for (const burst of [["Porém não consigo acesso a senha wifi"], ["O chuveiro não esquenta"], ["Qual o horário do check-in?"]]) {
+      const r = await requestGuestAiReply(REQ, deps({ generate: hang, loadBurst: async () => burst }) as never);
+      expect(r?.reply).toBe("");
+      expect(JSON.stringify(r)).not.toMatch(/acionei|nossa equipe|já acionei/i);
+    }
   });
 });
 

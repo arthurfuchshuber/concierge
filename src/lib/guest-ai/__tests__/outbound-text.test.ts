@@ -4,7 +4,6 @@
  */
 import { describe, expect, it, vi } from "vitest";
 import {
-  CREDENTIAL_FALLBACK_SENTENCE,
   applyCredentials,
   stripCredentialMarker,
 } from "@/lib/guest-ai/credential-delivery";
@@ -58,7 +57,7 @@ describe("[[CREDENCIAIS]] · troca pela credencial real autorizada", () => {
     const r = resolveOutboundText("Tudo certo! O código do cofre é [[CREDENCIAIS]]. Boa estadia!", ctx({ credentials: null }));
     expect(r.text).not.toMatch(RAW);
     expect(r.text).not.toMatch(/2610|código do cofre é/i);
-    expect(r.text).toContain(CREDENTIAL_FALLBACK_SENTENCE);
+    expect(r.text).not.toMatch(/dados de acesso eu te passo|\[\[/);
     expect(r.text).toContain("Boa estadia!");
     expect(r.needsHandoff).toBe(true);
   });
@@ -141,10 +140,10 @@ describe("slot autônomo · nenhuma tag crua e credencial real antes do envio", 
     expect(r?.handoff).toBe(false);
     expect(oc).toHaveBeenCalledWith(REQ, true);
   });
-  it("sem credencial autorizada: aviso seguro e encaminhamento com urgência alta; marcador nunca sai", async () => {
+  it("sem credencial autorizada: SILÊNCIO (texto vazio) e encaminhamento com urgência alta; marcador nunca sai", async () => {
     const r = await requestGuestAiReply(REQ, deps("O código é [[CREDENCIAIS]].", async () => ctx({ credentials: null })));
     expect(r?.reply).not.toMatch(RAW);
-    expect(r).toMatchObject({ handoff: true, handoffReason: CREDENTIAL_UNAVAILABLE_REASON, handoffUrgency: "high" });
+    expect(r).toMatchObject({ reply: "", handoff: true, handoffReason: CREDENTIAL_UNAVAILABLE_REASON, handoffUrgency: "high" });
   });
   it("leitura do contexto falhou: mesmo assim nada cru sai (aviso seguro + equipe)", async () => {
     const r = await requestGuestAiReply(REQ, deps("Acesso: [[CREDENCIAIS]] {{x}}", async () => { throw new Error("db"); }));
@@ -168,12 +167,13 @@ describe("roteiro · sem jargão de SAC e com exemplos de ouro", () => {
   const p = buildSystemPrompt("airbnb");
   it("a frase de exemplo copiada pelo modelo saiu do prompt e as frases passivas estão proibidas", () => {
     expect(p).not.toContain("o problema vai ser verificado o quanto antes");
-    expect(p).toMatch(/Nada de voz passiva/);
-    for (const f of ["essa situação será verificada", "seu relato foi registrado", "estamos à disposição para maiores esclarecimentos"]) expect(p).toContain(f);
+    expect(p).toMatch(/Estilo: nada de clichês de SAC/);
+    expect(p).toContain("seu relato foi registrado");
     expect(p).toMatch(/Encaminhamento 100% silencioso/);
   });
   it("quatro exemplos de tom: acesso, consulta, aparelho e indicação local, avisando para não copiar fatos", () => {
-    for (const t of ["Exemplo 1 (acesso e fechadura", "Exemplo 2 (consulta antes de reservar", "Exemplo 3 (aparelho durante a estadia", "Exemplo 4 (indicação local"]) expect(p).toContain(t);
-    expect(p).toMatch(/nunca copie as frases nem reaproveite nomes, números, distâncias ou fatos/);
+    expect(p).not.toMatch(/Exemplo \d \(/);
+    expect(p).toMatch(/não existe frase certa para reproduzir/);
+    expect(p).toMatch(/dossiê, da reserva, do anúncio e das fontes integradas/);
   });
 });

@@ -11,16 +11,13 @@
  *  - com credenciais: o marcador vira o bloco de acesso (cofre/fechadura, portão, PIN, instruções; Wi-Fi só se o
  *    assunto for Wi-Fi);
  *  - sem credenciais (D9 negou agora, falha de leitura, imóvel sem código cadastrado): a frase do marcador é
- *    trocada por um aviso seguro e a conversa SEMPRE é encaminhada à equipe — o marcador nunca é exibido;
+ *    REMOVIDA (nenhum aviso improvisado) e a conversa SEMPRE é encaminhada à equipe — o slot nem envia o texto;
  *  - rede de segurança final (`stripCredentialMarker`): nenhuma variação do marcador sai para o canal.
  * Nada aqui vai para log; os valores só existem no texto devolvido ao canal.
  */
 import { CREDENTIAL_MARKER } from "@/lib/guest-ai/orchestrator/contracts";
 import type { GuestCredentials, GuestSurface } from "@/lib/guest-ai/types";
 
-/** Frase que ocupa o lugar do marcador quando não há credencial para entregar. */
-export const CREDENTIAL_FALLBACK_SENTENCE =
-  "Os dados de acesso eu te passo por aqui, nesta conversa.";
 /** Motivo do chamado quando a entrega automática não foi possível. */
 export const CREDENTIAL_UNAVAILABLE_REASON =
   "Acesso não entregue automaticamente (credencial indisponível) — enviar os dados de acesso ao hóspede.";
@@ -91,7 +88,8 @@ function replaceMarkerSentence(text: string, replacement: string): string {
 export function stripCredentialMarker(text: string): string {
   if (!hasCredentialMarker(text)) return text;
   const normalized = text.replace(MARKER_ANY, CREDENTIAL_MARKER);
-  return replaceMarkerSentence(normalized, CREDENTIAL_FALLBACK_SENTENCE).replace(MARKER_ANY, "").trim();
+  // sem credencial para entregar NÃO se improvisa frase no lugar do marcador (14/11/2026): a frase do marcador some
+  return replaceMarkerSentence(normalized, "").replace(MARKER_ANY, "").trim();
 }
 
 export interface CredentialDelivery {

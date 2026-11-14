@@ -21,7 +21,7 @@ import {
   parseStayRules,
 } from "@/lib/guest-ai/calendar-occupancy";
 import { fetchPropertyOccupancy, listingUrl } from "@/lib/guest-ai/data/property-calendar.server";
-import { COMMERCIAL_CONTINGENCY_REASON, CONTINGENCY_REPLY, isCommercialQuestion, requestGuestAiReply } from "@/lib/guest-ai/slot.server";
+import { COMMERCIAL_CONTINGENCY_REASON, isCommercialQuestion, requestGuestAiReply } from "@/lib/guest-ai/slot.server";
 import { buildSystemPrompt, SYSTEM_PROMPT_VERSION } from "@/lib/guest-ai/system-prompt";
 import { PERSONA_VERSION } from "@/lib/guest-ai/persona";
 import { issue } from "@/lib/guest-ai/trust";
@@ -42,6 +42,8 @@ const RULE_105 = {
 const RULE_1_NIGHT = { default_min_nights: 1, day_of_week_min_nights: [-1, -1, -1, -1, -1, -1, -1], max_days_notice: 365, seasonal_min_nights: [] };
 
 // ─────────────── 1. rajada e duplicata ───────────────
+// Texto qualquer já enviado pela casa (o aviso fixo de contingência foi removido em 14/11/2026: sem frase pronta).
+const CONTINGENCY_REPLY = "Recebi sua mensagem e já acionei nossa equipe para te orientar por aqui.";
 describe("trava de duplicata no Airbnb", () => {
   const now = Date.parse("2026-11-12T14:35:20Z");
   it("mesmo texto da última mensagem nossa em menos de 60 s ⇒ não reenvia (as duas contingências da Tais)", () => {
@@ -190,9 +192,9 @@ describe("contingência fora das consultas comerciais", () => {
     const r = await requestGuestAiReply(REQ, deps({ validate: async () => ({ propertyId: "p1", reservationId: null }), loadBurst: async () => ["A casa tem garagem coberta pra dois carros"] }) as never);
     expect(r).toMatchObject({ reply: "", handoff: true, handoffUrgency: "high" });
   });
-  it("dúvida operacional de hóspede com reserva ⇒ segue o aviso de contingência (caso Gilmar)", async () => {
+  it("dúvida operacional de hóspede com reserva ⇒ contingência sem texto ao hóspede, equipe avisada (caso Gilmar)", async () => {
     const r = await requestGuestAiReply(REQ, deps({ validate: async () => ({ propertyId: "p1", reservationId: "r1" }), loadBurst: async () => ["Boa noite, não consigo acesso à senha do wifi"] }) as never);
-    expect(r).toMatchObject({ reply: CONTINGENCY_REPLY, handoffUrgency: "high" });
+    expect(r).toMatchObject({ reply: "", handoff: true, handoffUrgency: "high" });
   });
   it("detector comercial: datas, vaga, valor, noites; 'boa noite' sozinho não conta", () => {
     for (const t of ["Dia 18 vc tem disponibilidade?", "Quanto fica a diária?", "Tem vaga de 19 a 21?", "Seria apenas uma noite"]) expect(isCommercialQuestion([t])).toBe(true);
@@ -300,10 +302,10 @@ describe("sugestão de portfólio", () => {
 });
 
 // ─────────────── roteiro ───────────────
-describe("roteiro e persona (system.2026-11-12.4 / persona.2026-11-12.3)", () => {
+describe("roteiro e persona (system.2026-11-14.1 / persona.2026-11-12.3)", () => {
   const sys = buildSystemPrompt("airbnb");
   it("versões", () => {
-    expect(SYSTEM_PROMPT_VERSION).toBe("system.2026-11-12.4");
+    expect(SYSTEM_PROMPT_VERSION).toBe("system.2026-11-14.1");
     expect(PERSONA_VERSION).toBe("persona.2026-11-12.3");
   });
   it("período consultado: resposta comercial direta, mínimo de noites e sem promessa vazia", () => {

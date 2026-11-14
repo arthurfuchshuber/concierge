@@ -48,9 +48,9 @@ describe("B2.3 · validador estrutural — campos incompatíveis e coerência v3
     // B2.5: o relatório inclui o resumo da leitura do texto (só tipos e idioma)
     expect(sem(d)).toEqual({ verdict: "pass", blocks: [], unauthorizedKinds: [], milestoneIdempotency: "not_applicable", text: { detectedKinds: [], undeclaredKinds: [], language: "pt" } });
   });
-  it("pergunta ou urgência à equipe sem encaminhamento ⇒ handoff_fields_without_need", () => {
-    expect(structural(dec({ handoff: { needed: false, question: "Pode verificar?", urgency: null } })).blocks).toContain("handoff_fields_without_need");
-    expect(structural(dec({ handoff: { needed: false, question: null, urgency: "high" } })).blocks).toContain("handoff_fields_without_need");
+  it("pergunta ou urgência à equipe sem encaminhamento não bloqueia mais (14/11/2026, fluidez)", () => {
+    expect(structural(dec({ handoff: { needed: false, question: "Pode verificar?", urgency: null } })).blocks).not.toContain("handoff_fields_without_need");
+    expect(structural(dec({ handoff: { needed: false, question: null, urgency: "high" } })).blocks).not.toContain("handoff_fields_without_need");
   });
   it("tipos de compromisso incoerentes com a lista ⇒ commitment_kinds_inconsistent", () => {
     expect(structural(dec({ commitments: ["algo"], commitmentKinds: [] })).blocks).toContain("commitment_kinds_inconsistent");

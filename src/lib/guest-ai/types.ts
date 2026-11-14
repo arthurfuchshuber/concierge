@@ -233,6 +233,11 @@ export interface GuestContext {
   access: {
     credentialsAllowed: boolean;
     policyResult: AccessPolicyResult;
+    /**
+     * Como se entra no imóvel (14/11/2026): `autonomous` = há credencial de acesso cadastrada; `in_person` = nenhuma
+     * (entrega presencial de chaves é o padrão); `unknown`/ausente = não comprovado. Só a modalidade, nunca valor.
+     */
+    accessMethod?: "autonomous" | "in_person" | "unknown";
   };
   /** `null` quando não há autorização positiva e atualizada. Nunca contém chaves de senha quando nulo. */
   credentials: GuestCredentials | null;

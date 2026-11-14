@@ -53,4 +53,11 @@ describe("confirmação explícita do anfitrião", () => {
     expect(explicitHostConfirmation("Check-in antecipado confirmado")).toBeNull();
     expect(explicitHostConfirmation("Check-in confirmado para as 15h? será liberado")).toBeNull();
   });
+  it("confirmação de reserva/horário futuro não é fato consumado", () => {
+    expect(explicitHostConfirmation("Seu check-in está confirmado para amanhã às 15h")).toBeNull();
+    expect(explicitHostConfirmation("Check-in confirmado a partir das 15h")).toBeNull();
+  });
+  it("'Check-in confirmado, qualquer coisa me chame' continua valendo", () => {
+    expect(explicitHostConfirmation("Check-in confirmado, qualquer coisa me chame quando precisar.")).toBe("checkin_done");
+  });
 });

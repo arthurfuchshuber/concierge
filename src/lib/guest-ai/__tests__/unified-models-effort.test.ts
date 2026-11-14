@@ -206,8 +206,8 @@ describe("guarda-corpo financeiro externo do Copiloto", () => {
     return { seen, telemetry: g.telemetry(), outcome };
   };
 
-  it("teto de US$ 0,15 por turno e teto de saída dentro do limite do gateway", () => {
-    expect(COPILOT_MAX_TURN_COST_USD).toBe(0.15);
+  it("teto de US$ 1,00 por turno e teto de saída dentro do limite do gateway", () => {
+    expect(COPILOT_MAX_TURN_COST_USD).toBe(1);
     expect(COPILOT_MAX_OUTPUT_TOKENS).toBeLessThanOrEqual(LIMITS.maxOutputTokens);
     expect(COPILOT_MIN_OUTPUT_TOKENS).toBeLessThan(COPILOT_MAX_OUTPUT_TOKENS);
   });

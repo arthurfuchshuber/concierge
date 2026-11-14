@@ -379,7 +379,7 @@ describe("Copiloto · geração com a cadeia real e o Gateway real (transporte f
       propertyId: "p1",
       conversationId: CONV,
       dailyCostLimitUsd: 3,
-      turnCostCeilingUsd: 0.15,
+      turnCostCeilingUsd: 1,
     });
   });
 
@@ -876,7 +876,7 @@ describe("Copiloto · porta fechada, adaptador e disparo", () => {
       triggerMessageId: "m",
       surface: "airbnb",
       dailyCostLimitUsd: 3,
-      turnCostCeilingUsd: 0.15,
+      turnCostCeilingUsd: 1,
     };
     expect(
       await st({

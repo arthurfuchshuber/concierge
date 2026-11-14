@@ -138,18 +138,18 @@ export interface SlotDeps {
 /** Dados da resposta imediata ao abrir a decisão (horários oficiais + pedido). */
 
 /**
- * Teto da cadeia do modelo no turno autônomo. O normal leva 5–10 s; acima disso o turno não pode ficar mudo: cai
- * no fallback determinístico (decisão com botões + resposta com os horários oficiais). A Gateway corta em 30 s.
+ * Teto da cadeia do modelo no turno autônomo (30 s, decisão do titular de 10/11/2026; antes 25 s por engano, abaixo do que ele havia definido). O normal leva 5–10 s; acima disso o turno não pode ficar mudo: cai
+ * no fallback determinístico (decisão com botões + resposta com os horários oficiais). A Gateway também corta em 30 s.
  */
-export const GENERATION_FALLBACK_MS = 25_000;
+export const GENERATION_FALLBACK_MS = 30_000;
 
 /**
  * Contingência de tempo (12/11/2026, caso Gilmar: "não consigo acesso a senha wifi" ficou sem resposta porque a
- * geração estourou e o fallback só tratava pedidos de horário). Mensagem com conteúdo nunca fica muda: este aviso
- * vai ao hóspede e a conversa sobe para a equipe com urgência alta. Sem prazo ("em instantes" é proibido pelo
- * roteiro) e sem justificativa inventada.
+ * geração estourou e o fallback só tratava pedidos de horário). Mensagem com conteúdo nunca fica sem dono: a
+ * conversa sobe para a equipe com urgência alta. REVISADO em 14/11/2026 (auditoria): o aviso fixo ("já acionei
+ * nossa equipe") foi REMOVIDO — soa a SAC, é voz passiva de protocolo e contraria o roteiro ("encaminhamento 100%
+ * silencioso"). O hóspede não recebe texto pré-fabricado; a equipe é avisada nos bastidores.
  */
-export const CONTINGENCY_REPLY = "Recebi sua mensagem e já acionei nossa equipe para te orientar por aqui.";
 export const CONTINGENCY_REASON = "Dúvida do hóspede sem resposta da IA (contingência de tempo): responder pela equipe.";
 /** Falha técnica numa consulta/pergunta comercial: a equipe responde; o chat do hóspede não recebe frase padrão. */
 export const COMMERCIAL_CONTINGENCY_REASON =
@@ -313,9 +313,13 @@ export async function requestGuestAiReply(req: GuestAiRequest, deps: SlotDeps = 
       text = o.text;
       tagHandoff = o.needsHandoff;
     }
+    // credencial indisponível ⇒ silêncio + equipe com urgência alta, MESMO que o texto tenha esvaziado ao tirar o marcador
+    if (r.state === "available" && tagHandoff) return toHandoff("", reason ?? CREDENTIAL_UNAVAILABLE_REASON, "high");
     if (r.state === "available" && text) {
-      if (tagHandoff)
-        return toHandoff(text, reason ?? CREDENTIAL_UNAVAILABLE_REASON, res.handoffUrgency ?? "high");
+      // CREDENCIAL INDISPONÍVEL (14/11/2026, caso Jayr): o texto do modelo foi escrito presumindo uma entrega que o
+      // sistema não pode fazer (imóvel sem código cadastrado, D9 negou agora, falha de leitura). Mandar o que sobrou
+      // ("Seguem as informações de acesso: Os dados eu te passo por aqui") é uma promessa vazia e, pior, pode trazer
+      // afirmações sem lastro. A IA não fala: a equipe recebe o aviso prioritário e responde com o dado real.
       return mustHandoff
         ? toHandoff(text, reason, urgency)
         : { reply: sanitizeResidualTags(text), handoff: false };
@@ -368,7 +372,7 @@ async function deterministicFallback(req: GuestAiRequest, deps: SlotDeps, opts: 
       if (!content.length || content.every((t) => isBareAcknowledgment(t) || isAffirmativeStatement(t))) return toHandoff("", undefined, "normal");
       // consulta (sem reserva) ou pergunta comercial/de datas: nada de frase de SAC no chat; a equipe responde
       if (opts.inquiry || isCommercialQuestion(content)) return toHandoff("", COMMERCIAL_CONTINGENCY_REASON, "high");
-      return toHandoff(CONTINGENCY_REPLY, CONTINGENCY_REASON, "high");
+      return toHandoff("", CONTINGENCY_REASON, "high");
     }
     const input = {
       conversationId: req.conversationId,
@@ -387,6 +391,6 @@ async function deterministicFallback(req: GuestAiRequest, deps: SlotDeps, opts: 
   } catch {
     // nem a leitura da rajada deu certo: ainda assim o hóspede não fica sem resposta (consulta ⇒ só a equipe)
     if (opts.inquiry) return toHandoff("", COMMERCIAL_CONTINGENCY_REASON, "high");
-    return toHandoff(CONTINGENCY_REPLY, CONTINGENCY_REASON, "high");
+    return toHandoff("", CONTINGENCY_REASON, "high");
   }
 }

@@ -38,7 +38,7 @@ import { fetchPropertyOccupancy } from "@/lib/guest-ai/data/property-calendar.se
 import { localDate, type CalendarFact } from "@/lib/guest-ai/calendar-occupancy";
 import { freeCancellationStatus } from "@/lib/guest-ai/playbooks/airbnb-cancellation";
 import { emptyReservationState, type ReservationState } from "@/lib/guest-ai/data/reservation-facts";
-import { fetchSensitiveCredentials } from "@/lib/guest-ai/data/credentials.server";
+import { fetchSensitiveCredentials, fetchAccessMethod, type AccessMethod } from "@/lib/guest-ai/data/credentials.server";
 import { PROPERTY_SCOPE_COLUMNS, cols } from "@/lib/guest-ai/data/projections";
 import { propertyTimeZoneOrNull } from "@/lib/property-timezone";
 import { publicPropertyTitle } from "@/lib/guest-ai/data/public-title";
@@ -62,6 +62,8 @@ export interface BuilderDeps {
   fetchListingFacts?: typeof fetchListingFacts;
   fetchDossierKnowledge?: typeof fetchDossierKnowledge;
   fetchSensitiveCredentials?: (grant: CredentialGrant) => Promise<GuestCredentials | null>;
+  /** Existência (nunca valor) de credencial de acesso autônomo cadastrada; ausente em testes antigos ⇒ `unknown`. */
+  fetchAccessMethod?: (turn: ValidatedTurn, deps: { db: GuestAiDb }) => Promise<AccessMethod>;
   loadPropertyScope?: (turn: ValidatedTurn, db: GuestAiDb) => Promise<PropertyScopeRow | null>;
   /**
    * F2-B: `"skip"` = avalia a D9 (decisão e motivo) mas NUNCA busca credenciais — nem revalida
@@ -246,9 +248,11 @@ export async function buildGuestContext(input: TurnInput, deps: BuilderDeps = {}
 
   // Conhecimento e fatos (audiência já decidida)
   const includeAddress = audienceSet.has("G");
-  const [listing, dossier] = await Promise.all([
+  const [listing, dossier, accessMethod] = await Promise.all([
     getListing(turn, { includeAddress }, { db }),
     getDossier(turn, audienceSet, { db }),
+    // como se entra no imóvel (só existência de credencial, nunca valor); falha ⇒ `unknown`, nunca presume
+    (deps.fetchAccessMethod ?? fetchAccessMethod)(turn, { db }).catch((): AccessMethod => "unknown"),
   ]);
   throwIfAborted(signal); // S4
   if (listing.multipleListingRows) uncertainties.push("multiple_listing_rows");
@@ -290,7 +294,7 @@ export async function buildGuestContext(input: TurnInput, deps: BuilderDeps = {}
       : null,
     calendar,
     audiences,
-    access: { credentialsAllowed: policy.allowed && credentials !== null, policyResult: policy },
+    access: { credentialsAllowed: policy.allowed && credentials !== null, policyResult: policy, accessMethod },
     credentials,
     openCases: openCasesOf(turn),
     uncertainties,

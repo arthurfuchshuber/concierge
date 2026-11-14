@@ -563,7 +563,14 @@ export async function handleChannexMessage(payload: unknown): Promise<void> {
 
   const listing = await resolveListing(admin, m);
   if (!listing) {
-    console.warn("[channex-messages] conversa sem imóvel piloto identificado — ignorada", m.threadId);
+    // ALERTA (auditoria 14/11/2026): antes só havia um warn. Mensagem de hóspede sem anúncio resolvido fica sem
+    // resposta e sem aviso à equipe. Sem imóvel não há dono a notificar com segurança (multi-tenant), então o
+    // registro sai com marca fixa e SEM texto do hóspede, para alarme de log/monitoramento.
+    console.error("[ALERTA][channex-messages] mensagem de hóspede sem anúncio resolvido — NINGUÉM respondeu", {
+      threadId: m.threadId,
+      bookingId: m.bookingId ?? null,
+      channexPropertyId: m.channexPropertyId ?? null,
+    });
     return;
   }
 
@@ -605,7 +612,7 @@ export async function handleChannexMessage(payload: unknown): Promise<void> {
     propertyId: listing.property_id,
     conversationId: convId,
   });
-  const { data: guestMsg } = await admin
+  const { data: guestMsg, error: guestMsgErr } = await admin
     .from("property_chat_messages")
     .insert({
       conversation_id: convId,
@@ -619,6 +626,13 @@ export async function handleChannexMessage(payload: unknown): Promise<void> {
     })
     .select("id, created_at")
     .single();
+
+  // Reenvio simultâneo da Channex perdeu a corrida: o índice único (channel, external_id) já guardou a primeira
+  // cópia. Esta execução encerra SEM gerar outro turno (23505 = unique_violation). Auditoria 14/11/2026.
+  if ((guestMsgErr as { code?: string } | null)?.code === "23505") {
+    console.warn("[channex-messages] reenvio simultâneo descartado pelo índice único", m.threadId);
+    return;
+  }
 
   await admin
     .from("property_chat_conversations")
@@ -717,20 +731,44 @@ export async function handleChannexMessage(payload: unknown): Promise<void> {
     // Dono do anúncio resolvido com certeza por `resolveListing`.
     expectedOwnerId: listing.owner_id,
   });
-  const handoffTriggered = ai ? ai.handoff : true;
+  // ─── BARREIRA PRÉ-ENVIO (14/11/2026, caso Jayr): a geração demora segundos; humano, equipe ou hóspede podem ter
+  // falado nesse intervalo. Vale ANTES de mexer na conversa e de novo imediatamente antes de entregar.
+  const { evaluateSendBarrier, readSendBarrierState, HUMAN_BARRIER_REASONS } = await import("@/lib/guest-ai/send-barrier");
+  const checkBarrier = async () => {
+    const state = await readSendBarrierState(admin, convId, guestRow, async (row) => {
+      const { resolvePause } = await import("@/lib/chat/pause");
+      return resolvePause(admin, convId, row as never);
+    });
+    return evaluateSendBarrier({
+      triggerId: guestRow?.id ?? "",
+      triggerCreatedAt: guestRow?.created_at ?? null,
+      ...state,
+    });
+  };
+  const barrier = await checkBarrier();
+  if (barrier.abort && HUMAN_BARRIER_REASONS.has(barrier.reason)) {
+    // Há (ou houve) um humano na conversa: nada de resposta, nenhuma troca de status/pausa e nenhum push duplicado.
+    console.log("[channex-messages] resposta da IA descartada: humano na conversa", barrier.reason, convId);
+    return;
+  }
+  const unknownState = barrier.abort && barrier.reason === "unknown_state";
+  const handoffTriggered = unknownState ? true : ai ? ai.handoff : true;
   if (handoffTriggered) {
-    const reason = ai?.handoffReason ?? NO_AI_HANDOFF_REASON;
-    const urgency = ai?.handoffUrgency ?? null;
+    const reason = unknownState
+      ? "Não foi possível confirmar quem está atendendo — responder ao hóspede."
+      : ai?.handoffReason ?? NO_AI_HANDOFF_REASON;
+    const urgency = unknownState ? "normal" : ai?.handoffUrgency ?? null;
     await admin
       .from("property_chat_conversations")
       .update({
         status: "needs_human",
-        ai_paused: false,
         handoff_reason: reason,
         handoff_urgency: urgency,
         handoff_at: new Date().toISOString(),
       })
-      .eq("id", convId);
+      .eq("id", convId)
+      // nunca rebaixa uma conversa que um atendente acabou de assumir (corrida com o anfitrião/painel)
+      .neq("status", "assigned");
     try {
       const { getPropertyNotifiableUsers, sendHandoffPush } = await import("@/lib/handoff.server");
       const userIds = await getPropertyNotifiableUsers(admin, listing.property_id);
@@ -748,10 +786,15 @@ export async function handleChannexMessage(payload: unknown): Promise<void> {
       console.error("[channex-messages] push de handoff falhou", e);
     }
   }
+  if (barrier.abort) return; // hóspede escreveu de novo, outro turno já respondeu ou estado incerto: não entrega
   const finalReply = (ai?.reply ?? "").trim();
-  // chegou mensagem nova do hóspede enquanto a IA pensava: a resposta antiga não atropela a pergunta nova
-  if (finalReply && (await newerGuestMessage())) return;
   if (finalReply) {
+    // última conferência colada na entrega (o push acima leva tempo): humano ou hóspede novo ⇒ não envia
+    const last = await checkBarrier();
+    if (last.abort) {
+      console.log("[channex-messages] resposta da IA descartada na última conferência", last.reason, convId);
+      return;
+    }
     await deliverToAirbnbThread(admin, {
       conversationId: convId,
       threadId: m.threadId,
