@@ -14,7 +14,6 @@ import {
   COPILOT_STATES,
   COPILOT_WARNINGS,
   COPILOT_ROW_COLUMNS,
-  COPILOT_MAX_TURN_COST_USD,
 } from "@/lib/guest-ai/copilot/contracts";
 import {
   INTENT_CATEGORIES,
@@ -858,7 +857,7 @@ describe.skipIf(!PG_AVAILABLE)("Copiloto · migration contra PostgreSQL real", (
       );
       // bundle original: teto diário ≤ 1,00 (removido pela migration 20261106200000, testada abaixo)
       expect(src).toContain(`p_daily_cost_limit_usd > 1.00`);
-      expect(src).toContain(`p_turn_cost_ceiling_usd > ${COPILOT_MAX_TURN_COST_USD}`);
+      expect(src).toContain(`p_turn_cost_ceiling_usd > 0.15`);
     });
   });
 
@@ -980,7 +979,7 @@ describe.skipIf(!PG_AVAILABLE)("Copiloto · teto diário opcional (migration 202
       `select prosrc from pg_proc where proname = 'copilot_claim_generation'`,
     );
     expect(src).not.toContain("1.00");
-    expect(src).toContain(`p_turn_cost_ceiling_usd > ${COPILOT_MAX_TURN_COST_USD}`);
+    expect(src).toContain(`p_turn_cost_ceiling_usd > 0.15`);
     const acl = await pg.sql(
       `select array_to_string(proacl, ',') || '|' || prosecdef::text from pg_proc where proname = 'copilot_claim_generation'`,
     );

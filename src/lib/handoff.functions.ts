@@ -1289,7 +1289,16 @@ export const sendHandoffMessage = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     // núcleo único de envio humano (servidor; também usado pelo Copiloto para a sugestão APROVADA)
     const { sendHumanMessageToConversation } = await import("@/lib/handoff-send.server");
-    await sendHumanMessageToConversation(supabase, userId, data);
+    const sent = await sendHumanMessageToConversation(supabase, userId, data);
+    // Registro de envio da sugestão do Copiloto (segundo plano; nunca atrasa nem derruba o envio).
+    if (!data.internalNote && sent?.messageId) {
+      const { runInBackground } = await import("@/lib/background.server");
+      const rec = { userId, conversationId: data.conversationId, messageId: sent.messageId, channel: sent.channel, content: data.content };
+      await runInBackground(async () => {
+        const { recordCopilotSuggestionSentLive } = await import("@/lib/copilot-sent-record.server");
+        await recordCopilotSuggestionSentLive(rec);
+      });
+    }
     // AUTO-APRENDIZADO (10/11/2026): fato do imóvel dito pela equipe ao hóspede entra no Documento Vivo (governança
     // por exceção). Segundo plano: nunca atrasa nem derruba o envio. Nota interna não ensina nada.
     if (!data.internalNote && process.env["GUEST_AI_LEARNING_EXTRACTOR"] === "on") {

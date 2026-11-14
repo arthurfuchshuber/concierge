@@ -345,6 +345,20 @@ function buildContextData(ctx: ConversationContext, guarded: Guarded, unavailabl
     valor: cal && cal.status === "available" ? calendarFactValue(cal) : { status: "indisponivel" },
     origem: "calendario_oficial_do_imovel",
   });
+  // Modalidade de entrada do imóvel (14/11/2026, caso Jayr): só a modalidade, nunca valor. `presencial` = nenhuma
+  // credencial autônoma cadastrada: o padrão é a entrega de chaves pelo anfitrião/equipe, e menção a portaria,
+  // fechadura ou cofre vinda do texto do anúncio/condomínio NÃO é método de acesso.
+  const accessMethod = g.access?.accessMethod ?? "unknown";
+  facts.push({
+    id: "ctx:metodo_de_acesso",
+    valor:
+      accessMethod === "autonomous"
+        ? { metodo: "autonomo", observacao: "ha_credencial_de_acesso_cadastrada_entrega_so_pelo_marcador_quando_a_d9_permitir" }
+        : accessMethod === "in_person"
+          ? { metodo: "presencial", observacao: "nenhuma_credencial_autonoma_cadastrada_entrega_presencial_de_chaves_pelo_anfitriao_ou_equipe" }
+          : { metodo: "nao_comprovado", observacao: "nao_presuma_portaria_fechadura_ou_cofre" },
+    origem: "cadastro_do_imovel",
+  });
   facts.push(
     {
       id: "ctx:liberacao_credenciais",

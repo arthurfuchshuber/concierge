@@ -27,9 +27,9 @@ describe("dificuldade de acesso relatada", () => {
     expect(sys).toMatch(/usando estritamente as instruções reais de acesso do dossiê/);
     expect(sys).toMatch(/no máximo duas ou três frases objetivas/);
     expect(sys).toMatch(/checagem breve de sucesso/);
-    expect(tone1.split(/(?<=[.?!])\s+/).filter(Boolean).length).toBeLessThanOrEqual(4);
-    expect(tone1).toMatch(/Deu certo para abrir\?$/);
-    expect(tone1).not.toMatch(/onde você está|já está na porta|portaria ou/i);
+    // 14/11/2026: sem frases prontas no prompt; o comportamento é descrito como princípio
+    expect(tone1).toBe("");
+    expect(sys).not.toMatch(/Tom ideal:/);
   });
   it("pergunta de localização só quando o relato não deixa claro o bloqueio; sucesso encerra o ciclo", () => {
     expect(sys).toMatch(/Só quando o relato não deixa claro o ponto do bloqueio faça UMA pergunta-chave/);

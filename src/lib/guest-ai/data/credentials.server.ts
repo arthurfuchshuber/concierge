@@ -48,3 +48,33 @@ export async function fetchSensitiveCredentials(
     accessInstructions: instructions || null,
   };
 }
+
+/**
+ * MÉTODO DE ACESSO (14/11/2026, caso Jayr) — o imóvel tem alguma credencial de acesso AUTÔNOMO cadastrada?
+ *
+ * Só EXISTÊNCIA, nunca valor: o filtro roda no banco (`or(and(col não nulo, col não vazio), …)`) e a consulta
+ * seleciona apenas `id`, então nenhum segredo chega à memória do servidor, ao modelo ou a log. Isto não é uma
+ * liberação de credencial (não depende da D9, não emite nem exige `CredentialGrant`): responde "como se entra neste
+ * imóvel?" para que a IA não presuma portaria/fechadura onde a entrega é presencial.
+ *  - `autonomous`: há código de fechadura/cofre/portão, PIN ou instruções de acesso cadastrados;
+ *  - `in_person`: nenhum desses — o padrão é entrega presencial de chaves pelo anfitrião/equipe;
+ *  - `unknown`: leitura falhou (a IA não presume nenhuma modalidade).
+ */
+export type AccessMethod = "autonomous" | "in_person" | "unknown";
+
+const ACCESS_EXISTENCE_COLUMNS = ["lock_code", "gate_code", "pin_code", "lock_instructions", "gate_instructions"] as const;
+
+export async function fetchAccessMethod(
+  turn: { propertyId: string },
+  deps?: { db?: GuestAiDb },
+): Promise<AccessMethod> {
+  try {
+    const db = deps?.db ?? (await getGuestAiDb());
+    const present = ACCESS_EXISTENCE_COLUMNS.map((c) => `and(${c}.not.is.null,${c}.neq.)`).join(",");
+    const { data, error } = await db.from("properties").select("id").eq("id", turn.propertyId).or(present).limit(1);
+    if (error || !Array.isArray(data)) return "unknown";
+    return data.length > 0 ? "autonomous" : "in_person";
+  } catch {
+    return "unknown";
+  }
+}

@@ -71,7 +71,7 @@ export const COPILOT_SENDER_IDENTITY_STATES = [
  * positivo ⇒ esse valor (até `COPILOT_DAILY_COST_MAX_USD`); ausente, vazio, inválido, zero ou negativo ⇒
  * `COPILOT_DEFAULT_DAILY_COST_USD` (US$ 3,00). Não existe mais caminho "sem teto".
  */
-export const COPILOT_MAX_TURN_COST_USD = 0.15;
+export const COPILOT_MAX_TURN_COST_USD = 1;
 
 /**
  * PRAZOS (titular, 10/11/2026 — auditoria: ~50% dos turnos do Airbnb eram cortados em 15 s com o raciocínio
@@ -96,7 +96,7 @@ export const COPILOT_BURST_QUIET_MS = 6_000;
  * RACIOCÍNIO 100% ELÁSTICO (ajuste fino do PR #11, 07/11/2026): não existe tabela de esforço por assunto.
  * O Copiloto chama o modelo em `auto` — o parâmetro de esforço não é enviado e o próprio modelo dosa a
  * profundidade do pensamento em cada situação. O guarda-corpo financeiro é EXTERNO ao modelo:
- *  - teto de custo por turno (`COPILOT_MAX_TURN_COST_USD`, US$ 0,15), conferido no pior caso ANTES da rede;
+ *  - teto de custo por turno (`COPILOT_MAX_TURN_COST_USD`, US$ 1,00), conferido no pior caso ANTES da rede;
  *  - teto de saída (`COPILOT_MAX_OUTPUT_TOKENS`; os tokens de raciocínio contam como saída), com recuo para
  *    `COPILOT_MIN_OUTPUT_TOKENS` quando o teto cheio não cabe no teto de custo do turno;
  *  - teto diário obrigatório (`copilotDailyLimitUsd`).

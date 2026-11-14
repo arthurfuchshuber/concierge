@@ -77,7 +77,8 @@ export function validateDecision(input: ValidationInput): ValidationReport {
   if (wantsHandoff !== d.handoff.needed) add("handoff_inconsistent");
   if (d.handoff.needed && !d.handoff.question) add("handoff_inconsistent");
   // B2.3: campos mutuamente incompatíveis — pergunta/urgência à equipe sem encaminhamento.
-  if (!d.handoff.needed && (d.handoff.question !== null || d.handoff.urgency !== null)) add("handoff_fields_without_need");
+  // 14/11/2026: pergunta/urgência sem encaminhamento é deslize de preenchimento, não risco: não bloqueia a resposta (fluidez);
+  // o campo `handoff.needed` continua mandando e nada é encaminhado sem ele.
 
   // 2) Credenciais (o modelo nunca vê códigos)
   const markerCount = d.reply.split(CREDENTIAL_MARKER).length - 1;

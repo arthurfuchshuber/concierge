@@ -75,7 +75,9 @@ export async function processHostMilestone(p: { conversationId: string; hostText
       .join("\n");
 
     // Afirmação explícita ("Check-in confirmado.") é fato consumado: não depende da leitura do modelo.
-    const explicit = explicitHostConfirmation(p.hostText);
+    // Mensagem PROGRAMADA ("seu check-in está confirmado…", boas-vindas) nunca é fato consumado: só a fala de uma
+    // pessoa conta como atestado explícito (auditoria 14/11/2026).
+    const explicit = p.automated ? null : explicitHostConfirmation(p.hostText);
     let reading: import("./decide").HostReading | null = explicit && allowed.includes(explicit) ? { milestone: explicit, confidence: 1 } : null;
     if (!reading) {
     const { chatJson } = await import("@/lib/llm/gateway.server");
