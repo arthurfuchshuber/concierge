@@ -97,6 +97,13 @@ export class FocusClient {
   issue(kind: FocusDocumentPath, ref: string, payload: unknown) { return this.call("POST", `/v2/${kind}?ref=${encodeURIComponent(ref)}`, payload); }
   /** Consulta: a única fonte que muda o estado fiscal do documento. */
   query(kind: FocusDocumentPath, ref: string) { return this.call("GET", `/v2/${kind}/${encodeURIComponent(ref)}`); }
+  /**
+   * Empresas API (POST /v2/empresas). O corpo carrega o certificado A1 em memória e SÓ aqui: nada é persistido.
+   * Documentação pública: a API de Empresas opera apenas em produção; `dry_run=1` simula sem criar a empresa.
+   */
+  registerCompany(body: Record<string, unknown>, opts: { dryRun: boolean }) {
+    return this.call("POST", `/v2/empresas${opts.dryRun ? "?dry_run=1" : ""}`, body);
+  }
   cancel(kind: FocusDocumentPath, ref: string, justificativa: string) {
     if (justificativa.length < 15 || justificativa.length > 255) throw new Error("focus_cancel_reason_length");
     return this.call("DELETE", `/v2/${kind}/${encodeURIComponent(ref)}`, { justificativa });

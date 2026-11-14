@@ -6,6 +6,7 @@ import { createHash, createHmac, randomBytes } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { decryptConnectionKey, encryptConnectionKey } from "@/lib/connection-key-crypto.server";
 import { FocusClient, FocusTransportError, type FetchLike, type FocusDocumentPath, type FocusEnvironment } from "./focus/client";
+import { buildCompanyBody, CertificateInputError, formatCertificateLabel, parseCertificateExpiry, scrubCertificate, validateCertificateInput } from "./certificate";
 import { requireFiscalAccess, type FiscalAction, type FiscalGuardPorts } from "./guard";
 import { redactBody, hashBody } from "./redact";
 import { reconcileOne, type ReconcileCandidate } from "./reconcile";
@@ -36,24 +37,10 @@ export function guardPorts(db: Db): FiscalGuardPorts {
       const { data } = await db.from("fiscal_tenant_enablement").select("enabled").eq("owner_id", ownerId).maybeSingle();
       return data?.enabled === true;
     },
-    async isActiveMember(ownerId, userId) {
-      const { data } = await db.from("account_members").select("id").eq("owner_id", ownerId).eq("member_user_id", userId).eq("status", "active").maybeSingle();
-      return !!data;
-    },
-    async hasPermission(userId, ownerId, slug, level) {
-      const { can } = await import("@/lib/permissions/permission.guard.server");
-      const d = await can(userId, slug, { tenantId: ownerId, required: level });
-      return d.allowed;
-    },
-    async hasDirectGrant(userId, ownerId, slug) {
-      const { can } = await import("@/lib/permissions/permission.guard.server");
-      const d = await can(userId, slug, { tenantId: ownerId, required: "WRITE" });
-      return d.allowed && (d.source === "owner" || d.source === "assignment");
-    },
   };
 }
 
-/** A conta é a do próprio usuário ou uma em que ele é membro ativo. Admin SaaS NÃO ganha acesso por ser admin. */
+/** `owner_only`: a conta é SEMPRE a do próprio usuário autenticado. Outra conta pedida ⇒ 403 (sem exceção para admin SaaS). */
 export async function authorizeFiscal(userId: string, requestedOwnerId: string | null | undefined, action: FiscalAction): Promise<{ db: Db; ownerId: string }> {
   const db = await adminDb();
   const ownerId = requestedOwnerId || userId;
@@ -131,6 +118,76 @@ export async function createCompany(db: Db, ownerId: string, args: { connectionI
   if (error) throw new Error(error.code === "23505" ? "Este CNPJ/CPF já está cadastrado em outra conta." : error.message);
   await audit(db, ownerId, null, "company_create", "company", data.id, {});
   return { id: data.id as string };
+}
+
+/** Projeção pública: só metadados operacionais. Nunca token da sub-empresa, inscrições, certificado ou senha. */
+export type FiscalStatusPublic = {
+  companies: Array<{
+    companyId: string;
+    status: "Ativa" | "Homologação" | "Pendente";
+    legalName: string;
+    tradeName: string | null;
+    taxId: string;
+    certificateValidUntil: string | null;
+    certificateLabel: string | null;
+    canReplaceCertificate: true;
+  }>;
+};
+
+export async function getFiscalStatusPublic(db: Db, ownerId: string): Promise<FiscalStatusPublic> {
+  const { data: comps } = await db.from("fiscal_companies").select("id, tax_id, legal_name, trade_name, status, connection_id, certificate_valid_until").eq("owner_id", ownerId).is("soft_deleted_at", null).order("created_at");
+  const { data: conns } = await db.from("fiscal_provider_connections").select("id, environment, status").eq("owner_id", ownerId);
+  const byId = new Map((conns ?? []).map((c) => [c.id as string, c]));
+  return {
+    companies: (comps ?? []).map((c) => {
+      const conn = byId.get(c.connection_id as string);
+      const live = c.status === "active" && conn?.status === "active";
+      const status = !live ? "Pendente" : conn?.environment === "production" ? "Ativa" : "Homologação";
+      const until = (c.certificate_valid_until as string | null) ?? null;
+      return { companyId: c.id as string, status, legalName: c.legal_name as string, tradeName: (c.trade_name as string | null) ?? null, taxId: c.tax_id as string, certificateValidUntil: until, certificateLabel: formatCertificateLabel(until), canReplaceCertificate: true as const };
+    }),
+  };
+}
+
+/**
+ * Envio do certificado A1 (WRITE-ONLY). Retorna só {ok, dryRun, code}. Nada do `.pfx`/senha é gravado, logado ou devolvido;
+ * a auditoria guarda apenas o resultado. `dryRun` (padrão) usa `?dry_run=1` da Focus: simula sem criar a empresa.
+ * A execução real é ato fiscal real e exige `dryRun:false` explícito do titular.
+ */
+export async function submitCompanyCertificate(
+  db: Db, ownerId: string, userId: string,
+  args: { companyId: string; pfxBase64: string; password: string; companyFields: Record<string, unknown>; dryRun: boolean },
+  fetchImpl?: FetchLike,
+): Promise<{ ok: boolean; dryRun: boolean; code: string }> {
+  const { pfxBase64, password } = args;
+  try {
+    validateCertificateInput(pfxBase64, password);
+    const { data: co } = await db.from("fiscal_companies").select("id, owner_id, tax_id, connection_id").eq("id", args.companyId).eq("owner_id", ownerId).is("soft_deleted_at", null).maybeSingle();
+    if (!co) throw new Error("Empresa fiscal não encontrada.");
+    const body = buildCompanyBody(args.companyFields, pfxBase64, password, co.tax_id as string);
+    const { data: conn } = await db.from("fiscal_provider_connections").select("environment").eq("id", co.connection_id).eq("owner_id", ownerId).maybeSingle();
+    if (conn?.environment !== "production") throw new Error("A API de Empresas da Focus opera apenas em produção: use uma conexão de produção.");
+    const client = await focusFor(db, ownerId, co.connection_id as string, fetchImpl);
+    let res: FocusHttpResult;
+    try { res = await client.registerCompany(body, { dryRun: args.dryRun }); }
+    catch (e) {
+      const code = e instanceof FocusTransportError ? e.reason : "unreachable";
+      await audit(db, ownerId, userId, "company_certificate_error", "company", args.companyId, { dryRun: args.dryRun, code });
+      return { ok: false, dryRun: args.dryRun, code };
+    }
+    const ok = res.status >= 200 && res.status < 300;
+    const code = ok ? "ok" : `http_${res.status}`;
+    await audit(db, ownerId, userId, args.dryRun ? "company_certificate_dry_run" : "company_certificate_submit", "company", args.companyId, { dryRun: args.dryRun, httpStatus: res.status });
+    if (ok && !args.dryRun) {
+      const until = parseCertificateExpiry(res.body);
+      const now = new Date().toISOString();
+      await db.from("fiscal_companies").update({ certificate_valid_until: until, certificate_updated_at: now, updated_at: now }).eq("id", args.companyId).eq("owner_id", ownerId);
+    }
+    return { ok, dryRun: args.dryRun, code };
+  } catch (e) {
+    if (e instanceof CertificateInputError) return { ok: false, dryRun: args.dryRun, code: e.code };
+    throw new Error(scrubCertificate(String((e as Error)?.message ?? e), pfxBase64, password));
+  }
 }
 
 export async function listCompanies(db: Db, ownerId: string) {

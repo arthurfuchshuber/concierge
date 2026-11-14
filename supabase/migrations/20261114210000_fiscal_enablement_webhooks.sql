@@ -12,7 +12,11 @@ create table public.fiscal_tenant_enablement (
   updated_at timestamptz not null default now()
 );
 
-alter table public.fiscal_provider_connections add column webhook_secret_hash text;   -- hash do segredo da URL do webhook; nunca o segredo
+alter table public.fiscal_provider_connections add column webhook_secret_hash text;
+
+-- Metadados públicos da empresa. NUNCA há coluna para certificado (.pfx), senha ou token da sub-empresa:
+-- o certificado A1 é write-only (vai ao provedor e não é guardado aqui).
+alter table public.fiscal_companies add column trade_name text, add column certificate_valid_until timestamptz, add column certificate_updated_at timestamptz;   -- hash do segredo da URL do webhook; nunca o segredo
 
 create table public.fiscal_webhook_events (
   id uuid primary key default gen_random_uuid(),

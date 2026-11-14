@@ -3,8 +3,8 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 /**
- * Funções de servidor do módulo fiscal. TODA função passa por `authorizeFiscal` (módulo habilitado + dono/membro
- * ativo + permissão da árvore). O admin SaaS não tem caminho próprio aqui.
+ * Funções de servidor do módulo fiscal. TODA função passa por `authorizeFiscal` (módulo habilitado + titular da conta: `owner_only`).
+ * Ninguém mais — nem admin SaaS, admin operacional, membro ou prestador — tem caminho aqui (403).
  */
 const Owner = z.object({ ownerId: z.string().uuid().nullish() });
 const uuid = z.string().uuid();
@@ -108,6 +108,27 @@ export const fiscalAudit = createServerFn({ method: "GET" })
     const s = await svc();
     const { db, ownerId } = await s.authorizeFiscal(context.userId, data.ownerId, "auditoria");
     return { items: await s.listAudit(db, ownerId) };
+  });
+
+/** Projeção segura: só metadados públicos (status, razão social, fantasia, CNPJ, validade do certificado). */
+export const fiscalStatus = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => Owner.parse(i ?? {}))
+  .handler(async ({ data, context }): Promise<Service.FiscalStatusPublic> => {
+    const s = await svc();
+    const { db, ownerId } = await s.authorizeFiscal(context.userId, data.ownerId, "empresas.ver");
+    return s.getFiscalStatusPublic(db, ownerId);
+  });
+
+/** Upload write-only do certificado A1 (também "Substituir Certificado"). Não existe rota de leitura/download. */
+export const fiscalSubmitCertificate = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) =>
+    Owner.extend({ companyId: uuid, pfxBase64: z.string().min(16).max(400_000), password: z.string().min(1).max(200), companyFields: z.record(z.string(), z.unknown()).default({}), dryRun: z.boolean().default(true) }).parse(i))
+  .handler(async ({ data, context }) => {
+    const s = await svc();
+    const { db, ownerId } = await s.authorizeFiscal(context.userId, data.ownerId, "empresas.certificado");
+    return s.submitCompanyCertificate(db, ownerId, context.userId, data);
   });
 
 /** Leve: o menu só mostra "Fiscal" quando o módulo está habilitado E a pessoa tem acesso. Nunca lança. */

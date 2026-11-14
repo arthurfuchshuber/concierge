@@ -2,35 +2,29 @@ import { describe, expect, it, vi } from "vitest";
 import { requireFiscalAccess, type FiscalGuardPorts } from "../guard";
 import { handleFocusWebhook, sha256Hex, webhookDedupeKey, type WebhookPorts } from "../webhook";
 import { reconcileOne, type ReconcilePorts } from "../reconcile";
-import { PERMISSION_CATALOG } from "../../permissions/permission.catalog";
 
 const O = "owner", U = "user";
-const ports = (o: Partial<FiscalGuardPorts> = {}): FiscalGuardPorts => ({
-  moduleEnabled: async () => true, isActiveMember: async () => true, hasPermission: async () => true, hasDirectGrant: async () => false, ...o,
-});
+const ports = (o: Partial<FiscalGuardPorts> = {}): FiscalGuardPorts => ({ moduleEnabled: async () => true, ...o });
+const ACTIONS = ["empresas.ver","empresas.cadastrar","empresas.certificado","empresas.desativar","documentos.ver","documentos.preparar","documentos.consultar","documentos.baixar","documentos.cancelar-preparar","autorizacoes.ver","autorizacoes.autorizar","autorizacoes.rejeitar","provedor.ver","provedor.configurar","provedor.webhook","provedor.testar","auditoria"] as const;
 
-describe("FiscalGuard", () => {
+describe("FiscalGuard (owner_only)", () => {
   it("módulo desabilitado nega até o dono", async () => {
-    await expect(requireFiscalAccess(ports({ moduleEnabled: async () => false }), { userId: O, ownerId: O, action: "documentos.ver" })).rejects.toMatchObject({ code: "module_disabled" });
+    await expect(requireFiscalAccess(ports({ moduleEnabled: async () => false }), { userId: O, ownerId: O, action: "documentos.ver" })).rejects.toMatchObject({ code: "module_disabled", httpStatus: 403 });
   });
-  it("não-membro (ex.: admin SaaS) é negado mesmo com permissão global", async () => {
-    await expect(requireFiscalAccess(ports({ isActiveMember: async () => false, hasPermission: async () => true }), { userId: "saas-admin", ownerId: O, action: "documentos.ver" })).rejects.toMatchObject({ code: "not_in_account" });
+  it("só o titular passa, em toda ação", async () => {
+    for (const a of ACTIONS) await requireFiscalAccess(ports(), { userId: O, ownerId: O, action: a });
   });
-  it("dono passa em ações comuns e autoriza", async () => {
-    await requireFiscalAccess(ports(), { userId: O, ownerId: O, action: "empresas.cadastrar" });
-    await requireFiscalAccess(ports(), { userId: O, ownerId: O, action: "autorizacoes.autorizar" });
+  it("qualquer outro papel (admin SaaS, admin operacional, membro, prestador) recebe 403 em toda ação, mesmo com módulo ativo", async () => {
+    for (const who of ["saas-admin", "admin-operacional", "membro", "prestador"])
+      for (const a of ACTIONS)
+        await expect(requireFiscalAccess(ports(), { userId: who, ownerId: O, action: a })).rejects.toMatchObject({ code: "not_owner", httpStatus: 403 });
   });
-  it("membro precisa da permissão; autorizar exige concessão DIRETA (herança não conta)", async () => {
-    await expect(requireFiscalAccess(ports({ hasPermission: async () => false }), { userId: U, ownerId: O, action: "documentos.preparar" })).rejects.toMatchObject({ code: "permission_denied" });
-    await expect(requireFiscalAccess(ports({ hasPermission: async () => true, hasDirectGrant: async () => false }), { userId: U, ownerId: O, action: "autorizacoes.autorizar" })).rejects.toMatchObject({ code: "permission_denied" });
-    await requireFiscalAccess(ports({ hasDirectGrant: async () => true }), { userId: U, ownerId: O, action: "autorizacoes.autorizar" });
+  it("não-titular não descobre se o módulo está habilitado (mesmo erro com módulo ligado ou desligado)", async () => {
+    const off = requireFiscalAccess(ports({ moduleEnabled: async () => false }), { userId: U, ownerId: O, action: "documentos.ver" });
+    await expect(off).rejects.toMatchObject({ code: "not_owner" });
   });
-  it("todo nó de ação do guard existe no catálogo de permissões", () => {
-    const slugs = new Set(PERMISSION_CATALOG.map((n) => n.slug));
-    for (const a of ["empresas.ver","empresas.cadastrar","empresas.certificado","empresas.desativar","documentos.ver","documentos.preparar","documentos.consultar","documentos.baixar","documentos.cancelar-preparar","autorizacoes.ver","autorizacoes.autorizar","autorizacoes.rejeitar","provedor.ver","provedor.configurar","provedor.webhook","provedor.testar"]) {
-      expect(slugs.has(`tenant.fiscal.${a}`), a).toBe(true);
-    }
-    expect(slugs.has("tenant.fiscal.auditoria")).toBe(true);
+  it("contexto vazio é entrada inválida (400), nunca acesso", async () => {
+    await expect(requireFiscalAccess(ports(), { userId: "", ownerId: "", action: "documentos.ver" })).rejects.toMatchObject({ code: "invalid_input", httpStatus: 400 });
   });
 });
 

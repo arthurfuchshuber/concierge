@@ -201,39 +201,6 @@ const ADMINISTRATIVO: Def[] = [
 ];
 
 
-/** Fiscal — /admin/fiscal (módulo opcional; admin SaaS NÃO tem acesso ao conteúdo fiscal). */
-const FISCAL: Def[] = [
-  page("tenant.fiscal", "Fiscal", "/admin/fiscal", "Receipt", 55,
-    "Empresas emitentes, documentos fiscais e integração com o provedor fiscal."),
-
-  tab("tenant.fiscal.empresas", "Empresas", 10),
-  act("tenant.fiscal.empresas.ver", "Ver empresas", 10),
-  act("tenant.fiscal.empresas.cadastrar", "Cadastrar empresa emitente", 20),
-  act("tenant.fiscal.empresas.certificado", "Enviar certificado digital", 30),
-  act("tenant.fiscal.empresas.desativar", "Desativar empresa", 40),
-
-  tab("tenant.fiscal.documentos", "Documentos", 20),
-  act("tenant.fiscal.documentos.ver", "Ver documentos fiscais", 10),
-  act("tenant.fiscal.documentos.preparar", "Preparar emissão", 20),
-  act("tenant.fiscal.documentos.consultar", "Consultar situação no provedor", 30),
-  act("tenant.fiscal.documentos.baixar", "Baixar XML e PDF", 40),
-  act("tenant.fiscal.documentos.cancelar-preparar", "Preparar cancelamento", 50),
-
-  // Atos fiscais exigem autorização humana específica. Fora o dono da conta, só autoriza
-  // quem recebe ESTE nó diretamente — a herança da aba não conta.
-  tab("tenant.fiscal.autorizacoes", "Autorizações", 30),
-  act("tenant.fiscal.autorizacoes.ver", "Ver operações pendentes", 10),
-  act("tenant.fiscal.autorizacoes.autorizar", "Autorizar ato fiscal", 20),
-  act("tenant.fiscal.autorizacoes.rejeitar", "Rejeitar operação", 30),
-
-  tab("tenant.fiscal.provedor", "Provedor fiscal", 40),
-  act("tenant.fiscal.provedor.ver", "Ver conexão", 10),
-  act("tenant.fiscal.provedor.configurar", "Configurar conexão e token", 20),
-  act("tenant.fiscal.provedor.webhook", "Configurar webhook", 30),
-  act("tenant.fiscal.provedor.testar", "Testar conexão", 40),
-
-  tab("tenant.fiscal.auditoria", "Auditoria", 50),
-];
 
 /* ================================================================ ADMIN SAAS */
 
@@ -311,7 +278,6 @@ const RAW_CATALOG: Def[] = [
   ...GUIAS,
   ...STAKEHOLDERS,
   ...ATENDIMENTO,
-  ...FISCAL,
   ...ADMINISTRATIVO,
   ...SAAS_ENGAJAMENTO,
   ...SAAS_CLIENTES,
