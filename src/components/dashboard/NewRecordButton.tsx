@@ -240,7 +240,8 @@ export function NewRecordButton() {
         open={open}
         onOpenChange={setOpen}
         title="Novo registro"
-        progress={`${Math.min(step, 3)} de 3`}
+        /* Mockups atuais (e1–e3): o cabeçalho não mostra mais o contador "X de 3". */
+        progress=""
         onBack={step > 1 ? () => setStep(step - 1) : undefined}
         footer={
             <button
@@ -283,7 +284,7 @@ export function NewRecordButton() {
                 <Choice
                   icon={Home}
                   title="Imóvel"
-                  sub="Sem hóspede, só o imóvel"
+                  sub="Apenas ligado ao imóvel."
                   selected={link === "imovel"}
                   onClick={() => {
                     if (link !== "imovel") {
@@ -394,8 +395,8 @@ export function NewRecordButton() {
                       ownerPhoneCountry={p.ownerPhoneCountry}
                       city={p.city}
                       address={p.address}
-                      mapsUrl={p.mapsUrl}
-                      garageMapsUrl={p.garageMapsUrl}
+                      /* Mockup e2/e: a linha do imóvel não tem o botão de localização. */
+                      hideMaps
                       multi
                       selected={propertyIds.includes(p.id)}
                       onClick={() => toggleProp(p.id)}

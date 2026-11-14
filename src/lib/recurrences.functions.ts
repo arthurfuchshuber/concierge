@@ -86,6 +86,13 @@ export async function autoLinkReservationId(
   return link?.reservationId ?? null;
 }
 
+/** Data do próximo checkout do imóvel (hoje em diante) — pendência avulsa "no checkout" sem entrar no checklist. */
+export async function nextCheckoutDate(db: AnyClient, propertyId: string): Promise<string | null> {
+  const today = todayISO();
+  const link = await resolveCleaningFor(db, propertyId, today, today);
+  return link?.date ?? null;
+}
+
 /**
  * Religa as pendências avulsas de checkout automático (`auto_link_checkout`) ao checkout certo: quando a
  * reserva muda de data, é cancelada, ou aparece uma reserva para o imóvel que estava sem checkout à frente.
