@@ -106,7 +106,11 @@ async function gravarReservaOficial(admin: SupabaseAdmin, booking: ResolvedBooki
   const a = booking as any;
   const propertyId = await imovelDoQuarto(admin, roomTypeId, txt(a.property_id));
   const bookingId = booking._bookingId ?? a.booking_id ?? null;
-  if (!propertyId || !bookingId || !a.arrival_date || !a.departure_date) return;
+  if (!propertyId || !bookingId || !a.arrival_date || !a.departure_date) {
+    // A revisão completa já fica em channex_raw_records (aplicarReserva); aqui só deixa rastro e não bloqueia o ACK.
+    console.error("[channex] reserva sem imóvel/datas — não gravada em property_reservations", { bookingId, roomTypeId, motivo: !propertyId ? "sem_imovel" : !bookingId ? "sem_booking_id" : "sem_datas" });
+    return;
+  }
   const c = a.customer ?? {};
   const main = [c.name, c.surname].filter(Boolean).join(" ").trim();
   const rooms = (a.rooms ?? []) as Array<Record<string, unknown>>;
@@ -204,9 +208,6 @@ async function aplicarReserva(supabaseAdmin: SupabaseAdmin, payload: unknown) {
   const somenteUuid = (v: unknown): string | null =>
     typeof v === "string" && UUID.test(v.trim()) ? v.trim() : null;
   const roomTypeId = somenteUuid(room.room_type_id);
-  const ratePlanId = somenteUuid(room.rate_plan_id);
-  // Mantém a validação do UUID da tarifa; o vínculo oficial usa o quarto.
-  void ratePlanId;
 
   // Reserva oficial do imóvel (API, nunca iCal): grava em property_reservations.
   await gravarReservaOficial(supabaseAdmin, booking, roomTypeId);
