@@ -15,7 +15,7 @@ export interface HostMilestoneInput {
 }
 
 export type HostMilestoneDecision =
-  | { act: true; action: "checkin_done" | "checkout_done" }
+  | { act: true; action: "checkin_done" | "checkout_done"; early: boolean }
   | { act: false; code: string };
 
 export const HOST_MIN_CONFIDENCE = 0.8;
@@ -34,9 +34,12 @@ export function plausibleMilestones(i: Omit<HostMilestoneInput, "reading">): Arr
   if (!st || st.includes("cancel") || st.includes("no_show") || st.includes("noshow")) return [];
   const out: Array<"checkin_done" | "checkout_done"> = [];
   const madrugada = !!i.nowHm && i.nowHm < "05:00";
-  if (!i.cards.checkinDone && (i.today === r.checkinDate || (i.today === addDays(r.checkinDate, 1) && madrugada)))
-    out.push("checkin_done");
-  if (!i.cards.checkoutDone && i.today === r.checkoutDate) out.push("checkout_done");
+  // reserva em andamento: da entrada até a saída oficial (+ madrugada do dia seguinte à saída).
+  // Cobre entrada tardia (2º/3º dia) e saída antecipada.
+  const inStay = i.today >= r.checkinDate && (i.today <= r.checkoutDate || (i.today === addDays(r.checkoutDate, 1) && madrugada));
+  if (!inStay) return [];
+  if (!i.cards.checkinDone && i.today < r.checkoutDate) out.push("checkin_done");
+  if (!i.cards.checkoutDone) out.push("checkout_done");
   return out;
 }
 
@@ -47,10 +50,8 @@ export function decideHostMilestone(i: HostMilestoneInput): HostMilestoneDecisio
   if (!m || m.milestone === "none") return { act: false, code: "no_milestone" };
   if (!(m.confidence >= HOST_MIN_CONFIDENCE)) return { act: false, code: "low_confidence" };
   if (!allowed.includes(m.milestone)) return { act: false, code: "milestone_not_allowed" };
-  // checkout sem check-in concluído: a rotina do painel fecha a estadia; mantemos a ordem natural
-  if (m.milestone === "checkout_done" && !i.cards.checkinDone && allowed.includes("checkin_done"))
-    return { act: false, code: "checkin_pending" };
-  return { act: true, action: m.milestone };
+  const early = m.milestone === "checkout_done" && !!i.reservation?.checkoutDate && i.today! < i.reservation.checkoutDate;
+  return { act: true, action: m.milestone, early };
 }
 
 export function parseHostReading(raw: unknown): HostReading | null {

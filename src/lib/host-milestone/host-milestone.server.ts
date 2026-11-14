@@ -94,7 +94,11 @@ export async function processHostMilestone(p: { conversationId: string; hostText
       return `shadow_${decision.action}`;
     }
     const { applyOpsAction } = await import("@/lib/guest-ai-ops-apply.server");
-    const out = await applyOpsAction({ action: decision.action, propertyId: c.property_id, reservationId: c.reservation_id });
+    const out = await applyOpsAction(
+      decision.early
+        ? { action: "early_departure", propertyId: c.property_id, reservationId: c.reservation_id, today: lp.today, checkoutDate: base.reservation.checkoutDate! }
+        : { action: decision.action, propertyId: c.property_id, reservationId: c.reservation_id },
+    );
     console.log("[host-milestone]", decision.action, out.ok ? "applied" : out.code, p.conversationId);
     return out.ok ? `applied_${decision.action}` : out.code;
   } catch (e) {
