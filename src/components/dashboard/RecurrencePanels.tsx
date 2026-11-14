@@ -9,7 +9,6 @@ import { Switch } from "@/components/ui/switch";
 import { OwnerLine } from "@/components/dashboard/OwnerLine";
 import {
   listRecurrences,
-  skipRecurrenceOccurrence,
   updateRecurrence,
   type RecurrenceOccurrence,
   type RecurrenceSummary,
@@ -354,7 +353,6 @@ function occText(s: RecurrenceSummary, o: RecurrenceOccurrence, todayIso: string
 function DetailView({ s, onEdit, onClosed }: { s: RecurrenceSummary; onEdit: () => void; onClosed: () => void }) {
   const qc = useQueryClient();
   const updateFn = useServerFn(updateRecurrence);
-  const skipFn = useServerFn(skipRecurrenceOccurrence);
   const [busy, setBusy] = useState<string | null>(null);
   const [confirmEnd, setConfirmEnd] = useState(false);
   const todayIso = useMemo(() => {
@@ -430,16 +428,6 @@ function DetailView({ s, onEdit, onClosed }: { s: RecurrenceSummary; onEdit: () 
               <span className="grid min-w-0 flex-1">
                 <span className="text-[12.5px] font-bold tabular-nums">{fmtBR(o.date)}</span>
                 <span className="text-[11px] text-muted-foreground">{occText(s, o, todayIso)}</span>
-                {o.state === "next" && o.taskId && (
-                  <button
-                    type="button"
-                    disabled={!!busy}
-                    onClick={() => void run("skip", () => skipFn({ data: { taskId: o.taskId! } }))}
-                    className="mt-0.5 w-fit text-[11px] font-bold text-muted-foreground hover:text-foreground disabled:opacity-50"
-                  >
-                    {busy === "skip" ? "Pulando…" : "Pular esta"}
-                  </button>
-                )}
               </span>
               {o.state === "next" ? (
                 <span className={cn(chip, "bg-accent/[0.15] text-accent")}>
