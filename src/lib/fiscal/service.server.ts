@@ -7,6 +7,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { decryptConnectionKey, encryptConnectionKey } from "@/lib/connection-key-crypto.server";
 import { FocusClient, FocusTransportError, type FetchLike, type FocusDocumentPath, type FocusEnvironment } from "./focus/client";
 import { buildCompanyBody, CertificateInputError, formatCertificateLabel, parseCertificateExpiry, scrubCertificate, validateCertificateInput } from "./certificate";
+import { certificateAlert, contentType, FILE_URL_TTL_SECONDS, FISCAL_BUCKET, FiscalFileError, filePath, sha256Bytes, validateFiscalFile, type CertificateAlert, type FileKind } from "./files";
 import { requireFiscalAccess, type FiscalAction, type FiscalGuardPorts } from "./guard";
 import { redactBody, hashBody } from "./redact";
 import { reconcileOne, type ReconcileCandidate } from "./reconcile";
@@ -120,6 +121,46 @@ export async function createCompany(db: Db, ownerId: string, args: { connectionI
   return { id: data.id as string };
 }
 
+/* ------------------------------------------- arquivos fiscais (guarda de 5 anos) */
+
+/**
+ * Grava XML/PDF de um documento no bucket PRIVADO e registra metadados. Idempotente por (documento, tipo, sha256).
+ * O objeto sobe primeiro; se o registro falhar, o objeto é removido (nada órfão).
+ */
+export async function storeDocumentFile(db: Db, ownerId: string, userId: string | null, args: { documentId: string; kind: FileKind; bytes: Uint8Array }): Promise<{ id: string; created: boolean }> {
+  validateFiscalFile(args.kind, args.bytes);
+  const { data: doc } = await db.from("fiscal_documents").select("id, company_id").eq("id", args.documentId).eq("owner_id", ownerId).maybeSingle();
+  if (!doc) throw new Error("Documento fiscal não encontrado.");
+  const sha = sha256Bytes(args.bytes);
+  const path = filePath({ ownerId, companyId: doc.company_id as string, documentId: args.documentId, kind: args.kind, sha256: sha });
+  const dup = await db.from("fiscal_document_files").select("id").eq("document_id", args.documentId).eq("kind", args.kind).eq("sha256", sha).maybeSingle();
+  if (dup.data?.id) return { id: dup.data.id as string, created: false };
+  const up = await db.storage.from(FISCAL_BUCKET).upload(path, args.bytes, { contentType: contentType(args.kind), upsert: false });
+  if (up.error) throw new Error("Falha ao gravar o arquivo fiscal.");
+  const ins = await db.from("fiscal_document_files").insert({ owner_id: ownerId, company_id: doc.company_id, document_id: args.documentId, kind: args.kind, storage_path: path, sha256: sha, size_bytes: args.bytes.byteLength }).select("id").single();
+  if (ins.error) {
+    await db.storage.from(FISCAL_BUCKET).remove([path]);
+    throw new Error("Falha ao registrar o arquivo fiscal.");
+  }
+  await audit(db, ownerId, userId, "document_file_store", "document", args.documentId, { kind: args.kind, sha256: sha, size: args.bytes.byteLength });
+  return { id: ins.data.id as string, created: true };
+}
+
+export async function listDocumentFiles(db: Db, ownerId: string, documentId: string) {
+  const { data } = await db.from("fiscal_document_files").select("id, kind, sha256, size_bytes, created_at, retain_until").eq("owner_id", ownerId).eq("document_id", documentId).order("created_at", { ascending: false });
+  return (data ?? []).map((f) => ({ id: f.id as string, kind: f.kind as FileKind, sizeBytes: Number(f.size_bytes), createdAt: f.created_at as string, retainUntil: f.retain_until as string }));
+}
+
+/** Link assinado de 60 s para o titular baixar o XML/PDF da NOTA (nunca o certificado). Cada emissão de link é auditada. */
+export async function documentFileSignedUrl(db: Db, ownerId: string, userId: string, fileId: string): Promise<{ url: string; expiresInSeconds: number }> {
+  const { data: f } = await db.from("fiscal_document_files").select("id, storage_path, kind, document_id").eq("id", fileId).eq("owner_id", ownerId).maybeSingle();
+  if (!f) throw new Error("Arquivo fiscal não encontrado.");
+  const s = await db.storage.from(FISCAL_BUCKET).createSignedUrl(f.storage_path as string, FILE_URL_TTL_SECONDS);
+  if (s.error || !s.data?.signedUrl) throw new Error("Não foi possível gerar o link do arquivo.");
+  await audit(db, ownerId, userId, "document_file_url", "document", f.document_id as string, { kind: f.kind });
+  return { url: s.data.signedUrl, expiresInSeconds: FILE_URL_TTL_SECONDS };
+}
+
 /** Projeção pública: só metadados operacionais. Nunca token da sub-empresa, inscrições, certificado ou senha. */
 export type FiscalStatusPublic = {
   companies: Array<{
@@ -130,6 +171,7 @@ export type FiscalStatusPublic = {
     taxId: string;
     certificateValidUntil: string | null;
     certificateLabel: string | null;
+    certificateAlert: CertificateAlert;
     canReplaceCertificate: true;
   }>;
 };
@@ -144,7 +186,7 @@ export async function getFiscalStatusPublic(db: Db, ownerId: string): Promise<Fi
       const live = c.status === "active" && conn?.status === "active";
       const status = !live ? "Pendente" : conn?.environment === "production" ? "Ativa" : "Homologação";
       const until = (c.certificate_valid_until as string | null) ?? null;
-      return { companyId: c.id as string, status, legalName: c.legal_name as string, tradeName: (c.trade_name as string | null) ?? null, taxId: c.tax_id as string, certificateValidUntil: until, certificateLabel: formatCertificateLabel(until), canReplaceCertificate: true as const };
+      return { companyId: c.id as string, status, legalName: c.legal_name as string, tradeName: (c.trade_name as string | null) ?? null, taxId: c.tax_id as string, certificateValidUntil: until, certificateLabel: formatCertificateLabel(until), certificateAlert: certificateAlert(until), canReplaceCertificate: true as const };
     }),
   };
 }

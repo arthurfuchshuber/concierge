@@ -131,6 +131,26 @@ export const fiscalSubmitCertificate = createServerFn({ method: "POST" })
     return s.submitCompanyCertificate(db, ownerId, context.userId, data);
   });
 
+/** Arquivos (XML/PDF) de um documento: só metadados. */
+export const fiscalDocumentFiles = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => Owner.extend({ documentId: uuid }).parse(i))
+  .handler(async ({ data, context }) => {
+    const s = await svc();
+    const { db, ownerId } = await s.authorizeFiscal(context.userId, data.ownerId, "documentos.ver");
+    return { files: await s.listDocumentFiles(db, ownerId, data.documentId) };
+  });
+
+/** Link assinado curto (60 s) do XML/PDF da nota, só para o titular. */
+export const fiscalDocumentFileUrl = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => Owner.extend({ fileId: uuid }).parse(i))
+  .handler(async ({ data, context }) => {
+    const s = await svc();
+    const { db, ownerId } = await s.authorizeFiscal(context.userId, data.ownerId, "documentos.baixar");
+    return s.documentFileSignedUrl(db, ownerId, context.userId, data.fileId);
+  });
+
 /** Leve: o menu só mostra "Fiscal" quando o módulo está habilitado E a pessoa tem acesso. Nunca lança. */
 export const fiscalMenuVisible = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])

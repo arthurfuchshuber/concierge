@@ -122,7 +122,7 @@ describe("projeção segura do status", () => {
     provider_company_ref: "SEGREDO-REF", capabilities: { municipal_registration: "123" } });
   it("expõe somente metadados públicos e nada de segredo", async () => {
     const out = await getFiscalStatusPublic(dbWith([co("active")], [{ id: "c1", environment: "production", status: "active", secret_ref: { ct: "CIFRADO" } }]), OWNER);
-    expect(out.companies[0]).toEqual({ companyId: CO, status: "Ativa", legalName: "ACME LTDA", tradeName: "Acme", taxId: "12345678000195", certificateValidUntil: "2027-08-15T00:00:00.000Z", certificateLabel: "Certificado A1 válido até 15/08/2027", canReplaceCertificate: true });
+    expect(out.companies[0]).toEqual({ companyId: CO, status: "Ativa", legalName: "ACME LTDA", tradeName: "Acme", taxId: "12345678000195", certificateValidUntil: "2027-08-15T00:00:00.000Z", certificateLabel: "Certificado A1 válido até 15/08/2027", certificateAlert: { level: expect.stringMatching(/^(ok|expiring|expired)$/), daysLeft: expect.any(Number) }, canReplaceCertificate: true });
     const dump = JSON.stringify(out);
     for (const s of ["SEGREDO-REF", "CIFRADO", "municipal", "secret_ref", "token"]) expect(dump).not.toContain(s);
   });
