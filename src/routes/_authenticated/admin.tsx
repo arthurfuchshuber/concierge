@@ -1,7 +1,7 @@
 import { SituationOutboxRunner } from "@/components/dashboard/SituationOutboxRunner";
 import { StageOutboxRunner } from "@/components/dashboard/StageOutboxRunner";
 import { createFileRoute, Outlet, Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { LogOut, LayoutDashboard, Settings2, Menu, Users, Shield, Activity, Star, Headphones, Wrench, Home, Contact, Cpu, ChevronsLeft, ChevronsRight, Plus, Minus } from "lucide-react";
+import { LogOut, LayoutDashboard, Settings2, Menu, Users, Shield, Activity, Star, Headphones, Wrench, Home, Contact, Cpu, ChevronsLeft, ChevronsRight, Plus, Minus, Receipt } from "lucide-react";
 import conciergeLogo from "@/assets/concierge-logo.png";
 import { LiveSync, useFallbackInterval } from "@/components/LiveSync";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -20,6 +20,7 @@ import { usePushNavigation } from "@/hooks/usePushNavigation";
 import { FloatingDock } from "@/components/FloatingDock";
 import { PushNotificationBanner } from "@/components/PushNotificationBanner";
 import { countPendingHandoffs } from "@/lib/handoff.functions";
+import { fiscalMenuVisible } from "@/lib/fiscal/fiscal.functions";
 import { useHasSession } from "@/hooks/useHasSession";
 import { listMyAccounts } from "@/lib/active-account.functions";
 import { PendingInviteDialog } from "@/components/admin/PendingInviteDialog";
@@ -93,7 +94,7 @@ const SIDEBAR_GROUPS = [
   },
 ] as const;
 /** Ordem do menu (22/10/2026): Dashboard, Stakeholders, Guias Digitais, Atendimento, Administrativo. */
-const SIDEBAR_ORDER = ["group:dashboard", "group:stakeholders", "/admin/guias", "/admin/atendimento", "/admin/administrativo"] as const;
+const SIDEBAR_ORDER = ["group:dashboard", "group:stakeholders", "/admin/guias", "/admin/atendimento", "/admin/fiscal", "/admin/administrativo"] as const;
 
 const adminOnlyNav = [
   { to: "/admin/engajamento", label: "Engajamento", icon: Activity, exact: false },
@@ -160,9 +161,19 @@ function AdminLayout() {
 
   // Empresa ativa (auto-seleção para membros) + recarga dos dados ao trocar.
   const { resolving: resolvingAccount, awaitingAccountChoice } = useActiveAccount();
+  // Fiscal: módulo opcional. Só aparece se habilitado para a conta e a pessoa tiver acesso (o servidor decide).
+  const fiscalFn = useServerFn(fiscalMenuVisible);
+  const fiscalMenu = useQuery({
+    queryKey: ["fiscal-menu-visible", activeAccountId ?? "self"],
+    queryFn: async () => { try { return await fiscalFn({ data: {} }); } catch { return { visible: false as const }; } },
+    enabled: hasSession === true,
+    staleTime: 5 * 60_000,
+    retry: false,
+  });
   const navAll = [
     ...baseNav,
     { to: "/admin/atendimento", label: "Atendimento", icon: Headphones, exact: false, badge: pending.data?.count ?? 0 },
+    ...(fiscalMenu.data?.visible ? [{ to: "/admin/fiscal", label: "Fiscal", icon: Receipt, exact: false }] : []),
     { to: "/admin/administrativo", label: "Administrativo", icon: Settings2, exact: false },
   ] as const;
   // Admin do SaaS sem conta selecionada: o menu da conta do cliente fica
