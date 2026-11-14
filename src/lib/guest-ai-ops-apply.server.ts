@@ -84,12 +84,27 @@ async function patchCard(
   if (ins.error) throw new Error("insert_failed");
 }
 
+/**
+ * Os cards só têm horários de 30 em 30 min. Horário do hóspede fora da grade sobe para o próximo slot
+ * (pedido do titular, 14/11/2026): "05:10" ⇒ "05:30", "05:40" ⇒ "06:00"; exato fica como está.
+ */
+export function roundUpToSlot(time: string): string {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(time.trim());
+  if (!m) return time;
+  let total = Number(m[1]) * 60 + Number(m[2]);
+  total = Math.ceil(total / 30) * 30;
+  if (total >= 24 * 60) total = 23 * 60 + 30;
+  const hh = String(Math.floor(total / 60)).padStart(2, "0");
+  const mm = String(total % 60).padStart(2, "0");
+  return `${hh}:${mm}`;
+}
+
 async function applyEta(
   db: Db,
   req: Extract<OpsApplyRequest, { action: "eta_checkin" | "eta_checkout" }>,
 ): Promise<OpsApplyResult> {
   const kind = req.action === "eta_checkin" ? "checkin" : "checkout";
-  const patch = { arrival_time_override: req.time, arrival_time_source: GUEST_AI_ARRIVAL_SOURCE };
+  const patch = { arrival_time_override: roundUpToSlot(req.time), arrival_time_source: GUEST_AI_ARRIVAL_SOURCE };
   // a informação mais recente do hóspede vale, mesmo sobre previsão da equipe (diretriz 07/11/2026)
   const upd = await db
     .from("guest_arrival_status")

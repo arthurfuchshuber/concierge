@@ -148,6 +148,13 @@
       "when": 1793650803341,
       "tag": "0020_20261102230000_guest_arrival_authorization_guards",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1794698830010,
+      "tag": "0021_allow_guest_ai_time_source",
+      "breakpoints": true
     }
   ]
 }
