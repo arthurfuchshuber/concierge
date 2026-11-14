@@ -1474,7 +1474,7 @@ function AirbnbAccountFlowInner({
             <>
               <div className="grid grid-cols-[minmax(0,1fr)] gap-y-3">
                 <Title>Conta conectada.</Title>
-                <Desc>Agora conecte os anúncios ao ConciergeIA.</Desc>
+                <Desc>Agora traga os anúncios para o ConciergeIA.</Desc>
               </div>
               <OnbProgress doneCount={1} />
               <OnbSteps
@@ -2238,7 +2238,7 @@ function AirbnbAccountFlowInner({
                         TriangleAlert,
                         p.kind === "chat"
                           ? "Chat pendente de ativação"
-                          : "Pendente de configuração na Channex",
+                          : "Pendente de configuração no provedor",
                       ] as [typeof Check, string],
                   )}
                 />
@@ -2799,8 +2799,8 @@ function AirbnbAccountFlowInner({
                 <b className="font-bold text-foreground">
                   {plural(account?.imported ?? 0, "imóvel", "imóveis")}
                 </b>{" "}
-                dela serão arquivados, o chat será desligado e a sincronização pausada. O canal na
-                Channex não é alterado.
+                dela serão arquivados, o chat será desligado e a sincronização pausada. O canal no
+                provedor não é alterado.
               </Desc>
               <InfoBox
                 kind="falta"

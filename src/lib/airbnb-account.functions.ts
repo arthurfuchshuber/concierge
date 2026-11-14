@@ -542,7 +542,13 @@ export const importAirbnbListings = createServerFn({ method: "POST" })
         await (await import("@/lib/channex-full-connect.server")).setFullConnectConductor(r.propertyId, context.userId).catch(() => {});
         pending.push(...r.pending);
       } catch (e) {
-        failed.push({ title: l.title, error: e instanceof Error ? e.message : String(e) });
+        const raw = e instanceof Error ? e.message : String(e);
+        failed.push({
+          title: l.title,
+          error: /já foi vinculado/i.test(raw)
+            ? "anúncio já vinculado a outro imóvel"
+            : "não foi possível ler o anúncio no Airbnb",
+        });
       }
     }
     return { imported, failed, pending };

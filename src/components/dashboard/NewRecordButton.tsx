@@ -286,7 +286,7 @@ export function NewRecordButton() {
                 <Choice
                   icon={Home}
                   title="Imóvel"
-                  sub="Apenas ligado ao imóvel."
+                  sub="Sem hóspede, só o imóvel"
                   selected={link === "imovel"}
                   onClick={() => {
                     if (link !== "imovel") {

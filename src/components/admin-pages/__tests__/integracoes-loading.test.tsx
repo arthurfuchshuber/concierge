@@ -10,6 +10,7 @@ const { resolvers, deferred } = vi.hoisted(() => {
 });
 
 vi.mock("@tanstack/react-start", () => ({ useServerFn: (fn: unknown) => fn }));
+vi.mock("@/lib/channex.functions", () => ({ getChannexStatus: "getChannexStatus" }));
 vi.mock("@/lib/clicksign.functions", () => ({ getMyClicksignConfig: deferred("cs") }));
 vi.mock("@/lib/google-calendar.functions", () => ({ getMyGoogleCalendarStatus: deferred("gcal") }));
 vi.mock("@/lib/malvo.functions", () => ({

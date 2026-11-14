@@ -1,4 +1,3 @@
-import { ChevronRight } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import type { PropertyIntegrationSummary } from "@/lib/property-connection";
@@ -90,7 +89,6 @@ function CountButton({
                     {it.sub}
                   </span>
                 </span>
-                <ChevronRight className="size-3.5 shrink-0 text-muted-foreground" />
               </Link>
             </li>
           ))}

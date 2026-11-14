@@ -254,8 +254,8 @@ describe("CleaningDayDetailContent — tabela do dia", () => {
     const t = text(html);
     expect(t).toContain("Situação: Manutenção");
     expect(t).toContain("Troca do chuveiro");
-    const linha = html.match(/<div data-bottom-row[\s\S]*?<\/div>/)?.[0] ?? "";
-    expect(text(linha)).toMatch(/17\/09\/2026 · 14:20 · João .*R\$\s80,00/);
+    const linha = html.match(/<span class="mt-1 flex min-w-0 items-center justify-between[\s\S]*?<\/span><\/span>/)?.[0] ?? "";
+    expect(text(linha)).toMatch(/17\/09\/2026 · 14:20.*R\$\s80,00/);
     expect(html).not.toContain("aria-expanded");
   });
 
@@ -379,16 +379,16 @@ describe("valor inline com auto-save (sem Cancelar/OK)", () => {
 describe("cabeçalho universal de janela ampla", () => {
   afterEach(() => cleanup());
 
-  it("sem ícone e sem X improvisado: título 14px e subtítulo 12px no DialogHeader", () => {
+  it("sem ícone e sem X improvisado: título 16px e subtítulo 13px no DialogHeader", () => {
     const html = renderToStaticMarkup(
       <CleaningDayDetailContent date="all" title="Custo Total Limpeza" source={{ mode: "done", items }} caretX={null} />,
     );
     const h2 = html.match(/<h2[^>]*>[\s\S]*?<\/h2>/)?.[0] ?? "";
     expect(text(h2).trim()).toBe("Custo total limpeza");
-    for (const c of ["truncate", "text-sm", "font-bold", "leading-5", "text-foreground"]) expect(h2).toContain(c);
-    const header = html.match(/<div class="[^"]*pr-12[^"]*">/)?.[0] ?? "";
-    for (const c of ["px-4", "pt-3", "pb-2.5", "pr-12", "text-left", "border-b", "border-border/40"]) expect(header).toContain(c);
-    expect(html).toContain('class="text-xs leading-4 text-muted-foreground"');
+    for (const c of ["truncate", "text-[16px]", "font-extrabold", "leading-[1.25]", "text-foreground"]) expect(h2).toContain(c);
+    const header = html.match(/<div class="[^"]*pr-14[^"]*">/)?.[0] ?? "";
+    for (const c of ["pl-[18px]", "pt-4", "pb-3", "pr-14", "text-left", "border-b", "border-foreground/[0.08]"]) expect(header).toContain(c);
+    expect(html).toContain('class="text-[13px] leading-[1.35] text-muted-foreground"');
     expect(html).not.toContain("Fechar detalhe");
     expect(html).not.toContain("size-10");
     expect(html).not.toContain("rounded-xl");
