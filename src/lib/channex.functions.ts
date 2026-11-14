@@ -24,14 +24,14 @@ async function requireAdmin(context: { supabase: { rpc: (fn: string, args: unkno
   if (!data) throw new Error("Apenas administradores podem sincronizar os imóveis.");
 }
 
-/** Status da integração: chave configurada + quantos imóveis já foram importados. */
+/** Status da integração: chave configurada + total de imóveis oficiais cadastrados. */
 export const getChannexStatus = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<{ configured: boolean; imported: number }> => {
     await requireAdmin(context as never);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { count } = await supabaseAdmin
-      .from("propriedades")
+      .from("properties")
       .select("id", { count: "exact", head: true });
     return {
       configured: !!(process.env["CHANNEX_API_KEY"] ?? process.env["CHANNEX_STAGING_API_KEY"]),
@@ -40,9 +40,8 @@ export const getChannexStatus = createServerFn({ method: "GET" })
   });
 
 /**
- * Importa os anúncios do Airbnb conectados ao Channex: grava cada imóvel na
- * tabela `propriedades`, cria no Channex o Room Type (1 unidade) e o Rate Plan
- * padrão em BRL, e guarda os dois UUIDs de volta na linha do imóvel.
+ * Importa os anúncios piloto conectados ao Channex para os imóveis oficiais
+ * e relê o histórico, sem criar mapeamentos de tarifa/calendário.
  */
 export const importarAnunciosAirbnb = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

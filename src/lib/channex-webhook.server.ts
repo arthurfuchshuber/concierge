@@ -4,7 +4,8 @@ import { otaGuestAccountId } from "@/lib/channex-guest-identity";
  * Processamento da fila de webhooks do Channex.
  *
  * O endpoint público apenas enfileira o JSON bruto e responde 200 na hora;
- * este módulo transforma os itens pendentes em linhas da tabela `reservas`.
+ * este módulo grava reservas em `property_reservations`, preserva o JSON bruto
+ * e só então confirma (ACK) a revisão recebida.
  */
 const CHANNEX_BASE = "https://app.channex.io/api/v1";
 
@@ -78,21 +79,13 @@ function eventOf(payload: unknown): string | null {
   return typeof ev === "string" ? ev : null;
 }
 
-/** Nova reserva, alteração ou cancelamento, conforme o evento/status recebido. */
-function statusOf(evento: string | null, booking: BookingAttributes): string {
-  if (evento === "booking_cancellation") return "cancelled";
-  if (evento === "booking_modification") return "modified";
-  if (evento === "booking_new") return "new";
-  return booking.status ?? "new";
-}
-
 type SupabaseAdmin = typeof import("@/integrations/supabase/client.server")["supabaseAdmin"];
 
 const txt = (s: unknown) => (typeof s === "string" && s.trim() ? s.trim() : null);
 const numero = (v: unknown) => (v == null || v === "" || !Number.isFinite(Number(v)) ? null : Number(v));
 
 /** Imóvel ConciergeIA dono do quarto Channex (principal ou anúncio gêmeo). */
-async function imovelDoQuarto(admin: SupabaseAdmin, roomTypeId: string | null, channexPropertyId: string | null): Promise<string | null> {
+export async function imovelDoQuarto(admin: SupabaseAdmin, roomTypeId: string | null, channexPropertyId: string | null): Promise<string | null> {
   if (roomTypeId) {
     const { data } = await admin.from("property_listing_raw_data").select("property_id").eq("channex_room_type_id", roomTypeId).limit(1);
     if (data?.[0]) return data[0].property_id as string;
@@ -212,51 +205,8 @@ async function aplicarReserva(supabaseAdmin: SupabaseAdmin, payload: unknown) {
     typeof v === "string" && UUID.test(v.trim()) ? v.trim() : null;
   const roomTypeId = somenteUuid(room.room_type_id);
   const ratePlanId = somenteUuid(room.rate_plan_id);
-
-  // Vincula ao imóvel pelo UUID do quarto ou da tarifa criados na sincronização.
-  let propriedadeId: string | null = null;
-  if (roomTypeId || ratePlanId) {
-    const { data: prop } = await supabaseAdmin
-      .from("propriedades")
-      .select("id")
-      .or(
-        [
-          roomTypeId ? `channex_room_type_id.eq.${roomTypeId}` : null,
-          ratePlanId ? `channex_rate_plan_id.eq.${ratePlanId}` : null,
-        ]
-          .filter(Boolean)
-          .join(","),
-      )
-      .limit(1)
-      .maybeSingle();
-    propriedadeId = prop?.id ?? null;
-  }
-
-
-  const nome = [booking.customer?.name, booking.customer?.surname].filter(Boolean).join(" ").trim();
-  const valor = booking.amount != null ? Number(booking.amount) : null;
-
-  const { error } = await supabaseAdmin.from("reservas").upsert(
-    {
-      codigo_reserva_channex: codigo,
-      propriedade_id: propriedadeId,
-      channex_booking_id: booking._bookingId ?? booking.id ?? null,
-      channex_revision_id: booking._revisionId ?? booking.revision_id ?? null,
-      channex_room_type_id: roomTypeId,
-      channex_rate_plan_id: ratePlanId,
-      nome_hospede: nome || null,
-      email_hospede: booking.customer?.mail ?? null,
-      data_checkin: booking.arrival_date ?? room.checkin_date ?? null,
-      data_checkout: booking.departure_date ?? room.checkout_date ?? null,
-      valor_total: Number.isFinite(valor as number) ? valor : null,
-      moeda: booking.currency ?? null,
-      status: statusOf(eventOf(payload), booking),
-      ota_name: booking.ota_name ?? null,
-      payload: booking as never,
-    },
-    { onConflict: "codigo_reserva_channex" },
-  );
-  if (error) throw new Error(error.message);
+  // Mantém a validação do UUID da tarifa; o vínculo oficial usa o quarto.
+  void ratePlanId;
 
   // Reserva oficial do imóvel (API, nunca iCal): grava em property_reservations.
   await gravarReservaOficial(supabaseAdmin, booking, roomTypeId);

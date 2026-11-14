@@ -130,7 +130,7 @@ export const getCertDashboard = createServerFn({ method: "GET" })
       sb.from("channex_api_logs").select("id, operation, method, endpoint, attempt, http_status, task_id, error, request, response, created_at").order("created_at", { ascending: false }).limit(40),
       sb.from("channex_ari_outbox").select("status").limit(5000),
       sb.from("channex_booking_acks").select("revision_id, booking_id, status, attempts, acked_at, last_error").order("created_at", { ascending: false }).limit(20),
-      sb.from("reservas").select("codigo_reserva_channex, channex_booking_id, channex_revision_id, nome_hospede, data_checkin, data_checkout, status, ota_name, updated_at").order("updated_at", { ascending: false }).limit(20),
+      sb.from("property_reservations").select("guest_contacts, external_uid, raw_payload, guest_hint, checkin_date, checkout_date, status, ota_name, synced_at").eq("source", "channex").order("synced_at", { ascending: false }).limit(20),
       sb.from("channex_api_logs").select("id", { count: "exact", head: true }).eq("is_ari", true).gte("created_at", since),
     ]);
     const counts: Record<string, number> = {};
@@ -143,7 +143,17 @@ export const getCertDashboard = createServerFn({ method: "GET" })
       })),
       outbox: counts,
       acks: acks.data ?? [],
-      reservas: reservas.data ?? [],
+      reservas: (reservas.data ?? []).map((r: any) => ({
+        codigo_reserva_channex: r.guest_contacts?.code ?? null,
+        channex_booking_id: r.external_uid,
+        channex_revision_id: r.raw_payload?._revisionId ?? null,
+        nome_hospede: r.guest_hint,
+        data_checkin: r.checkin_date,
+        data_checkout: r.checkout_date,
+        status: r.status,
+        ota_name: r.ota_name,
+        updated_at: r.synced_at,
+      })),
       ariLastMinute: lastMinute.count ?? 0,
     };
   });

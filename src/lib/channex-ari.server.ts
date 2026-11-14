@@ -423,19 +423,27 @@ export async function runFullSync(input: FullSyncInput, userId: string | null) {
   const start = iso(new Date());
   const end = addDays(start, 499);
 
+  // Fonte oficial única: resolve inclusive quartos gêmeos antes de ler ocupação.
+  // Imóvel desconhecido nunca pode virar ocupação zero (risco de overbooking).
+  const { imovelDoQuarto } = await import("@/lib/channex-webhook.server");
+  const propertyId = await imovelDoQuarto(sb, input.roomTypeId, input.propertyId);
+  if (!propertyId) throw new Error("Full sync abortado: imóvel interno do quarto Channex não identificado.");
+
   const { data: cal } = await sb.from("channex_ari_calendar").select("*").eq("rate_plan_id", input.ratePlanId).gte("date", start).lte("date", end);
   const byDate = new Map<string, Row>(((cal ?? []) as Row[]).map((r) => [r.date, r]));
 
-  const { data: bookings } = await sb
-    .from("reservas")
-    .select("data_checkin, data_checkout, status")
-    .eq("channex_room_type_id", input.roomTypeId)
-    .neq("status", "cancelled")
-    .gte("data_checkout", start);
+  const { data: bookings, error: bookingError } = await sb
+    .from("property_reservations")
+    .select("checkin_date, checkout_date")
+    .eq("property_id", propertyId)
+    .eq("source", "channex")
+    .eq("status", "confirmed")
+    .gte("checkout_date", start);
+  if (bookingError) throw new Error(`Full sync abortado: falha ao ler ocupação oficial: ${bookingError.message}`);
   const booked = new Map<string, number>();
   for (const b of (bookings ?? []) as any[]) {
-    if (!b.data_checkin || !b.data_checkout) continue;
-    for (let d = b.data_checkin; d < b.data_checkout; d = addDays(d, 1)) booked.set(d, (booked.get(d) ?? 0) + 1);
+    if (!b.checkin_date || !b.checkout_date) continue;
+    for (let d = b.checkin_date; d < b.checkout_date; d = addDays(d, 1)) booked.set(d, (booked.get(d) ?? 0) + 1);
   }
 
   const avail: Array<{ date: string; values: Record<string, unknown> }> = [];

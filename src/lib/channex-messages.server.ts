@@ -71,25 +71,6 @@ async function hasConfirmedReservation(
       code: str(match.guest_contacts?.code) ?? str(match.guest_hint),
     };
   }
-  // Reservas novas chegam por webhook na tabela `reservas` (antes de qualquer importação manual).
-  if (bookingId) {
-    const { data: r } = await admin
-      .from("reservas")
-      .select("data_checkin, data_checkout, status, codigo_reserva_channex")
-      .eq("channex_booking_id", bookingId)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (r && r.status !== "cancelled" && (!r.data_checkout || r.data_checkout >= today)) {
-      return {
-        ok: true,
-        checkin: r.data_checkin ?? null,
-        checkout: r.data_checkout ?? null,
-        bookingId,
-        code: str(r.codigo_reserva_channex)?.replace(/^ABB-/i, "") ?? null,
-      };
-    }
-  }
   // a conversa da Channex já aponta para uma reserva que ainda não chegou ao nosso banco (corrida de webhooks)
   return bookingId ? { ...no, pendingBookingId: bookingId } : no;
 }
@@ -101,17 +82,10 @@ async function codeForBooking(admin: any, propertyId: string, bookingId: string)
     .select("guest_contacts, guest_hint, status")
     .eq("property_id", propertyId)
     .eq("external_uid", bookingId)
+    .eq("status", "confirmed")
     .limit(1);
   const r = (rows ?? [])[0] as { guest_contacts?: { code?: unknown } | null; guest_hint?: unknown; status?: string } | undefined;
   if (r && r.status === "confirmed") return str(r.guest_contacts?.code) ?? str(r.guest_hint);
-  const { data: legacy } = await admin
-    .from("reservas")
-    .select("status, codigo_reserva_channex")
-    .eq("channex_booking_id", bookingId)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (legacy && legacy.status !== "cancelled") return str(legacy.codigo_reserva_channex)?.replace(/^ABB-/i, "") ?? null;
   return null;
 }
 
@@ -296,30 +270,30 @@ function findListingId(obj: unknown, depth = 0): string | null {
 }
 
 /** Descobre com segurança a qual imóvel piloto a conversa pertence. */
-async function resolveListing(admin: any, m: Inbound): Promise<ListingRow | null> {
+export async function resolveListing(admin: any, m: Inbound): Promise<ListingRow | null> {
   const { data: rows } = await admin
     .from("property_listing_raw_data")
     .select("property_id, owner_id, airbnb_listing_id, channex_room_type_id, airbnb_ai_enabled");
   const listings = (rows ?? []) as ListingRow[];
   if (!listings.length) return null;
 
-  // 1) Reserva conhecida → room type → anúncio.
+  // 1) Reserva oficial conhecida → imóvel interno → anúncio (inclusive gêmeos).
   if (m.bookingId) {
     const { data: r } = await admin
-      .from("reservas")
-      .select("channex_room_type_id")
-      .eq("channex_booking_id", m.bookingId)
-      .limit(1)
+      .from("property_reservations")
+      .select("property_id")
+      .eq("external_uid", m.bookingId)
+      .eq("source", "channex")
       .maybeSingle();
-    const rt = r?.channex_room_type_id as string | undefined;
-    if (rt) {
-      const direct = listings.find((l) => l.channex_room_type_id === rt);
+    const propertyId = r?.property_id as string | undefined;
+    if (propertyId) {
+      const direct = listings.find((l) => l.property_id === propertyId);
       if (direct) return direct;
       // Reserva feita no anúncio gêmeo → resolve para o anúncio principal do par.
       const { data: tw } = await admin
         .from("channex_twin_links")
         .select("property_id, primary_listing_id")
-        .eq("twin_room_type_id", rt)
+        .eq("property_id", propertyId)
         .eq("status", "active")
         .limit(1)
         .maybeSingle();
