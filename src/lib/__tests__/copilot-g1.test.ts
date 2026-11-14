@@ -120,6 +120,32 @@ describe("G1 · R2: trabalho em segundo plano nunca fica solto", () => {
     await drainLifecycle(store);
   });
 
+  it("requisições concorrentes mantêm tarefas isoladas mesmo após await", async () => {
+    const gate = deferred();
+    const handed: Promise<unknown>[] = [];
+    const workerStore = createLifecycle((p) => handed.push(p));
+    const fallbackStore = createLifecycle(null);
+    await Promise.all([
+      withRequestLifecycle(workerStore, async () => {
+        await gate.promise;
+        expect(backgroundAvailable()).toBe(true);
+        await runInBackground(async () => undefined);
+      }),
+      withRequestLifecycle(fallbackStore, async () => {
+        expect(backgroundAvailable()).toBe(false);
+        gate.resolve();
+        await Promise.resolve();
+        await runInBackground(async () => undefined);
+      }),
+    ]);
+    expect(handed).toHaveLength(1);
+    expect(workerStore.pending).toHaveLength(0);
+    expect(fallbackStore.pending).toHaveLength(1);
+    await Promise.all([drainLifecycle(fallbackStore), ...handed]);
+    expect(fallbackStore.pending).toHaveLength(0);
+    expect(backgroundAvailable()).toBe(false);
+  });
+
   it("fora de requisição: a promessa só resolve quando a tarefa termina; tarefa que lança nunca rejeita", async () => {
     let finished = false;
     await runInBackground(async () => {

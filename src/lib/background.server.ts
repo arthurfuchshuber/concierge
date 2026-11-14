@@ -12,6 +12,7 @@
  * A tarefa nunca rejeita para o chamador: erros são do próprio chamador (que já os trata) ou viram log fechado.
  */
 import { AsyncLocalStorage } from "node:async_hooks";
+import { createServerOnlyFn } from "@tanstack/react-start";
 
 type WaitUntil = (promise: Promise<unknown>) => void;
 export interface LifecycleStore {
@@ -20,10 +21,16 @@ export interface LifecycleStore {
   pending: Promise<void>[];
 }
 
-const storage = new AsyncLocalStorage<LifecycleStore>();
+// Explicit compiler boundary: the filename alone must not pull node:async_hooks
+// into the browser through transitive imports of server-function modules.
+let storage: AsyncLocalStorage<LifecycleStore> | undefined;
+const getStorage = createServerOnlyFn(() => {
+  storage ??= new AsyncLocalStorage<LifecycleStore>();
+  return storage;
+});
 
 /** Extrai o `waitUntil` do Worker (nitro: `request.waitUntil`; contexto de execução: `ctx.waitUntil`). */
-export function resolveWaitUntil(request: unknown, ctx?: unknown): WaitUntil | null {
+export const resolveWaitUntil = createServerOnlyFn((request: unknown, ctx?: unknown): WaitUntil | null => {
   const fromReq = (request as { waitUntil?: unknown } | null)?.waitUntil;
   if (typeof fromReq === "function") return fromReq as WaitUntil;
   const c = ctx as { waitUntil?: unknown; context?: { waitUntil?: unknown } } | null | undefined;
@@ -31,30 +38,30 @@ export function resolveWaitUntil(request: unknown, ctx?: unknown): WaitUntil | n
   if (c?.context && typeof c.context.waitUntil === "function")
     return (c.context.waitUntil as WaitUntil).bind(c.context);
   return null;
-}
+});
 
 /** Cria o estado da requisição (chamado por `src/server.ts`). */
-export function createLifecycle(waitUntil: WaitUntil | null): LifecycleStore {
+export const createLifecycle = createServerOnlyFn((waitUntil: WaitUntil | null): LifecycleStore => {
   return { waitUntil, pending: [] };
-}
+});
 
 /** Executa `fn` com o ciclo de vida da requisição disponível para `runInBackground`. */
-export function withRequestLifecycle<T>(store: LifecycleStore, fn: () => T): T {
-  return storage.run(store, fn);
-}
+export const withRequestLifecycle = createServerOnlyFn(<T>(store: LifecycleStore, fn: () => T): T => {
+  return getStorage().run(store, fn);
+});
 
 /** Aguarda as tarefas pendentes da requisição (inclusive as agendadas por outras tarefas). Nunca rejeita. */
-export async function drainLifecycle(store: LifecycleStore): Promise<void> {
+export const drainLifecycle = createServerOnlyFn(async (store: LifecycleStore): Promise<void> => {
   while (store.pending.length > 0) {
     const batch = store.pending.splice(0, store.pending.length);
     await Promise.allSettled(batch);
   }
-}
+});
 
 /** `true` quando há `waitUntil` do Worker para a requisição corrente. */
-export function backgroundAvailable(): boolean {
-  return typeof storage.getStore()?.waitUntil === "function";
-}
+export const backgroundAvailable = createServerOnlyFn((): boolean => {
+  return typeof getStorage().getStore()?.waitUntil === "function";
+});
 
 /**
  * Agenda `task` sem deixá-la órfã. Devolve uma promessa que o chamador DEVE aguardar:
@@ -63,7 +70,7 @@ export function backgroundAvailable(): boolean {
  *  - fora de requisição: resolve quando a tarefa termina.
  * Nunca rejeita.
  */
-export function runInBackground(task: () => Promise<unknown>): Promise<void> {
+export const runInBackground = createServerOnlyFn((task: () => Promise<unknown>): Promise<void> => {
   const done = (async () => {
     try {
       await task();
@@ -71,7 +78,7 @@ export function runInBackground(task: () => Promise<unknown>): Promise<void> {
       console.error("[background] tarefa falhou (erro interno)");
     }
   })();
-  const store = storage.getStore();
+  const store = getStorage().getStore();
   if (!store) return done;
   if (store.waitUntil) {
     try {
@@ -83,4 +90,4 @@ export function runInBackground(task: () => Promise<unknown>): Promise<void> {
   }
   store.pending.push(done);
   return Promise.resolve();
-}
+});
