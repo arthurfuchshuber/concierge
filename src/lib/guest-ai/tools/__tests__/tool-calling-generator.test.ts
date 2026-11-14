@@ -3,7 +3,7 @@
  * 1ª chamada pede consulta → executor (6 s, falha graciosa) → resultados como mensagens `tool` →
  * 2ª chamada só com a resposta final (ferramentas proibidas). Custo somado e conferido no teto do turno.
  */
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ComposedPrompt } from "@/lib/guest-ai/orchestrator/contracts";
 import {
   createCopilotGenerator,
@@ -93,6 +93,9 @@ const PLACES_CALL = {
 };
 
 describe("gerador do Copiloto com ferramentas", () => {
+  // Voos só são oferecidos com a chave da AviationStack; o teste não pode depender do ambiente.
+  beforeEach(() => vi.stubEnv("AVIATIONSTACK_API_KEY", ""));
+  afterEach(() => vi.unstubAllEnvs());
   it("consulta real ⇒ 2ª chamada recebe os resultados (distância de trajeto) e devolve a resposta final", async () => {
     const { seen, provider } = scripted([
       toolTurn([PLACES_CALL]),

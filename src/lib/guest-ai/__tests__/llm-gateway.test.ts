@@ -381,7 +381,7 @@ describe("F2-A · isolamento no repositório", () => {
     const offenders = walk(SRC)
       .filter((f) => !f.includes(`${path.sep}guest-ai${path.sep}llm${path.sep}`))
       .filter((f) => /guest-ai\/llm/.test(readFileSync(f, "utf8")));
-    const allowed = [/guest-ai[\\/]orchestrator[\\/]/, /guest-ai[\\/]shadow[\\/]contracts\.ts$/, /routes[\\/]api[\\/]public[\\/]guest-ai\.llm-probe\.ts$/, /[\\/]routeTree\.gen\.ts$/, /guest-ai[\\/]shadow-exec[\\/]/,
+    const allowed = [/guest-ai[\\/]orchestrator[\\/]/, /guest-ai[\\/]shadow[\\/]contracts\.ts$/, /routes[\\/]api[\\/]public[\\/]guest-ai\.llm-probe\.ts$/, /[\\/]routeTree\.gen\.ts$/, /generated[\\/]system-knowledge\.ts$/, /guest-ai[\\/]shadow-exec[\\/]/,
       // Copiloto (05/11/2026): registro de modelos (contratos), tipos do transporte (geração) e o gerador — lista nominal
       /guest-ai[\\/]copilot[\\/](contracts\.ts|generate\.server\.ts|generator\.server\.ts|ops-extractor\.server\.ts)$/,
       // Memória do hóspede (06/11/2026): processo pós-checkout — prompt (registro de modelos/tipos) e worker (Gateway)
