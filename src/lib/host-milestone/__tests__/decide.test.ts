@@ -43,3 +43,14 @@ describe("marco dito pelo anfitrião", () => {
     expect(parseHostReading({ milestone: "talvez", confidence: 1 })).toBeNull();
   });
 });
+
+import { explicitHostConfirmation } from "../decide";
+describe("confirmação explícita do anfitrião", () => {
+  it("'Check-in confirmado.' ⇒ check-in", () => expect(explicitHostConfirmation("Check-in confirmado.")).toBe("checkin_done"));
+  it("'checkout realizado' ⇒ check-out", () => expect(explicitHostConfirmation("Checkout realizado, obrigado!")).toBe("checkout_done"));
+  it("autorização não é confirmação", () => {
+    expect(explicitHostConfirmation("Check-in autorizado")).toBeNull();
+    expect(explicitHostConfirmation("Check-in antecipado confirmado")).toBeNull();
+    expect(explicitHostConfirmation("Check-in confirmado para as 15h? será liberado")).toBeNull();
+  });
+});

@@ -718,6 +718,12 @@ export const concludeManualCleaning = createServerFn({ method: "POST" })
       .eq("id", row.id);
     if (error) throw new Error("Você não tem permissão para finalizar esta limpeza.");
     try {
+      const { releaseStandbyCheckins } = await import("@/lib/host-milestone/standby.server");
+      await releaseStandbyCheckins(row.property_id);
+    } catch (err) {
+      console.error("[manual-cleaning] falha ao liberar check-in em espera:", err);
+    }
+    try {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       const { notifyCleaningDone } = await import("@/lib/ops-push.server");
       // Só o aviso de "limpeza concluída". O aviso ao hóspede de "check-in

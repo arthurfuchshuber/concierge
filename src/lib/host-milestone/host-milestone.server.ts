@@ -5,7 +5,7 @@
  * (reserva vinculada pelo código, dia certo no fuso do imóvel, card ainda pendente). Nunca lança.
  * Respeita `GUEST_AI_OPS_MODE` (off desliga; shadow só registra em log).
  */
-import { decideHostMilestone, parseHostReading, plausibleMilestones } from "./decide";
+import { decideHostMilestone, explicitHostConfirmation, parseHostReading, plausibleMilestones } from "./decide";
 
 const str = (v: unknown): string | null => (typeof v === "string" && v.trim() ? v : null);
 
@@ -74,6 +74,10 @@ export async function processHostMilestone(p: { conversationId: string; hostText
       })
       .join("\n");
 
+    // Afirmação explícita ("Check-in confirmado.") é fato consumado: não depende da leitura do modelo.
+    const explicit = explicitHostConfirmation(p.hostText);
+    let reading = explicit && allowed.includes(explicit) ? { milestone: explicit, confidence: 1 } : null;
+    if (!reading) {
     const { chatJson } = await import("@/lib/llm/gateway.server");
     const { data } = await chatJson<unknown>("content", [
       {
@@ -81,13 +85,17 @@ export async function processHostMilestone(p: { conversationId: string; hostText
         content:
           "Você lê conversas de hospedagem (Airbnb) e identifica se a ÚLTIMA mensagem do anfitrião/equipe atesta, pelo contexto, um fato JÁ CONSUMADO: " +
           "'checkin_done' = o hóspede já entrou/está acomodado no imóvel; 'checkout_done' = o hóspede já saiu/devolveu o imóvel. " +
+          "Quando o anfitrião AFIRMA que o check-in/check-out foi confirmado, concluído ou realizado, isso é fato consumado e vale como o marco, mesmo que antes houvesse algum problema (ex.: chave). " +
+          "AUTORIZAÇÃO não é confirmação: 'check-in autorizado', 'entrada antecipada liberada', 'pode entrar' ⇒ 'none'. " +
           "Interprete o sentido, não palavras específicas (ex.: despedida pós-saída, agradecimento pela estadia encerrada, confirmação de chaves devolvidas, boas-vindas a quem já chegou). " +
           "Responda 'none' para instruções, lembretes, previsões, perguntas, horários futuros, mensagens programadas de véspera ou qualquer dúvida. " +
           `Marcos possíveis agora: ${allowed.join(", ")}. Responda só JSON: {"milestone":"checkin_done|checkout_done|none","confidence":0..1}.`,
       },
       { role: "user", content: `Conversa (mais antiga → mais recente):\n${transcript}\n\nÚltima mensagem do anfitrião${p.automated ? " (programada)" : ""}:\n${p.hostText.replace(SCRUB, "[código]").slice(0, 800)}\n\nResponda em JSON.` },
     ] as never);
-    const decision = decideHostMilestone({ ...base, reading: parseHostReading(data) });
+    reading = parseHostReading(data);
+    }
+    const decision = decideHostMilestone({ ...base, reading });
     if (!decision.act) return decision.code;
     if (mode === "shadow") {
       console.log("[host-milestone] shadow", decision.action, p.conversationId);
@@ -99,10 +107,38 @@ export async function processHostMilestone(p: { conversationId: string; hostText
         ? { action: "early_departure", propertyId: c.property_id, reservationId: c.reservation_id, today: lp.today, checkoutDate: base.reservation.checkoutDate! }
         : { action: decision.action, propertyId: c.property_id, reservationId: c.reservation_id },
     );
+    if (!out.ok && out.code === "panel_refused" && decision.action === "checkin_done" && (await propertyHasOpenTurnover(admin, c.property_id, c.reservation_id, lp.today))) {
+      // imóvel ainda em limpeza/saída anterior: o check-in fica em espera e conclui sozinho ao fim da limpeza
+      const { markCheckinStandby } = await import("./standby.server");
+      const ok = await markCheckinStandby(c.property_id, c.reservation_id);
+      console.log("[host-milestone] checkin em espera", ok, p.conversationId);
+      return ok ? "standby_cleaning" : "panel_refused";
+    }
     console.log("[host-milestone]", decision.action, out.ok ? "applied" : out.code, p.conversationId);
     return out.ok ? `applied_${decision.action}` : out.code;
   } catch (e) {
     console.error("[host-milestone] falhou", e instanceof Error ? e.message : "erro");
     return "failed";
   }
+}
+
+/** Outra estadia do imóvel ainda com saída/limpeza em aberto (a mesma trava do painel). */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function propertyHasOpenTurnover(admin: any, propertyId: string, reservationId: string, today: string): Promise<boolean> {
+  const { data } = await admin
+    .from("guest_arrival_status")
+    .select("reservation_id, kind, status, done_at, manual")
+    .eq("property_id", propertyId)
+    .eq("kind", "checkout")
+    .is("concluded_at", null);
+  const rows = ((data ?? []) as Array<{ reservation_id: string | null; manual: boolean | null }>).filter(
+    (r) => r.reservation_id !== reservationId,
+  );
+  if (!rows.length) return false;
+  const ids = rows.map((r) => r.reservation_id).filter((x): x is string => !!x);
+  if (rows.some((r) => !r.reservation_id)) return true;
+  const { data: res } = await admin.from("property_reservations").select("id, checkin_date, checkout_date").in("id", ids);
+  return ((res ?? []) as Array<{ checkin_date: string | null; checkout_date: string | null }>).some(
+    (r) => !!r.checkout_date && r.checkout_date <= today && !!r.checkin_date && r.checkin_date <= today,
+  );
 }

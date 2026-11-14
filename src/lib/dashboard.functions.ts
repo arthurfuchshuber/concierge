@@ -1841,6 +1841,13 @@ export async function runAdvanceArrival(
       cleaning_done_by: opts?.byUserId ?? null,
     });
     await upsertStatus("checkin", { status: "done", concluded_at: nowIso });
+    // Check-in confirmado pelo anfitrião enquanto o imóvel estava em limpeza: conclui agora (espera).
+    try {
+      const { releaseStandbyCheckins } = await import("@/lib/host-milestone/standby.server");
+      await releaseStandbyCheckins(propertyId);
+    } catch (err) {
+      console.error("[advanceArrival] falha ao liberar check-in em espera:", err);
+    }
   }
 
   // Check-in / check-out confirmado por usuário → avisa os demais da equipe.
