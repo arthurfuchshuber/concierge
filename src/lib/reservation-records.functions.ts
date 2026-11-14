@@ -118,11 +118,11 @@ const SCHEDULED_CLEANING_RULE = {
 };
 
 export type SituationSchedule =
-  | { mode: "next_checkout" }
+  | { mode: "next_checkout"; checklist?: boolean }
   | { mode: "date"; date: string; checklist: boolean };
 
 const ScheduleInput = z.discriminatedUnion("mode", [
-  z.object({ mode: z.literal("next_checkout") }),
+  z.object({ mode: z.literal("next_checkout"), checklist: z.boolean().optional() }),
   z.object({
     mode: z.literal("date"),
     date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
@@ -430,9 +430,11 @@ async function createLinkedTask(
   const typed = (input.body ?? "").trim();
   const title = typed ? `${rule.prefix}: ${typed}`.slice(0, 200) : `${rule.prefix} registrado`;
 
+  // "Próximo checkout": a chave decide — ligada, fica presa ao card do checkout; desligada, vira pendência
+  // no dia desse checkout, sem entrar no checklist (sem `checklist` = situação antiga na fila: ligada).
   const showInCleaning = scheduled
     ? input.schedule!.mode === "next_checkout"
-      ? true
+      ? input.schedule!.checklist !== false
       : input.schedule!.checklist
     : input.cardMode === "cleaning"
       ? true
@@ -446,6 +448,13 @@ async function createLinkedTask(
       input.propertyId,
       scheduled && input.schedule?.mode === "date" ? input.schedule.date : null,
     );
+  }
+
+  // Próximo checkout com a chave desligada: o prazo é o dia do próximo checkout (sem vínculo à reserva).
+  let looseDue: string | null = null;
+  if (scheduled && input.schedule?.mode === "next_checkout" && !showInCleaning) {
+    const { nextCheckoutDate } = await import("@/lib/recurrences.functions");
+    looseDue = await nextCheckoutDate(supabase, input.propertyId);
   }
 
   const { data: inserted, error } = await supabase
@@ -463,7 +472,7 @@ async function createLinkedTask(
          que o usuário tenha escolhido uma situação criada por ele. */
       situation: input.situation ?? SITUATION_BY_CATEGORY[input.category] ?? null,
       priority: rule.priority,
-      due_date: scheduled && input.schedule?.mode === "date" ? input.schedule.date : null,
+      due_date: scheduled && input.schedule?.mode === "date" ? input.schedule.date : looseDue,
       /* "APARECE NA LIMPEZA" SEGUE A ORIGEM, NÃO SÓ A CATEGORIA (pedido
          explícito, 18/09/2026: "tudo que a própria limpeza abre deve ser
          marcado como 'aparecer na limpeza' automaticamente para que ela faça

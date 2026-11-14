@@ -240,7 +240,8 @@ export function NewRecordButton() {
         open={open}
         onOpenChange={setOpen}
         title="Novo registro"
-        progress={`${Math.min(step, 3)} de 3`}
+        /* Mockups atuais (e1–e3): o cabeçalho não mostra mais o contador "X de 3". */
+        progress=""
         onBack={step > 1 ? () => setStep(step - 1) : undefined}
         footer={
             <button
@@ -283,7 +284,7 @@ export function NewRecordButton() {
                 <Choice
                   icon={Home}
                   title="Imóvel"
-                  sub="Sem hóspede, só o imóvel"
+                  sub="Apenas ligado ao imóvel."
                   selected={link === "imovel"}
                   onClick={() => {
                     if (link !== "imovel") {

@@ -57,7 +57,7 @@ export type TrabalhoSituacao = {
   /** Situação da aba Serviços (chave do sistema ou uuid de situação própria). */
   situationId?: string | null;
   /** "Repetir" da Nova situação (13/11/2026): próximo checkout ou data específica. */
-  agenda?: { mode: "next_checkout" } | { mode: "date"; date: string; checklist: boolean } | null;
+  agenda?: { mode: "next_checkout"; checklist?: boolean } | { mode: "date"; date: string; checklist: boolean } | null;
   /** true quando a situação já existe no servidor (ou é um anexo a uma existente). */
   criada: boolean;
   taskId?: string | null;

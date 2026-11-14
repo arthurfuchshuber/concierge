@@ -10,7 +10,6 @@ import {
   Camera,
   ChevronRight,
   Check,
-  Lock,
   Repeat,
   RotateCcw,
   FileText,
@@ -329,6 +328,8 @@ export function RecordSituationSheet({
   const [agendaMode, setAgendaMode] = useState<"next" | "date">("next");
   const [specificDate, setSpecificDate] = useState<string>(() => todayStr());
   const [dateChecklist, setDateChecklist] = useState(category === "cleaning_audit");
+  // "Próximo checkout": Limpeza nasce com a chave ligada, o resto (Manutenção) desligada.
+  const [nextChecklist, setNextChecklist] = useState(category === "cleaning_audit");
   const recurDoneRef = useRef(false);
   const gruposRef = useRef<Map<string, string>>(new Map());
   const multi = (extraProperties?.length ?? 0) > 0;
@@ -817,7 +818,7 @@ export function RecordSituationSheet({
             canRepeat && !repeat
               ? agendaMode === "date"
                 ? { mode: "date" as const, date: specificDate, checklist: dateChecklist }
-                : { mode: "next_checkout" as const }
+                : { mode: "next_checkout" as const, checklist: nextChecklist }
               : undefined,
           criada: false,
           midias: items.map((it) => ({
@@ -1202,12 +1203,13 @@ export function RecordSituationSheet({
               <div className="flex items-center gap-3 border-t border-border/50 px-3.5 py-3">
                 <span className="min-w-0 flex-1">
                   <span className="block text-[13px] font-semibold text-foreground">Entra no checklist de limpeza</span>
-                  <span className="flex items-center gap-1 text-[11.5px] leading-snug text-muted-foreground">
-                    <Lock className="size-3 shrink-0" />
-                    Obrigatório: fica presa ao card do checkout
+                  <span className="block text-[11.5px] leading-snug text-muted-foreground">
+                    {nextChecklist
+                      ? "Fica presa ao card do próximo checkout"
+                      : "Vira pendência no dia do checkout, sem ligar a uma limpeza"}
                   </span>
                 </span>
-                <Switch checked disabled aria-label="Entra no checklist de limpeza (obrigatório)" />
+                <Switch checked={nextChecklist} onCheckedChange={setNextChecklist} />
               </div>
             </div>
           )}
