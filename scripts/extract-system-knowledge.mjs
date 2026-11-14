@@ -37,7 +37,7 @@ const OUT = join(ROOT, "src/generated/system-knowledge.ts");
 /** Comprimento mínimo de um comentário para ele contar como racional e não como nota. */
 const MIN_RATIONALE = 140;
 /** Teto por trecho — o suficiente para um raciocínio completo, sem estourar o contexto. */
-const MAX_CONTENT = 2200;
+const MAX_CONTENT = 1600;
 
 function walk(dir, out = []) {
   if (!existsSync(dir)) return out;
@@ -48,6 +48,7 @@ function walk(dir, out = []) {
       if (name === "node_modules" || name === "__tests__" || name === "generated") continue;
       walk(full, out);
     } else if (/\.(tsx?|md)$/.test(name)) {
+      if (/\.(test|spec)\.tsx?$/.test(name)) continue;
       out.push(full);
     }
   }
@@ -145,11 +146,27 @@ function navLabels() {
 const docs = [];
 const gaps = [];
 const seen = new Set();
+let truncatedCount = 0;
+
+function truncateContent(content) {
+  if (content.length <= MAX_CONTENT) return content;
+  truncatedCount += 1;
+  // Reserva espaço para a reticência; sem limite completo, não publica uma frase partida.
+  const prefix = content.slice(0, MAX_CONTENT - 1);
+  let end = 0;
+  for (const match of prefix.matchAll(/[.!?](?=\s|$)|\n\s*\n/g)) {
+    // O fim artificial do prefixo não comprova que uma frase terminou no original.
+    const boundary = match.index + match[0].length;
+    if (/[.!?]/.test(match[0]) && boundary === prefix.length && !/\s/.test(content[boundary] ?? "")) continue;
+    end = boundary;
+  }
+  return `${prefix.slice(0, end).trimEnd()}…`;
+}
 
 function push(doc) {
   if (seen.has(doc.doc_key)) return;
   seen.add(doc.doc_key);
-  doc.content = doc.content.slice(0, MAX_CONTENT);
+  doc.content = truncateContent(doc.content);
   doc.content_hash = hash(`${doc.title}\n${doc.content}`);
   docs.push(doc);
 }
@@ -255,6 +272,7 @@ console.log(
   Object.entries(byKind)
     .map(([k, n]) => `${k}=${n}`)
     .join(" "),
+  `truncados=${truncatedCount}`,
 );
 if (gaps.length) {
   console.log(`[conhecimento] ${gaps.length} telas sem descrição (o assistente não vai saber explicá-las):`);

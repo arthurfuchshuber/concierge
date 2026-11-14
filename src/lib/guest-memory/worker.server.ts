@@ -22,6 +22,7 @@ import type { LlmProvider } from "@/lib/guest-ai/llm/providers/types";
 import { GUEST_AI_RESERVE_MODEL } from "@/lib/guest-ai/orchestrator/contracts";
 import { propertyTimeZoneOrNull } from "@/lib/property-timezone";
 import { otaGuestAccountId } from "@/lib/channex-guest-identity";
+import { isGuestMemoryUnavailable, throwIfGuestMemoryUnavailable } from "./unavailable";
 import {
   StayMemoryOutputError,
   emptyConsolidated,
@@ -130,6 +131,8 @@ export type ClaimResult =
 
 /** Acesso a dados do processo (Supabase em produção; memória nos testes). */
 export interface GuestMemoryStore {
+  /** Leitura sem efeitos para detectar estruturas opcionais antes de adquirir itens da fila. */
+  available?(): Promise<void>;
   pending(limit: number): Promise<PendingStay[]>;
   /** Aquisição exclusiva e atômica, com reserva de custo no teto diário. */
   claim(
@@ -191,7 +194,7 @@ export interface GuestMemoryCycleResult {
   skipped: number;
   failed: number;
   notClaimed: number;
-  stoppedBy: "none" | "run_budget" | "daily_budget";
+  stoppedBy: "none" | "run_budget" | "daily_budget" | "not_activated";
   costUsd: number;
   /** Custo das extrações de aprendizado (separado do custo da memória). */
   learningCostUsd: number;
@@ -218,7 +221,18 @@ export async function runGuestMemoryCycle(
   const log = deps.log ?? ((e) => console.info("[guest-memory]", JSON.stringify(e)));
   // Rotina de fundo com teto de US$ 0,01 por tentativa: roda no Reserva do catálogo (o Titular não cabe no teto).
   const modelId = deps.modelId ?? GUEST_AI_RESERVE_MODEL;
-  const pending = await deps.store.pending(cfg.limit);
+  const notActivated = () => {
+    console.warn("[guest-memory] recurso não ativado; ciclo encerrado sem consumir a fila");
+    return { ...result, stoppedBy: "not_activated" as const };
+  };
+  let pending: PendingStay[];
+  try {
+    await deps.store.available?.();
+    pending = await deps.store.pending(cfg.limit);
+  } catch (error) {
+    if (isGuestMemoryUnavailable(error)) return notActivated();
+    throw error;
+  }
   let reservedThisRun = 0;
 
   for (const stay of pending.slice(0, cfg.limit)) {
@@ -234,7 +248,8 @@ export async function runGuestMemoryCycle(
         reserveUsd: GUEST_MEMORY_MAX_CALL_COST_USD,
         dailyCapUsd: cfg.dailyCapUsd,
       });
-    } catch {
+    } catch (error) {
+      if (isGuestMemoryUnavailable(error)) return notActivated();
       claim = { kind: "invalid" };
     }
     if (claim.kind === "budget_daily_exceeded") {
@@ -252,13 +267,13 @@ export async function runGuestMemoryCycle(
     result.processed += 1;
     let spent = 0;
     const done = async (status: "done" | "skipped" | "failed", reason: string) => {
+      await deps.store
+        .finish(stay.reservationId, lease.token, status, reason, Math.round(spent * 1e6) / 1e6)
+        .catch((error: unknown) => { throwIfGuestMemoryUnavailable(error); });
       if (status === "done") result.recorded += 1;
       else if (status === "skipped") result.skipped += 1;
       else result.failed += 1;
       log({ reservation: stay.reservationId, attempt: lease.attempt, status, reason });
-      await deps.store
-        .finish(stay.reservationId, lease.token, status, reason, Math.round(spent * 1e6) / 1e6)
-        .catch(() => undefined);
     };
     try {
       const m = await deps.store.material(stay);
@@ -381,7 +396,8 @@ export async function runGuestMemoryCycle(
           /* aprendizado é melhor esforço: nunca derruba a memória */
         }
       }
-    } catch {
+    } catch (error) {
+      if (isGuestMemoryUnavailable(error)) return notActivated();
       await done("failed", "internal_error");
     }
   }
@@ -411,8 +427,16 @@ function speakerOf(
 
 export function createSupabaseGuestMemoryStore(admin: Admin): GuestMemoryStore {
   return {
+    async available() {
+      // Não adquire lease, não grava perfil e não toca na fila se a ativação estiver pausada.
+      for (const table of ["guest_ai_guest_profiles", "guest_ai_guest_identities"]) {
+        const { error } = await admin.from(table).select("canonical_id").limit(0);
+        throwIfGuestMemoryUnavailable(error);
+      }
+    },
     async pending(limit) {
       const { data, error } = await admin.rpc("guest_ai_pending_stay_memories", { p_limit: limit });
+      throwIfGuestMemoryUnavailable(error);
       if (error || !Array.isArray(data)) throw new Error("pending_failed");
       return (data as Array<Record<string, unknown>>).map((r) => ({
         reservationId: String(r["reservation_id"]),
@@ -558,6 +582,7 @@ export function createSupabaseGuestMemoryStore(admin: Admin): GuestMemoryStore {
         p_phones: phones,
         p_guest_name: name,
       });
+      throwIfGuestMemoryUnavailable(error);
       if (error || !data || typeof data !== "object") throw new Error("upsert_failed");
       const d = data as { result?: string; canonical_id?: string; reason?: string };
       if (d.result === "ok" && d.canonical_id) return { canonicalId: d.canonical_id };
@@ -565,12 +590,13 @@ export function createSupabaseGuestMemoryStore(admin: Admin): GuestMemoryStore {
     },
 
     async profile(tenantId, canonicalId) {
-      const { data } = await admin
+      const { data, error } = await admin
         .from("guest_ai_guest_profiles")
         .select("canonical_id, tenant_id, behavioral_notes, internal_assessment, stay_summaries")
         .eq("canonical_id", canonicalId)
         .eq("tenant_id", tenantId)
         .maybeSingle();
+      throwIfGuestMemoryUnavailable(error);
       if (!data) return null;
       const stays = Array.isArray(data.stay_summaries)
         ? (data.stay_summaries as Array<Record<string, unknown>>)
@@ -596,6 +622,7 @@ export function createSupabaseGuestMemoryStore(admin: Admin): GuestMemoryStore {
         p_reserve_usd: opts.reserveUsd,
         p_daily_cap_usd: opts.dailyCapUsd,
       });
+      throwIfGuestMemoryUnavailable(error);
       if (error || !data || typeof data !== "object") return { kind: "invalid" };
       const d = data as { result?: string; token?: string; attempt?: number };
       if (d.result === "claimed" && typeof d.token === "string")
@@ -621,6 +648,7 @@ export function createSupabaseGuestMemoryStore(admin: Admin): GuestMemoryStore {
         p_internal_assessment: result.internalAssessment,
         p_lease_token: token,
       });
+      throwIfGuestMemoryUnavailable(error);
       if (error || !data) return "invalid";
       const r = (data as { result?: string }).result;
       return r === "recorded" || r === "exists" || r === "lease_lost" ? r : "invalid";
@@ -634,6 +662,7 @@ export function createSupabaseGuestMemoryStore(admin: Admin): GuestMemoryStore {
         p_reason: reason,
         p_spent_usd: spentUsd,
       });
+      throwIfGuestMemoryUnavailable(error);
       if (error || !data) return "invalid";
       const r = (data as { result?: string }).result;
       return r === "finished" || r === "lease_lost" ? r : "invalid";

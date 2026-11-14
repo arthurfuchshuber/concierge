@@ -269,6 +269,21 @@ describe("Memória do hóspede · fetchGuestProfile (duas portas)", () => {
     ).toEqual({ status: "unavailable" });
   });
 
+  it.each([
+    { code: "42P01", message: "relation does not exist" },
+    { code: "PGRST205", message: "missing table" },
+    { message: "relation guest_ai_guest_profiles does not exist" },
+    { message: "Could not find the table in the schema cache" },
+  ])("perfil indisponível também após identidades válidas: %j", async (error) => {
+    const { db, calls } = fakeDb({
+      reservation: { data: { ota_guest_id: "airbnb:1", phones: [] } },
+      identities: { data: [ident(P1, "ota", "airbnb:1")] },
+      profile: { error },
+    });
+    expect(await fetchGuestProfile(turn(), { db })).toEqual({ status: "unavailable" });
+    expect(calls.map(c => c.table)).toEqual(["property_reservations", "guest_ai_guest_identities", "guest_ai_guest_profiles"]);
+  });
+
   it("notas saneadas: categoria fora da lista vira outro, texto vazio sai, limite de quantidade e tamanho", async () => {
     const notes = [
       { categoria: "inventada", texto: "  Chega tarde  " },
