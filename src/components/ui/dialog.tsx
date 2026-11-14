@@ -7,7 +7,7 @@ import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { ChevronLeft, X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import { CORNER_BACK_CLASS, CORNER_CLOSE_CLASS } from "@/components/ui/corner-close";
+import { CORNER_BACK_CLASS, CORNER_CLOSE_CLASS, CORNER_COVER_BACK_CLASS, CORNER_COVER_CLOSE_CLASS } from "@/components/ui/corner-close";
 import { ownsScroll, splitWindowChildren, WindowBody } from "@/components/ui/window-body";
 
 const Dialog = DialogPrimitive.Root;
@@ -60,8 +60,10 @@ const DialogContent = React.forwardRef<
      * "X" (o cabeçalho reserva `pr-24`). Sem `onBack`, o "X" de sempre.
      */
     onBack?: () => void;
+    /** Janela com a foto do imóvel no topo: a aba do canto vira o véu escuro (ver `CORNER_COVER_*`). */
+    cover?: boolean;
   }
->(({ className, children, hideClose, pageLike, overlayClassName, onBack, ...props }, ref) => {
+>(({ className, children, hideClose, pageLike, overlayClassName, onBack, cover, ...props }, ref) => {
   const [layerRef, layerNodeRef] = useOverlayLayer("window", useAntiClipWindow(ref));
   const wrapBody = !ownsScroll(className);
   const split = splitWindowChildren(children);
@@ -96,8 +98,8 @@ const DialogContent = React.forwardRef<
           children
         )}
         {onBack ? (
-          <button type="button" data-window-back onClick={onBack} className={CORNER_BACK_CLASS}>
-            <ChevronLeft className="size-[15px]" strokeWidth={2.2} />
+          <button type="button" data-window-back onClick={onBack} className={cover ? CORNER_COVER_BACK_CLASS : CORNER_BACK_CLASS}>
+            <ChevronLeft className={cover ? "size-3.5" : "size-[15px]"} strokeWidth={cover ? 2.4 : 2.2} />
             Voltar
           </button>
         ) : hideClose ? null : (
@@ -107,9 +109,7 @@ const DialogContent = React.forwardRef<
             // canto inferior esquerdo arredondado (12px) e o superior direito acompanhando o raio da janela.
             // Mora AQUI para valer em todas as janelas; o cabeçalho reserva `pr-12`. Abaixo de `lg`, em janela
             // "como página" (`pageLike`), ele também aparece (visível em 100% das telas).
-            className={
-              CORNER_CLOSE_CLASS
-            }
+            className={cover ? CORNER_COVER_CLOSE_CLASS : CORNER_CLOSE_CLASS}
           >
             <X className="size-[13px]" strokeWidth={1.8} />
             <span className="sr-only">Fechar</span>

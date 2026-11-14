@@ -7625,12 +7625,81 @@ export type Database = {
           },
         ]
       }
+      task_recurrences: {
+        Row: {
+          account_owner_id: string
+          anchor_day: number
+          category: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          ends_on: string | null
+          id: string
+          in_cleaning_checklist: boolean
+          interval_n: number
+          next_date: string | null
+          property_id: string
+          start_date: string
+          status: string
+          title: string
+          unit: string
+          updated_at: string
+        }
+        Insert: {
+          account_owner_id: string
+          anchor_day: number
+          category: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          ends_on?: string | null
+          id?: string
+          in_cleaning_checklist?: boolean
+          interval_n?: number
+          next_date?: string | null
+          property_id: string
+          start_date: string
+          status?: string
+          title: string
+          unit: string
+          updated_at?: string
+        }
+        Update: {
+          account_owner_id?: string
+          anchor_day?: number
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          ends_on?: string | null
+          id?: string
+          in_cleaning_checklist?: boolean
+          interval_n?: number
+          next_date?: string | null
+          property_id?: string
+          start_date?: string
+          status?: string
+          title?: string
+          unit?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_recurrences_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tasks: {
         Row: {
           account_owner_id: string
           amount_due_cents: number | null
           amount_paid_cents: number | null
           amount_spent_cents: number | null
+          auto_link_checkout: boolean
           category: string
           completed_at: string | null
           cost_payer: string | null
@@ -7649,7 +7718,14 @@ export type Database = {
           paid_by_id: string | null
           priority: string
           property_id: string | null
+          provider_report_amount_cents: number | null
+          provider_report_at: string | null
+          provider_report_by: string | null
+          provider_report_by_name: string | null
+          provider_report_note: string | null
+          provider_report_status: string | null
           recurrence_days: number | null
+          recurrence_id: string | null
           reservation_id: string | null
           resolution_note: string | null
           resolution_received: boolean
@@ -7665,6 +7741,7 @@ export type Database = {
           amount_due_cents?: number | null
           amount_paid_cents?: number | null
           amount_spent_cents?: number | null
+          auto_link_checkout?: boolean
           category?: string
           completed_at?: string | null
           cost_payer?: string | null
@@ -7683,7 +7760,14 @@ export type Database = {
           paid_by_id?: string | null
           priority?: string
           property_id?: string | null
+          provider_report_amount_cents?: number | null
+          provider_report_at?: string | null
+          provider_report_by?: string | null
+          provider_report_by_name?: string | null
+          provider_report_note?: string | null
+          provider_report_status?: string | null
           recurrence_days?: number | null
+          recurrence_id?: string | null
           reservation_id?: string | null
           resolution_note?: string | null
           resolution_received?: boolean
@@ -7699,6 +7783,7 @@ export type Database = {
           amount_due_cents?: number | null
           amount_paid_cents?: number | null
           amount_spent_cents?: number | null
+          auto_link_checkout?: boolean
           category?: string
           completed_at?: string | null
           cost_payer?: string | null
@@ -7717,7 +7802,14 @@ export type Database = {
           paid_by_id?: string | null
           priority?: string
           property_id?: string | null
+          provider_report_amount_cents?: number | null
+          provider_report_at?: string | null
+          provider_report_by?: string | null
+          provider_report_by_name?: string | null
+          provider_report_note?: string | null
+          provider_report_status?: string | null
           recurrence_days?: number | null
+          recurrence_id?: string | null
           reservation_id?: string | null
           resolution_note?: string | null
           resolution_received?: boolean
@@ -7741,6 +7833,13 @@ export type Database = {
             columns: ["property_id"]
             isOneToOne: false
             referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_recurrence_id_fkey"
+            columns: ["recurrence_id"]
+            isOneToOne: false
+            referencedRelation: "task_recurrences"
             referencedColumns: ["id"]
           },
           {

@@ -860,6 +860,13 @@ export async function pauseOnHostMessage(m: Inbound, automated = false): Promise
       external_id: m.messageId,
       delivery_status: "delivered",
     });
+    // Contexto do anfitrião (humano ou programado) também dá baixa de check-in/check-out (14/11/2026).
+    try {
+      const { processHostMilestone } = await import("@/lib/host-milestone/host-milestone.server");
+      await processHostMilestone({ conversationId: c.id, hostText: m.text, automated });
+    } catch (e) {
+      console.warn("[channex-messages] marco do anfitrião falhou", e);
+    }
     // Anfitrião respondeu direto no Airbnb: a decisão pendente da conversa passa a "assumida pela equipe".
     if (!automated) {
       try {

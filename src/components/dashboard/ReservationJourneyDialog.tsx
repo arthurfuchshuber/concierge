@@ -379,6 +379,7 @@ export function ReservationJourneyDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       {/* Sem `left/top` próprios: o DialogContent já é CENTRALIZADO na tela. */}
       <DialogContent
+        cover
         className="flex max-h-[90dvh] w-[min(420px,calc(100vw-2rem))] flex-col gap-0 overflow-hidden p-0"
         aria-describedby={undefined}
       >

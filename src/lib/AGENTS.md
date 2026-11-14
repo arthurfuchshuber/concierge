@@ -41,3 +41,4 @@
 - iCal was removed from the code on 02/11/2026: no feed is fetched, parsed, imported or configured anywhere. Rows with `source='airbnb'` are preserved as history and keep being read (Kanban, guide code check, reports); never delete them. Two internal names stay for client-cache/offline-queue compatibility: the `ical` field of `ArrivalRow` and the synthetic card id `ical:<reservation_id>`.
 
 - Every Channex property is created and kept as `property_type: "apartment"` (Channex billing type for vacation rentals); never `hotel`/`guest_house`.
+- Host/team messages on Airbnb (human or scheduled) also drive check-in/check-out: `processHostMilestone` (`src/lib/host-milestone/`) has the LLM read the context (no phrase lists) and `decide.ts` gates it (linked reservation, correct local day, pending card, confidence ≥ 0.8) before the panel routine `applyOpsAction`; respects `GUEST_AI_OPS_MODE`.

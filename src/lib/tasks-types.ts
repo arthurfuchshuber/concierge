@@ -40,6 +40,17 @@ export type TaskRow = {
   priority: TaskPriority;
   dueDate: string | null; // YYYY-MM-DD
   showInCleaning: boolean;
+  /**
+   * Relato do prestador (14/11/2026): "resolved" = aguardando aprovação do anfitrião; "failed" = não
+   * conseguiu (motivo em `note`), a pendência segue aberta.
+   */
+  providerReport?: {
+    status: "resolved" | "failed";
+    amountCents: number | null;
+    note: string | null;
+    byName: string | null;
+    at: string | null;
+  } | null;
   /** Série de recorrência de onde a ocorrência veio (null = pendência avulsa). */
   recurrenceId?: string | null;
   status: TaskStatus;
