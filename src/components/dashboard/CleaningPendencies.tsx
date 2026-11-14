@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Check, CalendarClock, CornerDownRight } from "lucide-react";
+import { ArrowRight, Camera, Check, Clock, Repeat, TriangleAlert } from "lucide-react";
+import { PhoneActionButton } from "@/components/PhoneActionButton";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { CoverImage } from "@/components/ui/cover-image";
@@ -9,7 +10,8 @@ import { TaskResolveDialog, settlementToServer, type ResolveValues } from "@/com
 import { uploadPendingAttachments } from "@/components/dashboard/TaskAttachments";
 import { supabase } from "@/integrations/supabase/client";
 import { attachTaskRecord } from "@/lib/reservation-records.functions";
-import { listTaskLinkOptions, listTasks, setTaskStatus } from "@/lib/tasks.functions";
+import { listTaskLinkOptions, listTasks, reportTaskAsProvider, returnTaskToProvider, setTaskStatus } from "@/lib/tasks.functions";
+import { ProviderConcludeDialog } from "@/components/dashboard/ProviderConcludeDialog";
 import type { ArrivalRow } from "@/lib/dashboard-arrival-types";
 import type { TaskCategory, TaskRow } from "@/lib/tasks-types";
 import { fmtBRShort } from "@/lib/recurrence-dates";
@@ -39,6 +41,24 @@ const CAT_LABEL: Record<TaskCategory, string> = {
   other: "Tarefa do anfitrião",
 };
 const CAT_COLOR: Partial<Record<TaskCategory, string>> = { maintenance: "#c98c8c", cleaning: "#7fb5a4" };
+
+/**
+ * Mockup real-limpeza-pend: a linha mostra o título SEM o prefixo automático ("Dano: …") e o tipo na
+ * linha de baixo ("Dano · 12/11", "Objeto esquecido · 12/11"). Sem prefixo, vale o rótulo da categoria.
+ */
+const AUTO_PREFIXES = ["Objeto esquecido", "Dano", "Incidente", "Manutenção", "Limpeza", "Auditoria de Limpeza"];
+export function splitTaskTitle(t: Pick<TaskRow, "title" | "category">): { title: string; label: string } {
+  for (const p of AUTO_PREFIXES) {
+    if (t.title.startsWith(`${p}: `)) return { title: t.title.slice(p.length + 2), label: p };
+  }
+  return { title: t.title, label: CAT_LABEL[t.category] };
+}
+
+/** "Detalhe da Manutenção", "Detalhe do Dano"… — eyebrow do detalhe (mockup real-limpeza-pend-detalhe). */
+function detailEyebrow(label: string): string {
+  const fem = /^(Manutenção|Limpeza|Auditoria|Tarefa|Inspeção|Compra)/.test(label);
+  return `Detalhe ${fem ? "da" : "do"} ${label}`;
+}
 
 function money(cents: number | null | undefined) {
   if (cents == null) return null;
@@ -81,13 +101,15 @@ export function CleaningPendencyStrip({ row }: { row: ArrivalRow }) {
   if (open.length === 0) return null;
   return (
     <>
+      {/* Mockup real-limpeza-lista: ícone de alerta, texto e contador; escuro âmbar-400, claro âmbar-500 com texto âmbar-800. */}
       <button
         type="button"
         onClick={() => setWin(true)}
-        className="-mx-3.5 -mt-3.5 flex items-center justify-between gap-2 rounded-t-[11px] border-b border-[#fbbf24]/[0.26] bg-[#fbbf24]/[0.14] py-[7px] pl-[17px] pr-3.5 text-left text-[11.5px] font-bold text-amber-700 transition-colors hover:bg-[#fbbf24]/[0.2] dark:text-[#fcd34d]"
+        className="-mx-3.5 -mt-3.5 flex items-center gap-[7px] rounded-t-[11px] border-b border-[#f59e0b]/[0.34] bg-[#f59e0b]/[0.16] py-[7px] pl-[17px] pr-3.5 text-left text-[11.5px] font-bold leading-[1.2] tracking-[0.01em] text-[#92400e] transition-colors hover:bg-[#f59e0b]/[0.22] dark:border-[#fbbf24]/[0.26] dark:bg-[#fbbf24]/[0.14] dark:text-[#fcd34d] dark:hover:bg-[#fbbf24]/[0.2]"
       >
-        <span className="min-w-0 truncate">Pendências de Limpeza!</span>
-        <span className="inline-grid h-[18px] min-w-[18px] place-items-center rounded-full bg-[#fbbf24]/[0.24] px-1 text-[11px] font-extrabold tabular-nums">
+        <TriangleAlert className="size-3.5 flex-none" strokeWidth={2.2} />
+        <span className="min-w-0 flex-1 truncate">Pendências de Limpeza!</span>
+        <span className="inline-grid h-[18px] min-w-[18px] flex-none place-items-center rounded-full bg-[#f59e0b]/[0.26] px-1.5 text-[11px] font-extrabold tabular-nums dark:bg-[#fbbf24]/[0.24]">
           {open.length}
         </span>
       </button>
@@ -127,10 +149,68 @@ function CleaningPendenciesWindow({
     staleTime: 5 * 60_000,
   });
 
+  const reportMedia = useQuery({
+    queryKey: ["task-report-media", resolving?.id ?? null],
+    enabled: !!resolving?.providerReport && true,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("reservation_records")
+        .select("storage_path, mime, created_at")
+        .eq("task_id", resolving!.id)
+        .order("created_at", { ascending: true })
+        .limit(20);
+      const rows = ((data ?? []) as Array<{ storage_path: string | null; mime: string | null }>).filter(
+        (r) => r.storage_path && ((r.mime ?? "").startsWith("image/") || (r.mime ?? "").startsWith("video/")),
+      );
+      const out: Array<{ url: string; video: boolean }> = [];
+      for (const r of rows) {
+        const { data: signed } = await supabase.storage.from("reservation-records").createSignedUrl(r.storage_path!, 3600);
+        if (signed?.signedUrl) out.push({ url: signed.signedUrl, video: (r.mime ?? "").startsWith("video/") });
+      }
+      return out;
+    },
+    staleTime: 60_000,
+  });
+
   const optionsFn = useServerFn(listTaskLinkOptions);
   const options = useQuery({ queryKey: ["task-link-options"], queryFn: () => optionsFn({ data: {} }), staleTime: 60_000 });
   const setStatusFn = useServerFn(setTaskStatus);
   const attachFn = useServerFn(attachTaskRecord);
+
+  const viewerIsProvider = useCleaningTasks(true).data?.viewerIsProvider ?? false;
+  const reportFn = useServerFn(reportTaskAsProvider);
+  const returnFn = useServerFn(returnTaskToProvider);
+  const invalidateAll = () => {
+    void qc.invalidateQueries({ queryKey: ["cleaning-pendencies"] });
+    void qc.invalidateQueries({ queryKey: ["dash-tasks"] });
+    void qc.invalidateQueries({ queryKey: ["account-records"] });
+    void qc.invalidateQueries({ queryKey: ["reservation-records"] });
+  };
+  const report = useMutation({
+    mutationFn: async ({ task, v }: { task: TaskRow; v: import("@/components/dashboard/ProviderConcludeDialog").ProviderReportValues }) => {
+      await reportFn({ data: { taskId: task.id, outcome: v.outcome, amountCents: v.amountCents, note: v.note } });
+      if (v.files.length > 0 && task.propertyId) {
+        await uploadPendingAttachments(attachFn as never, v.files, {
+          propertyId: task.propertyId,
+          taskId: task.id,
+          logId: task.logId ?? undefined,
+          reservationId: task.reservationId ?? undefined,
+          isResolution: true,
+        });
+      }
+    },
+    onSuccess: (_d, { v }) => {
+      invalidateAll();
+      toast.success(v.outcome === "resolved" ? "Enviado para aprovação." : "Registrado. A pendência continua aberta.");
+    },
+  });
+  const giveBack = useMutation({
+    mutationFn: async (task: TaskRow) => returnFn({ data: { taskId: task.id } }),
+    onSuccess: () => {
+      invalidateAll();
+      toast.success("Devolvida ao prestador.");
+    },
+  });
 
   const resolve = useMutation({
     mutationFn: async ({ task, v }: { task: TaskRow; v: ResolveValues }) => {
@@ -162,7 +242,10 @@ function CleaningPendenciesWindow({
 
   const guestLine = (
     <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[13px] text-white">
-      <span className="truncate">{row.guestName}</span>
+      <span className="truncate">{row.ownerName ?? row.guestName}</span>
+      <span className="-my-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
+        <PhoneActionButton phone={row.ownerPhone} country={row.ownerPhoneCountry} size={14} alwaysShow />
+      </span>
     </div>
   );
 
@@ -172,15 +255,19 @@ function CleaningPendenciesWindow({
         <DialogContent
           aria-describedby={undefined}
           className="flex max-h-[min(90dvh,calc(100dvh_-_var(--kb-inset,0px)_-_3rem))] w-[min(372px,calc(100vw-2rem))] flex-col gap-0 overflow-hidden p-0"
-          onBack={detail ? () => setView({ kind: "list" }) : undefined}
+          cover
+          /* Mockup real-limpeza-pend: a lista também mostra "‹ Voltar" (volta ao quadro); no detalhe, volta à lista. */
+          onBack={detail ? () => setView({ kind: "list" }) : onClose}
         >
           <div className="relative h-[140px] shrink-0 overflow-hidden bg-secondary/60">
             <div className="absolute inset-0 origin-center scale-[1.04] [filter:blur(1.5px)_brightness(.9)]">
               <CoverImage urls={covers.data ?? []} empty={false} />
             </div>
-            <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-black/60 to-[var(--panel)]" />
+            <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(34,30,27,0)_25%,rgba(34,30,27,.82)_100%)]" />
             <div className="absolute inset-x-4 bottom-2.5 min-w-0 pr-8">
-              <div className="text-[10.5px] font-semibold uppercase tracking-[0.16em] text-white/90">Pendências de Limpeza!</div>
+              <div className="text-[10.5px] font-semibold uppercase tracking-[0.16em] text-white/90">
+                {detail ? detailEyebrow(splitTaskTitle(detail).label) : "Pendências de Limpeza!"}
+              </div>
               <DialogTitle className="mt-1 block truncate text-sm font-bold leading-[18px] text-white" title={row.propertyName ?? ""}>
                 {row.propertyName ?? "Imóvel"}
               </DialogTitle>
@@ -235,8 +322,30 @@ function CleaningPendenciesWindow({
         </DialogContent>
       </Dialog>
 
+      <ProviderConcludeDialog
+        task={resolving && viewerIsProvider ? resolving : null}
+        covers={covers.data ?? []}
+        onOpenChange={(v) => !v && setResolving(null)}
+        onConfirm={async (v) => {
+          if (!resolving) return;
+          await report.mutateAsync({ task: resolving, v });
+          setResolving(null);
+          if (view.kind === "detail") setView({ kind: "list" });
+        }}
+      />
+
       <TaskResolveDialog
-        state={resolving ? { kind: "cleaning", task: resolving } : null}
+        covers={covers.data ?? []}
+        reportMedia={reportMedia.data ?? []}
+        onReturn={
+          resolving?.providerReport?.status === "resolved"
+            ? async () => {
+                await giveBack.mutateAsync(resolving);
+                setResolving(null);
+              }
+            : undefined
+        }
+        state={resolving && !viewerIsProvider ? { kind: "cleaning", task: resolving } : null}
         onOpenChange={(v) => !v && setResolving(null)}
         providers={options.data?.providers ?? []}
         companyName={options.data?.companyName ?? null}
@@ -286,6 +395,7 @@ function Item({
   const sameDay = isSeries && !!co && !!due && due === co;
   const created = t.createdAt ? t.createdAt.slice(0, 10) : null;
   const price = money(t.amountSpentCents);
+  const shown = splitTaskTitle(t);
   return (
     <div
       data-clip-row
@@ -304,23 +414,31 @@ function Item({
         />
       )}
       <div className="min-w-0 flex-1">
-        <div className={cn("text-sm font-bold leading-[1.3]", isDone && "line-through")}>{t.title}</div>
+        <div className={cn("text-sm font-bold leading-[1.3]", isDone && "line-through")}>{shown.title}</div>
         <div className="mt-0.5 flex flex-wrap items-center text-xs text-muted-foreground">
-          <span>{CAT_LABEL[t.category]}</span>
+          <span>{shown.label}</span>
           {isSeries && due ? (
             <>
               <span className="mx-1">·</span>
-              <CalendarClock className="mr-1 size-3 text-[var(--accent)]" />
+              <Repeat className="mr-1 size-3 text-[var(--accent)]" />
               <span>prevista {fmtBRShort(due)}</span>
               {sameDay && <span className="ml-1">· checkout do dia</span>}
             </>
-          ) : created ? (
+          ) : created && t.category !== "other" ? (
+            /* Mockup: "Tarefa do anfitrião" vem sem data; as demais, "Dano · 12/11". */
             <span className="ml-1">· {fmtBRShort(created)}</span>
           ) : null}
         </div>
+        {!isDone && t.providerReport?.status === "resolved" && (
+          /* Mockup DECIDIR · C1 (proposta 1): o prestador concluiu; falta o anfitrião aprovar. */
+          <div className="mt-1.5 inline-flex items-center gap-[5px] whitespace-nowrap rounded-md bg-[#e2b45a]/[0.14] px-2 py-[3px] text-[10.5px] font-bold text-[#e2b45a]">
+            <Clock className="size-[11px]" strokeWidth={2.2} />
+            Aguardando aprovação
+          </div>
+        )}
         {moved && co && (
           <div className="mt-1.5 inline-flex items-center gap-[5px] rounded-md bg-[var(--accent)]/[0.12] px-2 py-[3px] text-[10.5px] font-bold text-[var(--accent)]">
-            <CornerDownRight className="size-3" />
+            <ArrowRight className="size-[11px]" strokeWidth={2.4} />
             Movida para o checkout de {fmtBRShort(co)}
           </div>
         )}
@@ -348,33 +466,58 @@ function DetailRow({ label, children }: { label: string; children: React.ReactNo
   );
 }
 
+/** Registro (situação) de onde a pendência nasceu: quem registrou e a primeira foto — mockup real-limpeza-pend-detalhe. */
+function useTaskOrigin(taskId: string) {
+  return useQuery({
+    queryKey: ["task-origin", taskId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("reservation_records")
+        .select("created_by_name, storage_path, mime, kind, created_at")
+        .eq("task_id", taskId)
+        .order("created_at", { ascending: true })
+        .limit(20);
+      const rows = (data ?? []) as Array<{ created_by_name: string | null; storage_path: string | null; mime: string | null; kind: string | null }>;
+      const author = rows.find((r) => r.created_by_name)?.created_by_name ?? null;
+      const img = rows.find((r) => r.storage_path && (r.mime ?? "").startsWith("image/"));
+      let photo: string | null = null;
+      if (img?.storage_path) {
+        const { data: signed } = await supabase.storage.from("reservation-records").createSignedUrl(img.storage_path, 3600);
+        photo = signed?.signedUrl ?? null;
+      }
+      return { author, photo };
+    },
+    staleTime: 5 * 60_000,
+  });
+}
+
 function TaskDetail({ t, row, onResolve }: { t: TaskRow; row: ArrivalRow; onResolve?: () => void }) {
   const color = CAT_COLOR[t.category] ?? "#9a9a9a";
   const when = t.createdAt ? new Date(t.createdAt) : null;
   const whenTxt = when
     ? `${String(when.getDate()).padStart(2, "0")}/${String(when.getMonth() + 1).padStart(2, "0")} · ${String(when.getHours()).padStart(2, "0")}:${String(when.getMinutes()).padStart(2, "0")}`
     : "";
-  const period = row.guestCheckin && row.guestCheckout ? `${fmtBRShort(row.guestCheckin.slice(0, 10))} → ${fmtBRShort(row.guestCheckout.slice(0, 10))}` : null;
   const price = money(t.amountSpentCents);
-  const origin = t.recurrenceId ? "Recorrência" : t.showInCleaning ? "Checklist da limpeza" : "Pendência";
-  const rule = "my-3.5 border-t border-foreground/[0.08]";
+  const shown = splitTaskTitle(t);
+  const origin = useTaskOrigin(t.id).data;
+  const rule = "border-t border-foreground/[0.08]";
   return (
     <>
       <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden p-4">
         <div className="relative overflow-hidden rounded-xl bg-foreground/[0.04] py-3.5 pl-[17px] pr-3.5 shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_8%,transparent)]">
           <span className="absolute inset-y-0 left-0 w-[3px]" style={{ background: color }} />
-          <div className="flex items-center justify-between">
-            <span
-              className="rounded-[5px] px-2 py-[3px] text-[10px] font-extrabold uppercase tracking-[0.06em]"
-              style={{ color, background: `color-mix(in oklab, ${color} 16%, transparent)` }}
-            >
-              {CAT_LABEL[t.category]}
-            </span>
-            <span className="text-[11.5px] tabular-nums text-muted-foreground">{whenTxt}</span>
-          </div>
-          <div className="mt-3 min-w-0">
-            <div className="text-sm font-bold leading-[1.3]">{t.title}</div>
-            {t.description && <div className="mt-1 text-[12.5px] leading-[1.4] text-muted-foreground">{t.description}</div>}
+          <div className="flex items-start gap-3">
+            <div className="relative grid size-14 flex-none place-items-center overflow-hidden rounded-[10px] bg-[linear-gradient(135deg,#8a7a68,#4a4038)] text-white/85">
+              {origin?.photo ? (
+                <img src={origin.photo} alt="" className="absolute inset-0 size-full object-cover" />
+              ) : (
+                <Camera className="size-[18px]" strokeWidth={2} />
+              )}
+            </div>
+            <div className="min-w-0">
+              <div className="text-sm font-bold leading-[1.3]">{shown.title}</div>
+              {t.description && <div className="mt-1 text-[12.5px] leading-[1.4] text-muted-foreground">{t.description}</div>}
+            </div>
           </div>
           <div className={rule} style={{ margin: "14px 0 10px" }} />
           {price && (
@@ -382,12 +525,19 @@ function TaskDetail({ t, row, onResolve }: { t: TaskRow; row: ArrivalRow; onReso
               <b className="font-extrabold">{price}</b>
             </DetailRow>
           )}
-          <DetailRow label="Hóspede">{row.guestName}</DetailRow>
-          {period && <DetailRow label="Período">{period}</DetailRow>}
-          <div className="my-2.5 border-t border-foreground/[0.08]" />
+          {origin?.author && <DetailRow label="Registrado por">{origin.author}</DetailRow>}
           {t.resolvedByProviderName && <DetailRow label="Resolvido por">{t.resolvedByProviderName}</DetailRow>}
-          <DetailRow label="Origem">{origin}</DetailRow>
           {t.resolutionNote && <DetailRow label="Observação">{t.resolutionNote}</DetailRow>}
+          <div className={rule} style={{ margin: "10px 0 12px" }} />
+          <div className="flex items-center justify-between">
+            <span
+              className="rounded-[5px] px-2 py-[3px] text-[10px] font-extrabold uppercase tracking-[0.06em]"
+              style={{ color, background: `color-mix(in oklab, ${color} 16%, transparent)` }}
+            >
+              {shown.label}
+            </span>
+            <span className="text-[11.5px] tabular-nums text-muted-foreground">{whenTxt}</span>
+          </div>
         </div>
       </div>
       {onResolve && (

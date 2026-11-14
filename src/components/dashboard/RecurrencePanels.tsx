@@ -16,6 +16,7 @@ import {
 } from "@/lib/recurrences.functions";
 import { describeFrequency, fmtBR, fmtBRShort, type RecurrenceUnit } from "@/lib/recurrence-dates";
 import { cn } from "@/lib/utils";
+import { PhoneActionButton } from "@/components/PhoneActionButton";
 
 /**
  * RECORRÊNCIAS NA PÁGINA REGISTROS (mockups b, d, m, c, j — 13/11/2026).
@@ -45,7 +46,7 @@ export function RecurrenceChip({
       type="button"
       {...rest}
       className={cn(
-        "inline-flex h-[22px] shrink-0 items-center gap-[5px] rounded-full border border-[#E82DAE]/40 bg-[#E82DAE]/[0.12] px-2 text-[11px] font-bold tabular-nums text-[#E82DAE] transition-colors hover:bg-[#E82DAE]/[0.2]",
+        "inline-flex h-[22px] shrink-0 items-center gap-[5px] rounded-full bg-[color-mix(in_oklab,var(--accent)_12%,transparent)] px-2 text-[11px] font-bold tabular-nums text-accent shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--accent)_35%,transparent)] transition-colors hover:bg-[color-mix(in_oklab,var(--accent)_20%,transparent)]",
         open && "ring-1 ring-foreground/25",
       )}
     >
@@ -123,6 +124,8 @@ export function PropertyPendingWindow({
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent
+        cover
+        onOpenAutoFocus={(e) => e.preventDefault()}
         aria-describedby={undefined}
         className="flex max-h-[min(90dvh,calc(100dvh_-_var(--kb-inset,0px)_-_3rem))] w-[min(372px,calc(100vw-2rem))] flex-col gap-0 overflow-hidden p-0"
         onBack={
@@ -137,20 +140,20 @@ export function PropertyPendingWindow({
           <div className="absolute inset-0 origin-center scale-[1.04] [filter:blur(1.5px)_brightness(.9)]">
             <CoverImage urls={covers} empty={false} />
           </div>
-          <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-black/60 to-[var(--panel)]" />
-          <div className="absolute inset-x-4 bottom-2.5 min-w-0 pr-12">
-            <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/80">{eyebrow}</div>
-            <DialogTitle className="mt-1 block truncate text-sm font-bold leading-tight text-white" title={title}>
+          <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(34,30,27,0)_25%,rgba(34,30,27,.82)_100%)]" />
+          <div className="absolute inset-x-4 bottom-2.5 min-w-0 pr-8">
+            <div className="text-[10.5px] font-semibold uppercase tracking-[0.16em] text-white/90">{eyebrow}</div>
+            <DialogTitle className="mt-1 block truncate text-sm font-bold leading-[18px] text-white" title={title}>
               {title}
             </DialogTitle>
             {owner?.name ? (
-              <OwnerLine
-                name={owner.name}
-                phone={owner.phone}
-                country={owner.country}
-                phonePosition="adjacent"
-                className="mt-0.5 [&>span:first-child]:text-white"
-              />
+              /* Mesmo cabeçalho das janelas com capa (mockups b/c/d/j): proprietário + ícone de mensagem. */
+              <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[13px] text-white">
+                <span className="truncate">{owner.name}</span>
+                <span className="-my-1.5 shrink-0">
+                  <PhoneActionButton phone={owner.phone} country={owner.country} size={13} alwaysShow />
+                </span>
+              </div>
             ) : null}
           </div>
         </div>
@@ -309,22 +312,23 @@ function SeriesRow({
   return (
     <div
       data-clip-row
-      className={cn("flex items-start gap-3 px-4 py-3", !first && "border-t border-[var(--panel-div)]", muted && "opacity-60")}
+      className={cn("flex items-start gap-3 px-[18px] py-3", !first && "border-t border-foreground/[0.08]", muted && "opacity-60")}
     >
-      <Repeat className="mt-0.5 size-[22px] shrink-0 text-[#E82DAE]" strokeWidth={1.8} />
-      <span className="grid min-w-0 flex-1 gap-1">
-        <span className="truncate text-[15px] font-bold leading-tight">{s.title}</span>
-        <span className="truncate text-[12.5px] text-muted-foreground">
+      {/* Mockup d: ícone 18px na cor de destaque, título 14px, linha de apoio 12px, selo de 10px. */}
+      <Repeat className="mt-[3px] size-[18px] shrink-0 text-accent" strokeWidth={2} />
+      <span className="grid min-w-0 flex-1">
+        <span className="truncate text-sm font-bold leading-[1.3]">{s.title}</span>
+        <span className="mt-0.5 truncate text-xs text-muted-foreground">
           {CAT_LABEL[s.category]} · {s.frequencyShort}
           {s.nextDate ? ` · próxima ${fmtBRShort(s.nextDate)}` : ""}
         </span>
         {s.inCleaningChecklist && (
-          <span className="inline-flex h-5 w-fit items-center rounded-full bg-[#6fae8a]/[0.14] px-2 text-[10.5px] font-bold text-[#6fae8a]">
+          <span className="mt-1.5 inline-flex w-fit items-center gap-1 rounded-[5px] bg-[#7fb79a]/[0.15] px-[7px] py-0.5 text-[10px] font-bold text-[#7fb79a]">
             No checklist de limpeza
           </span>
         )}
       </span>
-      <button type="button" onClick={onDetail} className="shrink-0 self-center text-[13px] font-bold text-muted-foreground hover:text-foreground">
+      <button type="button" onClick={onDetail} className="shrink-0 self-center text-xs font-bold text-muted-foreground hover:text-foreground">
         Detalhes
       </button>
     </div>
@@ -375,29 +379,31 @@ function DetailView({ s, onEdit, onClosed }: { s: RecurrenceSummary; onEdit: () 
     }
   }
   const paused = s.status === "paused";
-  const line = "flex items-center justify-between gap-3 py-[5px] text-[14px]";
+  // Mockup c/j: linhas de 23px, 12.5px, valor em semibold; selos de 10px.
+  const line = "flex min-h-[23px] items-center justify-between gap-3 text-[12.5px]";
+  const chip = "inline-flex shrink-0 items-center gap-1 self-start rounded-[5px] px-[7px] py-0.5 text-[10px] font-bold";
   return (
     <>
       <div className="sg-elegant-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-3.5">
-        <div className="rounded-[0.9rem] border border-border/50 bg-secondary/30 px-3.5 py-2.5">
+        <div className="rounded-xl bg-foreground/[0.04] px-3.5 py-3 shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_8%,transparent)]">
           <div className={line}>
             <span className="text-muted-foreground">Repete</span>
-            <span className="font-bold">{describeFrequency(s.unit, s.interval, Number((s.nextDate ?? s.startDate).slice(8, 10)))}</span>
+            <span className="text-right font-semibold">{describeFrequency(s.unit, s.interval, Number((s.nextDate ?? s.startDate).slice(8, 10)))}</span>
           </div>
           <div className={line}>
             <span className="text-muted-foreground">Próxima</span>
-            <span className="font-bold tabular-nums">{paused ? "Pausada" : s.nextDate ? fmtBR(s.nextDate) : "—"}</span>
+            <span className="text-right font-semibold tabular-nums">{paused ? "Pausada" : s.nextDate ? fmtBR(s.nextDate) : "—"}</span>
           </div>
           <div className={line}>
             <span className="text-muted-foreground">Termina</span>
-            <span className="font-bold tabular-nums">{s.endsOn ? fmtBR(s.endsOn) : "Nunca"}</span>
+            <span className="text-right font-semibold tabular-nums">{s.endsOn ? fmtBR(s.endsOn) : "Nunca"}</span>
           </div>
           <div className={line}>
             <span className="text-muted-foreground">Entra no checklist de limpeza</span>
             <span
               className={cn(
-                "rounded-md px-2 py-0.5 text-[12px] font-bold",
-                s.inCleaningChecklist ? "bg-[#6fae8a]/[0.16] text-[#6fae8a]" : "bg-foreground/[0.08] text-muted-foreground",
+                chip,
+                s.inCleaningChecklist ? "bg-[#7fb79a]/[0.15] text-[#7fb79a]" : "bg-[#9a9a9a]/[0.15] text-[#9a9a9a]",
               )}
             >
               {s.inCleaningChecklist ? "Sim" : "Não"}
@@ -405,44 +411,46 @@ function DetailView({ s, onEdit, onClosed }: { s: RecurrenceSummary; onEdit: () 
           </div>
         </div>
 
-        <div className="ds-eyebrow mb-2 mt-5 text-muted-foreground">Ocorrências</div>
-        <ol className="relative grid gap-3.5">
-          <span aria-hidden className="absolute bottom-3 left-[8px] top-3 w-px bg-foreground/[0.12]" />
-          {s.occurrences.map((o) => (
-            <li key={`${o.taskId ?? "n"}:${o.date}`} data-clip-row className="relative flex items-start gap-3">
+        <div className="ds-eyebrow mb-2.5 mt-3.5 text-muted-foreground">Ocorrências</div>
+        <ol className="relative">
+          {s.occurrences.map((o, i) => (
+            <li key={`${o.taskId ?? "n"}:${o.date}`} data-clip-row className="relative flex gap-[11px] pb-3">
               <span
                 aria-hidden
                 className={cn(
-                  "relative z-10 mt-[5px] size-[17px] shrink-0 rounded-full",
-                  o.state === "next" && "border-2 border-[#E82DAE] bg-[var(--panel)]",
+                  "relative mt-1 size-[11px] flex-none rounded-full",
+                  o.state === "next" && "shadow-[inset_0_0_0_1.6px_var(--accent)]",
                   o.state === "done" && "bg-[#7fb79a]",
-                  o.state === "skipped" && "bg-foreground/40",
+                  o.state === "skipped" && "bg-[#8b8b8b]",
                 )}
               />
+              {i < s.occurrences.length - 1 && (
+                <span aria-hidden className="absolute -bottom-0 left-[5px] top-4 w-px bg-[var(--panel-div)]" />
+              )}
               <span className="grid min-w-0 flex-1">
-                <span className="text-[15px] font-bold tabular-nums leading-tight">{fmtBR(o.date)}</span>
-                <span className="mt-0.5 text-[12.5px] leading-snug text-muted-foreground">{occText(s, o, todayIso)}</span>
+                <span className="text-[12.5px] font-bold tabular-nums">{fmtBR(o.date)}</span>
+                <span className="text-[11px] text-muted-foreground">{occText(s, o, todayIso)}</span>
                 {o.state === "next" && o.taskId && (
                   <button
                     type="button"
                     disabled={!!busy}
                     onClick={() => void run("skip", () => skipFn({ data: { taskId: o.taskId! } }))}
-                    className="mt-1 w-fit text-[12px] font-bold text-muted-foreground hover:text-foreground disabled:opacity-50"
+                    className="mt-0.5 w-fit text-[11px] font-bold text-muted-foreground hover:text-foreground disabled:opacity-50"
                   >
                     {busy === "skip" ? "Pulando…" : "Pular esta"}
                   </button>
                 )}
               </span>
               {o.state === "next" ? (
-                <span className="inline-flex h-[26px] shrink-0 items-center gap-1 rounded-md bg-[#E82DAE]/[0.16] px-2 text-[12px] font-bold text-[#E82DAE]">
-                  <Repeat className="size-3.5" /> Próxima
+                <span className={cn(chip, "bg-accent/[0.15] text-accent")}>
+                  <Repeat className="size-2.5" /> Próxima
                 </span>
               ) : o.state === "done" ? (
-                <span className="inline-flex h-[26px] shrink-0 items-center gap-1 rounded-md bg-[#7fb79a]/[0.16] px-2 text-[12px] font-bold text-[#7fb79a]">
-                  <Check className="size-3.5" /> Feita
+                <span className={cn(chip, "bg-[#7fb79a]/[0.15] text-[#7fb79a]")}>
+                  <Check className="size-2.5" strokeWidth={3} /> Feita
                 </span>
               ) : (
-                <span className="inline-flex h-[26px] shrink-0 items-center rounded-md bg-foreground/[0.08] px-2 text-[12px] font-bold text-muted-foreground">
+                <span className={cn(chip, "bg-[#9a9a9a]/[0.15] text-[#9a9a9a]")}>
                   Pulada
                 </span>
               )}
@@ -450,12 +458,12 @@ function DetailView({ s, onEdit, onClosed }: { s: RecurrenceSummary; onEdit: () 
           ))}
         </ol>
       </div>
-      <div className="flex shrink-0 items-center gap-2 border-t border-[var(--panel-div)] bg-secondary/20 px-4 py-3">
+      <div className="flex shrink-0 items-center gap-2 border-t border-foreground/[0.08] px-4 py-3">
         <button
           type="button"
           disabled={!!busy}
           onClick={() => void run("pause", () => updateFn({ data: { action: paused ? "resume" : "pause", id: s.id } }))}
-          className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-[0.5rem] border border-border/60 px-3.5 text-[13px] font-bold disabled:opacity-50"
+          className="inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-[5px] border border-border px-2 text-[12px] font-bold disabled:opacity-50"
         >
           {paused ? <Play className="size-3.5" /> : <Pause className="size-3.5" />}
           {paused ? "Retomar" : "Pausar"}
@@ -472,8 +480,8 @@ function DetailView({ s, onEdit, onClosed }: { s: RecurrenceSummary; onEdit: () 
           }}
           onBlur={() => setConfirmEnd(false)}
           className={cn(
-            "inline-flex h-10 shrink-0 items-center rounded-[0.5rem] border px-3.5 text-[13px] font-bold disabled:opacity-50",
-            confirmEnd ? "border-[#c98c8c] text-[#c98c8c]" : "border-border/60",
+            "inline-flex h-9 flex-1 items-center justify-center rounded-[5px] border px-2 text-[12px] font-bold disabled:opacity-50",
+            confirmEnd ? "border-[#c98c8c] text-[#c98c8c]" : "border-border",
           )}
         >
           {confirmEnd ? "Confirmar?" : "Encerrar"}
@@ -481,7 +489,7 @@ function DetailView({ s, onEdit, onClosed }: { s: RecurrenceSummary; onEdit: () 
         <button
           type="button"
           onClick={onEdit}
-          className="inline-flex h-10 min-w-0 flex-1 items-center justify-center rounded-[0.5rem] bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] text-[13px] font-bold text-white"
+          className="inline-flex h-9 min-w-0 flex-[2] items-center justify-center rounded-[5px] bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] text-[12px] font-bold text-white"
         >
           Editar série
         </button>
