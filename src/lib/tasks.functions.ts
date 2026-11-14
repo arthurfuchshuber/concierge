@@ -168,7 +168,7 @@ export const listTasks = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => ListTasksInput.parse(i) ?? {})
   .handler(
-    async ({ data, context }): Promise<{ tasks: TaskRow[]; completions: TaskCompletion[] }> => {
+    async ({ data, context }): Promise<{ tasks: TaskRow[]; completions: TaskCompletion[]; viewerIsProvider: boolean }> => {
       const { resolveAuthorizedAccountOwnerId } = await import("@/lib/account-scope.server");
       const accountOwnerId = await resolveAuthorizedAccountOwnerId(
         context.supabase as never,
@@ -185,7 +185,7 @@ export const listTasks = createServerFn({ method: "GET" })
       let query = db
         .from("tasks")
         .select(
-          "id, title, description, category, priority, due_date, show_in_cleaning, status, completed_at, created_at, property_id, owner_contact_id, log_id, reservation_id, amount_spent_cents, recurrence_days, resolved_by_provider_id, resolution_note, amount_due_cents, resolution_received, cost_payer, cost_payer_id, paid_by, paid_by_id, amount_paid_cents, difference_cents, difference_to, difference_to_id, recurrence_id",
+          "id, title, description, category, priority, due_date, show_in_cleaning, status, completed_at, created_at, property_id, owner_contact_id, log_id, reservation_id, amount_spent_cents, recurrence_days, resolved_by_provider_id, resolution_note, amount_due_cents, resolution_received, cost_payer, cost_payer_id, paid_by, paid_by_id, amount_paid_cents, difference_cents, difference_to, difference_to_id, recurrence_id, provider_report_status, provider_report_amount_cents, provider_report_note, provider_report_by_name, provider_report_at",
         )
         .eq("account_owner_id", accountOwnerId)
         .in("status", ["pending", "done"])
@@ -226,6 +226,11 @@ export const listTasks = createServerFn({ method: "GET" })
         difference_to: string | null;
         difference_to_id: string | null;
         recurrence_id: string | null;
+        provider_report_status: string | null;
+        provider_report_amount_cents: number | null;
+        provider_report_note: string | null;
+        provider_report_by_name: string | null;
+        provider_report_at: string | null;
       }>;
 
       // Nomes de imóvel/proprietário em 2 buscas em lote (mesma técnica do
@@ -341,6 +346,16 @@ export const listTasks = createServerFn({ method: "GET" })
           differenceCents: r.difference_cents,
           differenceTo: (r.difference_to as TaskParty | null) ?? null,
           differenceToId: r.difference_to_id,
+          providerReport:
+            r.provider_report_status === "resolved" || r.provider_report_status === "failed"
+              ? {
+                  status: r.provider_report_status,
+                  amountCents: r.provider_report_amount_cents,
+                  note: r.provider_report_note,
+                  byName: r.provider_report_by_name,
+                  at: r.provider_report_at,
+                }
+              : null,
         };
       });
 
@@ -371,9 +386,89 @@ export const listTasks = createServerFn({ method: "GET" })
         }));
       }
 
-      return { tasks, completions };
+      // Quem está vendo é prestador desta conta? Decide qual janela "Concluir pendência" abre
+      // (mockups DECIDIR · C1: prestador relata, anfitrião aprova).
+      const { data: provRow } = await db
+        .from("service_providers")
+        .select("id")
+        .eq("account_owner_id", accountOwnerId)
+        .eq("member_user_id", context.userId)
+        .limit(1)
+        .maybeSingle();
+      const viewerIsProvider = !!provRow;
+
+      return { tasks, completions, viewerIsProvider };
     },
   );
+
+// ----- Relato do prestador (14/11/2026, mockups DECIDIR · C1) -----
+
+const ReportInput = z.object({
+  taskId: z.string().uuid(),
+  outcome: z.enum(["resolved", "failed"]),
+  amountCents: z.number().int().min(0).max(100_000_000).nullable().optional(),
+  note: z.string().trim().max(2000).nullable().optional(),
+});
+
+/**
+ * O PRESTADOR conclui pela janela dele. Nada fecha aqui: "Resolvido" deixa a pendência "Aguardando
+ * aprovação" (o anfitrião aprova na janela financeira); "Não consegui" (motivo obrigatório) mantém a
+ * pendência aberta no checklist do próximo checkout, com o motivo visível para o anfitrião.
+ */
+export const reportTaskAsProvider = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => ReportInput.parse(i))
+  .handler(async ({ data, context }) => {
+    const db = context.supabase as unknown as AnyClient;
+    const note = (data.note ?? "").trim() || null;
+    if (data.outcome === "failed" && !note) throw new Error("Conte por que não deu para resolver.");
+    const { data: task, error: e1 } = await db
+      .from("tasks")
+      .select("id, status, account_owner_id")
+      .eq("id", data.taskId)
+      .maybeSingle();
+    if (e1) throw new Error(e1.message);
+    const t = task as { id: string; status: string; account_owner_id: string } | null;
+    if (!t) throw new Error("Pendência não encontrada.");
+    if (t.status !== "pending") throw new Error("Esta pendência já foi concluída.");
+    const { data: prov } = await db
+      .from("service_providers")
+      .select("name, trade_name")
+      .eq("account_owner_id", t.account_owner_id)
+      .eq("member_user_id", context.userId)
+      .limit(1)
+      .maybeSingle();
+    const p = prov as { name: string | null; trade_name: string | null } | null;
+    const byName = (p?.trade_name || p?.name || "").trim() || null;
+    const { error } = await db
+      .from("tasks")
+      .update({
+        provider_report_status: data.outcome,
+        provider_report_amount_cents: data.outcome === "resolved" ? (data.amountCents ?? null) : null,
+        provider_report_note: note,
+        provider_report_by: context.userId,
+        provider_report_by_name: byName,
+        provider_report_at: new Date().toISOString(),
+      })
+      .eq("id", data.taskId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+/** O ANFITRIÃO devolve ao prestador: o relato sai e a pendência volta a ficar só aberta. */
+export const returnTaskToProvider = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => z.object({ taskId: z.string().uuid() }).parse(i))
+  .handler(async ({ data, context }) => {
+    const db = context.supabase as unknown as AnyClient;
+    const { error } = await db
+      .from("tasks")
+      .update({ provider_report_status: null, provider_report_amount_cents: null, provider_report_at: null })
+      .eq("id", data.taskId)
+      .eq("status", "pending");
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
 
 // ----- Criar -----
 

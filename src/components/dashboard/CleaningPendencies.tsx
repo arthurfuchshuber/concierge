@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowRight, Camera, Check, Repeat, TriangleAlert } from "lucide-react";
+import { ArrowRight, Camera, Check, Clock, Repeat, TriangleAlert } from "lucide-react";
 import { PhoneActionButton } from "@/components/PhoneActionButton";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
@@ -10,7 +10,8 @@ import { TaskResolveDialog, settlementToServer, type ResolveValues } from "@/com
 import { uploadPendingAttachments } from "@/components/dashboard/TaskAttachments";
 import { supabase } from "@/integrations/supabase/client";
 import { attachTaskRecord } from "@/lib/reservation-records.functions";
-import { listTaskLinkOptions, listTasks, setTaskStatus } from "@/lib/tasks.functions";
+import { listTaskLinkOptions, listTasks, reportTaskAsProvider, returnTaskToProvider, setTaskStatus } from "@/lib/tasks.functions";
+import { ProviderConcludeDialog } from "@/components/dashboard/ProviderConcludeDialog";
 import type { ArrivalRow } from "@/lib/dashboard-arrival-types";
 import type { TaskCategory, TaskRow } from "@/lib/tasks-types";
 import { fmtBRShort } from "@/lib/recurrence-dates";
@@ -148,10 +149,68 @@ function CleaningPendenciesWindow({
     staleTime: 5 * 60_000,
   });
 
+  const reportMedia = useQuery({
+    queryKey: ["task-report-media", resolving?.id ?? null],
+    enabled: !!resolving?.providerReport && true,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("reservation_records")
+        .select("storage_path, mime, created_at")
+        .eq("task_id", resolving!.id)
+        .order("created_at", { ascending: true })
+        .limit(20);
+      const rows = ((data ?? []) as Array<{ storage_path: string | null; mime: string | null }>).filter(
+        (r) => r.storage_path && ((r.mime ?? "").startsWith("image/") || (r.mime ?? "").startsWith("video/")),
+      );
+      const out: Array<{ url: string; video: boolean }> = [];
+      for (const r of rows) {
+        const { data: signed } = await supabase.storage.from("reservation-records").createSignedUrl(r.storage_path!, 3600);
+        if (signed?.signedUrl) out.push({ url: signed.signedUrl, video: (r.mime ?? "").startsWith("video/") });
+      }
+      return out;
+    },
+    staleTime: 60_000,
+  });
+
   const optionsFn = useServerFn(listTaskLinkOptions);
   const options = useQuery({ queryKey: ["task-link-options"], queryFn: () => optionsFn({ data: {} }), staleTime: 60_000 });
   const setStatusFn = useServerFn(setTaskStatus);
   const attachFn = useServerFn(attachTaskRecord);
+
+  const viewerIsProvider = useCleaningTasks(true).data?.viewerIsProvider ?? false;
+  const reportFn = useServerFn(reportTaskAsProvider);
+  const returnFn = useServerFn(returnTaskToProvider);
+  const invalidateAll = () => {
+    void qc.invalidateQueries({ queryKey: ["cleaning-pendencies"] });
+    void qc.invalidateQueries({ queryKey: ["dash-tasks"] });
+    void qc.invalidateQueries({ queryKey: ["account-records"] });
+    void qc.invalidateQueries({ queryKey: ["reservation-records"] });
+  };
+  const report = useMutation({
+    mutationFn: async ({ task, v }: { task: TaskRow; v: import("@/components/dashboard/ProviderConcludeDialog").ProviderReportValues }) => {
+      await reportFn({ data: { taskId: task.id, outcome: v.outcome, amountCents: v.amountCents, note: v.note } });
+      if (v.files.length > 0 && task.propertyId) {
+        await uploadPendingAttachments(attachFn as never, v.files, {
+          propertyId: task.propertyId,
+          taskId: task.id,
+          logId: task.logId ?? undefined,
+          reservationId: task.reservationId ?? undefined,
+          isResolution: true,
+        });
+      }
+    },
+    onSuccess: (_d, { v }) => {
+      invalidateAll();
+      toast.success(v.outcome === "resolved" ? "Enviado para aprovação." : "Registrado. A pendência continua aberta.");
+    },
+  });
+  const giveBack = useMutation({
+    mutationFn: async (task: TaskRow) => returnFn({ data: { taskId: task.id } }),
+    onSuccess: () => {
+      invalidateAll();
+      toast.success("Devolvida ao prestador.");
+    },
+  });
 
   const resolve = useMutation({
     mutationFn: async ({ task, v }: { task: TaskRow; v: ResolveValues }) => {
@@ -263,8 +322,30 @@ function CleaningPendenciesWindow({
         </DialogContent>
       </Dialog>
 
+      <ProviderConcludeDialog
+        task={resolving && viewerIsProvider ? resolving : null}
+        covers={covers.data ?? []}
+        onOpenChange={(v) => !v && setResolving(null)}
+        onConfirm={async (v) => {
+          if (!resolving) return;
+          await report.mutateAsync({ task: resolving, v });
+          setResolving(null);
+          if (view.kind === "detail") setView({ kind: "list" });
+        }}
+      />
+
       <TaskResolveDialog
-        state={resolving ? { kind: "cleaning", task: resolving } : null}
+        covers={covers.data ?? []}
+        reportMedia={reportMedia.data ?? []}
+        onReturn={
+          resolving?.providerReport?.status === "resolved"
+            ? async () => {
+                await giveBack.mutateAsync(resolving);
+                setResolving(null);
+              }
+            : undefined
+        }
+        state={resolving && !viewerIsProvider ? { kind: "cleaning", task: resolving } : null}
         onOpenChange={(v) => !v && setResolving(null)}
         providers={options.data?.providers ?? []}
         companyName={options.data?.companyName ?? null}
@@ -348,6 +429,13 @@ function Item({
             <span className="ml-1">· {fmtBRShort(created)}</span>
           ) : null}
         </div>
+        {!isDone && t.providerReport?.status === "resolved" && (
+          /* Mockup DECIDIR · C1 (proposta 1): o prestador concluiu; falta o anfitrião aprovar. */
+          <div className="mt-1.5 inline-flex items-center gap-[5px] whitespace-nowrap rounded-md bg-[#e2b45a]/[0.14] px-2 py-[3px] text-[10.5px] font-bold text-[#e2b45a]">
+            <Clock className="size-[11px]" strokeWidth={2.2} />
+            Aguardando aprovação
+          </div>
+        )}
         {moved && co && (
           <div className="mt-1.5 inline-flex items-center gap-[5px] rounded-md bg-[var(--accent)]/[0.12] px-2 py-[3px] text-[10.5px] font-bold text-[var(--accent)]">
             <ArrowRight className="size-[11px]" strokeWidth={2.4} />

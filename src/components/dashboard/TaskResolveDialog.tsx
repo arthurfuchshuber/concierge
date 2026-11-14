@@ -67,6 +67,9 @@ import { MoneyInput } from "@/components/ui/money-input";
 import { PhoneActionButton } from "@/components/PhoneActionButton";
 import { AudioRecorderButton } from "@/components/handoff/AudioRecorderButton";
 import { AttachmentsSending, type PendingAttachment } from "@/components/dashboard/TaskAttachments";
+import { CoverImage } from "@/components/ui/cover-image";
+import { cn } from "@/lib/utils";
+import { Check as CheckIcon, CircleX, Clock } from "lucide-react";
 import type { TaskLinkProvider, TaskParty, TaskRow } from "@/lib/tasks-types";
 
 /** Tudo que a janela devolve ao gatilho (Pendências ou checklist da limpeza). */
@@ -487,8 +490,17 @@ export function TaskResolveDialog({
   companyName,
   guestName,
   onConfirm,
+  covers,
+  onReturn,
+  reportMedia,
 }: {
   state: { kind: "status" | "cleaning"; task: TaskRow } | null;
+  /** Fotos do imóvel: com elas a janela abre com a capa (mockup DECIDIR · C1, proposta 2). */
+  covers?: string[];
+  /** "Devolver ao prestador" — só aparece quando há relato do prestador aguardando aprovação. */
+  onReturn?: () => Promise<void>;
+  /** Miniaturas dos anexos do relato do prestador. */
+  reportMedia?: Array<{ url: string; video: boolean }>;
   onOpenChange: (v: boolean) => void;
   providers: TaskLinkProvider[];
   /** Nome fantasia da empresa da conta (o "Anfitrião Sigma"). */
@@ -498,6 +510,7 @@ export function TaskResolveDialog({
   onConfirm: (v: ResolveValues) => Promise<void>;
 }) {
   const task = state?.task;
+  const report = task?.providerReport ?? null;
   const hasOwner = !!(task?.ownerContactId || task?.ownerName);
   const hasStay = !!(task?.reservationId || task?.logId);
   const ownerName = task?.ownerName ?? "";
@@ -529,8 +542,11 @@ export function TaskResolveDialog({
   useEffect(() => {
     if (!state) return;
     const t = state.task;
-    const spent = t.amountSpentCents ?? null;
-    setProviderId(null);
+    const rep = t.providerReport?.status === "resolved" ? t.providerReport : null;
+    const spent = rep?.amountCents ?? t.amountSpentCents ?? null;
+    setProviderId(
+      rep?.byName ? (providers.find((p) => p.name.trim().toLowerCase() === rep.byName!.trim().toLowerCase())?.id ?? null) : null,
+    );
     setCents(spent);
     setReceived(0); // pré-selecionado: "Não recebeu"
     setPayer(t.ownerContactId || t.ownerName ? "owner" : "company");
@@ -542,7 +558,7 @@ export function TaskResolveDialog({
     setPaidProvider(null);
     setPaidCents(spent);
     setPaidTouched(false);
-    setNote("");
+    setNote(rep?.note ?? ""); // o "como foi resolvido" do prestador vira a observação da conclusão
     setFiles([]);
     setSaving(false);
     setAskDiff(false);
@@ -674,12 +690,36 @@ export function TaskResolveDialog({
   return (
     <>
       <Dialog open={!!state && !askDiff} onOpenChange={onOpenChange}>
-        <DialogContent className="w-[calc(100vw-2rem)] gap-0 overflow-hidden p-0 sm:max-w-[480px]">
+        <DialogContent cover={!!covers} className="w-[calc(100vw-2rem)] gap-0 overflow-hidden p-0 sm:max-w-[480px]">
           <DialogDescription className="sr-only">
             Registre quem resolveu, quanto custou, quem deve pagar e a comprovação.
           </DialogDescription>
 
-          {/* Cabeçalho universal de janela ampla (07/11/2026): título 14px em 1
+{covers ? (
+            /* Mockup DECIDIR · C1 (proposta 2): mesma capa das janelas de pendências. */
+            <div className="relative h-[140px] shrink-0 overflow-hidden bg-secondary/60">
+              <div className="absolute inset-0 origin-center scale-[1.04] [filter:blur(1.5px)_brightness(.9)]">
+                <CoverImage urls={covers} empty={false} />
+              </div>
+              <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(34,30,27,0)_25%,rgba(34,30,27,.82)_100%)]" />
+              <div className="absolute inset-x-4 bottom-2.5 min-w-0 pr-8">
+                <div className="text-[10.5px] font-semibold uppercase tracking-[0.16em] text-white/90">Concluir pendência</div>
+                <DialogTitle className="mt-1 block truncate text-sm font-bold leading-[18px] text-white">
+                  {task?.propertyName ?? "Imóvel"}
+                </DialogTitle>
+                {task?.ownerName && (
+                  <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[13px] text-white">
+                    <span className="truncate">{task.ownerName}</span>
+                    <span className="-my-1.5 shrink-0">
+                      <PhoneActionButton phone={task.ownerPhone} country={task.ownerPhoneCountry} size={13} alwaysShow />
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+          <>
+                    {/* Cabeçalho universal de janela ampla (07/11/2026): título 14px em 1
               linha + imóvel e proprietário (com o ícone de mensagem) em 12px;
               o "X" oficial fica no canto (pr-14). */}
           <DialogHeader className="space-y-0 px-4 pt-3 pb-2.5 pr-12 text-left">
@@ -704,6 +744,8 @@ export function TaskResolveDialog({
               </div>
             )}
           </DialogHeader>
+          </>
+          )}
 
           <div className="sg-elegant-scroll flex max-h-[62vh] flex-col gap-2 overflow-y-auto px-4 pb-3.5 pt-2.5">
             {/* A situação (somente leitura) — deixa claro DO QUE se trata. */}
@@ -711,8 +753,12 @@ export function TaskResolveDialog({
               <div className="text-[9px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
                 Situação
               </div>
-              <div className="mt-0.5 text-[12.5px] font-bold leading-[1.35]">{task?.title}</div>
+              <div className="mt-0.5 text-[12.5px] font-bold leading-[1.35]">
+                {task?.title.replace(/^(Objeto esquecido|Dano|Incidente|Manutenção|Limpeza|Auditoria de Limpeza): /, "")}
+              </div>
             </div>
+
+            {report && <ProviderReportBlock report={report} original={task?.amountSpentCents ?? null} media={reportMedia ?? []} />}
 
             <div className="grid grid-cols-2 gap-2">
               <ProviderPicker
@@ -776,16 +822,36 @@ export function TaskResolveDialog({
               </>
             )}
 
-            <ProofBox note={note} onNote={setNote} files={files} onFiles={setFiles} disabled={saving} />
+            {!report && <ProofBox note={note} onNote={setNote} files={files} onFiles={setFiles} disabled={saving} />}
           </div>
 
           <div className="flex items-center justify-end gap-2 border-t border-border/60 px-4 py-2.5">
             {saving && <AttachmentsSending count={files.length} />}
-            <button type="button" onClick={() => onOpenChange(false)} disabled={saving} className={BTN_GHOST}>
-              Cancelar
-            </button>
+            {report?.status === "resolved" && onReturn ? (
+              <button
+                type="button"
+                disabled={saving}
+                className={BTN_GHOST}
+                onClick={async () => {
+                  setSaving(true);
+                  try {
+                    await onReturn();
+                  } catch (e) {
+                    toast.error(e instanceof Error ? e.message : "Não deu para devolver agora.");
+                  } finally {
+                    setSaving(false);
+                  }
+                }}
+              >
+                Devolver ao prestador
+              </button>
+            ) : (
+              <button type="button" onClick={() => onOpenChange(false)} disabled={saving} className={BTN_GHOST}>
+                Cancelar
+              </button>
+            )}
             <button type="button" onClick={submit} disabled={saving} className={BTN_PRIMARY}>
-              {saving ? "Concluindo…" : "Concluir"}
+              {saving ? "Concluindo…" : report?.status === "resolved" ? "Aprovar e concluir" : "Concluir"}
             </button>
           </div>
         </DialogContent>
@@ -895,6 +961,91 @@ function SumRow({ label, value, strong }: { label: string; value: string; strong
       >
         {value}
       </span>
+    </div>
+  );
+}
+
+/**
+ * RELATO DO PRESTADOR (mockup DECIDIR · C1, proposta 2): bloco só de leitura no topo da janela do
+ * anfitrião — quem fez, quando, o resultado, o valor pedido (com o original riscado), como resolveu e
+ * os anexos. Em âmbar enquanto aguarda aprovação.
+ */
+function ProviderReportBlock({
+  report,
+  original,
+  media,
+}: {
+  report: NonNullable<TaskRow["providerReport"]>;
+  original: number | null;
+  media: Array<{ url: string; video: boolean }>;
+}) {
+  const AMB = "#e2b45a";
+  const brl = (c: number | null) => (c == null ? "—" : (c / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }));
+  const when = report.at ? new Date(report.at) : null;
+  const whenTxt = when
+    ? `${String(when.getDate()).padStart(2, "0")}/${String(when.getMonth() + 1).padStart(2, "0")} · ${String(when.getHours()).padStart(2, "0")}:${String(when.getMinutes()).padStart(2, "0")}`
+    : "";
+  const ok = report.status === "resolved";
+  const row = "mt-1 flex items-center justify-between gap-2 text-[12.5px]";
+  return (
+    <div
+      className="rounded-[10px] px-3 py-2.5"
+      style={{
+        background: `color-mix(in oklab, ${AMB} 8%, transparent)`,
+        boxShadow: `inset 0 0 0 1px color-mix(in oklab, ${AMB} 32%, transparent)`,
+      }}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <span className="inline-flex items-center gap-[5px] text-[10px] font-extrabold uppercase tracking-[0.06em]" style={{ color: AMB }}>
+          <Clock className="size-[13px]" strokeWidth={2.2} />
+          {ok ? "Aguardando aprovação" : "Prestador não conseguiu"}
+        </span>
+        <span className="text-[11px] tabular-nums text-muted-foreground">{whenTxt}</span>
+      </div>
+      <div className={cn(row, "mt-2")}>
+        <span className="text-muted-foreground">Relato do prestador</span>
+        <span className="min-w-0 truncate font-bold">{report.byName ?? "Prestador"}</span>
+      </div>
+      <div className={row}>
+        <span className="text-muted-foreground">Resultado</span>
+        {ok ? (
+          <span className="inline-flex items-center gap-1 font-bold text-[#7fb79a]">
+            <CheckIcon className="size-3.5" strokeWidth={3} />
+            Resolvido
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-1 font-bold text-[#c98c8c]">
+            <CircleX className="size-3.5" />
+            Não consegui
+          </span>
+        )}
+      </div>
+      {ok && (
+        <div className={row}>
+          <span className="text-muted-foreground">Valor pedido</span>
+          <span>
+            {original != null && report.amountCents != null && original !== report.amountCents && (
+              <span className="mr-1.5 text-[11px] text-muted-foreground line-through">{brl(original)}</span>
+            )}
+            <b className="font-extrabold">{brl(report.amountCents)}</b>
+          </span>
+        </div>
+      )}
+      {report.note && <div className="mt-2 text-[12.5px] leading-[1.4]">“{report.note}”</div>}
+      {media.length > 0 && (
+        <div className="mt-2 flex gap-1.5">
+          {media.slice(0, 3).map((m) => (
+            <span key={m.url} className="relative grid size-11 flex-none place-items-center overflow-hidden rounded-lg bg-foreground/[0.06]">
+              <img src={m.url} alt="" className="absolute inset-0 size-full object-cover" />
+            </span>
+          ))}
+          {media.length > 3 && (
+            <span className="grid size-11 flex-none place-items-center rounded-lg bg-foreground/[0.05] text-[11px] font-extrabold text-muted-foreground shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_9%,transparent)]">
+              +{media.length - 3}
+            </span>
+          )}
+        </div>
+      )}
     </div>
   );
 }
