@@ -653,6 +653,21 @@ export async function handleChannexMessage(payload: unknown): Promise<void> {
       code = await waitForReservationCode(() => codeForBooking(admin, listing.property_id, bookingId));
     }
     if (code) await link.linkConversationByCode(admin, { conversationId: convId, propertyId: listing.property_id, code });
+    // CONSULTA sem reserva (15/11/2026, caso Lauriete): a IA precisa enxergar período, hóspedes e valor da consulta.
+    // Enquanto o mapeamento não estiver confirmado, guarda o retorno CRU da conversa na Channex (uma vez por
+    // conversa) para ver exatamente o que ela entrega. Melhor esforço: nunca atrapalha o fluxo.
+    if (!code && !existing && m.threadId) {
+      const t = await channex<{ data?: unknown }>(`/message_threads/${m.threadId}`).catch(() => null);
+      if (t) {
+        await admin.from("channex_raw_records").insert({
+          channex_id: m.threadId,
+          entity_type: "message_thread_inquiry",
+          source: "inquiry_capture",
+          property_id: listing.property_id,
+          payload: JSON.parse(JSON.stringify({ conversation_id: convId, thread: t })),
+        });
+      }
+    }
   } catch (e) {
     console.error("[channex-messages] vínculo falhou", e);
   }

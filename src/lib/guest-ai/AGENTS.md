@@ -301,3 +301,8 @@ Ordem de execução no builder: validar escopo → estado → D9 → se negado, 
 - Decisão humana pendente não calará mais a conversa (antes: silêncio absoluto até 2 h). Ela entra no contexto como chamado aberto (`tipo decisao_pendente_da_equipe`, `escopo somente_este_assunto`); a IA segue com os demais assuntos e não promete nem nega o pedido pendente. Prompt `system.2026-11-15.3`.
 - Pausa humana de 10 min (mensagem humana recente) continua valendo; é a única pausa.
 - `src/lib/checkout-pendencias.server.ts` (roda no cron auto-checkout): no horário de checkout da reserva (oficial, ou late checkout formal), expira decisões pendentes e libera conversas `needs_human`. NÃO encerra chamados de ocorrência (incidentes, danos): esses seguem abertos nos bastidores, e a conversa com chamado aberto não sai da fila. Conversa `assigned` não é tocada.
+
+## 10ª rodada (15/11/2026) — consulta: a IA nunca manda o hóspede escolher datas (caso Lauriete)
+
+- No Airbnb o hóspede só escreve depois de escolher período e hóspedes. Prompt `system.2026-11-15.4`: regra absoluta da consulta; validador de texto `text_asks_known_dates` (só na fase inquiry) barra "selecione as datas", "se já tiver as datas", "me passe as datas" etc.; a nova tentativa recebe o código.
+- Lacuna conhecida: a conversa de consulta não tem reserva vinculada e o período/valor/hóspedes da consulta não chegam ao contexto. Primeiro passo: a primeira mensagem de uma conversa sem reserva grava o retorno cru de `/message_threads/:id` em `channex_raw_records` (`entity_type = message_thread_inquiry`) para mapear o que a Channex entrega. Depois de mapeado, alimentar o contexto da IA.
