@@ -390,6 +390,13 @@ function buildContextData(ctx: ConversationContext, guarded: Guarded, unavailabl
       out["assunto"] = own.topic.status === "known" ? guarded(own.topic.text, "context.case_topic") : { status: "desconhecido" };
       out["escopo"] = "somente_este_assunto";
     }
+    // Chamado de ocorrência (15/11/2026): o assunto vem do próprio chamado; vale só para ele.
+    if (c.topic && out["assunto"] === undefined) {
+      out["assunto"] = guarded(c.topic, "context.case_topic");
+      out["escopo"] = "somente_este_assunto";
+      out["tipo"] = "ocorrencia_aberta_pela_equipe";
+      if (c.severity === "grave") out["gravidade"] = "grave";
+    }
     return out;
   });
 

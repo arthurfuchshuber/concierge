@@ -252,7 +252,7 @@ export interface ConversationContext {
    */
   humanOwnership: {
     openCaseCount: number;
-    cases: Array<{ caseId: string; status: string; handoffReason: string | null; handoffAt: string | null }>;
+    cases: Array<{ caseId: string; status: string; handoffReason: string | null; handoffAt: string | null; topic?: string | null; severity?: "normal" | "grave" }>;
   };
   hostGuidance: Unavailable<"no_governed_store">;
   precedents: Unavailable<"no_governed_store">;
