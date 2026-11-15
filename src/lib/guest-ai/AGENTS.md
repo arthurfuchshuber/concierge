@@ -332,7 +332,8 @@ Ordem de execução no builder: validar escopo → estado → D9 → se negado, 
 - O texto de `system-prompt.ts` não cresce por acúmulo. Ao corrigir um incidente, EDITE o parágrafo existente do mesmo assunto (substitua a regra antiga); não acrescente outro parágrafo sobre o mesmo tema.
 - `prompt-orcamento.test.ts` falha o CI se o prompt passar de 75 mil caracteres ou se algum parágrafo passar de 2.800. Quando falhar, funda ou enxugue texto repetido; não suba o limite sem decisão explícita do dono do produto.
 - Regra de estilo que depende só do prompt (frases de SAC, promessa de horário) ganha uma checagem em código antes de ser encurtada.
-- Versão atual do prompt: `system.2026-11-15.13` (grupo de entrada antecipada/saída tardia fundido em um parágrafo).
+- Versão atual do prompt: `system.2026-11-15.14` (grupo de entrada antecipada/saída tardia fundido em um parágrafo).
 - 15/11 (.11): permanência além do check-out e virada no mesmo dia fundidas em um parágrafo.
 - 15/11 (.12): condução ao fechamento (regra, travas, uma vez só, sem urgência) fundida em um parágrafo.
 - 15/11 (.13): regra de chamado aberto (CONTEXT_READING) incorporada à regra Chamados com a equipe.
+- 15/11 (.14): regra de estilo sobre jargão de SAC ganhou rede de segurança em código (`text_sac_jargon`, uma nova tentativa). Só termos inequívocos; verificação sóbria com a equipe segue permitida.

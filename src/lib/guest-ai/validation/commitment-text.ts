@@ -70,6 +70,26 @@ export function asksForKnownDates(reply: string): boolean {
   return ASKS_KNOWN_DATES.test(strip(String(reply ?? "")));
 }
 
+/**
+ * Jargão de atendimento terceirizado (15/11/2026): protocolo, chamado número tal, solicitação registrada/encaminhada,
+ * transferência para suporte. É o que o prompt proíbe; a regra só pega termos inequívocos (nunca a verificação
+ * interna sóbria com a equipe, que é permitida em pedidos de exceção).
+ */
+const SAC_JARGON = new RegExp(
+  [
+    "\\bprotocolo\\b",
+    "\\bchamado\\s+(aberto\\s+)?(numero|n[o°º.]|#)",
+    "\\bsua\\s+(solicitacao|demanda|ocorrencia)\\s+(foi|sera|esta sendo)\\s+(encaminhad|registrad|transferid)\\w*",
+    "\\b(seu|o)\\s+(relato|pedido|chamado)\\s+foi\\s+(registrad|encaminhad)\\w*",
+    "\\btransferindo\\s+(voce\\s+)?(para|ao)\\s+(o\\s+)?(suporte|setor|atendimento|departamento)\\b",
+    "\\bo\\s+sistema\\s+(registrou|gerou|abriu)\\b",
+    "\\bagradecemos\\s+(o|pelo)\\s+(seu\\s+)?contato\\b",
+  ].join("|"),
+);
+export function hasSacJargon(reply: string): boolean {
+  return SAC_JARGON.test(strip(String(reply ?? "")));
+}
+
 /** Evidência que o SISTEMA tem para afirmações retrospectivas. */
 export interface TextEvidence {
   credentialReleaseAllowed: boolean;
@@ -77,7 +97,7 @@ export interface TextEvidence {
   humanOwnershipActive: boolean;
 }
 
-export const TEXT_BLOCKS = ["text_commitment_undeclared", "text_completion_without_evidence", "text_commitment_unclassifiable", "text_time_mismatch", "text_calendar_collision", "text_asks_known_dates"] as const;
+export const TEXT_BLOCKS = ["text_commitment_undeclared", "text_completion_without_evidence", "text_commitment_unclassifiable", "text_time_mismatch", "text_calendar_collision", "text_asks_known_dates", "text_sac_jargon"] as const;
 export type TextBlock = (typeof TEXT_BLOCKS)[number];
 
 export interface TextCheck {
@@ -302,5 +322,7 @@ export function checkReplyAgainstDecision(d: ModelDecision, ctx: TextContext, ev
   if (findCalendarCollisions(reply, ctx.calendar).length) blocks.add("text_calendar_collision");
   // Consulta: nunca mandar o hóspede selecionar/informar as datas que ele já escolheu (caso Lauriete, 15/11/2026).
   if (ctx.inquiry === true && asksForKnownDates(reply)) blocks.add("text_asks_known_dates");
+  // Jargão de SAC (15/11/2026): a regra de estilo do prompt ganha rede de segurança em código (uma nova tentativa).
+  if (hasSacJargon(reply)) blocks.add("text_sac_jargon");
   return { blocks: [...blocks], detectedKinds: [...new Set(a.claims.map((c) => c.kind))], undeclaredKinds: [...undeclared], language: a.language };
 }
