@@ -70,7 +70,7 @@ export function SearchActionRow({
           ? ""
           : inset
           ? "bg-[color-mix(in_oklab,var(--card),var(--background)_55%)]"
-          : "ds-3d ds-3d-hover bg-card !shadow-[inset_0_1px_0_color-mix(in_oklab,var(--foreground)_7%,transparent),inset_0_0_0_1px_var(--border),0_8px_14px_-8px_rgb(0_0_0/0.55)]"
+          : "ds-3d ds-3d-hover bg-card ![box-shadow:var(--ds3d-shadow-bar)]"
       } ${className}`}
     >
       {leading ? <div className="flex shrink-0 items-stretch [&>*:first-child]:pl-[9px]">{leading}</div> : null}

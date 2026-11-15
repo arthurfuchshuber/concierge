@@ -101,6 +101,22 @@
   --shadow-soft: 0 1px 2px oklch(0.22 0.02 60 / 0.04), 0 4px 16px oklch(0.22 0.02 60 / 0.04);
   --shadow-elevated: 0 8px 32px oklch(0.22 0.02 60 / 0.12);
 
+  /* CARDS DO TEMA CLARO NO MESMO FORMATO DO ESCURO (mockup aprovado, 15/11/2026).
+     Antes o claro usava a receita do escuro: um degradê CINZA no fundo do card e
+     uma sombra preta pesada embaixo, que no claro virava um "borrão" e fazia o
+     card flutuar. Agora: fio de luz branco na aresta de cima, contorno de 1px e
+     só uma sombra mínima — card plano e definido, como no escuro. As três peças
+     (ds-3d, ds-tabs, barras de busca) leem estas variáveis; o escuro mantém
+     exatamente os valores de sempre. */
+  --ds3d-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0) 55%);
+  --ds3d-shadow:
+    inset 0 1px 0 #fff, inset 0 0 0 1px rgba(40, 25, 10, 0.1), 0 1px 2px rgba(40, 25, 10, 0.05);
+  --ds3d-shadow-bar:
+    inset 0 1px 0 #fff, inset 0 0 0 1px rgba(40, 25, 10, 0.1), 0 1px 2px rgba(40, 25, 10, 0.05);
+  /* Contorno do card "Guia do hóspede": o fio branco sumia no fundo claro. */
+  --ds-ring-edge: rgba(40, 25, 10, 0.1);
+  --ds-ring-hi: #b04af0;
+
   /* Bug real corrigido (25/09/2026, print: janela de Filtros "100%
      transparente" no tema claro): `--faint` e os tokens `--panel*`
      ("grafite quente" dos quadrantes — Filtros/Previsão/tooltips do
@@ -141,6 +157,20 @@
 }
 
 .dark {
+  /* Cards do tema escuro (valores de sempre) — ver o comentário em :root. */
+  --ds3d-bg: linear-gradient(
+    180deg,
+    color-mix(in oklab, var(--foreground) 4.5%, transparent),
+    color-mix(in oklab, var(--foreground) 1.2%, transparent) 55%
+  );
+  --ds3d-shadow:
+    inset 0 1px 0 color-mix(in oklab, var(--foreground) 7%, transparent), inset 0 0 0 1px var(--border),
+    0 10px 24px -16px rgb(0 0 0 / 0.9);
+  --ds3d-shadow-bar:
+    inset 0 1px 0 color-mix(in oklab, var(--foreground) 7%, transparent), inset 0 0 0 1px var(--border),
+    0 8px 14px -8px rgb(0 0 0 / 0.55);
+  --ds-ring-edge: rgba(255, 255, 255, 0.08);
+  --ds-ring-hi: #ffffff;
   /* PADRÃO "A · NOITE" (mockup aprovado, 17/09/2026) — a mesma linguagem da
      landing dentro do sistema: fundo quase preto QUENTE, uma superfície só
      para os cards, e fio de 1px no lugar de borda cinza. Os valores vêm do
@@ -1066,15 +1096,8 @@ dd {
    descola o card do fundo. Nenhuma delas tem cor. */
 @utility ds-3d {
   border: 0 !important;
-  background-image: linear-gradient(
-    180deg,
-    color-mix(in oklab, var(--foreground) 4.5%, transparent),
-    color-mix(in oklab, var(--foreground) 1.2%, transparent) 55%
-  );
-  box-shadow:
-    inset 0 1px 0 color-mix(in oklab, var(--foreground) 7%, transparent),
-    inset 0 0 0 1px var(--border),
-    0 10px 24px -16px rgb(0 0 0 / 0.9);
+  background-image: var(--ds3d-bg);
+  box-shadow: var(--ds3d-shadow);
 }
 @utility ds-3d-hover {
   transition: box-shadow 200ms ease;
@@ -1444,27 +1467,13 @@ dd {
   background: var(--card);
   /* 05/11/2026 (mockup A aprovado): a barra de abas ganhou a MESMA profundidade da barra de busca
      (SearchActionRow): degradê de luz, fio de luz no topo e sombra de elevação — nos dois temas. */
-  background-image: linear-gradient(
-    180deg,
-    color-mix(in oklab, var(--foreground) 4.5%, transparent),
-    color-mix(in oklab, var(--foreground) 1.2%, transparent) 55%
-  );
-  box-shadow:
-    inset 0 1px 0 color-mix(in oklab, var(--foreground) 7%, transparent),
-    inset 0 0 0 1px var(--border),
-    0 8px 14px -8px rgb(0 0 0 / 0.55);
+  background-image: var(--ds3d-bg);
+  box-shadow: var(--ds3d-shadow-bar);
 }
 /* Mesma profundidade para as barras de abas que montam a própria casca (Stepper, edição em massa). */
 @utility ds-tabs-depth {
-  background-image: linear-gradient(
-    180deg,
-    color-mix(in oklab, var(--foreground) 4.5%, transparent),
-    color-mix(in oklab, var(--foreground) 1.2%, transparent) 55%
-  );
-  box-shadow:
-    inset 0 1px 0 color-mix(in oklab, var(--foreground) 7%, transparent),
-    inset 0 0 0 1px var(--border),
-    0 8px 14px -8px rgb(0 0 0 / 0.55);
+  background-image: var(--ds3d-bg);
+  box-shadow: var(--ds3d-shadow-bar);
 }
 @media (min-width: 1024px) {
   .ds-tabs {

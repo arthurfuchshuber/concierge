@@ -105,7 +105,7 @@ export function AssinaturaDesktop({
   );
   const valor = (
     <>
-      <section className="flex min-w-0 flex-col gap-[14px] rounded-[14px] bg-card px-[14px] pb-3 pt-4 shadow-[inset_0_1px_0_rgba(246,243,239,0.07),inset_0_0_0_1px_rgba(255,255,255,0.07),0_10px_24px_-16px_rgba(0,0,0,0.9)]">
+      <section className="flex min-w-0 flex-col gap-[14px] rounded-[14px] bg-card px-[14px] pb-3 pt-4 [box-shadow:var(--ds3d-shadow)]">
         <div className="text-center">
           <div className="text-[10px] font-bold uppercase tracking-[0.08em] text-muted-foreground">Valor do Mês</div>
           <div className="mt-2 font-display text-[28px] font-bold leading-none tracking-[-0.03em] tabular-nums">

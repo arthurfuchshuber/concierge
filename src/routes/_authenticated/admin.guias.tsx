@@ -826,7 +826,7 @@ function Dashboard() {
         <div
           role="toolbar"
           aria-label="Ações em lote"
-          className="flex h-10 w-full items-center justify-between overflow-hidden rounded-[9px] bg-card shadow-[inset_0_1px_0_color-mix(in_oklab,var(--foreground)_7%,transparent),inset_0_0_0_1px_var(--border),0_8px_14px_-8px_rgb(0_0_0/0.55)] transition-all lg:h-[var(--ds-action-h-lg)] lg:rounded-[13px]"
+          className="flex h-10 w-full items-center justify-between overflow-hidden rounded-[9px] bg-card [box-shadow:var(--ds3d-shadow-bar)] transition-all lg:h-[var(--ds-action-h-lg)] lg:rounded-[13px]"
         >
           <div className="flex min-w-0 items-center gap-2 pl-3.5 pr-2">
             <CountPill>{selected.size}</CountPill>

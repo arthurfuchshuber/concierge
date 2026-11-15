@@ -3094,7 +3094,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
         className="lp-ring"
         style={{
           background:
-            "conic-gradient(from 0deg, rgba(255,255,255,0.08) 0deg, rgba(255,255,255,0.08) 250deg, #7c1ad8 300deg, #ffffff 325deg, #e82dae 345deg, rgba(255,255,255,0.08) 360deg)",
+            "conic-gradient(from 0deg, var(--ds-ring-edge) 0deg, var(--ds-ring-edge) 250deg, #7c1ad8 300deg, var(--ds-ring-hi) 325deg, #e82dae 345deg, var(--ds-ring-edge) 360deg)",
         }}
       />
     </span>
