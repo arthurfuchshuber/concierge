@@ -32,7 +32,7 @@ describe("dropStaleAppShell", () => {
     const del = vi.fn(async (_n: string) => true);
     vi.stubGlobal("caches", { keys: async () => ["ci-html-1", "ci-asset-1", "ci-img-1", "outro"], delete: del });
     await dropStaleAppShell();
-    expect(postMessage).toHaveBeenCalledWith({ tipo: "ci-limpar-cache" });
+    expect(postMessage).toHaveBeenCalledWith({ tipo: "ci-limpar-cache" }, expect.any(Array));
     expect(del.mock.calls.map((c) => c[0] as string).sort()).toEqual(["ci-asset-1", "ci-html-1", "ci-img-1"]);
     vi.unstubAllGlobals();
   });

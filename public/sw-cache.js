@@ -24,7 +24,7 @@
 // Online, o comportamento é idêntico ao de antes.
 
 const PREFIXO = "ci-";
-const VERSAO = "1";
+const VERSAO = "2";
 const C_HTML = PREFIXO + "html-" + VERSAO;
 const C_ASSET = PREFIXO + "asset-" + VERSAO;
 const C_IMG = PREFIXO + "img-" + VERSAO;
@@ -236,6 +236,12 @@ self.addEventListener("message", (event) => {
         );
       } catch {
         /* nada a fazer */
+      }
+      // Confirma ao app que a limpeza terminou (ele espera isto antes de recarregar).
+      try {
+        if (event.ports && event.ports[0]) event.ports[0].postMessage({ ok: true });
+      } catch {
+        /* sem porta: o app segue pelo prazo */
       }
     })(),
   );

@@ -59,7 +59,14 @@ async function fetchServerBuildId(): Promise<string | null> {
 export async function dropStaleAppShell(): Promise<void> {
   try {
     if (typeof navigator !== "undefined" && navigator.serviceWorker?.controller) {
-      navigator.serviceWorker.controller.postMessage({ tipo: "ci-limpar-cache" });
+      const ctrl = navigator.serviceWorker.controller;
+      // Espera o service worker confirmar a limpeza (máx. 2 s) antes de recarregar.
+      await new Promise<void>((resolve) => {
+        const ch = new MessageChannel();
+        const t = setTimeout(resolve, 2000);
+        ch.port1.onmessage = () => { clearTimeout(t); resolve(); };
+        ctrl.postMessage({ tipo: "ci-limpar-cache" }, [ch.port2]);
+      });
     }
   } catch {
     /* segue */
@@ -102,7 +109,10 @@ export function useAppVersionWatcher() {
       // Até 3 tentativas por versão (depois, pausa temporária) — nunca trava para sempre.
       if (!registerReloadAttempt(serverId)) return;
       await dropStaleAppShell();
-      window.location.reload();
+      // Recarga com marcador novo na URL: nenhum cache intermediário devolve a página velha.
+      const url = new URL(window.location.href);
+      url.searchParams.set("v", serverId);
+      window.location.replace(url.toString());
     };
 
     const timer = window.setInterval(check, CHECK_INTERVAL_MS);
@@ -112,7 +122,26 @@ export function useAppVersionWatcher() {
     window.addEventListener("online", onFocus);
     void check();
 
+    // Aviso instantâneo: cada aparelho anuncia sua versão num canal de tempo real.
+    // Quem ouvir uma versão diferente confere no servidor na hora (sem esperar 60 s).
+    let removeChannel: (() => void) | null = null;
+    void import("@/integrations/supabase/client").then(({ supabase }) => {
+      if (cancelled) return;
+      const ch = supabase.channel("app-version", { config: { broadcast: { self: false } } });
+      ch.on("broadcast", { event: "build" }, (msg) => {
+        const id = (msg.payload as { buildId?: string } | undefined)?.buildId;
+        if (id && id !== CLIENT_BUILD_ID) void check();
+      }).subscribe((status) => {
+        if (status === "SUBSCRIBED") {
+          void ch.send({ type: "broadcast", event: "build", payload: { buildId: CLIENT_BUILD_ID } });
+        }
+      });
+      removeChannel = () => { void supabase.removeChannel(ch); };
+    }).catch(() => {});
+
     return () => {
+      removeChannel?.();
+
       cancelled = true;
       window.clearInterval(timer);
       window.removeEventListener("focus", onFocus);
