@@ -433,7 +433,7 @@ export function PropertyPickRow({
       }}
       className={cn(
         "relative flex cursor-pointer select-none items-stretch gap-2.5 overflow-hidden rounded-[9px] border border-[var(--panel-div)] pr-3 outline-none transition-colors [-webkit-touch-callout:none] hover:bg-foreground/[0.03] focus-visible:bg-foreground/[0.05]",
-        selected && "border-foreground/[0.42] bg-[color-mix(in_oklab,var(--foreground)_20%,var(--card))] hover:bg-[color-mix(in_oklab,var(--foreground)_20%,var(--card))]",
+        selected && "border-foreground/[0.2] bg-[color-mix(in_oklab,var(--foreground)_11%,var(--card))] hover:bg-[color-mix(in_oklab,var(--foreground)_11%,var(--card))]",
       )}
     >
       <span className="relative w-[76px] shrink-0 self-stretch overflow-hidden bg-foreground/[0.05] text-muted-foreground">

@@ -387,7 +387,7 @@ export function GoogleCalendarPanel({
                     className={cn(
                       "flex min-w-0 items-center gap-3 py-2.5",
                       selecting && "-mx-2 rounded-[10px] px-2",
-                      on && "bg-[color-mix(in_oklab,var(--foreground)_20%,var(--card))]",
+                      on && "bg-[color-mix(in_oklab,var(--foreground)_11%,var(--card))]",
                     )}
                   >
                     <div className="min-w-0 flex-1">

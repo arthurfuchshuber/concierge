@@ -9,11 +9,11 @@ import { cn } from "@/lib/utils";
  *    o X "Remover seleção" + "Selecionar Todos" / "Desmarcar Todos".
  */
 export const SELECTED_ITEM_CLASS =
-  "border-foreground/[0.42] bg-[color-mix(in_oklab,var(--foreground)_20%,var(--card))]";
+  "border-foreground/[0.28] bg-[color-mix(in_oklab,var(--foreground)_11%,var(--card))]";
 
 /** Mesmo tom, para cartões cuja casca (`PANEL_SHELL`) já define fundo e borda. */
 export const SELECTED_ITEM_IMPORTANT_CLASS =
-  "!border-foreground/[0.42] !bg-[color-mix(in_oklab,var(--foreground)_20%,var(--card))]";
+  "!border-foreground/[0.28] !bg-[color-mix(in_oklab,var(--foreground)_11%,var(--card))]";
 
 export function SelectionBar({
   count,
