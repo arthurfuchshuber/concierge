@@ -308,7 +308,7 @@ export function TrailDialog({
       <DialogContent
         onOpenAutoFocus={(e) => e.preventDefault()}
         onBack={onBack}
-        className="flex h-auto max-h-[90dvh] w-[min(560px,calc(100vw-24px))] max-w-none flex-col gap-0 overflow-hidden border-[var(--panel-border)] bg-[var(--panel)] p-0 sm:max-w-none"
+        className="sg-vv-center flex h-auto max-h-[90dvh] w-[min(560px,calc(100vw-24px))] max-w-none flex-col gap-0 overflow-hidden border-[var(--panel-border)] bg-[var(--panel)] p-0 sm:max-w-none"
       >
         {/* CABEÇALHO PADRÃO DAS JANELAS (Regra 5, 14/11/2026): faixa de 48px, título Manrope 14px
             bold, margem esquerda de 16px e filete embaixo. A "X" (e o voltar) ficam à direita. */}
