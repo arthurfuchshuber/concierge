@@ -317,4 +317,4 @@ Ordem de execução no builder: validar escopo → estado → D9 → se negado, 
 
 ## 12ª rodada (15/11/2026) — recomendações investigativas
 
-- Pedido aberto de recomendação (onde comer, o que fazer) sem gosto conhecido: uma pergunta curta por vez antes de indicar poucas opções com o motivo. Pedido específico: resposta direta. Consulta de reserva NÃO muda: objetiva nas dúvidas e persuasiva para fechar, sem questionário. Prompt `system.2026-11-15.6`; teste em `__tests__/recomendacao-investigativa.test.ts`.
+- Pedido aberto de recomendação (onde comer, o que fazer) sem gosto conhecido: no máximo UMA pergunta curta e só se mudar a indicação; se der, indicar direto 2 ou 3 opções com uma frase de motivo (sem blablablá). Pedido específico: resposta direta. Consulta de reserva NÃO muda: objetiva nas dúvidas e persuasiva para fechar, sem questionário. Prompt `system.2026-11-15.7`; teste em `__tests__/recomendacao-investigativa.test.ts`.
