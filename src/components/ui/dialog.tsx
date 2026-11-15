@@ -72,6 +72,7 @@ const DialogContent = React.forwardRef<
       <DialogOverlay className={overlayClassName} />
       <DialogPrimitive.Content
         ref={layerNodeRef}
+        data-page-like={pageLike ? "" : undefined}
         className={cn(
           // Teto de ~75% da altura da tela (pedido explícito, 24/09/2026),
           // ainda descontando o teclado (`--kb-inset`) e a margem de 3rem —

@@ -1603,6 +1603,17 @@ dd {
 }
 
 
+/* TECLADO ABERTO — TODAS AS JANELAS (15/11/2026): a janela encosta no teclado (borda de baixo 8px acima
+   dele) e cresce só até o topo da área visível; quem rola é o corpo, que leva o campo em edição para
+   logo acima do teclado. Fora de `html[data-kb]` nada muda. Janelas "de página" (pageLike) ficam de fora. */
+html[data-kb] [role="dialog"]:not([data-page-like]) {
+  top: var(--vv-dock-bottom) !important;
+  translate: -50% -100% !important;
+  --tw-translate-y: 0px !important;
+  transform: none;
+  max-height: calc(var(--vv-h, 100dvh) - 1rem) !important;
+}
+
 /* Ponto de atraso na borda superior do card (Kanban) — mockup A, 18/10/2026. */
 .late-dot__core {
   position: relative;

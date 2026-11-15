@@ -410,6 +410,10 @@ function RootComponent() {
       const keyboard = inset > 0 || vv.offsetTop > 8;
       root.setProperty("--vv-center", keyboard ? `${Math.round(vv.offsetTop + vv.height / 2)}px` : "50%");
       root.setProperty("--vv-h", keyboard ? `${Math.round(vv.height)}px` : "100dvh");
+      /* TECLADO EM TODO O SISTEMA (15/11/2026): com teclado aberto, toda janela fica ENCOSTADA nele
+         (borda de baixo 8px acima do teclado) e o campo em edição fica logo acima do teclado. */
+      root.setProperty("--vv-dock-bottom", `${Math.round(vv.offsetTop + vv.height - 8)}px`);
+      document.documentElement.toggleAttribute("data-kb", keyboard);
     };
     vv.addEventListener("resize", update);
     vv.addEventListener("scroll", update);
@@ -417,6 +421,51 @@ function RootComponent() {
     return () => {
       vv.removeEventListener("resize", update);
       vv.removeEventListener("scroll", update);
+    };
+  }, []);
+
+  // CAMPO LOGO ACIMA DO TECLADO (15/11/2026, vale para o sistema inteiro): ao focar um campo de texto,
+  // rola o ancestral rolável (corpo da janela ou a página) até o campo ficar colado acima do teclado.
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.visualViewport) return;
+    const vv = window.visualViewport;
+    const isField = (el: Element | null): el is HTMLElement =>
+      !!el && (/^(INPUT|TEXTAREA)$/.test(el.tagName) || (el as HTMLElement).isContentEditable) &&
+      !/^(checkbox|radio|button|submit|file|range|color)$/.test((el as HTMLInputElement).type ?? "");
+    const scrollable = (el: HTMLElement | null): HTMLElement | null => {
+      for (let n = el?.parentElement ?? null; n && n !== document.body; n = n.parentElement) {
+        const oy = getComputedStyle(n).overflowY;
+        if ((oy === "auto" || oy === "scroll") && n.scrollHeight > n.clientHeight + 1) return n;
+      }
+      return null;
+    };
+    const run = (el: HTMLElement) => {
+      if (document.activeElement !== el) return;
+      const limit = vv.offsetTop + vv.height - 12; // 12px acima do teclado
+      const f = el.getBoundingClientRect();
+      const box = scrollable(el);
+      if (box) {
+        const sb = box.getBoundingClientRect().bottom;
+        const delta = f.bottom + 12 - Math.min(sb, limit + 12);
+        if (delta > 0) box.scrollBy({ top: delta, behavior: "smooth" });
+      } else if (f.bottom > limit) {
+        window.scrollBy({ top: f.bottom - limit, behavior: "smooth" });
+      }
+    };
+    const onFocus = (e: FocusEvent) => {
+      const el = e.target as Element | null;
+      if (!isField(el)) return;
+      [60, 300, 650].forEach((ms) => window.setTimeout(() => run(el), ms));
+    };
+    const onVv = () => {
+      const el = document.activeElement;
+      if (isField(el)) run(el);
+    };
+    document.addEventListener("focusin", onFocus);
+    vv.addEventListener("resize", onVv);
+    return () => {
+      document.removeEventListener("focusin", onFocus);
+      vv.removeEventListener("resize", onVv);
     };
   }, []);
 
