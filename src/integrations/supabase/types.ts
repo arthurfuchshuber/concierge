@@ -3613,6 +3613,63 @@ export type Database = {
         }
         Relationships: []
       }
+      guest_ai_incidents: {
+        Row: {
+          category: string | null
+          conversation_id: string
+          id: string
+          opened_at: string
+          opened_message_id: string | null
+          property_id: string
+          reopened_count: number
+          reservation_id: string | null
+          resolution_reason: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          severity: string
+          status: string
+          summary: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          category?: string | null
+          conversation_id: string
+          id?: string
+          opened_at?: string
+          opened_message_id?: string | null
+          property_id: string
+          reopened_count?: number
+          reservation_id?: string | null
+          resolution_reason?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+          status?: string
+          summary: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string | null
+          conversation_id?: string
+          id?: string
+          opened_at?: string
+          opened_message_id?: string | null
+          property_id?: string
+          reopened_count?: number
+          reservation_id?: string | null
+          resolution_reason?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+          status?: string
+          summary?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       guest_ai_learning_entries: {
         Row: {
           category: string
@@ -5676,7 +5733,9 @@ export type Database = {
           guest_name: string | null
           guest_session_id: string
           handoff_at: string | null
+          handoff_escalated_at: string | null
           handoff_reason: string | null
+          handoff_reminded_at: string | null
           handoff_urgency: string | null
           id: string
           last_guest_followup_at: string | null
@@ -5700,7 +5759,9 @@ export type Database = {
           guest_name?: string | null
           guest_session_id: string
           handoff_at?: string | null
+          handoff_escalated_at?: string | null
           handoff_reason?: string | null
+          handoff_reminded_at?: string | null
           handoff_urgency?: string | null
           id?: string
           last_guest_followup_at?: string | null
@@ -5724,7 +5785,9 @@ export type Database = {
           guest_name?: string | null
           guest_session_id?: string
           handoff_at?: string | null
+          handoff_escalated_at?: string | null
           handoff_reason?: string | null
+          handoff_reminded_at?: string | null
           handoff_urgency?: string | null
           id?: string
           last_guest_followup_at?: string | null
