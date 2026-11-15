@@ -314,3 +314,7 @@ Ordem de execução no builder: validar escopo → estado → D9 → se negado, 
 - `GuestContext.inquiry` (só sem reserva vinculada) alimenta: fatos `ctx:consulta_periodo`, `ctx:consulta_hospedes` e `ctx:consulta_valor` no compositor, e o calendário (`inquiryPeriod`): disponibilidade, mínimo de noites e alternativas do período JÁ escolhido, quando a mensagem não cita outras datas.
 - `payout_amount` é o REPASSE ao anfitrião, não o preço final do hóspede: o fato leva `natureza repasse_ao_anfitriao` e o prompt proíbe citá-lo como preço. Prompt `system.2026-11-15.5`.
 - Testes: `__tests__/consulta-visivel.test.ts`.
+
+## 12ª rodada (15/11/2026) — recomendações investigativas
+
+- Pedido aberto de recomendação (onde comer, o que fazer) sem gosto conhecido: uma pergunta curta por vez antes de indicar poucas opções com o motivo. Pedido específico: resposta direta. Consulta de reserva NÃO muda: objetiva nas dúvidas e persuasiva para fechar, sem questionário. Prompt `system.2026-11-15.6`; teste em `__tests__/recomendacao-investigativa.test.ts`.
