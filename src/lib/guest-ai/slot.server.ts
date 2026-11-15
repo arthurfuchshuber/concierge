@@ -120,6 +120,8 @@ export interface SlotDeps {
    * `CredentialGrant`), campos públicos do imóvel e slug do guia. `needsCredentials` = o texto pede algo sensível.
    */
   outboundContext?: (req: GuestAiRequest, needsCredentials: boolean) => Promise<OutboundContext | null>;
+  /** Detector de ocorrência (teste); padrão: `triggerIncidentDetector` em segundo plano. */
+  detectIncident?: (conversationId: string, messageId: string) => void | Promise<void>;
   /** Decisão humana pendente na conversa ⇒ silêncio absoluto (10/11/2026). */
   pendingDecision?: (conversationId: string) => Promise<boolean>;
   /** Abre a decisão humana para um pedido de exceção (late check-out, entrada antecipada, concessão). */
@@ -185,6 +187,11 @@ export async function requestGuestAiReply(req: GuestAiRequest, deps: SlotDeps = 
       return toHandoff("", "Não foi possível validar a conversa — responder ao hóspede.", "normal");
     }
     if (!autonomousPropertyAllowed(turn.propertyId, env)) return null;
+
+    // 1a) CHAMADO DE OCORRÊNCIA (15/11/2026): em segundo plano, um modelo barato lê a conversa central e abre, reabre
+    //     ou fecha o chamado. Não atrasa nem altera a resposta; o chamado não silencia a conversa.
+    if (deps.detectIncident) void Promise.resolve(deps.detectIncident(req.conversationId, req.messageId)).catch(() => {});
+    else void (await import("@/lib/guest-ai-incidents/detector.server")).triggerIncidentDetector({ conversationId: req.conversationId, trigger: "guest", messageId: req.messageId });
 
     // 1b) DECISÃO HUMANA PENDENTE (10/11/2026): enquanto a equipe não decide, a IA não fala nada ao hóspede
     const pending = deps.pendingDecision

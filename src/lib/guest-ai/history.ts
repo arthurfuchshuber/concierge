@@ -188,15 +188,17 @@ export function instantKey(value: string | null): number | null {
 }
 
 /**
- * Normaliza as linhas do histórico de UMA conversa até a mensagem atual (inclusive).
- * Qualquer linha de outra conversa invalida o resultado inteiro (nunca se mistura conversa).
+ * Normaliza as linhas do histórico até a mensagem atual (inclusive): a conversa do turno e, se informadas, as
+ * conversas IRMÃS da mesma reserva/imóvel (chat central do hóspede: WhatsApp + plataforma + guia). Qualquer linha
+ * fora desse conjunto invalida o resultado inteiro (nunca se mistura conversa de outro hóspede).
  */
 export function normalizeHistory(
   rows: readonly HistoryRow[],
-  scope: { conversationId: string; currentMessageId: string },
+  scope: { conversationId: string; currentMessageId: string; /** Conversas IRMÃS (mesma reserva e imóvel): chat central. */ siblingConversationIds?: readonly string[] },
 ): HistoryResult {
   if (!Array.isArray(rows)) return { status: "unavailable", reason: "lookup_failed" };
-  if (rows.some((r) => !r || r.conversation_id !== scope.conversationId))
+  const allowed = new Set<string>([scope.conversationId, ...(scope.siblingConversationIds ?? [])]);
+  if (rows.some((r) => !r || !allowed.has(r.conversation_id)))
     return { status: "unavailable", reason: "scope_mismatch" };
 
   let internalNotesExcluded = 0;

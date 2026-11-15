@@ -1,6 +1,6 @@
 /**
- * Pausa humana (11/11/2026): a janela passou de 10 para 60 minutos desde a última intervenção da equipe (renovada a
- * cada nova mensagem). O hóspede que demora 15–59 min para responder ao atendente não recebe a IA por cima dele.
+ * Pausa humana (15/11/2026, decisão do titular): a IA volta 10 minutos depois da ÚLTIMA MENSAGEM do humano
+ * (renovada a cada nova fala). Chamado de ocorrência aberto e decisão pendente seguem valendo à parte.
  */
 import { describe, expect, it } from "vitest";
 import { HUMAN_PAUSE_WINDOW_MS, deriveHumanPause } from "@/lib/guest-ai/policy/human-pause";
@@ -21,24 +21,30 @@ const input = (nowMin: number) => ({
 });
 
 describe("janela de respeito à intervenção humana", () => {
-  it("60 minutos nos dois lugares (coluna de pausa e histórico)", () => {
-    expect(PAUSE_MINUTES).toBe(60);
-    expect(HUMAN_PAUSE_WINDOW_MS).toBe(60 * 60_000);
+  it("10 minutos nos dois lugares (coluna de pausa e histórico)", () => {
+    expect(PAUSE_MINUTES).toBe(10);
+    expect(HUMAN_PAUSE_WINDOW_MS).toBe(10 * 60_000);
   });
 
-  it("hóspede responde 15 min depois do atendente ⇒ a IA continua pausada", () => {
-    expect(deriveHumanPause(input(15)).state).toBe("paused");
-    expect(deriveHumanPause(input(59)).state).toBe("paused");
+  it("até 9 min depois da fala do humano a IA continua pausada", () => {
+    expect(deriveHumanPause(input(1)).state).toBe("paused");
+    expect(deriveHumanPause(input(9)).state).toBe("paused");
   });
 
-  it("passados 60 min sem nova intervenção, a IA volta", () => {
-    expect(deriveHumanPause(input(61)).state).toBe("active");
+  it("passados 10 min sem nova fala humana, a IA volta", () => {
+    expect(deriveHumanPause(input(11)).state).toBe("active");
   });
 
-  it("coluna: pausePatch vale 60 min a partir de agora", () => {
+  it("nova fala do humano renova os 10 minutos", () => {
+    const again = { ...human, id: "h2", created_at: at(8) };
+    expect(deriveHumanPause({ ...input(15), persisted: [human, again] }).state).toBe("paused");
+    expect(deriveHumanPause({ ...input(19), persisted: [human, again] }).state).toBe("active");
+  });
+
+  it("coluna: pausePatch vale 10 min a partir de agora", () => {
     const p = pausePatch();
     const until = Date.parse(p.paused_until);
-    expect(isPausedNow(p, until - 15 * 60_000 - 45 * 60_000 + 15 * 60_000)).toBe(true);
+    expect(isPausedNow(p, until - 60_000)).toBe(true);
     expect(isPausedNow(p, until + 1)).toBe(false);
   });
 });

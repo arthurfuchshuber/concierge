@@ -66,7 +66,7 @@ export const COPILOT_SENDER_IDENTITY_STATES = [
 ] as const;
 
 /**
- * Controle de custos — teto POR TURNO fixo (≤ US$ 0,15, protege contra uma chamada desgovernada) e teto
+ * Controle de custos — teto POR TURNO fixo (US$ 1,00 desde 14/11/2026; protege contra uma chamada desgovernada) e teto
  * DIÁRIO OBRIGATÓRIO (Gate G1, decisão do titular D3, 06/11/2026): `GUEST_AI_COPILOT_DAILY_COST_USD` com valor
  * positivo ⇒ esse valor (até `COPILOT_DAILY_COST_MAX_USD`); ausente, vazio, inválido, zero ou negativo ⇒
  * `COPILOT_DEFAULT_DAILY_COST_USD` (US$ 3,00). Não existe mais caminho "sem teto".

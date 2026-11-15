@@ -1299,6 +1299,11 @@ export const sendHandoffMessage = createServerFn({ method: "POST" })
         await recordCopilotSuggestionSentLive(rec);
       });
     }
+    // Chamado de ocorrência: a fala da equipe pode mostrar que o assunto foi resolvido (segundo plano).
+    if (!data.internalNote) {
+      const { triggerIncidentDetector } = await import("@/lib/guest-ai-incidents/detector.server");
+      await triggerIncidentDetector({ conversationId: data.conversationId, trigger: "team", messageId: sent?.messageId ?? null });
+    }
     // AUTO-APRENDIZADO (10/11/2026): fato do imóvel dito pela equipe ao hóspede entra no Documento Vivo (governança
     // por exceção). Segundo plano: nunca atrasa nem derruba o envio. Nota interna não ensina nada.
     if (!data.internalNote && process.env["GUEST_AI_LEARNING_EXTRACTOR"] === "on") {

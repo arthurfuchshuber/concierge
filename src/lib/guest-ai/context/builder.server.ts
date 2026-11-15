@@ -42,6 +42,7 @@ import { fetchSensitiveCredentials, fetchAccessMethod, type AccessMethod } from 
 import { PROPERTY_SCOPE_COLUMNS, cols } from "@/lib/guest-ai/data/projections";
 import { propertyTimeZoneOrNull } from "@/lib/property-timezone";
 import { publicPropertyTitle } from "@/lib/guest-ai/data/public-title";
+import type { IncidentView } from "@/lib/guest-ai-incidents/contracts";
 
 type PropertyScopeRow = {
   name: string | null;
@@ -63,6 +64,8 @@ export interface BuilderDeps {
   fetchDossierKnowledge?: typeof fetchDossierKnowledge;
   fetchSensitiveCredentials?: (grant: CredentialGrant) => Promise<GuestCredentials | null>;
   /** Existência (nunca valor) de credencial de acesso autônomo cadastrada; ausente em testes antigos ⇒ `unknown`. */
+  /** Chamados de ocorrência abertos da conversa/reserva; ausente ou com erro ⇒ nenhum. */
+  fetchOpenIncidents?: (turn: ValidatedTurn, db: GuestAiDb) => Promise<IncidentView[]>;
   fetchAccessMethod?: (turn: ValidatedTurn, deps: { db: GuestAiDb }) => Promise<AccessMethod>;
   loadPropertyScope?: (turn: ValidatedTurn, db: GuestAiDb) => Promise<PropertyScopeRow | null>;
   /**
@@ -110,11 +113,14 @@ function policyInput(state: ReservationState, prop: PropertyScopeRow | null, now
   };
 }
 
-function openCasesOf(turn: ValidatedTurn): OpenCase[] {
-  // Não existe tabela de chamados (ai_guest_cases é só proposta). A única evidência hoje é o status da conversa.
-  // `topic: null` = assunto desconhecido; o Policy Engine nunca trata isso como bloqueio global.
+function openCasesOf(turn: ValidatedTurn, incidents: readonly IncidentView[] = []): OpenCase[] {
+  // Chamados de ocorrência (15/11/2026, `guest_ai_incidents`) trazem o ASSUNTO; o status da conversa continua sendo
+  // evidência de acompanhamento humano sem assunto (`topic: null`). Nenhum dos dois bloqueia a IA globalmente.
+  const out: OpenCase[] = incidents.map((x) => ({ id: x.id, source: "incident" as const, topic: x.summary, status: "open", severity: x.severity }));
   const open = turn.conversationStatus === "needs_human" || turn.conversationStatus === "assigned";
-  return open ? [{ id: turn.conversationId, source: "conversation_status", topic: null, status: turn.conversationStatus ?? "" }] : [];
+  // se já há chamado com assunto, ele representa o acompanhamento (evita contar o mesmo atendimento duas vezes)
+  if (open && out.length === 0) out.push({ id: turn.conversationId, source: "conversation_status", topic: null, status: turn.conversationStatus ?? "" });
+  return out;
 }
 
 export async function buildGuestContext(input: TurnInput, deps: BuilderDeps = {}): Promise<GuestContext> {
@@ -218,6 +224,18 @@ export async function buildGuestContext(input: TurnInput, deps: BuilderDeps = {}
     }
     throwIfAborted(signal);
   }
+  // Chamados de ocorrência abertos (15/11/2026): leitura de melhor esforço, nunca derruba o contexto.
+  let incidents: IncidentView[] = [];
+  try {
+    incidents = deps.fetchOpenIncidents
+      ? await deps.fetchOpenIncidents(turn, db)
+      : await (await import("@/lib/guest-ai-incidents/store.server")).loadOpenIncidents(db, {
+          id: turn.conversationId, propertyId: turn.propertyId, reservationId: turn.reservationId, guestName: turn.guestName,
+        });
+  } catch {
+    incidents = [];
+  }
+  throwIfAborted(signal);
   const { audiences } = decideAudiences({ stayExists: state.exists, status: state.status, phase, noShow: state.noShow });
   const audienceSet = new Set<GuestAudience>(audiences);
 
@@ -296,7 +314,7 @@ export async function buildGuestContext(input: TurnInput, deps: BuilderDeps = {}
     audiences,
     access: { credentialsAllowed: policy.allowed && credentials !== null, policyResult: policy, accessMethod },
     credentials,
-    openCases: openCasesOf(turn),
+    openCases: openCasesOf(turn, incidents),
     uncertainties,
     conflicts,
   };

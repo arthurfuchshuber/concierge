@@ -51,12 +51,32 @@ export async function fetchConversationHistory(
   throwIfAborted(deps.signal);
   const db = abortableDb(deps.db ?? (await getGuestAiDb()), deps.signal);
 
+  // CHAT CENTRAL (15/11/2026): conversas da MESMA reserva e do MESMO imóvel (WhatsApp, plataforma, guia) formam uma
+  // conversa só para a IA. Sem reserva vinculada, ou em qualquer falha da busca, vale só a conversa do turno.
+  let siblings: string[] = [];
+  if (turn.reservationId) {
+    try {
+      const sib = await db
+        .from("property_chat_conversations")
+        .select("id")
+        .eq("reservation_id", turn.reservationId)
+        .eq("property_id", turn.propertyId)
+        .limit(12);
+      if (!sib.error && Array.isArray(sib.data)) {
+        siblings = sib.data.map((r: { id?: unknown }) => String(r?.id ?? "")).filter((id: string) => id && id !== turn.conversationId);
+      }
+    } catch {
+      siblings = [];
+    }
+  }
+  throwIfAborted(deps.signal);
+
   let data: unknown;
   try {
-    const res = await db
-      .from("property_chat_messages")
-      .select(cols(HISTORY_MESSAGE_COLUMNS))
-      .eq("conversation_id", turn.conversationId)
+    const base = db.from("property_chat_messages").select(cols(HISTORY_MESSAGE_COLUMNS));
+    const res = await (siblings.length > 0
+      ? base.in("conversation_id", [turn.conversationId, ...siblings])
+      : base.eq("conversation_id", turn.conversationId))
       .eq("is_internal_note", false)
       .order("created_at", { ascending: true })
       .order("id", { ascending: true })
@@ -75,5 +95,5 @@ export async function fetchConversationHistory(
   const rows = Array.isArray(data) ? (data as HistoryRow[]) : null;
   if (!rows) return { status: "unavailable", reason: "lookup_failed" };
   if (rows.length > HISTORY_MAX_ROWS) return { status: "unavailable", reason: "over_limit" };
-  return normalizeHistory(rows, { conversationId: turn.conversationId, currentMessageId: turn.messageId });
+  return normalizeHistory(rows, { conversationId: turn.conversationId, currentMessageId: turn.messageId, siblingConversationIds: siblings });
 }

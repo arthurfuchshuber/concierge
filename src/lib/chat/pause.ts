@@ -11,9 +11,10 @@
  *
  * A regra, decidida com o produto:
  *
- *  · falar DIRETO com o hóspede pausa a IA por 60 minutos (eram 10 até 11/11/2026: o hóspede que demorava
- *    15 minutos para responder ao atendente recebia a IA por cima do humano);
- *  · cada nova mensagem do atendente renova os 60 minutos, então uma conversa
+ *  · falar DIRETO com o hóspede pausa a IA por 10 minutos (decisão do titular, 15/11/2026; foram 60 entre 11 e
+ *    15/11). Passados os 10 minutos a IA volta, mas um chamado de ocorrência aberto ou uma decisão pendente continuam
+ *    valendo: o chamado protege só o assunto dele (a IA conversa sobre o resto) e a decisão pendente a mantém calada;
+ *  · cada nova mensagem do atendente renova os 10 minutos, então uma conversa
  *    longa nunca é interrompida no meio;
  *  · passou o prazo, a IA volta sozinha — sem cron, sem ninguém clicar;
  *  · "Devolver agora" continua valendo a qualquer momento;
@@ -27,7 +28,7 @@
  */
 
 /** Quanto tempo a IA fica em silêncio depois de uma fala direta do atendente. */
-export const PAUSE_MINUTES = 60;
+export const PAUSE_MINUTES = 10;
 
 /** O carimbo de validade da pausa, a partir de agora. */
 export function pausedUntilFromNow(minutes = PAUSE_MINUTES): string {

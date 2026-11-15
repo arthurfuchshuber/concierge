@@ -31,9 +31,9 @@
  */
 import { parseInstant } from "./wall-clock";
 
-export const HUMAN_PAUSE_VERSION = "human-pause.2026-11-11.1";
-/** 60 min desde a última intervenção humana (11/11/2026; eram 10): a IA nunca atravessa um atendimento recente. */
-export const HUMAN_PAUSE_WINDOW_MS = 60 * 60_000;
+export const HUMAN_PAUSE_VERSION = "human-pause.2026-11-15.1";
+/** 10 min desde a ÚLTIMA MENSAGEM humana (decisão do titular, 15/11/2026; foram 60 entre 11 e 15/11). */
+export const HUMAN_PAUSE_WINDOW_MS = 10 * 60_000;
 
 export type InterventionClass = "human_verified" | "human_channel" | "system_unproven" | "unknown_non_guest";
 

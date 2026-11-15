@@ -17,7 +17,7 @@ import type { OpenCase } from "@/lib/guest-ai/types";
 export function humanOwnershipOf(openCases: readonly OpenCase[]): ConversationContext["humanOwnership"] {
   return {
     openCaseCount: openCases.length,
-    cases: openCases.map((c) => ({ caseId: c.id, status: c.status, handoffReason: null, handoffAt: null })),
+    cases: openCases.map((c) => ({ caseId: c.id, status: c.status, handoffReason: null, handoffAt: null, ...(c.topic ? { topic: c.topic } : {}), ...(c.severity ? { severity: c.severity } : {}) })),
   };
 }
 
