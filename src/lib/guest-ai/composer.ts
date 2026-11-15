@@ -318,6 +318,25 @@ function buildContextData(ctx: ConversationContext, guarded: Guarded, unavailabl
   if (op?.aiPausedByTeam) {
     facts.push({ id: "ctx:ia_pausada", valor: { status: "pausada_pela_equipe", resposta_ao_hospede: "proibida", permitido: "apenas_classificar_emergencia_para_alerta_interno" }, origem: "equipe" });
   }
+  // CONSULTA do Airbnb (15/11/2026): o hóspede já escolheu período e número de pessoas antes de escrever.
+  if (g.inquiry) {
+    const q = g.inquiry;
+    facts.push(
+      { id: "ctx:consulta_periodo", valor: { checkin: q.checkinDate, checkout: q.checkoutDate, noites: q.nights }, origem: "consulta_airbnb" },
+      {
+        id: "ctx:consulta_hospedes",
+        valor: { total: q.guests, adultos: q.adults, criancas: q.children, bebes: q.infants, pets: q.pets },
+        origem: "consulta_airbnb",
+      },
+    );
+    if (q.payoutAmount !== null) {
+      facts.push({
+        id: "ctx:consulta_valor",
+        valor: { valor: q.payoutAmount, moeda: q.currency, natureza: "repasse_ao_anfitriao", uso: "nao_citar_ao_hospede_como_preco_final" },
+        origem: "consulta_airbnb",
+      });
+    }
+  }
   if (g.stay) {
     facts.push(
       { id: "ctx:reserva_status", valor: g.stay.status, origem: "reserva" },

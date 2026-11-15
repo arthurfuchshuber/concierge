@@ -192,6 +192,29 @@ export interface GuestCredentials {
   accessInstructions?: string | null;
 }
 
+/**
+ * CONSULTA do Airbnb (15/11/2026, caso Lauriete): o evento `inquiry` da Channex traz período, hóspedes e valor
+ * (`channex_raw_records`, entity_type `webhook:inquiry`). Só existe em conversa SEM reserva vinculada.
+ */
+export interface InquiryDetails {
+  /** YYYY-MM-DD */
+  checkinDate: string;
+  checkoutDate: string;
+  nights: number | null;
+  guests: number | null;
+  adults: number | null;
+  children: number | null;
+  infants: number | null;
+  pets: number | null;
+  /** Repasse ao ANFITRIÃO informado pela Channex (`payout_amount`): NÃO é o preço final que o hóspede paga. */
+  payoutAmount: number | null;
+  currency: string | null;
+  /** Estado da consulta na Channex (ex.: active). */
+  status: string | null;
+  /** Quando o evento chegou ao sistema (ISO). */
+  receivedAt: string | null;
+}
+
 export interface GuestContext {
   version: 1;
   interlocutor: {
@@ -213,6 +236,8 @@ export interface GuestContext {
   };
   /** Fase calculada pelo servidor. `inquiry` quando não há reserva vinculada. */
   phase: StayPhase;
+  /** Dados da consulta do Airbnb (período, hóspedes, valor); `null` quando não há ou não foi possível ler. */
+  inquiry?: InquiryDetails | null;
   stay: {
     reservationId: string;
     phase: StayPhase;
