@@ -93,7 +93,7 @@ const DialogContent = React.forwardRef<
           <>
             {split.head}
             {split.body.length > 0 ? <WindowBody>{split.body}</WindowBody> : null}
-            {split.foot}
+            {split.foot.length > 0 ? <div data-window-foot className="contents">{split.foot}</div> : null}
           </>
         ) : (
           children

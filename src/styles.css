@@ -1614,6 +1614,11 @@ html[data-kb] [role="dialog"]:not([data-page-like]) {
   max-height: calc(var(--vv-h, 100dvh) - 1rem) !important;
 }
 
+/* Teclado aberto: o rodapé (botões) some e o campo em edição fica colado no teclado; ao fechar, volta. */
+html[data-kb] [role="dialog"]:not([data-page-like]) [data-window-foot] {
+  display: none !important;
+}
+
 /* Ponto de atraso na borda superior do card (Kanban) — mockup A, 18/10/2026. */
 .late-dot__core {
   position: relative;

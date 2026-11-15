@@ -330,7 +330,7 @@ export function TrailDialog({
           {children}
         </div>
         {footer ? (
-          <div className="flex shrink-0 items-center gap-2 border-t border-[var(--panel-div)] px-4 py-3 sm:px-5">
+          <div data-window-foot className="flex shrink-0 items-center gap-2 border-t border-[var(--panel-div)] px-4 py-3 sm:px-5">
             {onBack ? null : (
               <button
                 type="button"
