@@ -13,8 +13,10 @@ import {
   Settings2,
   Landmark,
   Wallet,
+  Bot,
 } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { AirbnbAiPanel } from "@/components/admin-pages/AirbnbAiPanel";
 import { ClicksignPanel } from "@/components/admin-pages/ClicksignPanel";
 import { GoogleCalendarPanel } from "@/components/admin-pages/GoogleCalendarPanel";
 import { INTEGRATION_WINDOW_CLASS } from "@/components/admin-pages/integration-window";
@@ -50,6 +52,16 @@ type IntegrationConfig = {
 };
 
 const INTEGRATIONS: IntegrationConfig[] = [
+  {
+    key: "airbnb_ai",
+    nome: "IA no Airbnb",
+    descricao: "Ligue ou desligue a IA por anúncio e escolha quem assina as respostas.",
+    subtitulo: "Respostas aos hóspedes",
+    categoria: "Comunicação",
+    icon: Bot,
+    detalhe:
+      "Para cada anúncio conectado, decida se a IA responde aos hóspedes no chat do Airbnb ou se a equipe responde pessoalmente.",
+  },
   {
     key: "clicksign",
     nome: "ClickSign",
@@ -144,7 +156,7 @@ export function IntegracoesPage() {
   const accountOwnerId = impersonation?.userId ?? null;
   const [q, setQ] = useState("");
 
-  const { cs, gcal, banks } = useIntegrationStatusQueries();
+  const { cs, gcal, banks, channex } = useIntegrationStatusQueries();
   // Todos veem os cards e as informações; só titular/administrador conecta, edita ou desconecta.
   const { isOwner } = useMyPermissions();
   const { isAdmin } = useIsAdmin();
@@ -172,6 +184,7 @@ export function IntegracoesPage() {
         else if (cfg.key === "clicksign") statusKey = csActive ? "ativa" : "inativa";
         else if (cfg.key === "gcal") statusKey = gcalActive ? "ativa" : "inativa";
         else if (cfg.key === "bancos") statusKey = bancosActive ? "ativa" : "inativa";
+        else if (cfg.key === "airbnb_ai") statusKey = (channex.data?.imported ?? 0) > 0 ? "ativa" : "inativa";
         else if (cfg.key === "asaas") statusKey = asaasActive ? "ativa" : "inativa";
         return { cfg, statusKey };
       })
@@ -282,6 +295,8 @@ export function IntegracoesPage() {
             <ClicksignPanel accountOwnerId={accountOwnerId} readOnly={!!accountOwnerId || !canManage} inWindow />
           ) : panelCfg?.key === "bancos" ? (
             <BancosPanel inWindow readOnly={!canManage} ownerId={accountOwnerId} />
+          ) : panelCfg?.key === "airbnb_ai" ? (
+            <AirbnbAiPanel readOnly={!!accountOwnerId || !canManage} />
           ) : panelCfg?.key === "asaas" ? (
             <AsaasPanel inWindow readOnly={!canManage} ownerId={accountOwnerId} />
           ) : null}
