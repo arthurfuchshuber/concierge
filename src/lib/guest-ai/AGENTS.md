@@ -305,4 +305,12 @@ Ordem de execução no builder: validar escopo → estado → D9 → se negado, 
 ## 10ª rodada (15/11/2026) — consulta: a IA nunca manda o hóspede escolher datas (caso Lauriete)
 
 - No Airbnb o hóspede só escreve depois de escolher período e hóspedes. Prompt `system.2026-11-15.4`: regra absoluta da consulta; validador de texto `text_asks_known_dates` (só na fase inquiry) barra "selecione as datas", "se já tiver as datas", "me passe as datas" etc.; a nova tentativa recebe o código.
-- Lacuna conhecida: a conversa de consulta não tem reserva vinculada e o período/valor/hóspedes da consulta não chegam ao contexto. Primeiro passo: a primeira mensagem de uma conversa sem reserva grava o retorno cru de `/message_threads/:id` em `channex_raw_records` (`entity_type = message_thread_inquiry`) para mapear o que a Channex entrega. Depois de mapeado, alimentar o contexto da IA.
+- A lacuna foi fechada na 11ª rodada (abaixo).
+
+## 11ª rodada (15/11/2026) — a IA enxerga a consulta (período, hóspedes, valor)
+
+- A Channex envia o evento `inquiry`; o webhook já fica em `channex_raw_records` (`entity_type = webhook:inquiry`, thread em `payload->payload->>message_thread_id`). A captura especulativa de `/message_threads/:id` foi removida.
+- Leitura: `src/lib/guest-ai-inquiry/store.server.ts` (`loadInquiryDetails`, `parseInquiryPayload`): evento mais recente por `first_seen_at`; falha ou ausência ⇒ `null`. Fica FORA de `guest-ai/` (fronteira de dados); o builder importa por import dinâmico, como os chamados.
+- `GuestContext.inquiry` (só sem reserva vinculada) alimenta: fatos `ctx:consulta_periodo`, `ctx:consulta_hospedes` e `ctx:consulta_valor` no compositor, e o calendário (`inquiryPeriod`): disponibilidade, mínimo de noites e alternativas do período JÁ escolhido, quando a mensagem não cita outras datas.
+- `payout_amount` é o REPASSE ao anfitrião, não o preço final do hóspede: o fato leva `natureza repasse_ao_anfitriao` e o prompt proíbe citá-lo como preço. Prompt `system.2026-11-15.5`.
+- Testes: `__tests__/consulta-visivel.test.ts`.

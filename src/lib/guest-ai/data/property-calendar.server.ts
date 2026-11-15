@@ -125,7 +125,7 @@ const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 export async function fetchPropertyOccupancy(
   turn: ValidatedTurn,
-  opts: { today: string; guestTexts?: readonly string[] },
+  opts: { today: string; guestTexts?: readonly string[]; inquiryPeriod?: RequestedPeriod | null },
   deps?: { db?: GuestAiDb },
 ): Promise<PropertyCalendarOccupancy> {
   assertIssued("turn", turn, "data_requires_validated_turn");
@@ -158,7 +158,14 @@ export async function fetchPropertyOccupancy(
       .filter((m) => m.is_internal_note !== true)
       .map((m) => (typeof m.content === "string" ? m.content : ""));
   }
-  const mentionedDates = [...new Set(texts.flatMap((t) => extractMentionedDates(t, opts.today)))].sort();
+  // Consulta do Airbnb (15/11/2026): o período já escolhido pelo hóspede entra como datas de interesse.
+  const inquiryPeriod =
+    !stay && opts.inquiryPeriod && ISO_DATE.test(opts.inquiryPeriod.checkin) && ISO_DATE.test(opts.inquiryPeriod.checkout) && opts.inquiryPeriod.checkout > opts.inquiryPeriod.checkin
+      ? opts.inquiryPeriod
+      : null;
+  const mentionedDates = [
+    ...new Set([...texts.flatMap((t) => extractMentionedDates(t, opts.today)), ...(inquiryPeriod ? [inquiryPeriod.checkin, inquiryPeriod.checkout] : [])]),
+  ].sort();
 
   // 3) ocupação na janela dinâmica
   const win = calendarWindow({ today: opts.today, stay, mentionedDates });
@@ -186,7 +193,7 @@ export async function fetchPropertyOccupancy(
   //    o mínimo de noites do anúncio; se aqui não der para reservar, o portfólio do anfitrião (12/11/2026, caso Tais)
   if (stay) return occ;
   const latestWithDates = texts.find((t) => extractMentionedDates(t, opts.today).length > 0);
-  const period = latestWithDates ? extractRequestedPeriod(latestWithDates, opts.today) : null;
+  const period = (latestWithDates ? extractRequestedPeriod(latestWithDates, opts.today) : null) ?? inquiryPeriod;
   if (!period) return occ;
   let ownRules: StayRules | null = null;
   try {

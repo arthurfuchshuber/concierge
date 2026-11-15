@@ -18,6 +18,7 @@ import type {
   GuestAudience,
   GuestContext,
   GuestCredentials,
+  InquiryDetails,
   OpenCase,
   StayPhase,
   ValidatedTurn,
@@ -65,6 +66,8 @@ export interface BuilderDeps {
   fetchSensitiveCredentials?: (grant: CredentialGrant) => Promise<GuestCredentials | null>;
   /** Existência (nunca valor) de credencial de acesso autônomo cadastrada; ausente em testes antigos ⇒ `unknown`. */
   /** Chamados de ocorrência abertos da conversa/reserva; ausente ou com erro ⇒ nenhum. */
+  /** Dados da consulta do Airbnb (evento `inquiry`); ausente ⇒ leitura real. */
+  fetchInquiryDetails?: (turn: ValidatedTurn, db: GuestAiDb) => Promise<InquiryDetails | null>;
   fetchOpenIncidents?: (turn: ValidatedTurn, db: GuestAiDb) => Promise<IncidentView[]>;
   fetchAccessMethod?: (turn: ValidatedTurn, deps: { db: GuestAiDb }) => Promise<AccessMethod>;
   loadPropertyScope?: (turn: ValidatedTurn, db: GuestAiDb) => Promise<PropertyScopeRow | null>;
@@ -213,12 +216,25 @@ export async function buildGuestContext(input: TurnInput, deps: BuilderDeps = {}
     }
     throwIfAborted(signal);
   }
+  // Consulta do Airbnb (15/11/2026, caso Lauriete): sem reserva vinculada, o período/hóspedes/valor vêm do evento
+  // `inquiry` da Channex. Melhor esforço; ausência ⇒ null (a IA nunca presume o período).
+  let inquiry: InquiryDetails | null = null;
+  if (!state.exists) {
+    try {
+      inquiry = deps.fetchInquiryDetails
+        ? await deps.fetchInquiryDetails(turn, db)
+        : await (await import("@/lib/guest-ai-inquiry/store.server")).loadInquiryDetails(db, turn.guestSessionId);
+    } catch {
+      inquiry = null;
+    }
+    throwIfAborted(signal);
+  }
   // Calendário do imóvel (11/11/2026): só datas de outras reservas e bloqueios; falha ⇒ indisponível (nunca presume livre).
   let calendar: CalendarFact = { status: "unavailable" };
   const today = localDate(nowIso, timezone);
   if (today) {
     try {
-      const occ = await (deps.fetchPropertyOccupancy ?? fetchPropertyOccupancy)(turn, { today }, { db });
+      const occ = await (deps.fetchPropertyOccupancy ?? fetchPropertyOccupancy)(turn, { today, inquiryPeriod: inquiry ? { checkin: inquiry.checkinDate, checkout: inquiry.checkoutDate, nights: Math.round((Date.parse(inquiry.checkoutDate) - Date.parse(inquiry.checkinDate)) / 86_400_000) } : null }, { db });
       calendar = { status: "available", ...occ };
     } catch {
       /* indisponível */
@@ -307,6 +323,7 @@ export async function buildGuestContext(input: TurnInput, deps: BuilderDeps = {}
       dossierKnowledge: dossier,
     },
     phase,
+    inquiry: state.exists ? null : inquiry,
     stay: state.exists
       ? {
           reservationId: String(state.reservationId),
