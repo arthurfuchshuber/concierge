@@ -18,3 +18,12 @@ describe("recomendação investigativa (15/11/2026)", () => {
     expect(s.slice(i, i + 900)).not.toMatch(/["“”]/);
   });
 });
+
+describe("não inventar fatos sobre a equipe (auditoria 15/11/2026)", () => {
+  it("proíbe expediente, escala e justificativa inventada de demora", () => {
+    const s2 = buildSystemPrompt("airbnb");
+    expect(s2).toContain("Nunca invente fatos sobre a equipe");
+    expect(s2).toContain("horário de expediente");
+    expect(s2).toContain("sem desculpa inventada");
+  });
+});

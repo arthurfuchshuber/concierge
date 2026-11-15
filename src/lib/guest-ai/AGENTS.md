@@ -318,3 +318,7 @@ Ordem de execução no builder: validar escopo → estado → D9 → se negado, 
 ## 12ª rodada (15/11/2026) — recomendações investigativas
 
 - Pedido aberto de recomendação (onde comer, o que fazer) sem gosto conhecido: no máximo UMA pergunta curta e só se mudar a indicação; se der, indicar direto 2 ou 3 opções com uma frase de motivo (sem blablablá). Pedido específico: resposta direta. Consulta de reserva NÃO muda: objetiva nas dúvidas e persuasiva para fechar, sem questionário. Prompt `system.2026-11-15.7`; teste em `__tests__/recomendacao-investigativa.test.ts`.
+
+## 13ª rodada (15/11/2026) — auditoria de prontidão: IA não inventa fatos da equipe
+
+- Achado em sugestão real: a IA justificou uma demora com o expediente da equipe (fato inventado). Prompt `system.2026-11-15.8`: proíbe inventar expediente, escala, plantão ou motivo de demora; reconhecer em uma frase, sem desculpa nem promessa de agilidade. Só prompt (sem validador): vigiar nas sugestões reais.
