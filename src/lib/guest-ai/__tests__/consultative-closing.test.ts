@@ -119,7 +119,7 @@ describe("Condução consultiva · cenários (o que o modelo recebe para decidir
     const rules = buildSystemPrompt("airbnb")
       .split("\n")
       .filter((l) => /Condução ao fechamento|Essa condução|Na condução/.test(l));
-    expect(rules).toHaveLength(3);
+    expect(rules).toHaveLength(1);
     for (const l of rules) expect(l).not.toMatch(/["“”]/);
     expect(renderPersona()).toMatch(/não são frases a reproduzir/);
   });
