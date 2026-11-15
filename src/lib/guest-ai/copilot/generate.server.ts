@@ -75,7 +75,7 @@ import {
   COPILOT_MAX_TURN_COST_USD,
   COPILOT_MIN_OUTPUT_TOKENS,
   COPILOT_REASONING_EFFORT,
-  copilotDailyLimitUsd,
+  copilotListingDailyCostUsd,
   copilotFlagOn,
   copilotPropertyAllowed,
   copilotModelId,
@@ -577,7 +577,7 @@ export async function generateCopilotSuggestion(
       conversationId: turn.conversationId,
       triggerMessageId: turn.messageId,
       surface: turn.surface,
-      dailyCostLimitUsd: copilotDailyLimitUsd(env),
+      dailyCostLimitUsd: copilotListingDailyCostUsd(env), // teto POR ANÚNCIO; a conta soma os anúncios (no banco)
       turnCostCeilingUsd: COPILOT_MAX_TURN_COST_USD,
     });
     if (claim.kind === "exists")
