@@ -49,6 +49,25 @@ export interface TextContext {
   officialCheckout: string | null;
   /** Ocupação do calendário do imóvel (11/11/2026): sugerir noite ocupada ⇒ `text_calendar_collision`. */
   calendar?: Pick<PropertyCalendarOccupancy, "occupiedRanges" | "today" | "windowStart" | "windowEnd"> | null;
+  /** Fase inquiry (15/11/2026): o hóspede só escreve depois de escolher período e hóspedes; pedir as datas é erro. */
+  inquiry?: boolean;
+}
+
+/**
+ * Consulta (Airbnb): a mensagem só existe depois de o hóspede selecionar período e número de hóspedes. Mandá-lo
+ * selecionar as datas, perguntar se já as definiu ou pedir que as informe é erro grave (caso Lauriete, 15/11/2026).
+ */
+const ASKS_KNOWN_DATES = new RegExp(
+  [
+    "\\bse (voce |vcs |voces )?(ja )?(tiver|tem|tens|definiu|definiram|definir|escolheu|escolheram)\\b[^.?!]{0,40}\\b(datas?|periodo)\\b",
+    "\\b(pode|podem|basta|e so|so precisa|precisa)\\s+(voce\\s+)?(selecion\\w+|escolh\\w+|marc\\w+|inform\\w+)[^.?!]{0,30}\\b(datas?|periodo)\\b",
+    "\\bselecion\\w*-?(las|los|a)?\\s+(aqui|no anuncio|na plataforma)\\b",
+    "\\b(me|nos)\\s+(passe|passar|informe|informar|diga|dizer|envie|enviar|mande|mandar|confirme|confirmar)\\b[^.?!]{0,25}\\b(datas?|periodo)\\b",
+    "\\b(quais|para quais|qual)\\s+(sao\\s+)?(as\\s+)?(datas?|periodo)\\b",
+  ].join("|"),
+);
+export function asksForKnownDates(reply: string): boolean {
+  return ASKS_KNOWN_DATES.test(strip(String(reply ?? "")));
 }
 
 /** Evidência que o SISTEMA tem para afirmações retrospectivas. */
@@ -58,7 +77,7 @@ export interface TextEvidence {
   humanOwnershipActive: boolean;
 }
 
-export const TEXT_BLOCKS = ["text_commitment_undeclared", "text_completion_without_evidence", "text_commitment_unclassifiable", "text_time_mismatch", "text_calendar_collision"] as const;
+export const TEXT_BLOCKS = ["text_commitment_undeclared", "text_completion_without_evidence", "text_commitment_unclassifiable", "text_time_mismatch", "text_calendar_collision", "text_asks_known_dates"] as const;
 export type TextBlock = (typeof TEXT_BLOCKS)[number];
 
 export interface TextCheck {
@@ -281,5 +300,7 @@ export function checkReplyAgainstDecision(d: ModelDecision, ctx: TextContext, ev
   }
   // Calendário (11/11/2026, caso Gleison): sugerir reservar/selecionar/estender uma noite ocupada é bloqueio.
   if (findCalendarCollisions(reply, ctx.calendar).length) blocks.add("text_calendar_collision");
+  // Consulta: nunca mandar o hóspede selecionar/informar as datas que ele já escolheu (caso Lauriete, 15/11/2026).
+  if (ctx.inquiry === true && asksForKnownDates(reply)) blocks.add("text_asks_known_dates");
   return { blocks: [...blocks], detectedKinds: [...new Set(a.claims.map((c) => c.kind))], undeclaredKinds: [...undeclared], language: a.language };
 }
