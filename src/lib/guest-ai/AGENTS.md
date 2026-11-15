@@ -322,3 +322,8 @@ Ordem de execução no builder: validar escopo → estado → D9 → se negado, 
 ## 13ª rodada (15/11/2026) — auditoria de prontidão: IA não inventa fatos da equipe
 
 - Prompt `system.2026-11-15.9`: proíbe inventar expediente, escala, plantão ou motivo de demora; reconhecer a demora em uma frase, sem desculpa nem promessa de agilidade. Vale o que está no contexto, no dossiê ou o que um atendente já disse na conversa (caso Joseane: o expediente tinha sido dito por humano; a primeira leitura da auditoria errou). Só prompt, sem validador.
+
+## 14ª rodada (15/11/2026) — status da conversa sem assunto não trava a IA
+
+- Achado da auditoria: `needs_human`/`assigned` entra no contexto como chamado SEM assunto (`topic: null`), muitas vezes marcado pelo fallback do próprio sistema (IA indisponível, contingência de tempo). O validador então barrava mensagens inofensivas (`case_relation_missing`, `human_owned_topic_commitment`): 7 das 24 recusas da semana.
+- `resolveCaseOwnership` considera só chamados COM assunto (incidente, decisão pendente). Pausa humana explícita e posse por atendente seguem em suas camadas (`deriveHumanOwnership`, `human_in_command`). Teste: `__tests__/needs-human-sem-assunto.test.ts`; fixtures de B1 passaram a usar `source: incident` com assunto.

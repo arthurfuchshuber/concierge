@@ -30,7 +30,13 @@ export interface CaseOwnership {
   attribution: "none" | "single" | "unattributed";
 }
 
-export function resolveCaseOwnership(openCases: readonly OpenCase[], modelRelation: ModelCaseRelation): CaseOwnership {
+export function resolveCaseOwnership(allOpenCases: readonly OpenCase[], modelRelation: ModelCaseRelation): CaseOwnership {
+  // Auditoria 15/11/2026: o status da conversa (needs_human/assigned) vem SEM assunto (`topic: null`), muitas vezes marcado
+  // pelo próprio fallback do sistema (IA indisponível, contingência de tempo). Sem assunto não há o que proteger, e exigir a
+  // relação do modelo travava mensagens inofensivas ("Sim", "Estamos saindo", "Teria como entrar antes das 15?"):
+  // `case_relation_missing`/`human_owned_topic_commitment`. Só chamado COM assunto (incidente, decisão) delimita a IA;
+  // a pausa humana explícita e a posse por atendente continuam valendo em suas próprias camadas.
+  const openCases = allOpenCases.filter((c) => c.topic !== null);
   const openCaseCount = openCases.length;
   if (openCaseCount === 0) {
     // Sem chamado aberto, qualquer relação declarada é irrelevante: atendimento normal.
