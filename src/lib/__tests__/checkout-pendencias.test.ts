@@ -31,7 +31,7 @@ describe("pendências de retorno × checkout (15/11/2026)", () => {
       property_chat_conversations: [{ id: "c1", status: "needs_human", property_id: "p1", reservation_id: "r1" }],
       guest_ai_human_decisions: [{ id: "d1", conversation_id: "c1" }],
       guest_ai_incidents: [],
-      reservations: [{ id: "r1", checkout_date: "2026-12-07", property_id: "p1" }],
+      property_reservations: [{ id: "r1", checkout_date: "2026-12-07", property_id: "p1" }],
       properties: [{ id: "p1", checkout_time: "11:00", city: "Foz do Iguaçu", country: "BR" }],
       guest_arrival_status: [],
     });
@@ -45,7 +45,7 @@ describe("pendências de retorno × checkout (15/11/2026)", () => {
     const tables = {
       property_chat_conversations: [{ id: "c1", status: "needs_human", property_id: "p1", reservation_id: "r1" }],
       guest_ai_human_decisions: [],
-      reservations: [{ id: "r1", checkout_date: "2026-12-07", property_id: "p1" }],
+      property_reservations: [{ id: "r1", checkout_date: "2026-12-07", property_id: "p1" }],
       properties: [{ id: "p1", checkout_time: "11:00", city: "Foz do Iguaçu", country: "BR" }],
       guest_arrival_status: [],
     };

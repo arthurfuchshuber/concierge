@@ -67,7 +67,7 @@ export async function closePendenciesAtCheckout(
     if (!reservationIds.length) return out;
     const resById = new Map<string, { id: string; checkout_date: string; property_id: string }>();
     for (const ids of chunk(reservationIds)) {
-      const { data } = await admin.from("reservations").select("id, checkout_date, property_id").in("id", ids);
+      const { data } = await admin.from("property_reservations").select("id, checkout_date, property_id").in("id", ids);
       for (const r of (data ?? []) as Array<{ id: string; checkout_date: string; property_id: string }>) resById.set(r.id, r);
     }
     const propIds = [...new Set([...resById.values()].map((r) => r.property_id))];
