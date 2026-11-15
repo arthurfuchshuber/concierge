@@ -327,3 +327,9 @@ Ordem de execução no builder: validar escopo → estado → D9 → se negado, 
 
 - Achado da auditoria: `needs_human`/`assigned` entra no contexto como chamado SEM assunto (`topic: null`), muitas vezes marcado pelo fallback do próprio sistema (IA indisponível, contingência de tempo). O validador então barrava mensagens inofensivas (`case_relation_missing`, `human_owned_topic_commitment`): 7 das 24 recusas da semana.
 - `resolveCaseOwnership` considera só chamados COM assunto (incidente, decisão pendente). Pausa humana explícita e posse por atendente seguem em suas camadas (`deriveHumanOwnership`, `human_in_command`). Teste: `__tests__/needs-human-sem-assunto.test.ts`; fixtures de B1 passaram a usar `source: incident` com assunto.
+
+## Orçamento do prompt (15/11/2026)
+- O texto de `system-prompt.ts` não cresce por acúmulo. Ao corrigir um incidente, EDITE o parágrafo existente do mesmo assunto (substitua a regra antiga); não acrescente outro parágrafo sobre o mesmo tema.
+- `prompt-orcamento.test.ts` falha o CI se o prompt passar de 75 mil caracteres ou se algum parágrafo passar de 2.800. Quando falhar, funda ou enxugue texto repetido; não suba o limite sem decisão explícita do dono do produto.
+- Regra de estilo que depende só do prompt (frases de SAC, promessa de horário) ganha uma checagem em código antes de ser encurtada.
+- Versão atual do prompt: `system.2026-11-15.10` (grupo de entrada antecipada/saída tardia fundido em um parágrafo).
