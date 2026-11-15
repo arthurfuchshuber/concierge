@@ -456,7 +456,7 @@ export function PropertyPickRow({
   ownerPhoneCountry?: string | null;
   /**
    * Lista de VÁRIOS imóveis (14/11/2026): sem caixinhas. Segurar o cartão uma vez liga o modo de
-   * seleção (`onLongPress`); com ele ligado, o toque marca/desmarca. O cartão marcado ganha fundo rosa.
+   * seleção (`onLongPress`); com ele ligado, o toque marca/desmarca. O cartão marcado ganha o tom neutro padrão (SELECTED_ITEM_BG_CLASS).
    */
   multi?: boolean;
   /** Segurar o cartão (≈0,45 s). */

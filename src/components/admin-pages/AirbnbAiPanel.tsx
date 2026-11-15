@@ -158,7 +158,7 @@ function SenderPicker({
         avoidCollisions={false}
         sideOffset={4}
         onOpenAutoFocus={(e) => e.preventDefault()}
-        className="w-[var(--radix-popover-trigger-width)] rounded-[10px] border border-border bg-popover p-1 text-xs text-popover-foreground shadow-md"
+        className="w-[var(--radix-popover-trigger-width)] overflow-hidden rounded-[10px] border border-border bg-popover p-1 text-xs text-popover-foreground shadow-md ![scrollbar-gutter:auto]"
       >
         <label className="mb-1 flex h-8 min-w-0 items-center gap-2 border-b border-[var(--panel-div)] px-2.5 text-muted-foreground">
           <Search className="size-3.5 shrink-0" />
