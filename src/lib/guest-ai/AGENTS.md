@@ -321,4 +321,4 @@ Ordem de execução no builder: validar escopo → estado → D9 → se negado, 
 
 ## 13ª rodada (15/11/2026) — auditoria de prontidão: IA não inventa fatos da equipe
 
-- Achado em sugestão real: a IA justificou uma demora com o expediente da equipe (fato inventado). Prompt `system.2026-11-15.8`: proíbe inventar expediente, escala, plantão ou motivo de demora; reconhecer em uma frase, sem desculpa nem promessa de agilidade. Só prompt (sem validador): vigiar nas sugestões reais.
+- Prompt `system.2026-11-15.9`: proíbe inventar expediente, escala, plantão ou motivo de demora; reconhecer a demora em uma frase, sem desculpa nem promessa de agilidade. Vale o que está no contexto, no dossiê ou o que um atendente já disse na conversa (caso Joseane: o expediente tinha sido dito por humano; a primeira leitura da auditoria errou). Só prompt, sem validador.
