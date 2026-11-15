@@ -735,6 +735,7 @@ function ManualCleaningPanel({
               >
                 {link === "reserva" ? (
                   <PickList
+                  cards
                     search={search}
                     onSearch={setSearch}
                     placeholder="Buscar hóspede ou código…"
@@ -775,6 +776,7 @@ function ManualCleaningPanel({
                   </PickList>
                 ) : (
                   <PickList
+                  cards
                     search={search}
                     onSearch={setSearch}
                     placeholder="Buscar imóvel ou proprietário…"

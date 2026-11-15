@@ -340,6 +340,7 @@ export function NewRecordButton() {
             >
               {link === "reserva" ? (
                 <PickList
+                  cards
                   search={search}
                   onSearch={setSearch}
                   placeholder="Buscar hóspede ou imóvel…"
@@ -393,6 +394,7 @@ export function NewRecordButton() {
                   />
                 ) : null}
                 <PickList
+                  cards
                   search={search}
                   onSearch={setSearch}
                   placeholder="Buscar imóvel ou proprietário…"

@@ -779,6 +779,7 @@ function ServiceRecordTrail({
           <Step n={2} bleed active={step === 2} done={answered[1]} last question={question2} answer={answers[1]} onReopen={() => answered[0] && setStep(2)}>
             {link === "reserva" ? (
               <PickList
+                  cards
                 search={search}
                 onSearch={setSearch}
                 placeholder="Buscar hóspede ou imóvel…"
@@ -811,6 +812,7 @@ function ServiceRecordTrail({
               </PickList>
             ) : (
               <PickList
+                  cards
                 search={search}
                 onSearch={setSearch}
                 placeholder="Buscar imóvel ou proprietário…"

@@ -210,7 +210,6 @@ function ListingCard({
           ) : null}
         </div>
         <Switch
-          size="sm"
           className="mt-px"
           aria-label={`IA responde em ${g.primary.name}`}
           checked={on}

@@ -603,6 +603,22 @@ body::-webkit-scrollbar {
   -webkit-overflow-scrolling: touch;
 }
 
+/* Lista de cartões de imóvel: a barra fica na faixa da direita (6px), sem calha reservada — a cor da
+   seleção não deixa um vão sob a barra. */
+.sg-card-list {
+  scrollbar-gutter: auto;
+}
+.sg-card-list::-webkit-scrollbar {
+  width: 6px;
+}
+.sg-card-list::-webkit-scrollbar-track {
+  background: transparent;
+  margin: 6px 0;
+}
+.sg-card-list::-webkit-scrollbar-thumb {
+  border-width: 1px;
+}
+
 /* Reflexo diagonal que atravessa um texto (usado sobre o texto em degradê). */
 @keyframes text-shine-sweep {
   0% {

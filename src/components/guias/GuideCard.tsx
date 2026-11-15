@@ -108,7 +108,7 @@ export function GuideCard({
         checked={!!p.published}
         disabled={toggling}
         onCheckedChange={onTogglePublished}
-        className="scale-[0.65] origin-right data-[state=checked]:bg-[#7fb79a] data-[state=unchecked]:bg-[#d8b96a]"
+        className="data-[state=checked]:bg-[#7fb79a] data-[state=unchecked]:bg-[#d8b96a]"
         aria-label="Alternar publicação"
       />
     </span>
@@ -128,7 +128,7 @@ export function GuideCard({
             checked={!!p.published}
             disabled={toggling}
             onCheckedChange={onTogglePublished}
-            className="scale-[0.7] origin-top-right data-[state=checked]:bg-[#7fb79a] data-[state=unchecked]:bg-[#d8b96a]"
+            className="data-[state=checked]:bg-[#7fb79a] data-[state=unchecked]:bg-[#d8b96a]"
             aria-label="Alternar publicação"
           />
         </div>
