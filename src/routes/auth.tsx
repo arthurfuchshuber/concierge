@@ -37,11 +37,15 @@ export const Route = createFileRoute("/auth")({
 function AuthPage() {
   const navigate = useNavigate();
   const { next } = Route.useSearch();
-  const postAuthTo = next ?? "/admin";
+  // Todo acesso cai na PRIMEIRA página do menu (15/11/2026): `next` só vale para link
+  // profundo de um item específico (tem `?`); página solta como "/admin/atendimento"
+  // volta para a porta de entrada, que escolhe a primeira página liberada.
+  const deepNext = next && next.includes("?") ? next : undefined;
+  const postAuthTo = deepNext ?? "/admin";
   const postAuthAbsolute = () =>
     typeof window !== "undefined" ? `${window.location.origin}${postAuthTo}` : postAuthTo;
   const goPostAuth = () => {
-    if (next) {
+    if (deepNext) {
       // Só navega se o destino resolver na mesma origem.
       try {
         const u = new URL(postAuthTo, window.location.origin);
@@ -161,7 +165,7 @@ function AuthPage() {
       // OAuth returns to a public page; the existing validated `next` is
       // followed only after Auth confirms the signed-in user.
       const callback = new URL("/auth", window.location.origin);
-      if (next) callback.searchParams.set("next", next);
+      if (deepNext) callback.searchParams.set("next", deepNext);
       const result = await lovable.auth.signInWithOAuth("microsoft", {
         redirect_uri: callback.href,
       });

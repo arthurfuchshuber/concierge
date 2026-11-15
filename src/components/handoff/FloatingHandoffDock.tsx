@@ -113,7 +113,7 @@ export function FloatingHandoffDock({ launcher = true }: { launcher?: boolean } 
   const [activeId, setActiveId] = useState<string | null>(null);
   const stayFresh = useConversationStay(activeId);
   const [enlarged, setEnlarged] = useState(false);
-  // Chamados novos viram balão junto ao botão (nunca abrem a janela inteira sozinhos).
+  // Balões só existem se a pessoa pedir; chamado novo apenas apita e soma na contagem do botão (15/11/2026).
   const [bubbleIds, setBubbleIds] = useState<string[]>([]);
   // Mini-chat aberto no balão: não pode sumir ao responder/assumir (status vira "assigned").
   const openBubbleRef = useRef<string | null>(null);
@@ -235,8 +235,9 @@ export function FloatingHandoffDock({ launcher = true }: { launcher?: boolean } 
       // Primeira leitura da sessão só registra o que já estava na fila.
       if (firstPendingRef.current) firstPendingRef.current = false;
       else if (fresh.length > 0) {
+        // SÓ AVISA (som + contagem no botão): conversa nova NÃO abre balão nem janela sozinha
+        // (pedido explícito, 15/11/2026). O chat abre quando a pessoa clica.
         playBeep();
-        setBubbleIds((cur) => [...fresh.filter((id) => !cur.includes(id)), ...cur]);
       }
       // Chamado atendido/assumido sai do balão — exceto o que está aberto no mini-chat.
       setBubbleIds((cur) => cur.filter((id) => ids.includes(id) || id === openBubbleRef.current));
@@ -280,9 +281,8 @@ export function FloatingHandoffDock({ launcher = true }: { launcher?: boolean } 
       if (msg.conversationId) known.set(msg.conversationId, Date.now());
       if (!explicit && already) return;
       if (!explicit) {
+        // Push de conversa nova só toca o aviso e atualiza a contagem; não abre balão nem chat.
         playBeep();
-        const cid = msg.conversationId;
-        if (cid) setBubbleIds((cur) => (cur.includes(cid) ? cur : [cid, ...cur]));
         return;
       }
       setState({ open: true, minimized: false });

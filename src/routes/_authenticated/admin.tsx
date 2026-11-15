@@ -18,6 +18,7 @@ import { AccountSwitcher } from "@/components/admin/AccountSwitcher";
 import { FloatingHandoffDock } from "@/components/handoff/FloatingHandoffDock";
 import { usePushNavigation } from "@/hooks/usePushNavigation";
 import { FloatingDock } from "@/components/FloatingDock";
+import { firstAllowedPage } from "@/lib/permissions/firstPage";
 import { PushNotificationBanner } from "@/components/PushNotificationBanner";
 import { countPendingHandoffs } from "@/lib/handoff.functions";
 import { useHasSession } from "@/hooks/useHasSession";
@@ -234,7 +235,7 @@ function AdminLayout() {
 
   // Primeiro acesso: se a página atual estiver bloqueada, leva o usuário
   // para a PRIMEIRA página do menu à qual ele tem acesso.
-  const firstAllowedPath = nav[0]?.to as string | undefined;
+  const firstAllowedPath = firstAllowedPage(areaAccess.can) ?? undefined;
   useEffect(() => {
     if (resolvingAccount || awaitingAccountChoice) return;
     if (!areaAccess.ready) return;

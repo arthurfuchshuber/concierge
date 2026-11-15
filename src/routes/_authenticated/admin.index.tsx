@@ -2,7 +2,8 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { Loader2 } from "lucide-react";
 import { useAreaAccess } from "@/lib/permissions/useAreaAccess";
-import { ROUTE_PERMISSIONS, ROUTE_PERMISSION_LIST } from "@/lib/permissions/routeAreas";
+import { ROUTE_PERMISSION_LIST } from "@/lib/permissions/routeAreas";
+import { FIRST_PAGE_FALLBACK, firstAllowedPage } from "@/lib/permissions/firstPage";
 
 export const Route = createFileRoute("/_authenticated/admin/")({
   component: AdminEntry,
@@ -10,8 +11,7 @@ export const Route = createFileRoute("/_authenticated/admin/")({
 
 /**
  * Porta de entrada do painel: manda o usuário para a PRIMEIRA página do menu
- * à qual ele realmente tem acesso (ordem de `ROUTE_PERMISSIONS`, que segue a
- * ordem do menu lateral). Sem acesso a nada, cai no dashboard e o próprio
+ * à qual ele realmente tem acesso, na ordem do menu lateral (ver `firstPage.ts`). Sem acesso a nada, cai no dashboard e o próprio
  * layout mostra o bloqueio.
  */
 function AdminEntry() {
@@ -20,10 +20,7 @@ function AdminEntry() {
 
   useEffect(() => {
     if (!access.ready) return;
-    const first =
-      ROUTE_PERMISSIONS.filter((r) => r.prefix !== "/admin/properties").find((r) =>
-        access.can(r.permission),
-      )?.prefix ?? "/admin/dashboard";
+    const first = firstAllowedPage(access.can) ?? FIRST_PAGE_FALLBACK;
     navigate({ to: first as "/admin/dashboard", replace: true });
   }, [access.ready]);
 
