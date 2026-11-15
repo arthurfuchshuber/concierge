@@ -25,5 +25,6 @@ describe("não inventar fatos sobre a equipe (auditoria 15/11/2026)", () => {
     expect(s2).toContain("Nunca invente fatos sobre a equipe");
     expect(s2).toContain("horário de expediente");
     expect(s2).toContain("sem desculpa inventada");
+    expect(s2).toContain("no que um atendente já disse nesta conversa");
   });
 });
