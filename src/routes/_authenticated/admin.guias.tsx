@@ -488,6 +488,7 @@ function Dashboard() {
       );
     });
   }, [guideRows, search, statusFilter, accessFilter, ownerFilters, cityFilters, statCard]);
+  const allFilteredPicked = filtered.length > 0 && filtered.every((p: any) => selected.has(p.id));
   const STAT_CARDS = [
     { key: "published" as const, label: "Publicados", icon: Globe },
     { key: "draft" as const, label: "Rascunhos", icon: PenSquare },
@@ -836,6 +837,15 @@ function Dashboard() {
           </div>
 
           <div className="flex h-full shrink-0 items-center divide-x divide-[color-mix(in_oklab,var(--foreground)_11%,transparent)] border-l border-[color-mix(in_oklab,var(--foreground)_11%,transparent)]">
+            <button
+              type="button"
+              onClick={() =>
+                setSelected(allFilteredPicked ? new Set() : new Set(filtered.map((p: any) => p.id)))
+              }
+              className="flex h-full items-center px-3.5 text-[12.5px] font-semibold text-muted-foreground transition-colors hover:bg-foreground/[0.04] hover:text-foreground"
+            >
+              {allFilteredPicked ? "Desmarcar Todos" : "Selecionar Todos"}
+            </button>
             <button
               type="button"
               onClick={() => setBulkOpen(true)}

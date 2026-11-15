@@ -1,5 +1,5 @@
 import { useEffect, useRef, type ReactNode } from "react";
-import { CalendarDays, Check, Minus, MapPin, Search, User, type LucideIcon } from "lucide-react";
+import { CalendarDays, Check, MapPin, Search, User, type LucideIcon } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { ClampName } from "@/components/ui/clamp-name";
 import { CoverImage } from "@/components/ui/cover-image";
@@ -421,7 +421,7 @@ export function PropertyPickRow({
       className={cn(
         "relative flex cursor-pointer select-none items-start gap-2.5 px-3 py-2.5 outline-none transition-colors [-webkit-touch-callout:none] hover:bg-foreground/[0.03] focus-visible:bg-foreground/[0.05]",
         !last && "border-b border-[var(--panel-div)]",
-        selected && "bg-accent/10 hover:bg-accent/10",
+        selected && "bg-[color-mix(in_oklab,var(--foreground)_11%,var(--card))] hover:bg-[color-mix(in_oklab,var(--foreground)_11%,var(--card))]",
       )}
     >
       <span className="relative size-[52px] shrink-0 overflow-hidden rounded-lg bg-foreground/[0.05] text-muted-foreground">
@@ -592,53 +592,6 @@ export function ProviderPickRow({
       <span className="min-w-0 truncate text-[12.5px] font-bold">
         {name}
         {activity ? <span className="font-medium text-muted-foreground"> · {activity}</span> : null}
-      </span>
-    </button>
-  );
-}
-
-/** Caixa quadrada de cantos arredondados (regra do projeto). `partial` = traço (alguns marcados). */
-export function CheckBox({ on, partial }: { on: boolean; partial?: boolean }) {
-  return (
-    <span
-      aria-hidden
-      className={cn(
-        "grid size-5 self-center shrink-0 place-items-center rounded-[6px] border transition-colors",
-        on || partial
-          ? "border-[#E82DAE] bg-[#E82DAE] text-white"
-          : "border-foreground/30 bg-transparent",
-      )}
-    >
-      {partial ? <Minus className="size-3.5" strokeWidth={3} /> : on ? <Check className="size-3.5" strokeWidth={3} /> : null}
-    </span>
-  );
-}
-
-/** "Selecionar todos · N de M" no topo da lista de vários imóveis. */
-export function SelectAllRow({
-  selected,
-  total,
-  onToggle,
-}: {
-  selected: number;
-  total: number;
-  onToggle: () => void;
-}) {
-  const all = total > 0 && selected === total;
-  return (
-    <button
-      type="button"
-      role="checkbox"
-      aria-checked={all ? true : selected > 0 ? "mixed" : false}
-      onClick={onToggle}
-      className={cn(
-        "flex w-full items-center gap-2.5 border-b border-[var(--panel-div)] px-3 py-2 text-left transition-colors hover:bg-foreground/[0.03]",
-        all && "bg-accent/10 hover:bg-accent/10",
-      )}
-    >
-      <span className="min-w-0 flex-1 text-[12.5px] font-bold text-foreground">Selecionar todos</span>
-      <span className={cn("shrink-0 text-[11.5px] tabular-nums", selected > 0 ? "font-bold text-accent" : "text-muted-foreground")}>
-        {selected} de {total}
       </span>
     </button>
   );

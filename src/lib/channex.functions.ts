@@ -107,6 +107,12 @@ export type AirbnbAiToggle = {
   /** Nome do outro anúncio do mesmo imóvel físico (gêmeo), quando houver. */
   pairNames: string[];
   enabled: boolean;
+  /** Proprietário(a) do imóvel (nome de exibição + telefone), para a linha padrão "nome + ícone". */
+  ownerName: string | null;
+  ownerPhone: string | null;
+  ownerPhoneCountry: string | null;
+  city: string | null;
+  address: string | null;
 };
 
 /**
@@ -122,7 +128,9 @@ export const getAirbnbAiToggles = createServerFn({ method: "GET" })
     const [{ data }, { data: twins }] = await Promise.all([
       supabaseAdmin
         .from("property_listing_raw_data" as never)
-        .select("property_id, airbnb_listing_id, airbnb_ai_enabled, properties!inner(name, owner_id)")
+        .select(
+          "property_id, airbnb_listing_id, airbnb_ai_enabled, properties!inner(name, owner_id, owner_contact_id, city, address)",
+        )
         .eq("properties.owner_id", userId),
       (supabaseAdmin as any)
         .from("channex_twin_links")
@@ -130,9 +138,34 @@ export const getAirbnbAiToggles = createServerFn({ method: "GET" })
         .eq("owner_id", userId)
         .eq("status", "active"),
     ]);
+    const ownerIds = Array.from(
+      new Set(
+        ((data ?? []) as any[])
+          .map((r) => r.properties?.owner_contact_id as string | null | undefined)
+          .filter((v): v is string => !!v),
+      ),
+    );
+    const ownerById = new Map<string, { name: string; phone: string | null; country: string | null }>();
+    if (ownerIds.length > 0) {
+      const { data: owners } = await (supabaseAdmin as any)
+        .from("property_owners")
+        .select("id, name, trade_name, phone, phone_country")
+        .in("id", ownerIds);
+      for (const o of (owners ?? []) as Array<{
+        id: string;
+        name: string | null;
+        trade_name: string | null;
+        phone: string | null;
+        phone_country: string | null;
+      }>) {
+        const label = (o.trade_name || o.name || "").trim();
+        if (label) ownerById.set(o.id, { name: label, phone: o.phone ?? null, country: o.phone_country ?? null });
+      }
+    }
     const out: AirbnbAiToggle[] = [];
     const byProp = new Map<string, AirbnbAiToggle>();
     for (const r of (data ?? []) as any[]) {
+      const own = r.properties?.owner_contact_id ? (ownerById.get(r.properties.owner_contact_id) ?? null) : null;
       const row: AirbnbAiToggle = {
         propertyId: r.property_id,
         listingId: String(r.airbnb_listing_id ?? r.property_id),
@@ -140,6 +173,11 @@ export const getAirbnbAiToggles = createServerFn({ method: "GET" })
         kind: "primary",
         pairNames: [],
         enabled: !!r.airbnb_ai_enabled,
+        ownerName: own?.name ?? null,
+        ownerPhone: own?.phone ?? null,
+        ownerPhoneCountry: own?.country ?? null,
+        city: r.properties?.city ?? null,
+        address: r.properties?.address ?? null,
       };
       byProp.set(r.property_id, row);
       out.push(row);
@@ -152,7 +190,19 @@ export const getAirbnbAiToggles = createServerFn({ method: "GET" })
       seen.add(id);
       const name = t.twin_title ?? `Anúncio ${id}`;
       p.pairNames.push(name);
-      out.push({ propertyId: p.propertyId, listingId: id, name, kind: "twin", pairNames: [p.name], enabled: p.enabled });
+      out.push({
+        propertyId: p.propertyId,
+        listingId: id,
+        name,
+        kind: "twin",
+        pairNames: [p.name],
+        enabled: p.enabled,
+        ownerName: p.ownerName,
+        ownerPhone: p.ownerPhone,
+        ownerPhoneCountry: p.ownerPhoneCountry,
+        city: p.city,
+        address: p.address,
+      });
     }
     const primaryName = (o: AirbnbAiToggle) => (o.kind === "primary" ? o.name : o.pairNames[0] ?? o.name);
     return out.sort(

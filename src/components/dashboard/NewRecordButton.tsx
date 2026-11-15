@@ -10,13 +10,13 @@ import {
   PickList,
   PropertyPickRow,
   PropertySummary,
-  SelectAllRow,
   guestShort,
   Step,
   TrailDialog,
   ddmm,
   norm,
 } from "@/components/dashboard/TrailParts";
+import { SelectionBar } from "@/components/ui/selection-bar";
 import { RecordSituationSheet } from "@/components/dashboard/RecordSituationSheet";
 import { CATEGORIES, SELECTABLE_CATEGORIES } from "@/components/dashboard/record-categories";
 import { getNewRecordOptions, type RecordCategory } from "@/lib/reservation-records.functions";
@@ -380,6 +380,18 @@ export function NewRecordButton() {
                 </PickList>
               ) : (
                 <>
+                {selecting ? (
+                  <SelectionBar
+                    className="pb-2"
+                    count={propertyIds.length}
+                    allSelected={allShownOn}
+                    onClear={() => {
+                      setPropertyIds([]);
+                      setSelecting(false);
+                    }}
+                    onToggleAll={toggleAll}
+                  />
+                ) : null}
                 <PickList
                   search={search}
                   onSearch={setSearch}
@@ -395,11 +407,6 @@ export function NewRecordButton() {
                           : null
                   }
                 >
-                  <SelectAllRow
-                    selected={shownProps.filter((p) => propertyIds.includes(p.id)).length}
-                    total={shownProps.length}
-                    onToggle={toggleAll}
-                  />
                   {shownProps.map((p, i) => (
                     <PropertyPickRow
                       key={p.id}

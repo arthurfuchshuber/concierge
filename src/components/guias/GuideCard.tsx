@@ -5,6 +5,7 @@ import { Switch } from "@/components/ui/switch";
 import { OwnerLine } from "@/components/dashboard/OwnerLine";
 import { PhoneActionButton } from "@/components/PhoneActionButton";
 import { PANEL_SHELL } from "@/components/dashboard/panel-chrome";
+import { SELECTED_ITEM_IMPORTANT_CLASS } from "@/components/ui/selection-bar";
 import { useLongPress } from "@/hooks/useLongPress";
 
 export type GuideCardVariant = "split" | "grid";
@@ -61,7 +62,7 @@ export function GuideCard({
    * então todo controle novo já nasce protegido.
    */
   onOpenMenu?: () => void;
-  /** Seleção em lote SEM checkbox: o card selecionado ganha anel de destaque. */
+  /** Seleção em lote SEM checkbox: o card selecionado ganha o tom neutro padrão (`SELECTED_ITEM_IMPORTANT_CLASS`, a casca do cartão já traz fundo/borda próprios). */
   selected?: boolean;
   /** Há algum card selecionado: o toque só alterna a seleção (não abre o menu). */
   selectionMode?: boolean;
@@ -88,7 +89,7 @@ export function GuideCard({
     ...(onLongPressSelect ? pressHandlers : {}),
   };
   const cardFx = `select-none [-webkit-touch-callout:none] transition-all duration-150 ${
-    selected ? "ring-2 ring-primary ring-offset-2 ring-offset-background bg-primary/[0.04]" : ""
+    selected ? SELECTED_ITEM_IMPORTANT_CLASS : ""
   } ${interactiveCard ? "cursor-pointer" : ""}`;
   const pub = (withLabel: boolean) => (
     <span

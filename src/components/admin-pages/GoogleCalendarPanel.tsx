@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Link2, Loader2, MessageCircle, Plug, RefreshCw, FileText, Video, X } from "lucide-react";
+import { Link2, Loader2, MessageCircle, Plug, RefreshCw, FileText, Video } from "lucide-react";
 import { toast } from "sonner";
 import {
   getMyGoogleCalendarStatus,
@@ -12,12 +12,12 @@ import {
 import type { GcalEvent } from "@/lib/google-calendar.types";
 import { LinkEventDialog, type LinkTarget } from "@/components/stakeholders/LinkEventDialog";
 import {
-  ActionSquare,
   DisconnectMenu,
   IntegrationShell,
   PrimaryAction,
   SoftToggles,
 } from "@/components/admin-pages/integration-window";
+import { SelectionBar } from "@/components/ui/selection-bar";
 import { cn } from "@/lib/utils";
 
 const CONNECTOR_ID = "google_calendar";
@@ -286,20 +286,12 @@ export function GoogleCalendarPanel({
         }
         above={
           selecting ? (
-            <div className="flex items-center justify-between gap-3 text-[12px]">
-              <span className="font-bold">
-                {selected.size} {selected.size === 1 ? "Selecionado" : "Selecionados"}
-              </span>
-              <button
-                type="button"
-                onClick={() =>
-                  setSelected(allPicked ? new Set() : new Set(unlinked.map((e) => e.id)))
-                }
-                className="font-semibold text-muted-foreground transition-colors hover:text-foreground"
-              >
-                {allPicked ? "Desmarcar Todos" : "Selecionar Todos"}
-              </button>
-            </div>
+            <SelectionBar
+              count={selected.size}
+              allSelected={allPicked}
+              onClear={() => setSelected(new Set())}
+              onToggleAll={() => setSelected(allPicked ? new Set() : new Set(unlinked.map((e) => e.id)))}
+            />
           ) : null
         }
         footer={
@@ -308,9 +300,6 @@ export function GoogleCalendarPanel({
               <PrimaryAction icon={<Link2 />} onClick={linkSelected}>
                 Vincular {selected.size} {selected.size === 1 ? "Evento" : "Eventos"}
               </PrimaryAction>
-              <ActionSquare label="Cancelar Seleção" onClick={() => setSelected(new Set())}>
-                <X strokeWidth={2} />
-              </ActionSquare>
             </>
           ) : (
             <>
@@ -398,22 +387,9 @@ export function GoogleCalendarPanel({
                     className={cn(
                       "flex min-w-0 items-center gap-3 py-2.5",
                       selecting && "-mx-2 rounded-[10px] px-2",
-                      on && "bg-[#7fb79a]/[0.08]",
+                      on && "bg-[color-mix(in_oklab,var(--foreground)_11%,var(--card))]",
                     )}
                   >
-                    {selecting ? (
-                      <span
-                        aria-hidden
-                        className={cn(
-                          "grid size-[18px] shrink-0 place-items-center rounded-[5px]",
-                          on
-                            ? "bg-[#7fb79a] text-[#14110f]"
-                            : "border-[1.5px] border-foreground/25",
-                        )}
-                      >
-                        {on ? <CheckMark /> : null}
-                      </span>
-                    ) : null}
                     <div className="min-w-0 flex-1">
                       <div className="flex min-w-0 items-center gap-2">
                         <span
@@ -498,22 +474,5 @@ export function GoogleCalendarPanel({
         }}
       />
     </>
-  );
-}
-
-function CheckMark() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      className="size-[11px]"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={3}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <path d="M20 6 9 17l-5-5" />
-    </svg>
   );
 }
