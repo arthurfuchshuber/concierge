@@ -113,10 +113,11 @@ function policyInput(state: ReservationState, prop: PropertyScopeRow | null, now
   };
 }
 
-function openCasesOf(turn: ValidatedTurn, incidents: readonly IncidentView[] = []): OpenCase[] {
+function openCasesOf(turn: ValidatedTurn, incidents: readonly IncidentView[] = [], decisions: ReadonlyArray<{ id: string; topic: string }> = []): OpenCase[] {
   // Chamados de ocorrência (15/11/2026, `guest_ai_incidents`) trazem o ASSUNTO; o status da conversa continua sendo
   // evidência de acompanhamento humano sem assunto (`topic: null`). Nenhum dos dois bloqueia a IA globalmente.
   const out: OpenCase[] = incidents.map((x) => ({ id: x.id, source: "incident" as const, topic: x.summary, status: "open", severity: x.severity }));
+  for (const d of decisions) out.push({ id: d.id, source: "decision", topic: d.topic, status: "pending" });
   const open = turn.conversationStatus === "needs_human" || turn.conversationStatus === "assigned";
   // se já há chamado com assunto, ele representa o acompanhamento (evita contar o mesmo atendimento duas vezes)
   if (open && out.length === 0) out.push({ id: turn.conversationId, source: "conversation_status", topic: null, status: turn.conversationStatus ?? "" });
@@ -235,6 +236,13 @@ export async function buildGuestContext(input: TurnInput, deps: BuilderDeps = {}
   } catch {
     incidents = [];
   }
+  // Decisões humanas pendentes: assunto aberto, nunca silêncio da conversa (15/11/2026).
+  let pendingDecisions: Array<{ id: string; topic: string }> = [];
+  try {
+    pendingDecisions = await (await import("@/lib/guest-ai-incidents/store.server")).loadPendingDecisionCases(db, turn.conversationId);
+  } catch {
+    pendingDecisions = [];
+  }
   throwIfAborted(signal);
   const { audiences } = decideAudiences({ stayExists: state.exists, status: state.status, phase, noShow: state.noShow });
   const audienceSet = new Set<GuestAudience>(audiences);
@@ -314,7 +322,7 @@ export async function buildGuestContext(input: TurnInput, deps: BuilderDeps = {}
     audiences,
     access: { credentialsAllowed: policy.allowed && credentials !== null, policyResult: policy, accessMethod },
     credentials,
-    openCases: openCasesOf(turn, incidents),
+    openCases: openCasesOf(turn, incidents, pendingDecisions),
     uncertainties,
     conflicts,
   };

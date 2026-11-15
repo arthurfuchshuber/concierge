@@ -171,11 +171,11 @@ const slotDeps = (over: Record<string, unknown> = {}) => ({
 });
 
 describe("Decisão · slot (silêncio absoluto da IA)", () => {
-  it("decisão pendente ⇒ silêncio, sem gerar (sem custo de modelo)", async () => {
-    const generate = vi.fn();
+  it("decisão pendente NÃO silencia a conversa (15/11/2026): a IA gera e responde os demais assuntos", async () => {
+    const generate = vi.fn(async () => stored({ text: "O Wi-Fi fica na sala.", formalChangeRequests: [], handoffNeeded: false }));
     const r = await requestGuestAiReply(REQ, slotDeps({ pendingDecision: async () => true, generate }) as never);
-    expect(r).toEqual({ reply: "", handoff: false });
-    expect(generate).not.toHaveBeenCalled();
+    expect(generate).toHaveBeenCalled();
+    expect(r).toEqual({ reply: "O Wi-Fi fica na sala.", handoff: false });
   });
 
   it("pedido de exceção ⇒ abre a decisão e push prioritário; o texto VALIDADO do modelo é preservado (diretiva 11/11/2026)", async () => {
@@ -191,9 +191,12 @@ describe("Decisão · slot (silêncio absoluto da IA)", () => {
     expect(r).toEqual({ reply: "", handoff: true, handoffReason: "Decisão pendente · late check-out às 13h", handoffUrgency: "high" });
   });
 
-  it("já havia decisão pendente/aberta para a mensagem ⇒ continua em silêncio", async () => {
-    const r = await requestGuestAiReply(REQ, slotDeps({ generate: async () => stored(), openDecision: async () => ({ opened: false, code: "exists", reason: "Decisão pendente · x" }) }) as never);
-    expect(r?.reply).toBe("");
+  it("já havia decisão aberta para o assunto ⇒ o texto validado (demais assuntos) segue; sem texto, encaminhamento silencioso", async () => {
+    const openDecision = async () => ({ opened: false, code: "exists", reason: "Decisão pendente · x" });
+    const r = await requestGuestAiReply(REQ, slotDeps({ generate: async () => stored(), openDecision }) as never);
+    expect(r).toMatchObject({ reply: "Vou verificar com a equipe!", handoff: true, handoffReason: "Decisão pendente · x" });
+    const mute = await requestGuestAiReply(REQ, slotDeps({ generate: async () => stored({ text: "" }), openDecision }) as never);
+    expect(mute?.reply).toBe("");
   });
 
   it("late check-out já autorizado ou falha ao abrir (tabela ausente) ⇒ responde e AINDA avisa a equipe (alteração formal)", async () => {

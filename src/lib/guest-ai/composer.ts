@@ -394,7 +394,7 @@ function buildContextData(ctx: ConversationContext, guarded: Guarded, unavailabl
     if (c.topic && out["assunto"] === undefined) {
       out["assunto"] = guarded(c.topic, "context.case_topic");
       out["escopo"] = "somente_este_assunto";
-      out["tipo"] = "ocorrencia_aberta_pela_equipe";
+      out["tipo"] = /decis[aã]o/i.test(c.topic) ? "decisao_pendente_da_equipe" : "ocorrencia_aberta_pela_equipe";
       if (c.severity === "grave") out["gravidade"] = "grave";
     }
     return out;
