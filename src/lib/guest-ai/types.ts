@@ -128,7 +128,7 @@ export type CaseRelation = "related" | "independent" | "ambiguous" | "new";
 export interface OpenCase {
   id: string;
   /** De onde veio o chamado: status da conversa, ou chamado de ocorrência aberto pela IA (`guest_ai_incidents`). */
-  source: "conversation_status" | "incident";
+  source: "conversation_status" | "incident" | "decision";
   /** Assunto do chamado, quando conhecido. `null` = desconhecido. */
   topic: string | null;
   status: string;

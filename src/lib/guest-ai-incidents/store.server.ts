@@ -159,3 +159,25 @@ export async function markReopened(db: GuestAiDb, id: string, nowIso: string): P
     return false;
   }
 }
+
+/** Decisões humanas PENDENTES da conversa, como assunto aberto (a IA segue com os demais assuntos; 15/11/2026). */
+const DECISION_TOPIC: Record<string, string> = {
+  late_checkout: "pedido de saída tardia aguardando decisão da equipe",
+  early_checkin: "pedido de entrada antecipada aguardando decisão da equipe",
+  operational_concession: "pedido de exceção aguardando decisão da equipe",
+  general_decision: "pedido aguardando decisão da equipe",
+};
+export async function loadPendingDecisionCases(db: GuestAiDb, conversationId: string): Promise<Array<{ id: string; topic: string }>> {
+  try {
+    const { data, error } = await db
+      .from("guest_ai_human_decisions")
+      .select("id, kind")
+      .eq("conversation_id", conversationId)
+      .eq("status", "pending")
+      .limit(10);
+    if (error || !Array.isArray(data)) return [];
+    return data.map((r: Record<string, unknown>) => ({ id: String(r["id"]), topic: DECISION_TOPIC[String(r["kind"])] ?? DECISION_TOPIC["general_decision"]! }));
+  } catch {
+    return [];
+  }
+}

@@ -193,11 +193,9 @@ export async function requestGuestAiReply(req: GuestAiRequest, deps: SlotDeps = 
     if (deps.detectIncident) void Promise.resolve(deps.detectIncident(req.conversationId, req.messageId)).catch(() => {});
     else void (await import("@/lib/guest-ai-incidents/detector.server")).triggerIncidentDetector({ conversationId: req.conversationId, trigger: "guest", messageId: req.messageId });
 
-    // 1b) DECISÃO HUMANA PENDENTE (10/11/2026): enquanto a equipe não decide, a IA não fala nada ao hóspede
-    const pending = deps.pendingDecision
-      ? await deps.pendingDecision(req.conversationId)
-      : await (await import("@/lib/guest-ai-decision.server")).hasPendingDecision(req.conversationId);
-    if (pending) return SILENT;
+    // 1b) DECISÃO HUMANA PENDENTE (15/11/2026, titular: a IA NUNCA silencia a conversa inteira): a decisão pendente
+    //     limita só o ASSUNTO dela. Ela entra no contexto como chamado aberto (escopo somente_este_assunto) e a IA segue
+    //     atendendo os demais assuntos; sobre o assunto pendente não promete nem nega antes da equipe.
 
     // 2) equipe atendendo ⇒ a IA não fala por cima do atendente
     const nowIso = new Date((deps.now ?? Date.now)()).toISOString();
@@ -290,7 +288,11 @@ export async function requestGuestAiReply(req: GuestAiRequest, deps: SlotDeps = 
         decisionReason = open.reason ?? null;
         decisionUrgency = "normal";
         if (!(r.state === "available" && (res.text ?? "").trim())) return toHandoff("", decisionReason, decisionUrgency);
-      } else if (open.code === "pending_exists" || open.code === "exists") return toHandoff("", open.reason, DECISION_HANDOFF_URGENCY);
+      } else if (open.code === "pending_exists" || open.code === "exists") {
+        // já há decisão aberta para este assunto: o texto validado (as demais respostas) segue ao hóspede
+        decisionReason = open.reason ?? null;
+        if (!(r.state === "available" && (res.text ?? "").trim())) return toHandoff("", open.reason, DECISION_HANDOFF_URGENCY);
+      }
     }
     // 4b) ALTERAÇÃO FORMAL (titular, 10/11/2026): cancelamento, datas, valor, nº de hóspedes ou condições
     //     NUNCA ficam só com a IA: a resposta ao hóspede segue, mas a equipe é SEMPRE avisada (push).

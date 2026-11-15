@@ -295,3 +295,9 @@ Ordem de execução no builder: validar escopo → estado → D9 → se negado, 
 - Late check-out: sem extensão, nem com cobrança extra.
 - Exceção: texto explícito no dossiê do imóvel (ou autorização formal já existente) prevalece; só então `formalChangeRequests` pode ser usado.
 - Teste: `__tests__/early-late-autonomo.test.ts`. Falha pré-existente de `copilot-pg.test.ts` (impressão digital da migration 20261105150000 no banco de teste local) não tem relação.
+
+## 9ª rodada (15/11/2026) — a IA nunca silencia a conversa inteira; pendências de retorno fecham no checkout
+
+- Decisão humana pendente não calará mais a conversa (antes: silêncio absoluto até 2 h). Ela entra no contexto como chamado aberto (`tipo decisao_pendente_da_equipe`, `escopo somente_este_assunto`); a IA segue com os demais assuntos e não promete nem nega o pedido pendente. Prompt `system.2026-11-15.3`.
+- Pausa humana de 10 min (mensagem humana recente) continua valendo; é a única pausa.
+- `src/lib/checkout-pendencias.server.ts` (roda no cron auto-checkout): no horário de checkout da reserva (oficial, ou late checkout formal), expira decisões pendentes e libera conversas `needs_human`. NÃO encerra chamados de ocorrência (incidentes, danos): esses seguem abertos nos bastidores, e a conversa com chamado aberto não sai da fila. Conversa `assigned` não é tocada.

@@ -19,7 +19,10 @@ export const Route = createFileRoute("/api/public/cron/auto-checkout")({
         const { runAutoCheckoutScan } = await import("@/lib/auto-checkout.server");
         try {
           const result = await runAutoCheckoutScan(supabaseAdmin);
-          return Response.json({ ok: true, ...result });
+          // pendências de retorno (decisão pendente, encaminhamento, chamado) fecham no horário de checkout
+          const { closePendenciesAtCheckout } = await import("@/lib/checkout-pendencias.server");
+          const pendencies = await closePendenciesAtCheckout(supabaseAdmin);
+          return Response.json({ ok: true, ...result, pendencies });
         } catch (err) {
           console.error("[cron:auto-checkout]", err);
           return Response.json({ ok: false, error: "scan failed" }, { status: 500 });
