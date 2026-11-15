@@ -230,7 +230,7 @@ describe("B2.3 · separação: recusa ≠ erro técnico ≠ ação humana ≠ ch
   });
   it("chamado aberto não bloqueia a conversa: assunto independente é atendido; assunto da equipe sem compromisso", async () => {
     const cases = [{ caseId: "c1", status: "needs_human", handoffReason: null, handoffAt: null }];
-    const withCase = () => ctx({ openCases: [{ caseId: "c1", source: "conversation_status", topic: null, status: "needs_human" } as never] }, cases);
+    const withCase = () => ctx({ openCases: [{ caseId: "c1", source: "incident", topic: "assunto da equipe", status: "needs_human" } as never] }, cases);
     const indep = await run(v6({ caseRelation: "independent" }), { loadContext: async () => withCase() });
     expect(indep.r.kind).toBe("reply");
     if (indep.r.kind === "reply") expect(indep.r.situation.existingCase).toBe("independent");

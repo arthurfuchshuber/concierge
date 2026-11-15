@@ -21,7 +21,7 @@ const row = (over: Partial<ConversationOwnershipRow> = {}): ConversationOwnershi
   paused_until: null,
   ...over,
 });
-const openCtx = () => ctx({ openCases: [{ id: CONV, source: "conversation_status", topic: null, status: "needs_human" }] }, [{ caseId: CONV, status: "needs_human", handoffReason: null, handoffAt: null }]);
+const openCtx = () => ctx({ openCases: [{ id: CONV, source: "incident", topic: "assunto da equipe", status: "needs_human" }] }, [{ caseId: CONV, status: "needs_human", handoffReason: null, handoffAt: null }]);
 const run = (decision: Record<string, unknown>, own: ConversationOwnershipRow | null = row(), context = openCtx()) => {
   const h = harness(decision, { now: () => T0, loadContext: async () => context, loadConversationOwnership: async () => own });
   return runTurnChain({ turn: turn({ conversationStatus: own?.status ?? "ai" }), traceId: "h-1" }, h.deps).then((r) => ({ r, h }));
@@ -68,7 +68,7 @@ describe("B2.4 · não interferência no assunto da equipe", () => {
     expect(resolvedClaim.r.audit.decision?.unauthorizedKinds).toEqual(["resolution"]);
   });
   it("prompt mostra o assunto protegido (saneado) e o escopo 'somente este assunto'; o responsável não é identificado", async () => {
-    const { h } = await run(v6({ caseRelation: "independent" }), row({ status: "assigned", assigned_to: "00000000-0000-4000-8000-00000000abcd", handoff_reason: "Fechadura: senha 4821 não abre" }), ctx({ openCases: [{ id: CONV, source: "conversation_status", topic: null, status: "assigned" }] }, [{ caseId: CONV, status: "assigned", handoffReason: null, handoffAt: null }]));
+    const { h } = await run(v6({ caseRelation: "independent" }), row({ status: "assigned", assigned_to: "00000000-0000-4000-8000-00000000abcd", handoff_reason: "Fechadura: senha 4821 não abre" }), ctx({ openCases: [{ id: CONV, source: "incident", topic: "assunto da equipe", status: "assigned" }] }, [{ caseId: CONV, status: "assigned", handoffReason: null, handoffAt: null }]));
     const user = h.calls.prompts[0]!.messages[0]!.content;
     expect(user).toContain('"escopo":"somente_este_assunto"');
     expect(user).toContain('"responsavel_atribuido":true');

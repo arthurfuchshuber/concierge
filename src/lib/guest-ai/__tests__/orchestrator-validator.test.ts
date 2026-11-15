@@ -6,7 +6,7 @@ import { CREDENTIAL_MARKER, type ModelDecision } from "@/lib/guest-ai/orchestrat
 import { looksLikeFabricatedCredential, validateDecision, type ValidationInput } from "@/lib/guest-ai/validation/output-validator";
 import type { OpenCase } from "@/lib/guest-ai/types";
 
-const OPEN: OpenCase[] = [{ id: "c1", source: "conversation_status", topic: null, status: "needs_human" }];
+const OPEN: OpenCase[] = [{ id: "c1", source: "incident", topic: "assunto da equipe", status: "needs_human" }];
 const decision = (over: Partial<ModelDecision> = {}): ModelDecision => ({
   strategy: "answer",
   reply: "O check-in é a partir das 15h.",
@@ -124,10 +124,10 @@ describe("B1 · credenciais: o modelo nunca as vê", () => {
 
 describe("Fechamento B1 · item 3 — posse humana com 2+ chamados abertos", () => {
   const TWO: OpenCase[] = [
-    { id: "case-chuveiro", source: "conversation_status", topic: null, status: "needs_human" },
-    { id: "case-estacionamento", source: "conversation_status", topic: null, status: "assigned" },
+    { id: "case-chuveiro", source: "incident", topic: "assunto da equipe", status: "needs_human" },
+    { id: "case-estacionamento", source: "incident", topic: "assunto da equipe", status: "assigned" },
   ];
-  const THREE: OpenCase[] = [...TWO, { id: "case-limpeza", source: "conversation_status", topic: null, status: "needs_human" }];
+  const THREE: OpenCase[] = [...TWO, { id: "case-limpeza", source: "incident", topic: "assunto da equipe", status: "needs_human" }];
 
   it("(d) evaluateCaseGate (F1) com N itens: decide pela relação; caseId do F1 seria sempre o 1º (palpite) — por isso não é usado", async () => {
     const { evaluateCaseGate } = await import("@/lib/guest-ai/policy/engine");
