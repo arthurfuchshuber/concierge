@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { CalendarDays, Check, MapPin, Search, User, type LucideIcon } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { ClampName } from "@/components/ui/clamp-name";
@@ -153,6 +153,65 @@ export function Choice({
 }
 
 /** Lista em poço, com busca opcional em UMA linha (reticências, nunca quebra). */
+/**
+ * Área rolável das listas. No modo `cards` a barra nativa some e uma linha fina (3px) é desenhada POR CIMA
+ * do conteúdo: a cor dos cartões vai até a borda direita, sem calha vazia (mockup Novo registro, 15/11/2026).
+ */
+function ScrollArea({
+  cards,
+  listClassName,
+  children,
+}: {
+  cards?: boolean;
+  listClassName?: string;
+  children: ReactNode;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [thumb, setThumb] = useState<{ top: number; height: number } | null>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || !cards) return;
+    const update = () => {
+      const { scrollTop, scrollHeight, clientHeight } = el;
+      if (scrollHeight <= clientHeight + 1) return setThumb(null);
+      const track = clientHeight - 12;
+      const height = Math.max(28, (clientHeight / scrollHeight) * track);
+      const top = 6 + (scrollTop / (scrollHeight - clientHeight)) * (track - height);
+      setThumb({ top, height });
+    };
+    update();
+    el.addEventListener("scroll", update, { passive: true });
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    if (el.firstElementChild) ro.observe(el.firstElementChild);
+    return () => {
+      el.removeEventListener("scroll", update);
+      ro.disconnect();
+    };
+  }, [cards, children]);
+  return (
+    <div className="relative">
+      <div
+        ref={ref}
+        className={cn(
+          "sg-elegant-scroll max-h-[min(320px,46dvh)] overflow-y-auto overscroll-contain sm:max-h-[380px]",
+          cards && "sg-card-list grid auto-rows-max gap-1.5 py-1.5 pl-1.5 pr-0",
+          listClassName,
+        )}
+      >
+        {children}
+      </div>
+      {cards && thumb ? (
+        <span
+          aria-hidden
+          className="pointer-events-none absolute right-[2px] w-[3px] rounded-full bg-[var(--scroll-thumb)]"
+          style={{ top: thumb.top, height: thumb.height }}
+        />
+      ) : null}
+    </div>
+  );
+}
+
 export function PickList({
   search,
   onSearch,
@@ -189,19 +248,13 @@ export function PickList({
           />
         </label>
       )}
-      <div
-        className={cn(
-          "sg-elegant-scroll max-h-[min(320px,46dvh)] overflow-y-auto overscroll-contain sm:max-h-[380px]",
-          cards && "sg-card-list grid auto-rows-max gap-1.5 py-1.5 pl-1.5 pr-0",
-          listClassName,
-        )}
-      >
+      <ScrollArea cards={cards} listClassName={listClassName}>
         {empty ? (
           <p className="px-3.5 py-3 text-[12px] text-muted-foreground">{empty}</p>
         ) : (
           children
         )}
-      </div>
+      </ScrollArea>
     </div>
   );
 }
@@ -432,8 +485,8 @@ export function PropertyPickRow({
         }
       }}
       className={cn(
-        "relative flex cursor-pointer select-none items-stretch gap-2.5 overflow-hidden rounded-[9px] border border-[var(--panel-div)] pr-3 outline-none transition-colors [-webkit-touch-callout:none] hover:bg-foreground/[0.03] focus-visible:bg-foreground/[0.05]",
-        selected && "border-foreground/[0.2] bg-[color-mix(in_oklab,var(--foreground)_11%,var(--card))] hover:bg-[color-mix(in_oklab,var(--foreground)_11%,var(--card))]",
+        "relative flex cursor-pointer select-none items-stretch gap-2.5 overflow-hidden rounded-l-[9px] bg-foreground/[0.035] pr-3 outline-none transition-colors [-webkit-touch-callout:none] hover:bg-foreground/[0.03] focus-visible:bg-foreground/[0.05]",
+        selected && "bg-[color-mix(in_oklab,var(--foreground)_11%,var(--card))] hover:bg-[color-mix(in_oklab,var(--foreground)_11%,var(--card))]",
       )}
     >
       <span className="relative w-[76px] shrink-0 self-stretch overflow-hidden bg-foreground/[0.05] text-muted-foreground">

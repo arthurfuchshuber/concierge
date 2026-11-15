@@ -603,20 +603,14 @@ body::-webkit-scrollbar {
   -webkit-overflow-scrolling: touch;
 }
 
-/* Lista de cartões de imóvel: a barra fica na faixa da direita (6px), sem calha reservada — a cor da
-   seleção não deixa um vão sob a barra. */
+/* Lista de cartões de imóvel: sem barra nativa (a linha fina é desenhada por cima, ver ScrollArea em
+   TrailParts) — a cor da seleção vai até a borda direita. */
 .sg-card-list {
   scrollbar-gutter: auto;
+  scrollbar-width: none;
 }
 .sg-card-list::-webkit-scrollbar {
-  width: 6px;
-}
-.sg-card-list::-webkit-scrollbar-track {
-  background: transparent;
-  margin: 6px 0;
-}
-.sg-card-list::-webkit-scrollbar-thumb {
-  border-width: 1px;
+  display: none;
 }
 
 /* Reflexo diagonal que atravessa um texto (usado sobre o texto em degradê). */
