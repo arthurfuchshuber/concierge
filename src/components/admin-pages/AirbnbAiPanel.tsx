@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Check, Link2, Plug, Power, PowerOff, RotateCw, Search, TriangleAlert, X } from "lucide-react";
 import { toast } from "sonner";
 import { PhoneActionButton } from "@/components/PhoneActionButton";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { SELECTED_ITEM_CLASS, SelectionBar } from "@/components/ui/selection-bar";
+import { SELECTED_ITEM_BG_CLASS, SelectionBar } from "@/components/ui/selection-bar";
 import { Switch } from "@/components/ui/switch";
 import {
   ActionSquare,
@@ -48,16 +48,67 @@ const norm = (s: string) =>
     .replace(/\p{Diacritic}/gu, "")
     .toLowerCase();
 
-const initials = (title: string) =>
-  title
-    .trim()
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((w) => w[0]?.toUpperCase() ?? "")
-    .join("");
+/** Nome da conta + e-mail entre parênteses, em cinza (distingue contas de mesmo nome). */
+function AccountLabel({ title, email }: { title: string; email?: string | null }) {
+  return (
+    <span className="min-w-0 flex-1 truncate">
+      {title}
+      {email ? <span className="ml-1 font-normal text-muted-foreground">({email})</span> : null}
+    </span>
+  );
+}
 
-const AVATAR =
-  "grid size-[18px] shrink-0 place-items-center rounded-full bg-foreground/[0.08] text-[9px] font-bold text-foreground/90";
+/** Linhas inteiras visíveis no seletor (altura h-7 = 28px cada): nunca uma linha cortada ao meio. */
+const SENDER_ROW_PX = 28;
+const SENDER_VISIBLE_ROWS = 5;
+
+/**
+ * Lista rolável do seletor: sem barra nativa; a linha fina (3px) é desenhada POR CIMA, rente à borda
+ * direita da janela do seletor, sem nenhuma folga. A rolagem para em linhas inteiras (anticorte).
+ */
+function SenderList({ rows, children }: { rows: number; children: ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [thumb, setThumb] = useState<{ top: number; height: number } | null>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const update = () => {
+      const { scrollTop, scrollHeight, clientHeight } = el;
+      if (scrollHeight <= clientHeight + 1) return setThumb(null);
+      const track = clientHeight - 4;
+      const height = Math.max(20, (clientHeight / scrollHeight) * track);
+      const top = 2 + (scrollTop / (scrollHeight - clientHeight)) * (track - height);
+      setThumb({ top, height });
+    };
+    update();
+    el.addEventListener("scroll", update, { passive: true });
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => {
+      el.removeEventListener("scroll", update);
+      ro.disconnect();
+    };
+  }, [rows]);
+  return (
+    <div className="relative -mr-1">
+      <div
+        ref={ref}
+        role="listbox"
+        className="sg-card-list snap-y snap-mandatory overflow-y-auto overscroll-contain pr-1.5"
+        style={{ maxHeight: SENDER_VISIBLE_ROWS * SENDER_ROW_PX }}
+      >
+        {children}
+      </div>
+      {thumb ? (
+        <span
+          aria-hidden
+          className="pointer-events-none absolute right-0 w-[3px] rounded-full bg-[var(--scroll-thumb)]"
+          style={{ top: thumb.top, height: thumb.height }}
+        />
+      ) : null}
+    </div>
+  );
+}
 
 /** "Assina como": quem assina as respostas deste imóvel (e do gêmeo). */
 function SenderPicker({
@@ -70,55 +121,84 @@ function SenderPicker({
   onPick: (channelId: string) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [q, setQ] = useState("");
   const current = sender.options.find((o) => o.channelId === sender.currentChannelId) ?? sender.options[0];
   const single = sender.options.length <= 1;
   const box =
-    "flex h-8 min-w-0 flex-1 items-center gap-2 rounded-[9px] border border-border/70 bg-[color-mix(in_oklab,var(--card),var(--background)_55%)] pl-2 pr-2.5 text-left text-xs text-foreground";
+    "flex h-8 min-w-0 flex-1 items-center gap-2 rounded-[9px] border border-border/70 bg-[color-mix(in_oklab,var(--card),var(--background)_55%)] pl-2.5 pr-2.5 text-left text-xs text-foreground";
+  const shown = useMemo(() => {
+    const nq = norm(q.trim());
+    if (!nq) return sender.options;
+    return sender.options.filter((o) => norm(`${o.title} ${o.email ?? ""}`).includes(nq));
+  }, [sender.options, q]);
   if (single || disabled) {
     return (
       <div className={cn(box, disabled && "opacity-70")}>
-        <span className={AVATAR}>{initials(current?.title ?? "")}</span>
-        <span className="min-w-0 flex-1 truncate">{current?.title ?? "—"}</span>
+        <AccountLabel title={current?.title ?? "—"} email={current?.email} />
       </div>
     );
   }
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover
+      open={open}
+      onOpenChange={(v) => {
+        setOpen(v);
+        if (!v) setQ("");
+      }}
+    >
       <PopoverTrigger asChild>
         <button type="button" aria-haspopup="listbox" aria-expanded={open} className={box}>
-          <span className={AVATAR}>{initials(current?.title ?? "")}</span>
-          <span className="min-w-0 flex-1 truncate">{current?.title ?? "—"}</span>
+          <AccountLabel title={current?.title ?? "—"} email={current?.email} />
         </button>
       </PopoverTrigger>
+      {/* Sempre para BAIXO (regra do seletor): sem inverter para cima por falta de espaço. */}
       <PopoverContent
         align="start"
+        side="bottom"
+        avoidCollisions={false}
         sideOffset={4}
-        role="listbox"
+        onOpenAutoFocus={(e) => e.preventDefault()}
         className="w-[var(--radix-popover-trigger-width)] rounded-[10px] border border-border bg-popover p-1 text-xs text-popover-foreground shadow-md"
       >
-        {sender.options.map((o) => {
-          const on = o.channelId === current?.channelId;
-          return (
-            <button
-              key={o.channelId}
-              type="button"
-              role="option"
-              aria-selected={on}
-              onClick={() => {
-                setOpen(false);
-                if (!on) onPick(o.channelId);
-              }}
-              className={cn(
-                "flex w-full items-center gap-2 rounded-[7px] px-2 py-1.5 text-left transition-colors hover:bg-foreground/[0.06]",
-                on && "bg-foreground/10 font-semibold",
-              )}
-            >
-              <span className={AVATAR}>{initials(o.title)}</span>
-              <span className="min-w-0 flex-1 truncate">{o.title}</span>
-              {on ? <Check className="size-3.5 shrink-0" strokeWidth={2.4} /> : null}
-            </button>
-          );
-        })}
+        <label className="mb-1 flex h-8 min-w-0 items-center gap-2 border-b border-[var(--panel-div)] px-2.5 text-muted-foreground">
+          <Search className="size-3.5 shrink-0" />
+          <input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Buscar conta ou e-mail…"
+            aria-label="Buscar conta ou e-mail"
+            className="min-w-0 flex-1 truncate bg-transparent text-xs text-foreground outline-none placeholder:text-muted-foreground"
+          />
+        </label>
+        {shown.length === 0 ? (
+          <p className="px-2.5 py-2 text-[11.5px] text-muted-foreground">Nenhuma conta encontrada.</p>
+        ) : (
+          <SenderList rows={shown.length}>
+            {shown.map((o) => {
+              const on = o.channelId === current?.channelId;
+              return (
+                <button
+                  key={o.channelId}
+                  type="button"
+                  role="option"
+                  aria-selected={on}
+                  data-clip-row
+                  onClick={() => {
+                    setOpen(false);
+                    if (!on) onPick(o.channelId);
+                  }}
+                  className={cn(
+                    "flex h-7 w-full snap-start items-center gap-2 rounded-[7px] px-2.5 text-left transition-colors hover:bg-foreground/[0.06]",
+                    on && "bg-foreground/10 font-semibold",
+                  )}
+                >
+                  <AccountLabel title={o.title} email={o.email} />
+                  {on ? <Check className="size-3.5 shrink-0" strokeWidth={2.4} /> : null}
+                </button>
+              );
+            })}
+          </SenderList>
+        )}
       </PopoverContent>
     </Popover>
   );
@@ -165,8 +245,8 @@ function ListingCard({
         if (selecting) onToggleSelect();
       }}
       className={cn(
-        "relative min-w-0 select-none rounded-[12px] border py-3 pl-[17px] pr-3.5 shadow-sm [-webkit-touch-callout:none]",
-        selected ? SELECTED_ITEM_CLASS : "border-border/70 bg-card",
+        "relative min-w-0 select-none rounded-[12px] py-3 pl-[17px] pr-3.5 shadow-sm [-webkit-touch-callout:none]",
+        selected ? SELECTED_ITEM_BG_CLASS : "bg-card",
         selecting && !readOnly && "cursor-pointer",
       )}
     >
@@ -266,7 +346,8 @@ export function AirbnbAiPanel({ readOnly }: { readOnly?: boolean }) {
       if (filter === "sem" && g.primary.enabled) return false;
       if (!nq) return true;
       const cur = senderBy.get(g.primary.listingId);
-      const senderTitle = cur?.options.find((o) => o.channelId === cur.currentChannelId)?.title ?? "";
+      const curOpt = cur?.options.find((o) => o.channelId === cur.currentChannelId);
+      const senderTitle = `${curOpt?.title ?? ""} ${curOpt?.email ?? ""}`;
       const hay = norm(
         [
           g.primary.name,
@@ -397,33 +478,37 @@ export function AirbnbAiPanel({ readOnly }: { readOnly?: boolean }) {
               value={filter}
               onChange={setFilter}
             />
-            <div className="pt-2.5">
-              <div className="relative h-10 shrink-0 overflow-hidden rounded-[9px] bg-card shadow-[inset_0_1px_0_color-mix(in_oklab,var(--foreground)_7%,transparent),inset_0_0_0_1px_var(--border)]">
-                <Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground opacity-60" />
-                <input
-                  value={q}
-                  onChange={(e) => setQ(e.target.value)}
-                  placeholder="Buscar imóvel, proprietário, cidade…"
-                  aria-label="Buscar imóvel, proprietário, cidade"
-                  className="h-full w-full bg-transparent pl-9 pr-9 text-[12.5px] text-foreground placeholder:text-muted-foreground focus:outline-none"
-                />
-                {q ? (
-                  <button
-                    type="button"
-                    onClick={() => setQ("")}
-                    aria-label="Limpar busca"
-                    className="absolute right-2 top-1/2 grid size-6 -translate-y-1/2 place-items-center text-muted-foreground hover:text-foreground"
-                  >
-                    <X className="size-3.5" />
-                  </button>
-                ) : null}
-              </div>
-            </div>
           </>
         ) : null
       }
+      /* Padrão: busca sem preenchimento (ícone + texto + filete) e, logo abaixo, a linha de seleção FIXA. */
+      search={
+        showList ? (
+          <div className="relative h-10 shrink-0 border-b border-[var(--panel-div)]">
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground opacity-60" />
+            <input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Buscar imóvel, proprietário, cidade…"
+              aria-label="Buscar imóvel, proprietário, cidade"
+              className="h-full w-full bg-transparent pl-9 pr-9 text-[12.5px] text-foreground placeholder:text-muted-foreground focus:outline-none"
+            />
+            {q ? (
+              <button
+                type="button"
+                onClick={() => setQ("")}
+                aria-label="Limpar busca"
+                className="absolute right-2 top-1/2 grid size-6 -translate-y-1/2 place-items-center text-muted-foreground hover:text-foreground"
+              >
+                <X className="size-3.5" />
+              </button>
+            ) : null}
+          </div>
+        ) : null
+      }
+      bodyPad="pl-4 pr-2"
       above={
-        selecting ? (
+        showList && !readOnly ? (
           <SelectionBar
             count={selected.size}
             allSelected={allPicked}

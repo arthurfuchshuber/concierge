@@ -243,9 +243,11 @@ export function IntegrationShell({
   title,
   subtitle,
   toggles,
+  search,
   above,
   footer,
   bodyDeps,
+  bodyPad,
   children,
   icon,
 }: {
@@ -255,10 +257,17 @@ export function IntegrationShell({
   /** Ícone no cabeçalho da janela (janelas Bancos e Asaas PJ, mockup 10/11/2026). */
   icon?: ReactNode;
   toggles?: ReactNode;
-  /** Linha fixa entre os botões suaves e a lista (ex.: "3 Selecionados"). */
+  /** Campo de busca fixo (padrão: sem preenchimento, só ícone, texto e filete). Vem ANTES da linha `above`. */
+  search?: ReactNode;
+  /** Linha fixa abaixo da busca e acima da lista (ex.: "3 Selecionados ✕ Selecionar Todos"). */
   above?: ReactNode;
   footer?: ReactNode;
   bodyDeps: unknown[];
+  /**
+   * Margens laterais do corpo na janela. Padrão `px-4`. Com a barra de rolagem estável, a janela do
+   * Airbnb usa `pl-4 pr-2` para o conteúdo terminar na mesma linha dos botões e da busca.
+   */
+  bodyPad?: string;
   children: ReactNode;
 }) {
   const bodyRef = useAntiClipRows<HTMLDivElement>(bodyDeps);
@@ -291,6 +300,9 @@ export function IntegrationShell({
       {toggles ? (
         <div className={cn("shrink-0", inWindow ? "px-4 pt-3" : "")}>{toggles}</div>
       ) : null}
+      {search ? (
+        <div className={cn("shrink-0", inWindow ? "px-4 pt-2.5" : "pt-2.5")}>{search}</div>
+      ) : null}
       {above ? (
         <div className={cn("shrink-0", inWindow ? "px-4 pt-3" : "pt-3")}>{above}</div>
       ) : null}
@@ -298,7 +310,7 @@ export function IntegrationShell({
         ref={bodyRef}
         className={cn(
           "sg-elegant-scroll grid min-h-0 grid-cols-[minmax(0,1fr)] content-start overflow-y-auto overscroll-contain",
-          inWindow ? cn("flex-1 px-4 pt-2.5", !footer && "pb-4") : "max-h-[440px] pt-2.5",
+          inWindow ? cn("flex-1 pt-2.5", bodyPad ?? "px-4", !footer && "pb-4") : "max-h-[440px] pt-2.5",
         )}
       >
         {children}

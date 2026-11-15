@@ -5,6 +5,7 @@ import { ClampName } from "@/components/ui/clamp-name";
 import { CoverImage } from "@/components/ui/cover-image";
 import { PhoneActionButton } from "@/components/PhoneActionButton";
 import { PropertyMapsButton } from "@/components/dashboard/PropertyMapsButton";
+import { SELECTED_ITEM_BG_CLASS } from "@/components/ui/selection-bar";
 import { cn } from "@/lib/utils";
 
 /**
@@ -195,7 +196,7 @@ function ScrollArea({
         ref={ref}
         className={cn(
           "sg-elegant-scroll max-h-[min(320px,46dvh)] overflow-y-auto overscroll-contain sm:max-h-[380px]",
-          cards && "sg-card-list grid auto-rows-max gap-1.5 py-1.5 pl-1.5 pr-0",
+          cards && "sg-card-list grid auto-rows-max gap-1.5",
           listClassName,
         )}
       >
@@ -219,6 +220,7 @@ export function PickList({
   empty,
   listClassName,
   cards,
+  bar,
   children,
 }: {
   search?: string;
@@ -228,17 +230,28 @@ export function PickList({
   /** Altura máxima da lista quando a tela pede outra (ex.: seleção em massa de imóveis, mockup e = 430px). */
   listClassName?: string;
   /**
-   * Lista de cartões de imóvel (mockup Novo registro, 15/11/2026): cada imóvel é um cartão separado
-   * (6px de respiro); a barra de rolagem fina fica na faixa da direita, sem deixar calha vazia sob a
-   * cor da seleção.
+   * Lista de cartões de imóvel (mockup Novo registro, 15/11/2026): SEM fundo de lista (só os cartões),
+   * cada imóvel é um cartão separado (6px de respiro); a busca não tem preenchimento (só ícone, texto e
+   * filete); a barra de rolagem fina (3px) é desenhada por cima, na borda direita, sem deixar calha
+   * vazia sob a cor da seleção.
    */
   cards?: boolean;
+  /**
+   * Linha de seleção em massa (`SelectionBar`): fica ABAIXO da busca e acima da lista (a busca vem
+   * sempre primeiro), alinhada à direita.
+   */
+  bar?: ReactNode;
   children: ReactNode;
 }) {
   return (
-    <div className="overflow-hidden rounded-[10px] bg-[var(--panel-well)]">
+    <div className={cn(!cards && "overflow-hidden rounded-[10px] bg-[var(--panel-well)]")}>
       {onSearch && (
-        <label className="flex h-8 min-w-0 items-center gap-2 border-b border-[var(--panel-div)] px-2.5">
+        <label
+          className={cn(
+            "flex h-8 min-w-0 items-center gap-2 border-b border-[var(--panel-div)] px-2.5",
+            cards && "mb-1.5",
+          )}
+        >
           <Search className="size-3.5 shrink-0 text-foreground/40" />
           <input
             value={search ?? ""}
@@ -248,6 +261,7 @@ export function PickList({
           />
         </label>
       )}
+      {bar}
       <ScrollArea cards={cards} listClassName={listClassName}>
         {empty ? (
           <p className="px-3.5 py-3 text-[12px] text-muted-foreground">{empty}</p>
@@ -485,8 +499,10 @@ export function PropertyPickRow({
         }
       }}
       className={cn(
-        "relative flex cursor-pointer select-none items-stretch gap-2.5 overflow-hidden rounded-l-[9px] bg-foreground/[0.035] pr-3 outline-none transition-colors [-webkit-touch-callout:none] hover:bg-foreground/[0.03] focus-visible:bg-foreground/[0.05]",
-        selected && "bg-[color-mix(in_oklab,var(--foreground)_11%,var(--card))] hover:bg-[color-mix(in_oklab,var(--foreground)_11%,var(--card))]",
+        "relative flex cursor-pointer select-none items-stretch gap-2.5 overflow-hidden rounded-l-[9px] pr-3 outline-none transition-colors [-webkit-touch-callout:none]",
+        selected
+          ? SELECTED_ITEM_BG_CLASS
+          : "bg-foreground/[0.035] hover:bg-foreground/[0.03] focus-visible:bg-foreground/[0.05]",
       )}
     >
       <span className="relative w-[76px] shrink-0 self-stretch overflow-hidden bg-foreground/[0.05] text-muted-foreground">

@@ -21,9 +21,45 @@ async function cx<T = any>(path: string, init?: RequestInit): Promise<T> {
 }
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-type Chan = { id: string; title: string; properties: string[]; mappings: Array<{ id: string; ratePlanId: string; listingId: string }>; catalog: Set<string> };
+type Chan = { id: string; title: string; email?: string | null; properties: string[]; mappings: Array<{ id: string; ratePlanId: string; listingId: string }>; catalog: Set<string> };
 
-async function loadAirbnbChannels(ownerId: string): Promise<Chan[]> {
+/**
+ * E-mail da conta Airbnb (só para distinguir contas de mesmo nome no seletor "Assina como").
+ * Lido ao vivo com o token do canal (`settings.tokens`) e guardado SÓ em memória, com validade: o token
+ * nunca é gravado nem sai do servidor — o front recebe apenas o e-mail. Falha da API do Airbnb → `null`
+ * (o seletor continua mostrando só o título), e a falha também é lembrada por pouco tempo para não
+ * insistir a cada leitura.
+ */
+const EMAIL_OK_TTL_MS = 6 * 60 * 60 * 1000;
+const EMAIL_FAIL_TTL_MS = 5 * 60 * 1000;
+const emailCache = new Map<string, { email: string | null; at: number }>();
+
+async function airbnbAccountEmail(channelId: string, settings: any): Promise<string | null> {
+  const userId = settings?.tokens?.user_id ? String(settings.tokens.user_id) : "";
+  const token = settings?.tokens?.access_token ? String(settings.tokens.access_token) : "";
+  if (!userId || !token || settings?.token_invalid) return null;
+  const key = `${channelId}:${userId}`;
+  const hit = emailCache.get(key);
+  if (hit && Date.now() - hit.at < (hit.email ? EMAIL_OK_TTL_MS : EMAIL_FAIL_TTL_MS)) return hit.email;
+  let email: string | null = null;
+  try {
+    const res = await fetch(`https://api.airbnb.com/v2/users/${encodeURIComponent(userId)}?_format=v1_legacy_for_p3`, {
+      headers: { "X-Airbnb-OAuth-Token": token, Accept: "application/json" },
+      signal: AbortSignal.timeout(4000),
+    });
+    if (res.ok) {
+      const body = (await res.json()) as { user?: { email?: unknown } };
+      const e = body?.user?.email;
+      email = typeof e === "string" && e.includes("@") ? e.trim() : null;
+    }
+  } catch {
+    email = null;
+  }
+  emailCache.set(key, { email, at: Date.now() });
+  return email;
+}
+
+async function loadAirbnbChannels(ownerId: string, withEmail = false): Promise<Chan[]> {
   const list = await cx<{ data: any[] }>("/channels?pagination[limit]=100");
   // Só os canais da conta: a chave da Channex enxerga os de todos os clientes.
   const { accountChannelScope } = await import("@/lib/airbnb-accounts.server");
@@ -40,6 +76,7 @@ async function loadAirbnbChannels(ownerId: string): Promise<Chan[]> {
     out.push({
       id: c.id,
       title: String(a.title ?? c.attributes?.title ?? "Conta Airbnb"),
+      email: withEmail ? await airbnbAccountEmail(String(c.id), a.settings) : null,
       properties: a.properties ?? [],
       mappings: (a.rate_plans ?? []).map((m: any) => ({ id: m.id, ratePlanId: m.rate_plan_id, listingId: String(m.settings?.listing_id ?? "") })),
       catalog: new Set(((listings?.data?.listing_id_dictionary?.values ?? []) as any[]).map((l) => String(l.id))),
@@ -65,14 +102,14 @@ async function ownerGroups(db: any, ownerId: string) {
   return groups;
 }
 
-type SenderOption = { channelId: string; title: string; hasAccess: boolean };
+type SenderOption = { channelId: string; title: string; email?: string | null; hasAccess: boolean };
 export type ListingSender = { listingId: string; currentChannelId: string | null; options: SenderOption[] };
 
 /** Remetente atual e contas possíveis (com acesso a TODOS os anúncios do grupo) por anúncio. */
 export async function listListingSenders(ownerId: string): Promise<ListingSender[]> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const groups = await ownerGroups(supabaseAdmin, ownerId);
-  const chans = await loadAirbnbChannels(ownerId);
+  const chans = await loadAirbnbChannels(ownerId, true);
   const { readSenderPrefs } = await import("@/lib/airbnb-direct-sender.server");
   const prefs = await readSenderPrefs(supabaseAdmin, [...groups.values()].flatMap((g) => [...g]));
   const out: ListingSender[] = [];
@@ -80,7 +117,7 @@ export async function listListingSenders(ownerId: string): Promise<ListingSender
     const group = [...ids];
     // Todas as contas Airbnb conectadas aparecem (principal + coanfitriões);
     // as que ainda não enxergam todo o grupo vêm marcadas sem acesso.
-    const options = chans.map((c) => ({ channelId: c.id, title: c.title, hasAccess: true }));
+    const options = chans.map((c) => ({ channelId: c.id, title: c.title, email: c.email ?? null, hasAccess: true }));
     for (const l of group) {
       const cur = chans.find((c) => c.mappings.some((m) => m.listingId === l));
       out.push({ listingId: l, currentChannelId: prefs.get(l) ?? cur?.id ?? null, options });

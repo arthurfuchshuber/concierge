@@ -17,7 +17,7 @@ import {
   PrimaryAction,
   SoftToggles,
 } from "@/components/admin-pages/integration-window";
-import { SelectionBar } from "@/components/ui/selection-bar";
+import { SELECTED_ITEM_BG_CLASS, SelectionBar } from "@/components/ui/selection-bar";
 import { cn } from "@/lib/utils";
 
 const CONNECTOR_ID = "google_calendar";
@@ -387,7 +387,7 @@ export function GoogleCalendarPanel({
                     className={cn(
                       "flex min-w-0 items-center gap-3 py-2.5",
                       selecting && "-mx-2 rounded-[10px] px-2",
-                      on && "bg-[color-mix(in_oklab,var(--foreground)_11%,var(--card))]",
+                      on && SELECTED_ITEM_BG_CLASS,
                     )}
                   >
                     <div className="min-w-0 flex-1">

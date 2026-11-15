@@ -381,23 +381,25 @@ export function NewRecordButton() {
                 </PickList>
               ) : (
                 <>
-                {selecting ? (
-                  <SelectionBar
-                    className="pb-2"
-                    count={propertyIds.length}
-                    allSelected={allShownOn}
-                    onClear={() => {
-                      setPropertyIds([]);
-                      setSelecting(false);
-                    }}
-                    onToggleAll={toggleAll}
-                  />
-                ) : null}
                 <PickList
                   cards
                   search={search}
                   onSearch={setSearch}
                   placeholder="Buscar imóvel ou proprietário…"
+                  /* Padrão de seleção: a busca vem primeiro; a linha "N Selecionados ✕ Selecionar Todos"
+                     fica logo abaixo (o N e o ✕ só com 1+ selecionado). */
+                  bar={
+                    <SelectionBar
+                      className="py-2"
+                      count={selecting ? propertyIds.length : 0}
+                      allSelected={allShownOn}
+                      onClear={() => {
+                        setPropertyIds([]);
+                        setSelecting(false);
+                      }}
+                      onToggleAll={toggleAll}
+                    />
+                  }
                   listClassName="max-h-[min(430px,52dvh)] sm:max-h-[430px]"
                   empty={
                     q.isLoading
