@@ -6079,6 +6079,7 @@ export type Database = {
       }
       property_listing_raw_data: {
         Row: {
+          ai_daily_cost_limit_usd: number | null
           airbnb_ai_enabled: boolean
           airbnb_ai_toggled_at: string | null
           airbnb_ai_toggled_by: string | null
@@ -6104,6 +6105,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          ai_daily_cost_limit_usd?: number | null
           airbnb_ai_enabled?: boolean
           airbnb_ai_toggled_at?: string | null
           airbnb_ai_toggled_by?: string | null
@@ -6129,6 +6131,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          ai_daily_cost_limit_usd?: number | null
           airbnb_ai_enabled?: boolean
           airbnb_ai_toggled_at?: string | null
           airbnb_ai_toggled_by?: string | null
