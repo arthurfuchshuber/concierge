@@ -287,3 +287,11 @@ Ordem de execução no builder: validar escopo → estado → D9 → se negado, 
 - Chamado de ocorrência (`src/lib/guest-ai-incidents/`, tabela `guest_ai_incidents`, migration `20261115000000`): depois de cada fala do hóspede (slot, em segundo plano) e de cada mensagem da equipe (`sendHandoffMessage`, só se há chamado aberto) um modelo barato lê a conversa CENTRAL e decide abrir, reabrir ou fechar. Abrir encaminha a conversa à equipe (`needs_human`, urgência alta, push). O chamado NÃO silencia a conversa: entra no contexto como chamado aberto com assunto (`ocorrencia_aberta_pela_equipe`, escopo só este assunto) e a IA segue com os demais assuntos. Ocorrência GRAVE só fecha por fala da equipe; reabre se o hóspede voltar a reclamar. `GUEST_AI_INCIDENTS=off` desliga. Módulo FORA de `guest-ai/` de propósito (as travas de fronteira proíbem escrita e Gateway ali).
 - Chat central: o histórico (`data/history.server.ts`) reúne as conversas da MESMA reserva e do MESMO imóvel (WhatsApp, plataforma, guia); sem reserva vinculada vale só a conversa do turno.
 - Pausa depois de fala humana: 10 minutos desde a ÚLTIMA mensagem (`PAUSE_MINUTES`, `HUMAN_PAUSE_WINDOW_MS`); decisão pendente continua calando a IA, chamado de ocorrência não.
+
+## 8ª rodada (15/11/2026) — early check-in e late check-out autônomos
+
+- A IA responde os dois pedidos do início ao fim: não abre cartão de decisão nem exige encaminhamento por causa deles (prompt `system.2026-11-15.2`).
+- Early check-in: informar com gentileza que, havendo possibilidade, a equipe entra em contato no próprio dia do check-in; sem prometer.
+- Late check-out: sem extensão, nem com cobrança extra.
+- Exceção: texto explícito no dossiê do imóvel (ou autorização formal já existente) prevalece; só então `formalChangeRequests` pode ser usado.
+- Teste: `__tests__/early-late-autonomo.test.ts`. Falha pré-existente de `copilot-pg.test.ts` (impressão digital da migration 20261105150000 no banco de teste local) não tem relação.
