@@ -23,8 +23,8 @@ import {
 } from "@/lib/guest-ai/copilot/generator.server";
 import { triggerCopilotSuggestion } from "@/lib/guest-ai/copilot/trigger.server";
 import {
-  copilotDailyLimitUsd,
-  COPILOT_DEFAULT_DAILY_COST_USD,
+  copilotListingDailyCostUsd,
+  COPILOT_DEFAULT_LISTING_DAILY_COST_USD,
   copilotGenerationProperties,
   copilotPropertyAllowed,
   copilotFlags,
@@ -378,7 +378,7 @@ describe("Copiloto · geração com a cadeia real e o Gateway real (transporte f
       tenantId: "t1",
       propertyId: "p1",
       conversationId: CONV,
-      dailyCostLimitUsd: 25,
+      dailyCostLimitUsd: 1,
       turnCostCeilingUsd: 1,
     });
   });
@@ -474,36 +474,36 @@ describe("Copiloto · geração com a cadeia real e o Gateway real (transporte f
     expect(copilotPropertyAllowed("qualquer-imovel-novo", {})).toBe(true);
   });
 
-  it("teto diário OBRIGATÓRIO (G1/D3): sem variável ou inválida ⇒ US$ 25,00; válida ⇒ respeitada até US$ 200", async () => {
-    expect(COPILOT_DEFAULT_DAILY_COST_USD).toBe(25);
-    expect(copilotDailyLimitUsd({})).toBe(25);
-    expect(copilotDailyLimitUsd({ GUEST_AI_COPILOT_DAILY_COST_USD: "" })).toBe(25);
-    expect(copilotDailyLimitUsd({ GUEST_AI_COPILOT_DAILY_COST_USD: "   " })).toBe(25);
-    expect(copilotDailyLimitUsd({ GUEST_AI_COPILOT_DAILY_COST_USD: "0" })).toBe(25);
-    expect(copilotDailyLimitUsd({ GUEST_AI_COPILOT_DAILY_COST_USD: "-1" })).toBe(25);
-    expect(copilotDailyLimitUsd({ GUEST_AI_COPILOT_DAILY_COST_USD: "abc" })).toBe(25);
-    expect(copilotDailyLimitUsd({ GUEST_AI_COPILOT_DAILY_COST_USD: "Infinity" })).toBe(25);
-    expect(copilotDailyLimitUsd({ GUEST_AI_COPILOT_DAILY_COST_USD: "5" })).toBe(5);
-    expect(copilotDailyLimitUsd({ GUEST_AI_COPILOT_DAILY_COST_USD: "0.25" })).toBe(0.25);
-    expect(copilotDailyLimitUsd({ GUEST_AI_COPILOT_DAILY_COST_USD: "300" })).toBe(200);
-    // sem variável: o teto de US$ 25,00 vai ao banco e bloqueia o gasto alto (nenhuma chamada ao modelo)
+  it("teto diário POR ANÚNCIO (15/11/2026): sem variável ou inválida ⇒ US$ 1,00; válida ⇒ respeitada até US$ 50", async () => {
+    expect(COPILOT_DEFAULT_LISTING_DAILY_COST_USD).toBe(1);
+    expect(copilotListingDailyCostUsd({})).toBe(1);
+    expect(copilotListingDailyCostUsd({ GUEST_AI_COPILOT_LISTING_DAILY_COST_USD: "" })).toBe(1);
+    expect(copilotListingDailyCostUsd({ GUEST_AI_COPILOT_LISTING_DAILY_COST_USD: "   " })).toBe(1);
+    expect(copilotListingDailyCostUsd({ GUEST_AI_COPILOT_LISTING_DAILY_COST_USD: "0" })).toBe(1);
+    expect(copilotListingDailyCostUsd({ GUEST_AI_COPILOT_LISTING_DAILY_COST_USD: "-1" })).toBe(1);
+    expect(copilotListingDailyCostUsd({ GUEST_AI_COPILOT_LISTING_DAILY_COST_USD: "abc" })).toBe(1);
+    expect(copilotListingDailyCostUsd({ GUEST_AI_COPILOT_LISTING_DAILY_COST_USD: "Infinity" })).toBe(1);
+    expect(copilotListingDailyCostUsd({ GUEST_AI_COPILOT_LISTING_DAILY_COST_USD: "5" })).toBe(5);
+    expect(copilotListingDailyCostUsd({ GUEST_AI_COPILOT_LISTING_DAILY_COST_USD: "0.25" })).toBe(0.25);
+    expect(copilotListingDailyCostUsd({ GUEST_AI_COPILOT_LISTING_DAILY_COST_USD: "300" })).toBe(50);
+    // sem variável: o teto de US$ 1,00 vai ao banco e bloqueia o gasto alto (nenhuma chamada ao modelo)
     {
       const p = fakeProvider(okJson(v6()));
       const store = new MemoryCopilotStore();
-      store.spentUsd = 200;
+      store.spentUsd = 50;
       const d = deps(p, { store, env: { GUEST_AI_COPILOT_GENERATION: "on" } });
       expect((await generateCopilotSuggestion(REQ, d)).status).toBe("daily_budget_exceeded");
-      expect(store.claims[0]).toMatchObject({ dailyCostLimitUsd: 25 });
+      expect(store.claims[0]).toMatchObject({ dailyCostLimitUsd: 1 });
       expect(p.calls).toBe(0);
     }
     // sem variável e abaixo do teto padrão ⇒ gera normalmente
     {
       const p = fakeProvider(okJson(v6()));
       const store = new MemoryCopilotStore();
-      store.spentUsd = 10;
+      store.spentUsd = 0;
       const d = deps(p, { store, env: { GUEST_AI_COPILOT_GENERATION: "on" } });
       expect((await generateCopilotSuggestion(REQ, d)).status).toBe("stored");
-      expect(store.claims[0]).toMatchObject({ dailyCostLimitUsd: 25 });
+      expect(store.claims[0]).toMatchObject({ dailyCostLimitUsd: 1 });
     }
     // com teto configurado: atingido ⇒ nenhuma chamada
     {
@@ -512,7 +512,7 @@ describe("Copiloto · geração com a cadeia real e o Gateway real (transporte f
       store.spentUsd = 0.9;
       const d = deps(p, {
         store,
-        env: { GUEST_AI_COPILOT_GENERATION: "on", GUEST_AI_COPILOT_DAILY_COST_USD: "1" },
+        env: { GUEST_AI_COPILOT_GENERATION: "on", GUEST_AI_COPILOT_LISTING_DAILY_COST_USD: "1" },
       });
       expect((await generateCopilotSuggestion(REQ, d)).status).toBe("daily_budget_exceeded");
       expect(p.calls).toBe(0);
@@ -875,7 +875,7 @@ describe("Copiloto · porta fechada, adaptador e disparo", () => {
       conversationId: "c",
       triggerMessageId: "m",
       surface: "airbnb",
-      dailyCostLimitUsd: 25,
+      dailyCostLimitUsd: 1,
       turnCostCeilingUsd: 1,
     };
     expect(

@@ -300,6 +300,7 @@ describe("guardas estáticas da tela e do servidor", () => {
         "guest_ai_copilot_suggestions",
         "guest_ai_ops_actions",
         "properties",
+        "property_listing_raw_data",
         "property_owners",
         "property_chat_messages",
         "property_chat_conversations",

@@ -67,9 +67,8 @@ export const COPILOT_SENDER_IDENTITY_STATES = [
 
 /**
  * Controle de custos — teto POR TURNO fixo (US$ 1,00 desde 14/11/2026; protege contra uma chamada desgovernada) e teto
- * DIÁRIO OBRIGATÓRIO (Gate G1, decisão do titular D3, 06/11/2026): `GUEST_AI_COPILOT_DAILY_COST_USD` com valor
- * positivo ⇒ esse valor (até `COPILOT_DAILY_COST_MAX_USD`); ausente, vazio, inválido, zero ou negativo ⇒
- * `COPILOT_DEFAULT_DAILY_COST_USD` (US$ 25,00 desde 15/11/2026: o teto vale para a conta toda e precisa aguentar vários anúncios em paralelo; até então US$ 3,00). Não existe mais caminho "sem teto".
+ * DIÁRIO POR ANÚNCIO E POR CONTA (15/11/2026; ver `COPILOT_DEFAULT_LISTING_DAILY_COST_USD`): não existe mais teto global entre
+ * contas nem caminho "sem teto".
  */
 export const COPILOT_MAX_TURN_COST_USD = 1;
 
@@ -99,7 +98,7 @@ export const COPILOT_BURST_QUIET_MS = 6_000;
  *  - teto de custo por turno (`COPILOT_MAX_TURN_COST_USD`, US$ 1,00), conferido no pior caso ANTES da rede;
  *  - teto de saída (`COPILOT_MAX_OUTPUT_TOKENS`; os tokens de raciocínio contam como saída), com recuo para
  *    `COPILOT_MIN_OUTPUT_TOKENS` quando o teto cheio não cabe no teto de custo do turno;
- *  - teto diário obrigatório (`copilotDailyLimitUsd`).
+ *  - teto diário por anúncio/conta (`copilotListingDailyCostUsd`).
  */
 export const COPILOT_REASONING_EFFORT = "auto" as const;
 /** Teto de saída da chamada (= `LIMITS.maxOutputTokens`): espaço para o modelo raciocinar quando precisar. */
@@ -180,19 +179,28 @@ export function copilotModelId(env: Record<string, string | undefined> = process
   return requested && modelSpec(requested) ? requested : GUEST_AI_RESERVE_MODEL;
 }
 
-/** Teto diário padrão (fail-closed) quando a variável não está configurada ou é inválida. */
-export const COPILOT_DEFAULT_DAILY_COST_USD = 25;
-/** Limite superior aceito na variável (proteção contra erro de digitação, ex. "300" em vez de "3.00"). */
-export const COPILOT_DAILY_COST_MAX_USD = 200;
+/**
+ * Teto diário POR ANÚNCIO (15/11/2026; substitui o teto global único). O teto da CONTA é a soma dos tetos dos anúncios
+ * dela com a IA ligada (calculada no banco, `copilot_claim_generation`); um anúncio pode passar do próprio teto
+ * enquanto a conta tiver folga, até `COPILOT_LISTING_BURST_FACTOR`× o teto dele. Contas nunca dividem orçamento.
+ * Exceção por anúncio: `property_listing_raw_data.ai_daily_cost_limit_usd`.
+ */
+export const COPILOT_DEFAULT_LISTING_DAILY_COST_USD = 1;
+/** Limite superior aceito na variável (proteção contra erro de digitação, ex. "100" em vez de "1.00"). */
+export const COPILOT_LISTING_DAILY_COST_MAX_USD = 50;
+/** Máximo que UM anúncio pode gastar por dia, em múltiplos do próprio teto (fixo na função do banco). */
+export const COPILOT_LISTING_BURST_FACTOR = 3;
 
-/** Teto diário OBRIGATÓRIO: valor positivo da variável (≤ US$ 50); senão US$ 3,00. Nunca `null`. */
-export function copilotDailyLimitUsd(
+/**
+ * Teto padrão POR ANÚNCIO: `GUEST_AI_COPILOT_LISTING_DAILY_COST_USD` positivo (≤ US$ 50); senão US$ 1,00. Nunca `null`.
+ */
+export function copilotListingDailyCostUsd(
   env: Record<string, string | undefined> = process.env,
 ): number {
-  const raw = env["GUEST_AI_COPILOT_DAILY_COST_USD"];
+  const raw = env["GUEST_AI_COPILOT_LISTING_DAILY_COST_USD"];
   const v = raw === undefined || raw.trim() === "" ? Number.NaN : Number(raw);
-  if (!Number.isFinite(v) || v <= 0) return COPILOT_DEFAULT_DAILY_COST_USD;
-  return Math.min(v, COPILOT_DAILY_COST_MAX_USD);
+  if (!Number.isFinite(v) || v <= 0) return COPILOT_DEFAULT_LISTING_DAILY_COST_USD;
+  return Math.min(v, COPILOT_LISTING_DAILY_COST_MAX_USD);
 }
 
 /** Pedido de geração: só identificadores (o backend re-deriva e valida tudo — F0). */

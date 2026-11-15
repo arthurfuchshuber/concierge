@@ -250,8 +250,29 @@ export const getAiTelemetry = createServerFn({ method: "GET" })
       aiMessagesDeleted = null;
     }
 
-    const { copilotDailyLimitUsd } = await import("@/lib/guest-ai/copilot/contracts");
-    const kpis = computeKpis(all, ops, { nowMs, dailyLimitUsd: copilotDailyLimitUsd() });
+    // Teto diário (15/11/2026): não há mais teto global entre contas; o total da plataforma é a soma dos tetos das
+    // contas = teto padrão por anúncio × anúncios com a IA ligada (exceções por anúncio, se houver, entram na soma).
+    const { copilotListingDailyCostUsd } = await import("@/lib/guest-ai/copilot/contracts");
+    let dailyLimitUsd = copilotListingDailyCostUsd();
+    try {
+      const { data: lim } = await admin
+        .from("property_listing_raw_data")
+        .select("property_id, ai_daily_cost_limit_usd")
+        .eq("airbnb_ai_enabled", true)
+        .limit(5000);
+      if (lim) {
+        const unit = copilotListingDailyCostUsd();
+        const byProp = new Map<string, number>();
+        for (const r of lim as Array<Record<string, unknown>>) {
+          const v = Number(r["ai_daily_cost_limit_usd"]);
+          byProp.set(String(r["property_id"]), Number.isFinite(v) && v > 0 ? v : unit);
+        }
+        dailyLimitUsd = Math.max(unit, [...byProp.values()].reduce((a, b) => a + b, 0));
+      }
+    } catch {
+      // mantém o teto de um anúncio como piso
+    }
+    const kpis = computeKpis(all, ops, { nowMs, dailyLimitUsd });
 
     const feed = all.slice(0, FEED_ROW_CAP);
     const props = await loadProperties(admin, [...new Set(feed.map((r) => r.propertyId))]);

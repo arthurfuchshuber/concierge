@@ -12,7 +12,7 @@ export interface CopilotClaimInput {
   conversationId: string;
   triggerMessageId: string;
   surface: string;
-  /** `null` ⇒ sem teto diário. */
+  /** Teto diário POR ANÚNCIO (o banco soma os anúncios da conta; ver migration 20261115190000). */
   dailyCostLimitUsd: number;
   turnCostCeilingUsd: number;
 }
