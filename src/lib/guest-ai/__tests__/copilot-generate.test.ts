@@ -378,7 +378,7 @@ describe("Copiloto · geração com a cadeia real e o Gateway real (transporte f
       tenantId: "t1",
       propertyId: "p1",
       conversationId: CONV,
-      dailyCostLimitUsd: 3,
+      dailyCostLimitUsd: 25,
       turnCostCeilingUsd: 1,
     });
   });
@@ -474,36 +474,36 @@ describe("Copiloto · geração com a cadeia real e o Gateway real (transporte f
     expect(copilotPropertyAllowed("qualquer-imovel-novo", {})).toBe(true);
   });
 
-  it("teto diário OBRIGATÓRIO (G1/D3): sem variável ou inválida ⇒ US$ 3,00; válida ⇒ respeitada até US$ 50", async () => {
-    expect(COPILOT_DEFAULT_DAILY_COST_USD).toBe(3);
-    expect(copilotDailyLimitUsd({})).toBe(3);
-    expect(copilotDailyLimitUsd({ GUEST_AI_COPILOT_DAILY_COST_USD: "" })).toBe(3);
-    expect(copilotDailyLimitUsd({ GUEST_AI_COPILOT_DAILY_COST_USD: "   " })).toBe(3);
-    expect(copilotDailyLimitUsd({ GUEST_AI_COPILOT_DAILY_COST_USD: "0" })).toBe(3);
-    expect(copilotDailyLimitUsd({ GUEST_AI_COPILOT_DAILY_COST_USD: "-1" })).toBe(3);
-    expect(copilotDailyLimitUsd({ GUEST_AI_COPILOT_DAILY_COST_USD: "abc" })).toBe(3);
-    expect(copilotDailyLimitUsd({ GUEST_AI_COPILOT_DAILY_COST_USD: "Infinity" })).toBe(3);
+  it("teto diário OBRIGATÓRIO (G1/D3): sem variável ou inválida ⇒ US$ 25,00; válida ⇒ respeitada até US$ 200", async () => {
+    expect(COPILOT_DEFAULT_DAILY_COST_USD).toBe(25);
+    expect(copilotDailyLimitUsd({})).toBe(25);
+    expect(copilotDailyLimitUsd({ GUEST_AI_COPILOT_DAILY_COST_USD: "" })).toBe(25);
+    expect(copilotDailyLimitUsd({ GUEST_AI_COPILOT_DAILY_COST_USD: "   " })).toBe(25);
+    expect(copilotDailyLimitUsd({ GUEST_AI_COPILOT_DAILY_COST_USD: "0" })).toBe(25);
+    expect(copilotDailyLimitUsd({ GUEST_AI_COPILOT_DAILY_COST_USD: "-1" })).toBe(25);
+    expect(copilotDailyLimitUsd({ GUEST_AI_COPILOT_DAILY_COST_USD: "abc" })).toBe(25);
+    expect(copilotDailyLimitUsd({ GUEST_AI_COPILOT_DAILY_COST_USD: "Infinity" })).toBe(25);
     expect(copilotDailyLimitUsd({ GUEST_AI_COPILOT_DAILY_COST_USD: "5" })).toBe(5);
     expect(copilotDailyLimitUsd({ GUEST_AI_COPILOT_DAILY_COST_USD: "0.25" })).toBe(0.25);
-    expect(copilotDailyLimitUsd({ GUEST_AI_COPILOT_DAILY_COST_USD: "300" })).toBe(50);
-    // sem variável: o teto de US$ 3,00 vai ao banco e bloqueia o gasto alto (nenhuma chamada ao modelo)
+    expect(copilotDailyLimitUsd({ GUEST_AI_COPILOT_DAILY_COST_USD: "300" })).toBe(200);
+    // sem variável: o teto de US$ 25,00 vai ao banco e bloqueia o gasto alto (nenhuma chamada ao modelo)
     {
       const p = fakeProvider(okJson(v6()));
       const store = new MemoryCopilotStore();
-      store.spentUsd = 50;
+      store.spentUsd = 200;
       const d = deps(p, { store, env: { GUEST_AI_COPILOT_GENERATION: "on" } });
       expect((await generateCopilotSuggestion(REQ, d)).status).toBe("daily_budget_exceeded");
-      expect(store.claims[0]).toMatchObject({ dailyCostLimitUsd: 3 });
+      expect(store.claims[0]).toMatchObject({ dailyCostLimitUsd: 25 });
       expect(p.calls).toBe(0);
     }
     // sem variável e abaixo do teto padrão ⇒ gera normalmente
     {
       const p = fakeProvider(okJson(v6()));
       const store = new MemoryCopilotStore();
-      store.spentUsd = 1;
+      store.spentUsd = 10;
       const d = deps(p, { store, env: { GUEST_AI_COPILOT_GENERATION: "on" } });
       expect((await generateCopilotSuggestion(REQ, d)).status).toBe("stored");
-      expect(store.claims[0]).toMatchObject({ dailyCostLimitUsd: 3 });
+      expect(store.claims[0]).toMatchObject({ dailyCostLimitUsd: 25 });
     }
     // com teto configurado: atingido ⇒ nenhuma chamada
     {
@@ -875,7 +875,7 @@ describe("Copiloto · porta fechada, adaptador e disparo", () => {
       conversationId: "c",
       triggerMessageId: "m",
       surface: "airbnb",
-      dailyCostLimitUsd: 3,
+      dailyCostLimitUsd: 25,
       turnCostCeilingUsd: 1,
     };
     expect(

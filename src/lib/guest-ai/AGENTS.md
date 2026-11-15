@@ -337,3 +337,4 @@ Ordem de execução no builder: validar escopo → estado → D9 → se negado, 
 - 15/11 (.12): condução ao fechamento (regra, travas, uma vez só, sem urgência) fundida em um parágrafo.
 - 15/11 (.13): regra de chamado aberto (CONTEXT_READING) incorporada à regra Chamados com a equipe.
 - 15/11 (.14): regra de estilo sobre jargão de SAC ganhou rede de segurança em código (`text_sac_jargon`, uma nova tentativa). Só termos inequívocos; verificação sóbria com a equipe segue permitida.
+- 15/11 (teto de custo): padrão diário do copiloto US$ 3 -> US$ 25 e máximo da variável 50 -> 200 (vale para a conta toda, vários anúncios em paralelo). Reserva por geração em curso segue US$ 0,15; teto por turno US$ 1.

@@ -69,7 +69,7 @@ export const COPILOT_SENDER_IDENTITY_STATES = [
  * Controle de custos — teto POR TURNO fixo (US$ 1,00 desde 14/11/2026; protege contra uma chamada desgovernada) e teto
  * DIÁRIO OBRIGATÓRIO (Gate G1, decisão do titular D3, 06/11/2026): `GUEST_AI_COPILOT_DAILY_COST_USD` com valor
  * positivo ⇒ esse valor (até `COPILOT_DAILY_COST_MAX_USD`); ausente, vazio, inválido, zero ou negativo ⇒
- * `COPILOT_DEFAULT_DAILY_COST_USD` (US$ 3,00). Não existe mais caminho "sem teto".
+ * `COPILOT_DEFAULT_DAILY_COST_USD` (US$ 25,00 desde 15/11/2026: o teto vale para a conta toda e precisa aguentar vários anúncios em paralelo; até então US$ 3,00). Não existe mais caminho "sem teto".
  */
 export const COPILOT_MAX_TURN_COST_USD = 1;
 
@@ -181,9 +181,9 @@ export function copilotModelId(env: Record<string, string | undefined> = process
 }
 
 /** Teto diário padrão (fail-closed) quando a variável não está configurada ou é inválida. */
-export const COPILOT_DEFAULT_DAILY_COST_USD = 3;
+export const COPILOT_DEFAULT_DAILY_COST_USD = 25;
 /** Limite superior aceito na variável (proteção contra erro de digitação, ex. "300" em vez de "3.00"). */
-export const COPILOT_DAILY_COST_MAX_USD = 50;
+export const COPILOT_DAILY_COST_MAX_USD = 200;
 
 /** Teto diário OBRIGATÓRIO: valor positivo da variável (≤ US$ 50); senão US$ 3,00. Nunca `null`. */
 export function copilotDailyLimitUsd(
