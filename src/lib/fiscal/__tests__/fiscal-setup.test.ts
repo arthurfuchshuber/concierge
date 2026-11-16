@@ -50,7 +50,7 @@ describe("setupCompanyWithCertificate", () => {
     const { db, calls } = fakeDb();
     const f = okFetch();
     const r = await setupCompanyWithCertificate(db, USER, base, f);
-    expect(r).toEqual({ ok: true, certificateValidUntil: "2027-05-10T00:00:00.000Z", legalName: "Empresa Teste Ltda", dryRun: false });
+    expect(r).toMatchObject({ ok: true, certificateValidUntil: "2027-05-10T00:00:00.000Z", legalName: "Empresa Teste Ltda", dryRun: false });
     const [url, init] = f.mock.calls[0];
     expect(url).toBe("https://api.focusnfe.com.br/v2/empresas");
     expect(init.headers.Authorization).toBe(`Basic ${Buffer.from("MASTER-TOKEN-PROD-XYZ:").toString("base64")}`);

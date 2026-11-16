@@ -305,7 +305,7 @@ export async function setupCompanyWithCertificate(
   db: Db, userId: string,
   args: CompanySetupFields & { pfxBase64: string; password: string; dryRun?: boolean },
   fetchImpl?: FetchLike,
-): Promise<{ ok: true; certificateValidUntil: string | null; legalName: string; dryRun: boolean } | { ok: false; code: string }> {
+): Promise<{ ok: true; certificateValidUntil: string | null; legalName: string; dryRun: boolean; webhook?: TenantWebhookState } | { ok: false; code: string }> {
   const ownerId = userId; // owner_only: a conta é sempre a do próprio usuário autenticado
   const { pfxBase64, password } = args;
   const dryRun = args.dryRun === true;
@@ -338,13 +338,26 @@ export async function setupCompanyWithCertificate(
     const now = new Date().toISOString();
     must(await db.from("fiscal_tenant_enablement").upsert({ owner_id: ownerId, enabled: true, enabled_by: userId, enabled_at: now, note: "ativado pelo titular (incluído no plano)", updated_at: now }, { onConflict: "owner_id" }), "habilitar módulo");
     const row = { connection_id: conn.id, legal_name: f.legalName, trade_name: f.tradeName, status: "active", certificate_valid_until: until, certificate_updated_at: now, updated_at: now };
-    if (dup.data?.id) must(await db.from("fiscal_companies").update(row).eq("id", dup.data.id).eq("owner_id", ownerId), "atualizar empresa");
+    let companyId: string;
+    if (dup.data?.id) { companyId = dup.data.id as string; must(await db.from("fiscal_companies").update(row).eq("id", companyId).eq("owner_id", ownerId), "atualizar empresa"); }
     else {
       const ins = await db.from("fiscal_companies").insert({ owner_id: ownerId, tax_id: f.taxId, ...row }).select("id").single();
       if (ins.error) throw new Error(ins.error.code === "23505" ? "cnpj_in_use" : `registrar empresa: ${ins.error.message}`);
-      await audit(db, ownerId, userId, "company_create", "company", ins.data.id as string, {});
+      companyId = ins.data.id as string;
+      await audit(db, ownerId, userId, "company_create", "company", companyId, {});
     }
-    return { ok: true, certificateValidUntil: until, legalName: f.legalName, dryRun: false };
+    // Empresa já ativa na Focus: webhook automático e carga única. Falha aqui não desfaz a ativação (fica registrada e reexecutável).
+    let webhook: TenantWebhookState = "failed";
+    try {
+      const wh = await ensureTenantWebhook(db, ownerId, userId, f.taxId, client);
+      webhook = wh.state;
+      // Blindagem da janela: a carga SÓ roda com o webhook já ativo (webhook primeiro, carga depois). Se o cadastro do webhook falhou,
+      // a carga não é consumida e continua devida na próxima ativação/renovação: nunca há período sem cobertura declarada como completo.
+      if (wh.connectionId && wh.state !== "failed") await runInitialSync(db, ownerId, userId, companyId, wh.connectionId, fetchImpl);
+    } catch (e) {
+      await audit(db, ownerId, userId, "company_post_setup_error", "company", companyId, { code: scrubCertificate(String((e as Error)?.message ?? e), pfxBase64, password).slice(0, 80) });
+    }
+    return { ok: true, certificateValidUntil: until, legalName: f.legalName, dryRun: false, webhook };
   } catch (e) {
     if (e instanceof CertificateInputError || e instanceof SetupInputError) return { ok: false, code: e.code };
     if ((e as { code?: string }).code === "not_owner") return { ok: false, code: "not_owner" };
@@ -352,6 +365,74 @@ export async function setupCompanyWithCertificate(
     if (msg === "cnpj_in_use") return { ok: false, code: "cnpj_in_use" };
     throw new Error(msg);
   }
+}
+
+/* ------------------------------------------- webhook por tenant e carga inicial */
+
+/** Eventos da Focus assinados no cadastro automático (autorização e cancelamento chegam pelo mesmo gatilho do tipo de documento). */
+export const HOOK_EVENTS = ["nfse", "nfsen", "nfe"] as const;
+export function webhookBaseUrl(): string { return (process.env.FISCAL_WEBHOOK_BASE_URL?.trim() || "https://conciergeia.app").replace(/\/+$/, ""); }
+
+export type TenantWebhookState = "registered" | "already" | "failed";
+
+/**
+ * Cadastra o webhook do tenant na Focus (`POST /v2/hooks`) SEM nenhum passo manual. Cada tenant tem a sua linha de conexão
+ * (`owner_id` = titular, produção, sem token) que guarda só o HASH do segredo; a URL com o segredo existe apenas nesta chamada
+ * e nunca é gravada, logada ou devolvida. Se já houver webhook ativo, não faz nada (o segredo não é recuperável por desenho).
+ * Falha no cadastro NÃO desfaz a ativação: a conexão fica `pending` e a próxima ativação/renovação tenta de novo com segredo novo.
+ */
+export async function ensureTenantWebhook(db: Db, ownerId: string, userId: string, cnpj: string, client: FocusClient): Promise<{ state: TenantWebhookState; connectionId: string | null; code?: string }> {
+  const ex = await db.from("fiscal_provider_connections").select("id, status, webhook_secret_hash").eq("owner_id", ownerId).eq("environment", "production").maybeSingle();
+  if (ex.data?.id && ex.data.status === "active" && ex.data.webhook_secret_hash) return { state: "already", connectionId: ex.data.id as string };
+  const secret = randomBytes(24).toString("base64url");
+  const now = new Date().toISOString();
+  const state = { status: "pending", webhook_secret_hash: sha256Hex(secret), last_error_code: null as string | null, updated_at: now };
+  let id = (ex.data?.id as string | undefined) ?? null;
+  if (id) must(await db.from("fiscal_provider_connections").update(state).eq("id", id).eq("owner_id", ownerId), "preparar webhook");
+  else {
+    const ins = must(await db.from("fiscal_provider_connections").insert({ owner_id: ownerId, provider: "focus", environment: "production", base_url: "https://api.focusnfe.com.br", secret_ref: null, token_fingerprint: null, ...state }).select("id").single(), "criar conexão do tenant") as { id: string };
+    id = ins.id;
+  }
+  const url = `${webhookBaseUrl()}/api/public/webhooks/fiscal/${id}/${secret}`;
+  const failures: string[] = [];
+  for (const event of HOOK_EVENTS) {
+    try {
+      const r = await client.registerHook({ cnpj, event, url });
+      if (r.status < 200 || r.status >= 300) failures.push(`${event}:http_${r.status}`);
+    } catch (e) {
+      failures.push(`${event}:${e instanceof FocusTransportError ? e.reason : "unreachable"}`);
+    }
+  }
+  const ok = failures.length === 0;
+  await db.from("fiscal_provider_connections").update(ok ? { status: "active", last_ok_at: now, last_error_code: null, updated_at: now } : { last_error_code: `hook_${failures[0]}`.slice(0, 60), updated_at: now }).eq("id", id).eq("owner_id", ownerId);
+  await audit(db, ownerId, userId, ok ? "webhook_register" : "webhook_register_error", "connection", id, { events: [...HOOK_EVENTS], failures });
+  return ok ? { state: "registered", connectionId: id } : { state: "failed", connectionId: id, code: `hook_${failures[0]}` };
+}
+
+/**
+ * Carga retroativa ÚNICA do onboarding. O direito de rodar é tomado de forma atômica (`initial_sync_at` nulo ⇒ agora): corre no
+ * máximo uma vez por tenant, nunca periodicamente, e renovar o certificado não a repete. Guarda XML/PDF dos documentos autorizados
+ * deste tenant que ainda não os têm. Importar notas emitidas FORA do ConciergeIA depende de endpoint de listagem da Focus ainda
+ * não confirmado (a API de backups entrega .zip mensal): fica registrado no relatório, sem inventar.
+ */
+export async function runInitialSync(db: Db, ownerId: string, userId: string, companyId: string, connectionId: string, fetchImpl?: FetchLike): Promise<{ ran: boolean; documents: number; stored: number }> {
+  const now = new Date().toISOString();
+  const claim = await db.from("fiscal_provider_connections").update({ initial_sync_at: now }).eq("id", connectionId).eq("owner_id", ownerId).is("initial_sync_at", null).select("id");
+  if (!claim.data || claim.data.length === 0) return { ran: false, documents: 0, stored: 0 };
+  let documents = 0, stored = 0;
+  try {
+    const { data: docs } = await db.from("fiscal_documents").select("id").eq("owner_id", ownerId).eq("company_id", companyId).eq("status", "authorized").eq("direction", "issued").limit(500);
+    for (const d of docs ?? []) {
+      documents++;
+      try { const r = await captureDocumentFiles(db, ownerId, d.id as string, fetchImpl); stored += r.stored.length; } catch { /* um documento não impede os demais */ }
+    }
+    // Eventos que chegaram entre o cadastro do webhook e esta carga (ou falharam) são consumidos agora: nenhuma janela fica descoberta.
+    const drained = await drainPendingEvents(db, connectionId, 100, fetchImpl);
+    await audit(db, ownerId, userId, "initial_sync", "company", companyId, { documents, stored, drained });
+  } catch (e) {
+    await audit(db, ownerId, userId, "initial_sync_error", "company", companyId, { code: String((e as Error)?.message ?? e).slice(0, 80) });
+  }
+  return { ran: true, documents, stored };
 }
 
 export async function listCompanies(db: Db, ownerId: string) {
@@ -469,24 +550,59 @@ export async function repairMissingFiles(db: Db, fetchImpl?: FetchLike, limit = 
   return n;
 }
 
+export type WebhookEventRow = { id: string; ref: string | null; connection_id: string; owner_id?: string | null };
+
+/**
+ * Processa UM evento de webhook já gravado: acha a operação pela `ref`, consulta a Focus (única fonte do estado), guarda XML/PDF e
+ * marca o evento. Usado na hora em que o webhook chega (sem varredura periódica) e pela reconciliação manual. O corpo recebido só
+ * serve de dica; evento cujo tenant não bate com o da operação é ignorado (isolamento multi-tenant).
+ */
+export async function processWebhookEvent(db: Db, ev: WebhookEventRow, fetchImpl?: FetchLike): Promise<"processed" | "ignored" | "error"> {
+  const finish = async (status: "processed" | "ignored" | "error", error?: string) => { await db.rpc("fiscal_webhook_finish", { p_event: ev.id, p_status: status, p_error: error ?? null }); return status; };
+  try {
+    if (!ev.ref) return await finish("ignored");
+    const op = (await db.from("fiscal_operations").select("id, owner_id, ref, kind, document_id, company_id").eq("ref", ev.ref).maybeSingle()).data;
+    const doc = op?.document_id ? (await db.from("fiscal_documents").select("document_kind").eq("id", op.document_id).maybeSingle()).data : null;
+    if (!op || !doc) return await finish("ignored");
+    if (ev.owner_id && ev.owner_id !== op.owner_id) return await finish("ignored");
+    const comp = (await db.from("fiscal_companies").select("connection_id").eq("id", op.company_id).eq("owner_id", op.owner_id).maybeSingle()).data;
+    if (!comp) return await finish("ignored");
+    const r = await reconcileCandidate(db, op.owner_id as string, { operationId: op.id as string, ref: op.ref as string, documentKind: doc.document_kind as FocusDocumentPath, opKind: op.kind as string }, comp.connection_id as string, fetchImpl);
+    return r.result === "transport_error" ? await finish("error", "transport_error") : await finish("processed");
+  } catch (e) {
+    return await finish("error", String((e as Error).message).slice(0, 200));
+  }
+}
+
+/**
+ * Eventos `pending` de UMA conexão (ex.: chegaram durante a ativação ou falharam no processamento imediato). Sem cron: roda na carga
+ * inicial e como autocura a cada webhook novo, para que nenhum evento fique esquecido.
+ */
+export async function drainPendingEvents(db: Db, connectionId: string, limit: number, fetchImpl?: FetchLike, exceptEventId?: string): Promise<number> {
+  const { data } = await db.from("fiscal_webhook_events").select("id, ref, connection_id, owner_id").eq("connection_id", connectionId).eq("status", "pending").order("received_at").limit(limit + 1);
+  let n = 0;
+  for (const ev of (data ?? []) as WebhookEventRow[]) {
+    if (ev.id === exceptEventId || n >= limit) continue;
+    await processWebhookEvent(db, ev, fetchImpl);
+    n++;
+  }
+  return n;
+}
+
+/** Processamento imediato a partir do id do evento recém-gravado (rota do webhook), seguido de autocura dos pendentes da mesma conexão. */
+export async function processWebhookEventById(db: Db, eventId: string, fetchImpl?: FetchLike): Promise<void> {
+  const { data } = await db.from("fiscal_webhook_events").select("id, ref, connection_id, owner_id").eq("id", eventId).eq("status", "pending").maybeSingle();
+  if (!data) return;
+  await processWebhookEvent(db, data as WebhookEventRow, fetchImpl);
+  try { await drainPendingEvents(db, (data as WebhookEventRow).connection_id, 5, fetchImpl, eventId); } catch { /* melhor esforço */ }
+}
+
 /** Varredura: marca `sent` órfão como desconhecido, consome webhooks pendentes e consulta candidatos. Nunca reenvia. */
 export async function runReconciliation(db: Db, fetchImpl?: FetchLike, limit = 25) {
   const swept = Number(must(await db.rpc("fiscal_attempt_sweep_unknown", { p_threshold: "15 minutes" }), "varredura") ?? 0);
-  const events = (must(await db.rpc("fiscal_webhook_claim", { p_limit: limit }), "claim") ?? []) as Array<{ id: string; ref: string | null; connection_id: string }>;
+  const events = (must(await db.rpc("fiscal_webhook_claim", { p_limit: limit }), "claim") ?? []) as WebhookEventRow[];
   let webhookOk = 0;
-  for (const ev of events) {
-    try {
-      if (!ev.ref) { await db.rpc("fiscal_webhook_finish", { p_event: ev.id, p_status: "ignored" }); continue; }
-      const op = (await db.from("fiscal_operations").select("id, owner_id, ref, kind, document_id").eq("ref", ev.ref).maybeSingle()).data;
-      const doc = op?.document_id ? (await db.from("fiscal_documents").select("document_kind").eq("id", op.document_id).maybeSingle()).data : null;
-      if (!op || !doc) { await db.rpc("fiscal_webhook_finish", { p_event: ev.id, p_status: "ignored" }); continue; }
-      const r = await reconcileCandidate(db, op.owner_id as string, { operationId: op.id as string, ref: op.ref as string, documentKind: doc.document_kind as FocusDocumentPath, opKind: op.kind as string }, ev.connection_id, fetchImpl);
-      await db.rpc("fiscal_webhook_finish", { p_event: ev.id, p_status: r.result === "transport_error" ? "error" : "processed", p_error: r.result === "transport_error" ? "transport_error" : null });
-      if (r.result !== "transport_error") webhookOk++;
-    } catch (e) {
-      await db.rpc("fiscal_webhook_finish", { p_event: ev.id, p_status: "error", p_error: String((e as Error).message).slice(0, 200) });
-    }
-  }
+  for (const ev of events) if ((await processWebhookEvent(db, ev, fetchImpl)) === "processed") webhookOk++;
   const cands = (must(await db.rpc("fiscal_reconcile_candidates", { p_stale: "2 minutes", p_limit: limit }), "candidatos") ?? []) as Array<{ operation_id: string; company_id: string; owner_id: string; document_kind: string; ref: string; op_kind: string }>;
   let queried = 0;
   for (const c of cands) {

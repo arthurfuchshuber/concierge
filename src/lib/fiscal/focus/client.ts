@@ -126,6 +126,11 @@ export class FocusClient {
   registerCompany(body: Record<string, unknown>, opts: { dryRun: boolean }) {
     return this.call("POST", `/v2/empresas${opts.dryRun ? "?dry_run=1" : ""}`, body);
   }
+  /**
+   * Gatilho (webhook) da Focus: `POST /v2/hooks` com {cnpj, event, url}. A Focus passa a chamar `url` a cada evento do documento.
+   * Máx. 5 gatilhos por empresa/evento (documentação pública). A `url` carrega o segredo: nunca logar o corpo desta chamada.
+   */
+  registerHook(body: { cnpj: string; event: string; url: string }) { return this.call("POST", "/v2/hooks", body); }
   /** Baixa um arquivo (XML/PDF) de documento autorizado. Binário; o token só vai ao host da API. */
   async fetchFile(link: string, maxBytes: number): Promise<{ status: number; bytes: Uint8Array } | { rejected: "host" | "too_large" | "no_binary" }> {
     const r = resolveFileUrl(this.opts.environment, link);
