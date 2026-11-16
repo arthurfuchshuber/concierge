@@ -602,6 +602,13 @@ body::-webkit-scrollbar {
   scrollbar-gutter: stable;
   -webkit-overflow-scrolling: touch;
 }
+/* Barra das janelas encostada na borda direita (linha e alça no canto externo da calha de 8px). */
+[role="dialog"] .sg-elegant-scroll::-webkit-scrollbar-track:vertical {
+  background: linear-gradient(90deg, transparent 6.5px, var(--scroll-track-line) 6.5px, var(--scroll-track-line) 7.5px, transparent 7.5px);
+}
+[role="dialog"] .sg-elegant-scroll::-webkit-scrollbar-thumb {
+  border-width: 3px 0 3px 6px;
+}
 
 /* Lista de cartões de imóvel: sem barra nativa (a linha fina é desenhada por cima, ver ScrollArea em
    TrailParts) — a cor da seleção vai até a borda direita. */

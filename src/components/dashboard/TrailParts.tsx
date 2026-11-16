@@ -29,7 +29,6 @@ export function Step({
   n,
   active,
   done,
-  last,
   bleed,
   question,
   answer,
@@ -51,13 +50,7 @@ export function Step({
   children?: ReactNode;
 }) {
   return (
-    <li className="relative grid grid-cols-[22px_minmax(0,1fr)] gap-2.5 pb-3">
-      {!last && (
-        <span
-          aria-hidden
-          className="absolute bottom-0.5 left-[10.5px] top-6 w-px bg-[var(--panel-div)]"
-        />
-      )}
+    <li data-clip-row className="relative grid grid-cols-[22px_minmax(0,1fr)] gap-2.5 pb-3">
       <span
         className={cn(
           "relative z-[1] grid size-[22px] place-items-center rounded-full text-[10.5px] font-extrabold",
@@ -205,7 +198,7 @@ function ScrollArea({
       {cards && thumb ? (
         <span
           aria-hidden
-          className="pointer-events-none absolute right-[2px] w-[3px] rounded-full bg-[var(--scroll-thumb)]"
+          className="pointer-events-none absolute right-0 w-[3px] rounded-full bg-[var(--scroll-thumb)]"
           style={{ top: thumb.top, height: thumb.height }}
         />
       ) : null}
