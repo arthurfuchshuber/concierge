@@ -109,6 +109,8 @@ export interface TextEvidence {
   credentialReleaseAllowed: boolean;
   lateCheckoutAuthorizedTime: string | null;
   humanOwnershipActive: boolean;
+  /** O calendário do sistema mostra noites livres e reserváveis: afirmar disponibilidade tem fonte. */
+  calendarAvailability?: boolean;
 }
 
 export const TEXT_BLOCKS = ["text_commitment_undeclared", "text_completion_without_evidence", "text_commitment_unclassifiable", "text_time_mismatch", "text_calendar_collision", "text_asks_known_dates", "text_sac_jargon", "text_missing_accents"] as const;
@@ -306,6 +308,9 @@ export function checkReplyAgainstDecision(d: ModelDecision, ctx: TextContext, ev
   // declarado, o repasse à equipe é a própria ação estruturada; não exige rótulo à parte (e segue sujeito à regra
   // de autorização de `team_relay`, que só vale com `handoff.needed`).
   if (d.handoff?.needed === true) declared.add("team_relay");
+  // Disponibilidade com fonte no calendário do sistema (16/11/2026, caso Pamela): é informação verificada, não
+  // promessa a declarar; noite ocupada dita como livre continua barrada pela colisão de calendário abaixo.
+  if (ev.calendarAvailability === true) declared.add("availability");
   const promised: readonly PromisedTime[] = d.promisedTimes ?? [];
   const undeclared = new Set<CommitmentKind>();
   for (const c of a.claims) {

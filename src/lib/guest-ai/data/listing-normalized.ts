@@ -3,7 +3,7 @@
  *
  * COBERTURA INTEGRAL (F2, Parte 4, aprovada em 02/11/2026): todos os fatos do anúncio entram,
  * inclusive `identificacao`, os reviews públicos e a página pública processada (`public_listing`).
- * Só três recortes, cada um com motivo explícito:
+ * Só quatro recortes, cada um com motivo explícito:
  *  1. `identificacao`: o título bruto da Channex é "<conta> <apelido> · <título público>". O prefixo
  *     interno (nome/telefone do anfitrião) é ISOLADO com `splitListingTitle` e nunca entra no
  *     conhecimento; ficam o título público e as demais linhas (cidade, capacidade). Se o título
@@ -13,13 +13,26 @@
  *     entra. Em produção (02/11/2026): 82 reviews, todos com "Public review:", 42 com "Private feedback:".
  *  3. `cohosts`: só traz o papel de repasse automático de pagamento (configuração interna), não é
  *     informação do anúncio para o hóspede.
- * Nada é truncado nem resumido.
+ *  4. `precos` (16/11/2026): saem a "diária base" e a "diária de fim de semana" (valores-teto da configuração,
+ *     não aplicados: o preço de cada noite vem da precificação dinâmica e só a plataforma mostra) e as taxas internas
+ *     de repasse. Ficam as taxas que a plataforma cobra de fato (limpeza, hóspede adicional, pet) e os descontos.
+ * Nada mais é truncado nem resumido.
  */
 import type { ListingFacts } from "@/lib/guest-ai/types";
 import { splitListingTitle } from "@/lib/playbook-build";
 
 type Row = Record<string, unknown>;
 const s = (v: unknown): string | null => (typeof v === "string" && v.trim() ? v.trim() : null);
+
+/** Linhas de `precos` que não representam um valor cobrado do hóspede (recorte 4). */
+const PRICE_LINE_NOT_APPLIED = /^(Di[aá]ria base|Di[aá]ria de fim de semana)\s*:|^PASS_THROUGH_/i;
+
+export function guestFacingPrices(content: string): string {
+  return content
+    .split(/\r?\n/)
+    .filter((line) => !PRICE_LINE_NOT_APPLIED.test(line.trim()))
+    .join("\n");
+}
 
 const TITLE_LINE = /^(\s*T[ií]tulo do an[uú]ncio\s*:\s*)(.*)$/i;
 /** Sequência longa de dígitos (telefone/documento) nunca vai ao modelo dentro do título. */
@@ -100,7 +113,8 @@ export function pickNormalized(raw: unknown, publicName: string | null): Listing
           return {
             key,
             title: String(f["title"] ?? ""),
-            content: key === "identificacao" ? sanitizeIdentificacao(content, publicName) : content,
+            content:
+              key === "identificacao" ? sanitizeIdentificacao(content, publicName) : key === "precos" ? guestFacingPrices(content) : content,
           };
         })
     : [];

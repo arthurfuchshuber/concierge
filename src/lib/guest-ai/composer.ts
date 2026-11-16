@@ -329,13 +329,6 @@ function buildContextData(ctx: ConversationContext, guarded: Guarded, unavailabl
         origem: "consulta_airbnb",
       },
     );
-    if (q.payoutAmount !== null) {
-      facts.push({
-        id: "ctx:consulta_valor",
-        valor: { valor: q.payoutAmount, moeda: q.currency, natureza: "repasse_ao_anfitriao", uso: "nao_citar_ao_hospede_como_preco_final" },
-        origem: "consulta_airbnb",
-      });
-    }
   }
   if (g.stay) {
     facts.push(

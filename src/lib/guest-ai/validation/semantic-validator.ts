@@ -119,8 +119,15 @@ export interface SemanticInput {
 /** Autorizações que o SISTEMA concede no turno (nunca vindas do modelo). */
 export interface TurnAuthorizations {
   credentialRelease: "allow" | "deny";
-  /** Refs de dossiê com disponibilidade CONFIRMADA (hoje sempre vazio: não há fonte de calendário). */
+  /** Refs de dossiê com disponibilidade CONFIRMADA. */
   availabilityConfirmedRefs: string[];
+  /**
+   * O calendário consultado pelo SISTEMA neste turno mostra noites livres e reserváveis (período pedido, datas
+   * próximas neste imóvel ou imóveis do portfólio). 16/11/2026, caso Pamela: sem isso, dizer ao hóspede que um
+   * período está disponível era sempre recusado. Dizer que uma noite ocupada está livre segue barrado por
+   * `text_calendar_collision`.
+   */
+  calendarAvailability: boolean;
   /** B2.4: resultado da verificação formal (`policy/stay-authorizations.ts`), nunca do modelo. */
   earlyCheckin: StayAuthorization;
   lateCheckout: StayAuthorization;
@@ -129,6 +136,20 @@ export interface TurnAuthorizations {
   serviceOrBenefit: "no_authorization_source";
   actionsExecuted: "none";
   resolution: "no_authorization_source";
+}
+
+/** Há noites livres e reserváveis no calendário consultado pelo sistema (pura). */
+export function calendarShowsAvailability(cal: ConversationContext["guest"]["calendar"] | null | undefined): boolean {
+  if (!cal || cal.status !== "available") return false;
+  const edgeFree = (e: { freeHere?: boolean; alternatives?: readonly unknown[] | null } | null | undefined) =>
+    !!e && (e.freeHere === true || (e.alternatives?.length ?? 0) > 0);
+  return (
+    cal.requested?.bookable === "sim" ||
+    (cal.nearestWindows?.length ?? 0) > 0 ||
+    (cal.alternatives?.length ?? 0) > 0 ||
+    edgeFree(cal.stayEdges?.before) ||
+    edgeFree(cal.stayEdges?.after)
+  );
 }
 
 export function deriveTurnAuthorizations(
@@ -140,6 +161,7 @@ export function deriveTurnAuthorizations(
   return {
     credentialRelease: ctx.credentialPolicy.decision === "allow" ? "allow" : "deny",
     availabilityConfirmedRefs: (dossiers ?? []).filter((d) => d.availability === "confirmed_available").map((d) => d.ref),
+    calendarAvailability: calendarShowsAvailability(ctx.guest.calendar),
     earlyCheckin: verified.earlyCheckin,
     lateCheckout: verified.lateCheckout,
     reservationChange: "no_authorization_source",
@@ -159,8 +181,8 @@ export const COMMITMENT_AUTHORIZATION: Readonly<Record<CommitmentKind, (d: Model
   information_followup: (d) => d.handoff.needed,
   // Credenciais: D9 permitiu E o modelo usou o caminho do marcador (o texto nunca contém valores).
   credential_release: (d, a) => a.credentialRelease === "allow" && d.credentialIntent === "would_deliver",
-  // Disponibilidade: só confirmada para o imóvel citado.
-  availability: (d, a) => a.availabilityConfirmedRefs.some((ref) => d.groundedOn.some((id) => id.startsWith(`dos:${ref}:`))),
+  // Disponibilidade: confirmada para o imóvel citado OU mostrada pelo calendário consultado pelo sistema.
+  availability: (d, a) => a.calendarAvailability || a.availabilityConfirmedRefs.some((ref) => d.groundedOn.some((id) => id.startsWith(`dos:${ref}:`))),
   // Exceções de horário: só com autorização FORMAL verificada (entrada antecipada não tem fonte).
   early_checkin: (_d, a) => a.earlyCheckin.status === "authorized",
   late_checkout: (_d, a) => a.lateCheckout.status === "authorized",
@@ -309,6 +331,7 @@ export function validateSemantics(input: SemanticInput): SemanticReport {
     credentialReleaseAllowed: auth.credentialRelease === "allow",
     lateCheckoutAuthorizedTime: auth.lateCheckout.status === "authorized" ? auth.lateCheckout.time : null,
     humanOwnershipActive: !!own?.active || ctx.humanOwnership.openCaseCount > 0,
+    calendarAvailability: auth.calendarAvailability,
   });
   for (const b of text.blocks) add(b);
   // Promessa no texto de tipo não autorizado também é compromisso não autorizado.

@@ -71,6 +71,12 @@ export interface PeriodAssessment extends RequestedPeriod {
   withinBookingWindow: boolean | null;
   /** Dá para reservar exatamente esse período no anúncio? Só "sim" com noites livres E regra conhecida e cumprida. */
   bookable: Bookable;
+  /**
+   * Período da própria consulta do Airbnb (16/11/2026): a plataforma só deixa consultar datas que cumprem as regras de
+   * estadia vigentes, inclusive as condicionais (última hora, intervalos entre reservas) que a configuração sincronizada
+   * não mostra. Nesse caso o mínimo e a antecedência já estão cumpridos.
+   */
+  platformAccepted?: boolean;
 }
 
 /** Outro imóvel do MESMO anfitrião, livre e reservável no período pedido, com o link oficial do anúncio. */
@@ -143,22 +149,26 @@ export function assessPeriod(
   occ: Pick<PropertyCalendarOccupancy, "occupiedRanges" | "today">,
   period: RequestedPeriod,
   rules: StayRules | null | undefined,
+  opts: { platformAccepted?: boolean } = {},
 ): PeriodAssessment {
   const nightStatus: Array<{ date: string; status: "livre" | "ocupada" }> = [];
   for (let d = period.checkin; d < period.checkout; d = addDays(d, 1)) {
     nightStatus.push({ date: d, status: isNightOccupied(occ, d) ? "ocupada" : "livre" });
   }
   const allNightsFree = nightStatus.every((n) => n.status === "livre");
-  const minNights = minNightsFor(rules, period.checkin);
-  const meetsMinNights = minNights === null ? null : period.nights >= minNights;
-  const withinBookingWindow =
-    rules?.maxDaysNotice == null ? null : daysBetween(occ.today, period.checkin) <= rules.maxDaysNotice && period.checkin >= occ.today;
+  const accepted = opts.platformAccepted === true && period.checkin >= occ.today;
+  const ruleMin = minNightsFor(rules, period.checkin);
+  const minNights = accepted && ruleMin !== null ? Math.min(ruleMin, period.nights) : ruleMin;
+  const meetsMinNights = accepted ? true : minNights === null ? null : period.nights >= minNights;
+  const withinBookingWindow = accepted
+    ? true
+    : rules?.maxDaysNotice == null ? null : daysBetween(occ.today, period.checkin) <= rules.maxDaysNotice && period.checkin >= occ.today;
   const bookable: Bookable = !allNightsFree || meetsMinNights === false || withinBookingWindow === false || period.checkin < occ.today
     ? "nao"
     : meetsMinNights === true
       ? "sim"
       : "desconhecido";
-  return { ...period, nightStatus, allNightsFree, minNights, meetsMinNights, withinBookingWindow, bookable };
+  return { ...period, nightStatus, allNightsFree, minNights, meetsMinNights, withinBookingWindow, bookable, ...(accepted ? { platformAccepted: true } : {}) };
 }
 
 const NIGHT_WORDS: Record<string, number> = { uma: 1, um: 1, duas: 2, dois: 2, tres: 3, quatro: 4, cinco: 5, seis: 6, sete: 7 };
@@ -553,6 +563,7 @@ export function periodFactValue(p: PeriodAssessment): Record<string, unknown> {
     minimo_noites_na_chegada: p.minNights ?? "desconhecido",
     cumpre_minimo: p.meetsMinNights ?? "desconhecido",
     reservavel_neste_anuncio: p.bookable,
+    ...(p.platformAccepted ? { regras_de_estadia: "datas da própria consulta: o Airbnb já as aceitou com as regras vigentes" } : {}),
   };
 }
 
