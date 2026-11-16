@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { FinanceEntryDetail } from "@/components/dashboard/FinanceEntryDetail";
 import { FINANCE_WINDOW_CLASS } from "@/components/dashboard/wide-window";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { WINDOW_HEADER_CLASS, WINDOW_SUBTITLE_CLASS, WINDOW_TITLE_CLASS } from "./window-header";
 import { OwnerLine } from "@/components/dashboard/OwnerLine";
 import { PANEL_SHELL, PanelHeading, CountPill } from "@/components/dashboard/panel-chrome";
 import { notifyAction } from "@/components/UndoActionBar";
@@ -222,11 +223,9 @@ export function CleaningApprovalPanel({
             />
           ) : (
             <div className="flex min-h-0 flex-col">
-              <div className="shrink-0 pb-3 pl-[18px] pr-14 pt-4">
-                <DialogTitle className="font-display text-[17px] font-extrabold leading-[1.25]">
-                  Aprovação de limpezas
-                </DialogTitle>
-                <p className="text-[12.5px] text-muted-foreground">
+              <div className={WINDOW_HEADER_CLASS}>
+                <DialogTitle className={WINDOW_TITLE_CLASS}>Aprovação de limpezas</DialogTitle>
+                <p className={WINDOW_SUBTITLE_CLASS}>
                   {items.length === 1
                     ? "1 limpeza aguardando aprovação"
                     : `${items.length} limpezas aguardando aprovação`}

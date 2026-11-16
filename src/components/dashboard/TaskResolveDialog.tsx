@@ -54,6 +54,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { WINDOW_HEADER_CLASS, WINDOW_TITLE_CLASS } from "./window-header";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Command,
@@ -722,8 +723,8 @@ export function TaskResolveDialog({
                     {/* Cabeçalho universal de janela ampla (07/11/2026): título 14px em 1
               linha + imóvel e proprietário (com o ícone de mensagem) em 12px;
               o "X" oficial fica no canto (pr-14). */}
-          <DialogHeader className="space-y-0 px-4 pt-3 pb-2.5 pr-12 text-left">
-            <DialogTitle className="truncate text-sm font-bold leading-5 text-foreground">Concluir pendência</DialogTitle>
+          <DialogHeader className={WINDOW_HEADER_CLASS}>
+            <DialogTitle className={WINDOW_TITLE_CLASS}>Concluir pendência</DialogTitle>
             {task?.propertyName && (
               <div className="flex min-w-0 items-center gap-[5px] text-xs leading-4 text-muted-foreground">
                 <Home className="size-3 shrink-0 text-muted-foreground" />

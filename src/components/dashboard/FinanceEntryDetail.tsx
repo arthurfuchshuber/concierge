@@ -7,6 +7,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { ChevronRight, Play } from "lucide-react";
 import { OwnerLine } from "@/components/dashboard/OwnerLine";
 import { DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { WINDOW_HEADER_BACK_CLASS, WINDOW_SUBTITLE_CLASS, WINDOW_TITLE_CLASS } from "./window-header";
 import { getFinanceEntryDetail } from "@/lib/finance-entry.functions";
 
 export type FinanceEntry =
@@ -90,12 +91,12 @@ export function FinanceEntryDetail({
   const mediaCount = d?.media.length ?? 0;
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-hidden sm:pt-6" aria-label={`Detalhe de ${title}`}>
-      <DialogHeader className="shrink-0 border-b border-foreground/[0.08] px-[18px] pb-3 pt-[18px] pr-24 text-left sm:mx-6">
-        <DialogTitle className="truncate font-display text-[17px] font-extrabold leading-[1.2] text-foreground" title={title}>
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden" aria-label={`Detalhe de ${title}`}>
+      <DialogHeader className={WINDOW_HEADER_BACK_CLASS}>
+        <DialogTitle className={WINDOW_TITLE_CLASS} title={title}>
           {title}
         </DialogTitle>
-        <p className="truncate text-[12.5px] text-muted-foreground">{subtitle}</p>
+        <p className={WINDOW_SUBTITLE_CLASS}>{subtitle}</p>
       </DialogHeader>
       <div className="sg-elegant-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain sm:mx-6 [scrollbar-gutter:stable]">
         <Field label="Imóvel">{it.propertyName}</Field>

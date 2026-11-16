@@ -47,6 +47,7 @@ import { DayPicker, type DateRange, type DayButtonProps, type Matcher } from "re
 import { addDays, addMonths, endOfMonth, format, isAfter, isBefore, isSameDay, startOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
+import { WINDOW_TITLE_CLASS } from "@/components/dashboard/window-header";
 import { OVERLAY_COLLISION_PADDING } from "@/components/ui/overlay-collision";
 import { PopoverContent } from "@/components/ui/popover";
 import { MonthYearPicker } from "@/components/ui/month-year-picker";
@@ -364,12 +365,10 @@ export function FilterScreenHeader({
   right?: ReactNode;
 }) {
   return (
-    /* Sem a linha divisória sob o título (pedido explícito, 24/09/2026,
-       Print 5: "remova completamente a linha divisória demarcada
-       especificamente no Print 5") — o respiro do próprio padding já separa
-       o cabeçalho do corpo da tela, sem precisar de um traço. */
-    <div className="flex items-center gap-[9px] px-4 py-3">
-      <span className="min-w-0 flex-1 text-sm font-bold leading-6 text-foreground">{title}</span>
+    /* Cabeçalho PADRÃO das janelas (Regra 5, 14/11/2026): faixa de 48px, título Manrope 14px negrito,
+       margem esquerda de 16px e filete embaixo — igual ao "+ registro". */
+    <div className="flex min-h-12 shrink-0 items-center gap-2.5 border-b border-[var(--panel-div)] py-1.5 pl-4 pr-4">
+      <span className={`min-w-0 flex-1 ${WINDOW_TITLE_CLASS}`}>{title}</span>
       {right ? <span className="flex shrink-0 items-center self-center leading-none">{right}</span> : null}
     </div>
   );

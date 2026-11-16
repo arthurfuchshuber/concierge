@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { setCleaningPriceOverride, setCleaningType } from "@/lib/cleaning-price.functions";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { WINDOW_HEADER_CLASS, WINDOW_SUBTITLE_CLASS, WINDOW_TITLE_CLASS } from "./window-header";
 import { FinanceEntryDetail, type FinanceEntry } from "@/components/dashboard/FinanceEntryDetail";
 import { OwnerLine } from "@/components/dashboard/OwnerLine";
 import { ClampName } from "@/components/ui/clamp-name";
@@ -683,16 +684,16 @@ export function CleaningDayDetailContent({
   }
 
   return (
-    <div aria-label={`Detalhe de ${title ?? dayTitle(date)}`} className="flex min-h-0 flex-1 flex-col overflow-hidden sm:pt-6">
+    <div aria-label={`Detalhe de ${title ?? dayTitle(date)}`} className="flex min-h-0 flex-1 flex-col overflow-hidden">
       {/* CABEÇALHO UNIVERSAL DE JANELA AMPLA (07/11/2026, referência: "Check-ins
           amanhã"): sem ícone, título 14px negrito em 1 linha e subtítulo 12px;
           o `pr-14` deixa o "X" oficial (canto superior direito) livre. */}
       {/* Mockup det-lanc-a (12/11/2026, fonte da verdade): título 16px extranegrito, subtítulo 13px. */}
-      <DialogHeader className="shrink-0 border-b border-foreground/[0.08] pb-3 pl-[18px] pr-14 pt-4 text-left sm:mx-6">
-        <DialogTitle className="truncate text-[16px] font-extrabold leading-[1.25] text-foreground" title={heading}>
+      <DialogHeader className={WINDOW_HEADER_CLASS}>
+        <DialogTitle className={WINDOW_TITLE_CLASS} title={heading}>
           {windowTitle(heading)}
         </DialogTitle>
-        <p className="text-[13px] leading-[1.35] text-muted-foreground">{subtitle}</p>
+        <p className={WINDOW_SUBTITLE_CLASS}>{subtitle}</p>
       </DialogHeader>
       {/* O rodapé reserva a mesma calha da barra de rolagem da lista, para o
           "Valor Total" cair exatamente na coluna dos valores dos cards. */}

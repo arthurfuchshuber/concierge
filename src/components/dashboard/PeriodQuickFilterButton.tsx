@@ -6,8 +6,8 @@ import {
   FILTER_PANEL_CLASS,
   FILTER_PANEL_OFFSET,
   FilterHeaderClear,
-  FilterIconBadge,
   FilterPeriodCalendar,
+  FilterScreenHeader,
   FitPopoverContent,
 } from "@/components/dashboard/filter-panel";
 import { ACTION_BUTTON_TONE, ACTION_ICON_LABELED, ACTION_LABEL, ACTION_SEGMENT } from "@/components/dashboard/panel-chrome";
@@ -125,11 +125,10 @@ export function PeriodQuickFilterButton({
         className={FILTER_PANEL_CLASS}
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
-        <div className="flex items-center gap-[9px] px-3.5 py-[11px]">
-          <FilterIconBadge icon={CalendarRange} size="sm" />
-          <span className="ds-card-title min-w-0 flex-1">Período</span>
-          {value || draft?.from ? <FilterHeaderClear onClick={clear} /> : null}
-        </div>
+        <FilterScreenHeader
+          title="Período"
+          right={value || draft?.from ? <FilterHeaderClear onClick={clear} /> : undefined}
+        />
         <FilterPeriodCalendar
           defaultChip={
             defaultChip
