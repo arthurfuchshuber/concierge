@@ -5,13 +5,13 @@ import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
 import { z } from "zod";
 import { zodValidator, fallback } from "@tanstack/zod-adapter";
-import { Loader2, Sparkles, ArrowLeft } from "lucide-react";
+import { Loader2, Sparkles } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { getEngagementAnalytics } from "@/lib/engagement-analytics.functions";
 import { getEngagementGuests } from "@/lib/engagement-guests.functions";
 import { checkIsAdmin } from "@/lib/admin-subs.functions";
-import { PageHeader } from "@/components/ds/PageHeader";
+import { PageShell } from "@/components/ds/PageShell";
 
 import { FiltersIconButton, type EngagementFilters } from "@/components/engagement/GlobalFilters";
 import { InsightsRibbon } from "@/components/engagement/InsightsRibbon";
@@ -145,21 +145,8 @@ function EngagementPage() {
   );
 
   return (
-    <div className="px-6 lg:px-10 lg:pl-4 py-8 lg:py-10 max-w-none mx-auto w-full space-y-8">
-      <PageHeader
-        title={
-          <span>
-            <span className="ds-eyebrow block mb-1">Behavioral Analytics</span>
-            Engajamento
-          </span>
-        }
-        subtitle="Como seus hóspedes usam o guia."
-        actions={
-          <Button asChild variant="ghost" size="sm">
-            <Link to="/admin"><ArrowLeft className="size-4 mr-1" /> Voltar</Link>
-          </Button>
-        }
-      />
+    <div className="ds-page w-full max-w-none px-3.5 py-5 sm:px-5 lg:px-8 lg:pl-4 lg:py-8">
+      <PageShell title="Engajamento" subtitle="Como seus hóspedes usam o guia." />
 
       {analyticsQ.isLoading && (
         <div className="py-24 flex items-center justify-center text-sm text-muted-foreground">

@@ -101,7 +101,7 @@ function AdministrativoPage() {
             })}
           </nav>
         </div>
-        <div className={`${wrap} pb-28 pt-6 lg:pb-16`}>
+        <div className={`${wrap} pb-28 pt-2.5 lg:pb-16`}>
           <TabsContent value="perfil" className="mt-0">
             {canSeeBilling ? (
               // Computador: Perfil (5) à esquerda, Assinatura (7) à direita. Celular: um embaixo do outro.

@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect } from "react";
 import type React from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -363,20 +363,16 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
   // Barra de ações: no novo layout, uma peça só partida em segmentos (padrão
   // Presença, `ACTION_BAR`); nas demais contas, os botões de sempre.
   const barBtn = (extra = "") =>
-    newLayout
-      ? `${ACTION_SEGMENT} ${ACTION_BUTTON_TONE} !flex-none !px-3.5 lg:!px-0 ${extra}`
-      : `${extra} h-9 box-border shrink-0 inline-flex items-center gap-1.5 rounded-none border-0 bg-secondary/50 px-3.5 text-xs font-medium leading-none text-foreground/80 hover:bg-secondary transition-colors`;
-  const barIcon = newLayout ? ACTION_ICON : "size-3.5 opacity-60";
-  const barLabel = newLayout ? "hidden" : "hidden sm:inline";
-  const BarEl: React.ElementType = newLayout ? "div" : Fragment;
-  const barProps = newLayout ? { className: `${ACTION_BAR} !w-auto shrink-0` } : {};
+    `${ACTION_SEGMENT} ${ACTION_BUTTON_TONE} !flex-none !px-3.5 lg:!px-0 ${extra}`;
+  const barIcon = ACTION_ICON;
+  const barLabel = "hidden";
 
   const filtersPopover = (
     <Popover>
       <PopoverTrigger asChild>
         <button
           type="button"
-          className={newLayout ? `${ACTION_SEGMENT} ${ACTION_BUTTON_TONE}` : barBtn("relative")}
+          className={barBtn("relative")}
           aria-label="Filtros"
           title="Filtros"
         >
@@ -451,7 +447,7 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
       onClick={openNew}
       aria-label={`Novo ${labelSingular.toLowerCase()}`}
       title={`Novo ${labelSingular.toLowerCase()}`}
-      className={newLayout ? `${ACTION_SEGMENT} text-accent` : barBtn()}
+      className={`${ACTION_SEGMENT} text-accent`}
     >
       <Plus className={barIcon} />
       <span className={barLabel}>Novo</span>
@@ -519,39 +515,20 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
             }
           />
         ) : (
-          <div className="flex items-center gap-1.5">
-            <div className="relative flex-1 min-w-0">
-              <Search className="size-3.5 opacity-60 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
-              <input
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-                placeholder={`Buscar ${labelSingular.toLowerCase()}, cidade, documento…`}
-                className={
-                  newLayout
-                    ? "h-9 w-full box-border rounded-[8px] border-0 bg-foreground/[0.04] pl-9 pr-8 text-[13px] font-normal leading-none text-foreground shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_7%,transparent)] placeholder:text-muted-foreground focus:outline-none focus:bg-foreground/[0.06] transition-colors"
-                    : "h-9 w-full box-border rounded-none border-0 bg-secondary/50 pl-9 pr-8 text-xs font-normal leading-none text-foreground/80 placeholder:text-muted-foreground focus:outline-none focus:bg-secondary transition-colors"
-                }
-              />
-              {q && (
-                <button
-                  type="button"
-                  onClick={() => setQ("")}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 size-6 grid place-items-center rounded-none text-muted-foreground hover:text-foreground"
-                  aria-label="Limpar busca"
-                >
-                  <X className="size-3.5" />
-                </button>
-              )}
-            </div>
-
-            <BarEl {...barProps}>
-              {!newLayout && filtersPopover}
-
-              {!newLayout && viewButton}
-
-              {!newLayout && newButton}
-            </BarEl>
-          </div>
+          /* Padrão do sistema (16/11/2026): a mesma casca única de 40px das demais
+             telas — busca + Filtros, Visão e Novo separados por fios. */
+          <SearchActionRow
+            value={q}
+            onChange={setQ}
+            placeholder={`Buscar ${labelSingular.toLowerCase()}, cidade, documento…`}
+            actions={
+              <>
+                {filtersPopover}
+                {viewButton}
+                {newButton}
+              </>
+            }
+          />
         )}
 
         {rows.length > 0 && (q.trim() || statusFilters.length > 0 || cityFilters.length > 0) && (

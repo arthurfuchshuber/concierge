@@ -1,8 +1,9 @@
+import { SearchActionRow } from "@/components/dashboard/SearchActionRow";
 import { useQuery } from "@tanstack/react-query";
 import { periodColorClass } from "@/components/dashboard/card-colors";
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
-import { ChevronDown, ChevronRight, Download, Loader2, Mail, MessageCircle, Search, Users, FileText, Car, Clock, Phone } from "lucide-react";
+import { ChevronDown, ChevronRight, Download, Loader2, Mail, MessageCircle, Users, FileText, Car, Clock, Phone } from "lucide-react";
 import { listOwnerGuestForms, savePortariaEmail } from "@/lib/guide-access-admin.functions";
 import { toast } from "sonner";
 import { CopyButton } from "@/components/CopyButton";
@@ -143,13 +144,11 @@ export function HospedesPage({ embedded = false }: { embedded?: boolean } = {}) 
       )}
 
 
-      <div className="mb-5 relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 opacity-60 text-muted-foreground" />
-        <input
+      <div className="mb-2.5">
+        <SearchActionRow
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          onChange={setQuery}
           placeholder="Buscar por nome, guia, telefone, placa, documento…"
-          className="h-9 w-full box-border rounded-none border-0 bg-secondary/50 pl-9 pr-3 text-xs font-normal leading-none text-foreground/80 placeholder:text-muted-foreground focus:outline-none focus:bg-secondary transition-colors"
         />
       </div>
 

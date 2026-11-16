@@ -298,12 +298,12 @@ export function IntegracoesPage() {
                 <div className="mt-auto flex items-center gap-1.5 pt-2.5">
                   {act ? (
                     <>
-                      <ActionButton full icon={<Settings2 className="size-3" strokeWidth={2.2} />} onClick={() => setPanel(cfg.key)}>
+                      <ActionButton full className="!h-9" icon={<Settings2 className="size-3" strokeWidth={2.2} />} onClick={() => setPanel(cfg.key)}>
                         Gerenciar
                       </ActionButton>
                     </>
                   ) : (
-                    <ActionButton kind="primary" full className="bg-primary text-primary-foreground hover:bg-primary/90" icon={<Plug className="size-3" strokeWidth={2.2} />} onClick={() => setPanel(cfg.key)}>
+                    <ActionButton kind="primary" full className="!h-9 bg-primary text-primary-foreground hover:bg-primary/90" icon={<Plug className="size-3" strokeWidth={2.2} />} onClick={() => setPanel(cfg.key)}>
                       Conectar
                     </ActionButton>
                   )}
