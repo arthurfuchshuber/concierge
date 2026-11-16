@@ -18,12 +18,14 @@ import {
   calendarWindow,
   extractMentionedDates,
   extractRequestedPeriod,
+  isNightOccupied,
   parseStayRules,
   type CalendarRow,
   type PeriodAssessment,
   type PortfolioAlternative,
   type PropertyCalendarOccupancy,
   type RequestedPeriod,
+  type StayEdgeNight,
   type StayRules,
 } from "@/lib/guest-ai/calendar-occupancy";
 import { getGuestAiDb, type GuestAiDb } from "./client.server";
@@ -71,6 +73,7 @@ async function fetchPortfolioAlternatives(
   turn: ValidatedTurn,
   period: RequestedPeriod,
   today: string,
+  opts: { allowBelowMinNights?: boolean } = {},
 ): Promise<PortfolioAlternative[] | null> {
   try {
     const props = await db
@@ -108,8 +111,18 @@ async function fetchPortfolioAlternatives(
       if (!rules || !url || !name) continue;
       const occ = buildOccupancy(rrows, { propertyId: p.id, today, windowStart: period.checkin, windowEnd: period.checkout });
       const a = assessPeriod(occ, period, rules);
-      if (a.bookable !== "sim" || a.minNights === null) continue;
-      out.push({ name, url, checkin: period.checkin, checkout: period.checkout, nights: period.nights, minNights: a.minNights });
+      if (a.minNights === null) continue;
+      const belowMinOnly = a.allNightsFree && a.meetsMinNights === false && a.withinBookingWindow !== false && period.checkin >= today;
+      if (a.bookable !== "sim" && !(opts.allowBelowMinNights && belowMinOnly)) continue;
+      out.push({
+        name,
+        url,
+        checkin: period.checkin,
+        checkout: period.checkout,
+        nights: period.nights,
+        minNights: a.minNights,
+        meetsMinNights: a.meetsMinNights !== false,
+      });
       if (out.length >= PORTFOLIO_MAX_ALTERNATIVES) break;
     }
     return out;
@@ -188,6 +201,25 @@ export async function fetchPropertyOccupancy(
     stay,
     mentionedDates,
   });
+
+  // 3b) COM ESTADIA (16/11/2026, caso Marcela: pediu para antecipar uma noite e a IA não olhou o portfólio): a noite
+  //     anterior à entrada e a noite da saída. Se aqui estiver ocupada, os imóveis do anfitrião livres nessa noite
+  //     entram como alternativa (inclusive abaixo do mínimo de noites, sinalizado: a liberação fica com a equipe).
+  if (stay) {
+    const edge = async (checkin: string): Promise<StayEdgeNight | null> => {
+      if (checkin < opts.today) return null;
+      const night: RequestedPeriod = { checkin, checkout: addDaysSafe(checkin, 1), nights: 1 };
+      const freeHere = !isNightOccupied(occ, checkin);
+      const alternatives = freeHere ? null : await fetchPortfolioAlternatives(db, turn, night, opts.today, { allowBelowMinNights: true });
+      return { checkin: night.checkin, checkout: night.checkout, freeHere, alternatives };
+    };
+    try {
+      const [before, after] = await Promise.all([edge(addDaysSafe(stay.checkin, -1)), edge(stay.checkout)]);
+      return { ...occ, stayEdges: { before, after } };
+    } catch {
+      return occ;
+    }
+  }
 
   // 4) CONSULTA DE DATAS (sem estadia na conversa): o período da mensagem mais recente que cita datas, avaliado com
   //    o mínimo de noites do anúncio; se aqui não der para reservar, o portfólio do anfitrião (12/11/2026, caso Tais)

@@ -81,6 +81,18 @@ export interface PortfolioAlternative {
   checkout: string;
   nights: number;
   minNights: number;
+  /** O período cumpre o mínimo de noites do anúncio? (antecipar/prorrogar 1 noite pode ficar abaixo: depende da equipe). */
+  meetsMinNights?: boolean;
+}
+
+/** Uma noite colada na estadia (antecipar a entrada ou prorrogar a saída), neste imóvel e no portfólio. */
+export interface StayEdgeNight {
+  /** Período de 1 noite: [checkin, checkout). */
+  checkin: string;
+  checkout: string;
+  freeHere: boolean;
+  /** Outros imóveis do anfitrião livres nessa noite (`null` = não consultado; só consultado se aqui está ocupado). */
+  alternatives: readonly PortfolioAlternative[] | null;
 }
 
 const posInt = (v: unknown): number | null => {
@@ -196,6 +208,8 @@ export interface PropertyCalendarOccupancy {
   requested?: PeriodAssessment | null;
   /** Outros imóveis do anfitrião reserváveis no período (`null` = não consultado; `[]` = nenhum). */
   alternatives?: readonly PortfolioAlternative[] | null;
+  /** Com estadia: a noite anterior à entrada e a noite da saída (antecipar/prorrogar), aqui e no portfólio. */
+  stayEdges?: { before: StayEdgeNight | null; after: StayEdgeNight | null } | null;
 }
 
 export type CalendarFact = ({ status: "available" } & PropertyCalendarOccupancy) | { status: "unavailable" };
@@ -354,12 +368,19 @@ function resolveDate(day: number, month: number | null, today: string): string |
  */
 export function findCalendarCollisions(
   reply: string,
-  occ: Pick<PropertyCalendarOccupancy, "occupiedRanges" | "today" | "windowStart" | "windowEnd"> | null | undefined,
+  occ:
+    | (Pick<PropertyCalendarOccupancy, "occupiedRanges" | "today" | "windowStart" | "windowEnd"> &
+        Partial<Pick<PropertyCalendarOccupancy, "alternatives" | "stayEdges">>)
+    | null
+    | undefined,
 ): string[] {
   if (!occ || !reply) return [];
   const out = new Set<string>();
+  const altNames = portfolioNamePatterns(occ);
   for (const clause of norm(reply).split(/[.!?;\n]+/)) {
     if (!SUGGEST.test(clause) || DENIES.test(clause)) continue;
+    // a oração fala de OUTRA acomodação do portfólio (consultada e livre): não é o calendário deste imóvel
+    if (altNames.some((re) => re.test(clause))) continue;
     for (const m of clause.matchAll(DATE_MENTION)) {
       const day = Number(m[1] ?? m[3] ?? m[5]);
       const monthRaw = m[2] ?? m[4] ?? (m[6] ? String(MONTHS.indexOf(m[6]) + 1) : null);
@@ -373,6 +394,18 @@ export function findCalendarCollisions(
     }
   }
   return [...out].sort();
+}
+
+/** Padrões do nome das alternativas do portfólio ("Studio n° 101 ..." ⇒ "studio 101", "studio n 101"). */
+function portfolioNamePatterns(occ: Partial<Pick<PropertyCalendarOccupancy, "alternatives" | "stayEdges">>): RegExp[] {
+  const alts = [...(occ.alternatives ?? []), ...(occ.stayEdges?.before?.alternatives ?? []), ...(occ.stayEdges?.after?.alternatives ?? [])];
+  const out: RegExp[] = [];
+  for (const a of alts) {
+    const m = /^([a-z]+)\W+(?:n\W*)?(\d+)\b/.exec(norm(a.name));
+    if (m) out.push(new RegExp(String.raw`\b${m[1]}\W+(?:n\W*)?${m[2]}\b`));
+    else if (norm(a.name).trim()) out.push(new RegExp(norm(a.name).trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  }
+  return out;
 }
 
 // ─────────────── recorte enxuto para o prompt (diretiva 11/11/2026: menos tokens, resumo determinístico) ───────────────
@@ -427,6 +460,41 @@ export function calendarFactValue(occ: PropertyCalendarOccupancy): Record<string
             minimo_noites: a.minNights,
             situacao: "livre e reservável no período",
           })),
+        }
+      : {}),
+    ...(occ.stayEdges && (occ.stayEdges.before || occ.stayEdges.after)
+      ? {
+          antecipar_ou_prorrogar: Object.fromEntries(
+            (
+              [
+                ["noite_antes_da_entrada", occ.stayEdges.before],
+                ["noite_da_saida", occ.stayEdges.after],
+              ] as const
+            )
+              .filter(([, e]) => e)
+              .map(([k, e]) => [
+                k,
+                {
+                  noite: e!.checkin,
+                  livre_neste_imovel: e!.freeHere,
+                  ...(e!.alternatives && e!.alternatives.length
+                    ? {
+                        alternativas_portfolio: e!.alternatives.map((a) => ({
+                          acomodacao: a.name,
+                          link_airbnb: a.url,
+                          entrada: a.checkin,
+                          saida: a.checkout,
+                          minimo_noites: a.minNights,
+                          situacao:
+                            a.meetsMinNights === false
+                              ? `noite livre, mas abaixo do mínimo de ${a.minNights} noites do anúncio: pode oferecer, e a liberação dessa noite avulsa fica com a equipe (handoff)`
+                              : "livre e reservável",
+                        })),
+                      }
+                    : {}),
+                },
+              ]),
+          ),
         }
       : {}),
     leitura: "noite D ocupada se entrada <= D < saida; fora dos intervalos = livre no nosso calendário (a plataforma tem a palavra final); fora da janela, não se sabe",
