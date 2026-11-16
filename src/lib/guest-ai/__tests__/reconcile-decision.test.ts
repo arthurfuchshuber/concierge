@@ -117,3 +117,14 @@ describe("aviso de chegada sem despejo (16/11/2026, caso Ricardo)", () => {
     expect(sys).not.toMatch(/deixando claro que a casa está esperando por eles/);
   });
 });
+
+import { occupancyOf } from "@/lib/guest-ai/data/cancellation-terms.server";
+describe("ocupação da reserva para a concordância de número (16/11/2026)", () => {
+  it("lê adultos/crianças/bebês; inválido ou sem adulto ⇒ null", () => {
+    expect(occupancyOf({ ages: null, adults: 4, infants: 0, children: 3 })).toEqual({ adults: 4, children: 3, infants: 0 });
+    expect(occupancyOf({ adults: 1 })).toEqual({ adults: 1, children: 0, infants: 0 });
+    expect(occupancyOf(null)).toBeNull();
+    expect(occupancyOf({ adults: 0 })).toBeNull();
+    expect(occupancyOf("x")).toBeNull();
+  });
+});

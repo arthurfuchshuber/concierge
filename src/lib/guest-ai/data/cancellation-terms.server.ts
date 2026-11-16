@@ -14,6 +14,8 @@ export interface CancellationTerms {
   nights: number | null;
   /** Melhor dado disponível de quando a reserva foi confirmada (chegada ao sistema). */
   bookedAt: string | null;
+  /** Ocupação da reserva (16/11/2026: concordância de número). Opcional: `null`/ausente = não informada. */
+  guests?: { adults: number; children: number; infants: number } | null;
 }
 
 const DAY_MS = 86_400_000;
@@ -43,5 +45,16 @@ export async function fetchCancellationTerms(turn: ValidatedTurn, deps?: { db?: 
     isNonRefundable: typeof r["is_non_refundable"] === "boolean" ? r["is_non_refundable"] : null,
     nights: ci !== null && co !== null && co > ci ? Math.round((co - ci) / DAY_MS) : null,
     bookedAt: typeof r["created_at"] === "string" ? r["created_at"] : null,
+    guests: occupancyOf(r["occupancy"]),
   };
+}
+
+/** Ocupação da reserva (Channex): adultos, crianças e bebês. Só números; ausente ou inválida ⇒ `null`. */
+export function occupancyOf(v: unknown): { adults: number; children: number; infants: number } | null {
+  if (!v || typeof v !== "object") return null;
+  const o = v as Record<string, unknown>;
+  const n = (x: unknown) => (typeof x === "number" && Number.isInteger(x) && x >= 0 && x <= 50 ? x : 0);
+  const adults = n(o["adults"]);
+  if (adults < 1) return null;
+  return { adults, children: n(o["children"]), infants: n(o["infants"]) };
 }
