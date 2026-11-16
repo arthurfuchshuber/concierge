@@ -80,6 +80,7 @@ import { Route as ApiPublicCronConversationRemindersRouteImport } from './routes
 import { Route as ApiPublicCronFiscalReconcileRouteImport } from './routes/api/public/cron.fiscal-reconcile'
 import { Route as ApiPublicCronGuestMemoryRouteImport } from './routes/api/public/cron.guest-memory'
 import { Route as ApiPublicCronHandoffWatchdogRouteImport } from './routes/api/public/cron.handoff-watchdog'
+import { Route as ApiPublicCronPosPausaRouteImport } from './routes/api/public/cron.pos-pausa'
 import { Route as ApiPublicCronMalvoSyncRouteImport } from './routes/api/public/cron.malvo-sync'
 import { Route as ApiPublicCronOpsPushRouteImport } from './routes/api/public/cron.ops-push'
 import { Route as ApiPublicCronPurgeRecordTrashRouteImport } from './routes/api/public/cron.purge-record-trash'
@@ -489,6 +490,12 @@ const ApiPublicCronHandoffWatchdogRoute =
     path: '/api/public/cron/handoff-watchdog',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicCronPosPausaRoute =
+  ApiPublicCronPosPausaRouteImport.update({
+    id: '/api/public/cron/pos-pausa',
+    path: '/api/public/cron/pos-pausa',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicCronMalvoSyncRoute = ApiPublicCronMalvoSyncRouteImport.update({
   id: '/api/public/cron/malvo-sync',
   path: '/api/public/cron/malvo-sync',
@@ -642,6 +649,7 @@ export interface FileRoutesByFullPath {
   '/api/public/cron/fiscal-reconcile': typeof ApiPublicCronFiscalReconcileRoute
   '/api/public/cron/guest-memory': typeof ApiPublicCronGuestMemoryRoute
   '/api/public/cron/handoff-watchdog': typeof ApiPublicCronHandoffWatchdogRoute
+  '/api/public/cron/pos-pausa': typeof ApiPublicCronPosPausaRoute
   '/api/public/cron/malvo-sync': typeof ApiPublicCronMalvoSyncRoute
   '/api/public/cron/ops-push': typeof ApiPublicCronOpsPushRoute
   '/api/public/cron/purge-record-trash': typeof ApiPublicCronPurgeRecordTrashRoute
@@ -726,6 +734,7 @@ export interface FileRoutesByTo {
   '/api/public/cron/fiscal-reconcile': typeof ApiPublicCronFiscalReconcileRoute
   '/api/public/cron/guest-memory': typeof ApiPublicCronGuestMemoryRoute
   '/api/public/cron/handoff-watchdog': typeof ApiPublicCronHandoffWatchdogRoute
+  '/api/public/cron/pos-pausa': typeof ApiPublicCronPosPausaRoute
   '/api/public/cron/malvo-sync': typeof ApiPublicCronMalvoSyncRoute
   '/api/public/cron/ops-push': typeof ApiPublicCronOpsPushRoute
   '/api/public/cron/purge-record-trash': typeof ApiPublicCronPurgeRecordTrashRoute
@@ -815,6 +824,7 @@ export interface FileRoutesById {
   '/api/public/cron/fiscal-reconcile': typeof ApiPublicCronFiscalReconcileRoute
   '/api/public/cron/guest-memory': typeof ApiPublicCronGuestMemoryRoute
   '/api/public/cron/handoff-watchdog': typeof ApiPublicCronHandoffWatchdogRoute
+  '/api/public/cron/pos-pausa': typeof ApiPublicCronPosPausaRoute
   '/api/public/cron/malvo-sync': typeof ApiPublicCronMalvoSyncRoute
   '/api/public/cron/ops-push': typeof ApiPublicCronOpsPushRoute
   '/api/public/cron/purge-record-trash': typeof ApiPublicCronPurgeRecordTrashRoute
@@ -904,6 +914,7 @@ export interface FileRouteTypes {
     | '/api/public/cron/fiscal-reconcile'
     | '/api/public/cron/guest-memory'
     | '/api/public/cron/handoff-watchdog'
+    | '/api/public/cron/pos-pausa'
     | '/api/public/cron/malvo-sync'
     | '/api/public/cron/ops-push'
     | '/api/public/cron/purge-record-trash'
@@ -988,6 +999,7 @@ export interface FileRouteTypes {
     | '/api/public/cron/fiscal-reconcile'
     | '/api/public/cron/guest-memory'
     | '/api/public/cron/handoff-watchdog'
+    | '/api/public/cron/pos-pausa'
     | '/api/public/cron/malvo-sync'
     | '/api/public/cron/ops-push'
     | '/api/public/cron/purge-record-trash'
@@ -1076,6 +1088,7 @@ export interface FileRouteTypes {
     | '/api/public/cron/fiscal-reconcile'
     | '/api/public/cron/guest-memory'
     | '/api/public/cron/handoff-watchdog'
+    | '/api/public/cron/pos-pausa'
     | '/api/public/cron/malvo-sync'
     | '/api/public/cron/ops-push'
     | '/api/public/cron/purge-record-trash'
@@ -1137,6 +1150,7 @@ export interface RootRouteChildren {
   ApiPublicCronFiscalReconcileRoute: typeof ApiPublicCronFiscalReconcileRoute
   ApiPublicCronGuestMemoryRoute: typeof ApiPublicCronGuestMemoryRoute
   ApiPublicCronHandoffWatchdogRoute: typeof ApiPublicCronHandoffWatchdogRoute
+  ApiPublicCronPosPausaRoute: typeof ApiPublicCronPosPausaRoute
   ApiPublicCronMalvoSyncRoute: typeof ApiPublicCronMalvoSyncRoute
   ApiPublicCronOpsPushRoute: typeof ApiPublicCronOpsPushRoute
   ApiPublicCronPurgeRecordTrashRoute: typeof ApiPublicCronPurgeRecordTrashRoute
@@ -1653,6 +1667,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicCronHandoffWatchdogRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/cron/pos-pausa': {
+      id: '/api/public/cron/pos-pausa'
+      path: '/api/public/cron/pos-pausa'
+      fullPath: '/api/public/cron/pos-pausa'
+      preLoaderRoute: typeof ApiPublicCronPosPausaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/cron/malvo-sync': {
       id: '/api/public/cron/malvo-sync'
       path: '/api/public/cron/malvo-sync'
@@ -1913,6 +1934,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicCronFiscalReconcileRoute: ApiPublicCronFiscalReconcileRoute,
   ApiPublicCronGuestMemoryRoute: ApiPublicCronGuestMemoryRoute,
   ApiPublicCronHandoffWatchdogRoute: ApiPublicCronHandoffWatchdogRoute,
+  ApiPublicCronPosPausaRoute: ApiPublicCronPosPausaRoute,
   ApiPublicCronMalvoSyncRoute: ApiPublicCronMalvoSyncRoute,
   ApiPublicCronOpsPushRoute: ApiPublicCronOpsPushRoute,
   ApiPublicCronPurgeRecordTrashRoute: ApiPublicCronPurgeRecordTrashRoute,

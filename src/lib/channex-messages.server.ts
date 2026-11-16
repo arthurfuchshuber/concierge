@@ -725,34 +725,68 @@ export async function handleChannexMessage(payload: unknown): Promise<void> {
     if (await newerGuestMessage()) return;
   }
 
+  await runAirbnbAiTurn(admin, {
+    convId,
+    threadId: m.threadId,
+    guestName: m.guestName,
+    guestContent: content,
+    propertyId: listing.property_id,
+    ownerId: listing.owner_id,
+    propertyName,
+    guestMessageId: guestRow?.id ?? null,
+    guestCreatedAt: guestRow?.created_at ?? null,
+  });
+}
+
+export interface AirbnbAiTurn {
+  convId: string;
+  threadId: string;
+  guestName: string | null;
+  /** Texto da mensagem do hóspede (vai no push de encaminhamento). */
+  guestContent: string;
+  propertyId: string;
+  ownerId: string | null;
+  propertyName: string;
+  guestMessageId: string | null;
+  guestCreatedAt: string | null;
+}
+
+/**
+ * O TURNO DA IA no Airbnb, a partir de uma mensagem do hóspede JÁ GRAVADA: geração autônoma, barreira pré-envio,
+ * encaminhamento e entrega. Extraído do webhook (16/11/2026, sem mudança de lógica) para que a varredura pós-pausa
+ * use exatamente o mesmo caminho, a mesma barreira e as mesmas travas.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function runAirbnbAiTurn(admin: any, p: AirbnbAiTurn): Promise<void> {
+  const guestRow = { id: p.guestMessageId, created_at: p.guestCreatedAt };
   // ─── IA de atendimento: ponto de extensão (sem implementação instalada).
   // Sem IA, a conversa vai para a fila humana e a equipe é avisada por push.
   const { requestGuestAiReply, NO_AI_HANDOFF_REASON } = await import("@/lib/guest-ai/slot.server");
   const ai = await requestGuestAiReply({
     surface: "airbnb",
-    conversationId: convId,
-    messageId: (guestMsg as { id?: string } | null)?.id ?? "",
+    conversationId: p.convId,
+    messageId: p.guestMessageId ?? "",
     // Dono do anúncio resolvido com certeza por `resolveListing`.
-    expectedOwnerId: listing.owner_id,
+    expectedOwnerId: p.ownerId,
   });
   // ─── BARREIRA PRÉ-ENVIO (14/11/2026, caso Jayr): a geração demora segundos; humano, equipe ou hóspede podem ter
   // falado nesse intervalo. Vale ANTES de mexer na conversa e de novo imediatamente antes de entregar.
   const { evaluateSendBarrier, readSendBarrierState, HUMAN_BARRIER_REASONS } = await import("@/lib/guest-ai/send-barrier");
   const checkBarrier = async () => {
-    const state = await readSendBarrierState(admin, convId, guestRow, async (row) => {
+    const state = await readSendBarrierState(admin, p.convId, guestRow.id && guestRow.created_at ? { id: guestRow.id, created_at: guestRow.created_at } : null, async (row) => {
       const { resolvePause } = await import("@/lib/chat/pause");
-      return resolvePause(admin, convId, row as never);
+      return resolvePause(admin, p.convId, row as never);
     });
     return evaluateSendBarrier({
-      triggerId: guestRow?.id ?? "",
-      triggerCreatedAt: guestRow?.created_at ?? null,
+      triggerId: guestRow.id ?? "",
+      triggerCreatedAt: guestRow.created_at,
       ...state,
     });
   };
   const barrier = await checkBarrier();
   if (barrier.abort && HUMAN_BARRIER_REASONS.has(barrier.reason)) {
     // Há (ou houve) um humano na conversa: nada de resposta, nenhuma troca de status/pausa e nenhum push duplicado.
-    console.log("[channex-messages] resposta da IA descartada: humano na conversa", barrier.reason, convId);
+    console.log("[channex-messages] resposta da IA descartada: humano na conversa", barrier.reason, p.convId);
     return;
   }
   const unknownState = barrier.abort && barrier.reason === "unknown_state";
@@ -770,18 +804,18 @@ export async function handleChannexMessage(payload: unknown): Promise<void> {
         handoff_urgency: urgency,
         handoff_at: new Date().toISOString(),
       })
-      .eq("id", convId)
+      .eq("id", p.convId)
       // nunca rebaixa uma conversa que um atendente acabou de assumir (corrida com o anfitrião/painel)
       .neq("status", "assigned");
     try {
       const { getPropertyNotifiableUsers, sendHandoffPush } = await import("@/lib/handoff.server");
-      const userIds = await getPropertyNotifiableUsers(admin, listing.property_id);
+      const userIds = await getPropertyNotifiableUsers(admin, p.propertyId);
       await sendHandoffPush(admin, {
         userIds,
-        conversationId: convId,
-        propertyName,
-        guestName: m.guestName,
-        guestMessage: content,
+        conversationId: p.convId,
+        propertyName: p.propertyName,
+        guestName: p.guestName,
+        guestMessage: p.guestContent,
         checkinDate: null,
         reason,
         urgency,
@@ -796,13 +830,13 @@ export async function handleChannexMessage(payload: unknown): Promise<void> {
     // última conferência colada na entrega (o push acima leva tempo): humano ou hóspede novo ⇒ não envia
     const last = await checkBarrier();
     if (last.abort) {
-      console.log("[channex-messages] resposta da IA descartada na última conferência", last.reason, convId);
+      console.log("[channex-messages] resposta da IA descartada na última conferência", last.reason, p.convId);
       return;
     }
     await deliverToAirbnbThread(admin, {
-      conversationId: convId,
-      threadId: m.threadId,
-      propertyId: listing.property_id,
+      conversationId: p.convId,
+      threadId: p.threadId,
+      propertyId: p.propertyId,
       text: finalReply,
       senderType: "ai",
     });
