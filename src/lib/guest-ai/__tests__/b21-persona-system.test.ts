@@ -25,6 +25,8 @@ describe("B2.1 · persona", () => {
       "consultative",
       "match_language",
       "match_register",
+      "read_the_moment",
+      "judgment_over_script",
     ]) {
       expect(ids, id).toContain(id);
     }
