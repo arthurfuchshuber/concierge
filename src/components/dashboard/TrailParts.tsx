@@ -50,7 +50,7 @@ export function Step({
   children?: ReactNode;
 }) {
   return (
-    <li data-clip-row className="relative grid grid-cols-[22px_minmax(0,1fr)] gap-2.5 pb-3">
+    <li className="relative grid grid-cols-[22px_minmax(0,1fr)] gap-2.5 pb-3">
       <span
         className={cn(
           "relative z-[1] grid size-[22px] place-items-center rounded-full text-[10.5px] font-extrabold",
