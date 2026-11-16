@@ -82,8 +82,9 @@ import { runPostPauseSweep } from "../post-pause-sweep.server";
 
 type Call = { table: string; op: string; filters: Array<[string, unknown]> };
 
-function fakeDb(data: Record<string, unknown>) {
+function fakeDb(data: Record<string, unknown>, opts: { rpcError?: boolean } = {}) {
   const calls: Call[] = [];
+  const rpcCalls: Array<{ fn: string; args: Record<string, unknown> }> = [];
   const from = (table: string) => {
     const c: Call = { table, op: "select", filters: [] };
     const rows = () => {
@@ -106,7 +107,13 @@ function fakeDb(data: Record<string, unknown>) {
     chain["then"] = (res: (v: unknown) => unknown) => Promise.resolve(rows()).then(res);
     return chain;
   };
-  return { db: { from }, calls };
+  const rpc = (fn: string, args: Record<string, unknown>) => {
+    rpcCalls.push({ fn, args });
+    if (opts.rpcError) return Promise.resolve({ data: null, error: { message: "denied" } });
+    data["guest_ai_copilot_suggestions"] = [];
+    return Promise.resolve({ data: 1, error: null });
+  };
+  return { db: { from, rpc }, calls, rpcCalls };
 }
 
 const CONV = {
@@ -131,9 +138,11 @@ describe("varredura pós-pausa · executor", () => {
     expect(r).toMatchObject({ checked: 1, eligible: 1, answered: 1 });
     expect(turns).toHaveLength(1);
     expect(turns[0]).toMatchObject({ convId: "c1", threadId: "thread-1", guestMessageId: "g2", ownerId: "o1", propertyName: "Casa X" });
-    const del = f.calls.find((c) => c.table === "guest_ai_copilot_suggestions" && c.op === "delete");
-    expect(del).toBeTruthy();
-    expect(del!.filters).toEqual(expect.arrayContaining([["is", "sent_at"], ["lt", "created_at"]]));
+    expect(f.rpcCalls).toHaveLength(1);
+    expect(f.rpcCalls[0]).toMatchObject({
+      fn: "copilot_release_unsent_suggestion",
+      args: { p_conversation_id: "c1", p_trigger_message_id: "g2", p_before: at(11) },
+    });
   });
 
   it("anúncio com a IA desligada ⇒ não responde nem descarta nada", async () => {
@@ -148,7 +157,7 @@ describe("varredura pós-pausa · executor", () => {
     const r = await runPostPauseSweep({ db: f.db, now, env: {}, runTurn: async (_d, t) => void turns.push(t) });
     expect(turns).toHaveLength(0);
     expect(r.answered).toBe(0);
-    expect(f.calls.some((c) => c.op === "delete")).toBe(false);
+    expect(f.rpcCalls).toHaveLength(0);
   });
 
   it("conversa assumida por uma pessoa no painel ⇒ ignorada", async () => {
@@ -160,6 +169,23 @@ describe("varredura pós-pausa · executor", () => {
     const r = await runPostPauseSweep({ db: f.db, now, env: {}, runTurn: async (_d, t) => void turns.push(t) });
     expect(turns).toHaveLength(0);
     expect(r.eligible).toBe(0);
+  });
+
+  it("não consegue descartar a sugestão da pausa ⇒ NÃO roda o turno (cairia na contingência e encaminharia à equipe)", async () => {
+    const f = fakeDb(
+      {
+        property_chat_conversations: [CONV],
+        property_chat_messages: MSGS,
+        guest_ai_copilot_suggestions: [{ created_at: at(3.1) }],
+        properties: { name: "Casa X", owner_id: "o1" },
+        property_listing_raw_data: [{ airbnb_ai_enabled: true }],
+      },
+      { rpcError: true },
+    );
+    const turns: unknown[] = [];
+    const r = await runPostPauseSweep({ db: f.db, now, env: {}, runTurn: async (_d, t) => void turns.push(t) });
+    expect(turns).toHaveLength(0);
+    expect(r).toMatchObject({ answered: 0, skipped: 1 });
   });
 
   it("falha num turno não derruba a varredura", async () => {
