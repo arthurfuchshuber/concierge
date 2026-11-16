@@ -62,7 +62,7 @@ describe("B2.2 · pipeline completo isolado: fontes → projeções → normaliz
     for (const s of [...PLANTED_SECRETS, ...PROTECTED_VALUES]) expect(all, s).not.toContain(s);
     expect(all).toContain(SECRET_MARKER);
     expect(r.prompt.messages).toHaveLength(1);
-    expect(r.prompt.system).toBe(buildSystemPrompt("guide_chat"));
+    expect(r.prompt.system).toBe(buildSystemPrompt("guide_chat", undefined, { phase: "pre_stay" }));
   });
 
   it("conteúdo legítimo preservado ao lado do segredo removido (relato da fechadura, descrição, entorno)", async () => {

@@ -311,11 +311,12 @@ describe("resposta proporcional (11/11/2026, caso Karen)", () => {
     expect(t).toMatch(/não venda o imóvel/);
   });
 
-  it("prompt: confirmação ou resposta à equipe recebe reconhecimento curto, sem dossiê não pedido", () => {
+  it("prompt: confirmação ou resposta à equipe recebe reconhecimento curto, sem informação não pedida (regra única, na persona)", () => {
     for (const ch of ["airbnb", "whatsapp", "guide_chat"] as const) {
       const sys = buildSystemPrompt(ch);
-      expect(sys).toMatch(/Proporção da resposta/);
-      expect(sys).toMatch(/Nunca use o dossiê para dar informações que a pessoa não pediu/);
+      expect(sys).toMatch(/Quando ela só cumprimenta, agradece, informa ou confirma, sem pedir nada novo, acolha em uma ou duas frases curtas e pare/);
+      expect(sys).toMatch(/não despeje informações, avisos ou ofertas que ninguém pediu/);
+      expect(sys).not.toMatch(/Proporção da resposta/); // a duplicata foi fundida (16/11/2026)
     }
   });
 });
@@ -362,7 +363,7 @@ describe("aviso de chegada coerente com canal e dossiê (system.2026-11-11.3)", 
   const arrival = sys.slice(sys.indexOf("Aviso de deslocamento"), sys.indexOf("Continue declarando guestEtas"));
 
   it("versão do roteiro", () => {
-    expect(SYSTEM_PROMPT_VERSION).toBe("system.2026-11-16.22");
+    expect(SYSTEM_PROMPT_VERSION).toBe("system.2026-11-16.23");
   });
 
   it("corrobora o histórico em vez de vetar a palavra guia", () => {
