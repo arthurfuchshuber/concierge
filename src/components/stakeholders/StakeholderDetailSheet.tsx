@@ -109,17 +109,17 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { CARD_OWNER, ownerLabel } from "@/components/dashboard/card-colors";
 import { Coins, StickyNote, Check, User, Activity, Filter, Trash2 } from "lucide-react";
 
-/** Aba do segmented control: adapta-se à largura da tela (anti-corte), 46px.
+/** Aba do segmented control: adapta-se à largura da tela (anti-corte), mesma altura da barra de filtros.
  *  !flex-none sobrescreve o !flex-1 padrão de TabsTrigger (ui/tabs.tsx) — aqui
  *  cada aba precisa manter a largura do próprio rótulo (min-w-max) e deixar o
  *  ds-segmented rolar na horizontal quando não couberem todas, em vez de
  *  espremer/cortar "Acessos" tentando dividir a largura em partes iguais. */
 const SEG_TAB =
-  "min-h-[46px] !flex-none !rounded-[0.3rem] text-[13px] font-semibold data-[state=active]:bg-[linear-gradient(135deg,#7C1AD8,#E82DAE)] data-[state=active]:text-white data-[state=active]:shadow-none";
+  "h-10 lg:h-[var(--ds-action-h-lg)] !flex-none !rounded-[0.3rem] text-[12px] font-semibold data-[state=active]:bg-[linear-gradient(135deg,#7C1AD8,#E82DAE)] data-[state=active]:text-white data-[state=active]:shadow-none";
 
 /** Abas do layout novo (mockup aprovado): sem rosa, aba ativa neutra com fio de marca. */
 const SEG_TAB_NEW =
-  "min-h-[46px] !flex-none !rounded-[0.3rem] text-[13px] font-semibold data-[state=active]:bg-foreground/10 data-[state=active]:text-foreground data-[state=active]:shadow-none";
+  "h-10 lg:h-[var(--ds-action-h-lg)] !flex-none !rounded-[0.3rem] text-[12px] font-semibold data-[state=active]:bg-foreground/10 data-[state=active]:text-foreground data-[state=active]:shadow-none";
 
 const MONTHS_PT = [
   "janeiro",
@@ -1840,7 +1840,7 @@ export function StakeholderDetailSheet({
 
       <Tabs defaultValue="visao" className="min-w-0 max-w-full">
         <TabsList
-          className={`ds-segmented h-auto w-full max-w-full !rounded-[0.3rem] border-0 p-0 ${newLayout ? "bg-card shadow-[inset_0_0_0_1px_var(--border)]" : "bg-foreground/5"}`}
+          className={`ds-segmented w-full max-w-full !rounded-[0.3rem] border-0 p-0 ${newLayout ? "bg-card shadow-[inset_0_0_0_1px_var(--border)]" : "bg-foreground/5"}`}
         >
           <TabsTrigger className={newLayout ? SEG_TAB_NEW : SEG_TAB} value="visao">
             Timeline

@@ -4231,7 +4231,7 @@ export function OperationShell({
                 <Link
                   key={t.view}
                   to={t.to}
-                  className={`flex min-h-[44px] flex-1 items-center justify-center px-2 text-center text-[13px] leading-none transition-colors ${
+                  className={`flex h-10 flex-1 items-center justify-center px-2 text-center text-[12px] lg:h-[var(--ds-action-h-lg)] leading-none transition-colors ${
                     active ? "ds-tab-active font-bold" : "font-semibold text-muted-foreground hover:text-foreground"
                   }`}
                 >

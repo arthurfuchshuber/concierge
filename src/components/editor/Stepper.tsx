@@ -68,8 +68,8 @@ export function Stepper({
                   'Complete as informações obrigatórias em "A casa" para desbloquear')
                 : undefined
             }
-            className={`relative flex min-h-[44px] items-center justify-center whitespace-nowrap text-center leading-none transition-colors ${
-              compact ? "gap-[5px] text-[12px]" : "gap-1.5 text-[13px]"
+            className={`relative flex h-10 items-center justify-center whitespace-nowrap lg:h-[var(--ds-action-h-lg)] text-center leading-none transition-colors ${
+              compact ? "gap-[5px] text-[11.5px]" : "gap-1.5 text-[12px]"
             } ${
               active
                 ? "ds-tab-active font-bold"

@@ -659,7 +659,7 @@ export function BulkEditDialog({
               <TabsTrigger
                 key={t.id}
                 value={t.id}
-                className="relative flex min-h-[40px] items-center justify-center whitespace-nowrap px-3 text-center text-[12.5px] leading-none transition-colors hover:text-foreground data-[state=active]:ds-tab-active data-[state=active]:font-bold data-[state=inactive]:font-semibold data-[state=inactive]:text-muted-foreground"
+                className="relative flex h-10 items-center justify-center whitespace-nowrap px-3 text-center text-[12px] lg:h-[var(--ds-action-h-lg)] leading-none transition-colors hover:text-foreground data-[state=active]:ds-tab-active data-[state=active]:font-bold data-[state=inactive]:font-semibold data-[state=inactive]:text-muted-foreground"
               >
                 {t.label}
               </TabsTrigger>

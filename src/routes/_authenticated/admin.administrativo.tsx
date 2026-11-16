@@ -80,7 +80,7 @@ function AdministrativoPage() {
         className="w-full"
       >
         <div className={`${wrap} pt-5`}>
-          {/* Barra `ds-tabs` do Dashboard (fatias iguais de 44px, sem ícones). */}
+          {/* Barra `ds-tabs` do Dashboard (fatias iguais, mesma altura da barra de filtros, sem ícones). */}
           <nav className="ds-tabs" aria-label="Administrativo">
             {tabs.map((t) => {
               const active = t.value === activeTab;
@@ -91,7 +91,7 @@ function AdministrativoPage() {
                   onClick={() =>
                     navigate({ to: "/admin/administrativo", search: { tab: t.value, checkout: undefined } })
                   }
-                  className={`relative flex min-h-[44px] min-w-0 flex-1 items-center justify-center px-2 text-center text-[13px] leading-none transition-colors ${
+                  className={`relative flex h-10 min-w-0 flex-1 items-center justify-center px-2 text-center text-[12px] lg:h-[var(--ds-action-h-lg)] leading-none transition-colors ${
                     active ? "ds-tab-active font-bold" : "font-semibold text-muted-foreground hover:text-foreground"
                   }`}
                 >

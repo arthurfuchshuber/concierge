@@ -65,7 +65,7 @@ import { cn } from "@/lib/utils";
 // `relative` vence `fixed` no tailwind-merge e a janela sai do overlay (vai parar no pé da
 // página, cortada). `fixed` já serve de referência para o "X" e o fio de luz (absolute).
 const SHELL =
-  "sg-elegant-scroll flex w-[min(280px,calc(100vw-32px))] max-w-none flex-col gap-0 overflow-hidden rounded-[var(--win-radius)] border border-[var(--panel-border)] bg-[var(--panel)] p-0 text-foreground shadow-[0_24px_60px_rgba(0,0,0,0.6),0_2px_8px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.05)] before:pointer-events-none before:absolute before:inset-x-7 before:top-0 before:h-px before:content-[''] before:bg-[image:var(--panel-hair)] sm:max-w-none";
+  "sg-elegant-scroll [scrollbar-gutter:auto]! flex w-[min(280px,calc(100vw-32px))] max-w-none flex-col gap-0 overflow-hidden rounded-[var(--win-radius)] border border-[var(--panel-border)] bg-[var(--panel)] p-0 text-foreground shadow-[0_24px_60px_rgba(0,0,0,0.6),0_2px_8px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.05)] before:pointer-events-none before:absolute before:inset-x-7 before:top-0 before:h-px before:content-[''] before:bg-[image:var(--panel-hair)] sm:max-w-none";
 
 /** Botão retangular de 5px com o degradê da marca — o padrão dos botões de confirmar. */
 const BTN_PRIMARY =
@@ -150,23 +150,25 @@ function SituationPickerDialog({
         <SituationForm initial={form.initial} busy={formBusy} onCancel={onCloseForm} onSubmit={onSubmitForm} />
       ) : (
       <DialogContent
-        hideClose
         onOpenAutoFocus={(e) => e.preventDefault()}
         className={cn(SHELL, "max-h-[min(560px,calc(100dvh-32px))]")}
       >
-        {/* Mockup 0b: eyebrow "Nova informação financeira" + pergunta em Sora 14px. */}
-        <div className="shrink-0 px-3.5 pb-2.5 pt-3.5">
-          <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
-            Nova informação financeira
-          </p>
-          <DialogTitle className="mt-1 font-display text-[14px] font-bold leading-tight text-foreground">
-            Sobre o que é a situação?
-          </DialogTitle>
+        {/* CABEÇALHO PADRÃO DAS JANELAS: faixa de 48px, título Manrope 14px bold, margem esquerda de 16px,
+            filete embaixo e o X no canto (a janela abre da página, então só dá para fechar). */}
+        <div className="flex min-h-12 shrink-0 items-center border-b border-[var(--panel-div)] py-1.5 pl-4 pr-14">
+          <div className="min-w-0 flex-1">
+            <DialogTitle className="block truncate font-display text-[14px] font-bold leading-tight text-foreground">
+              Nova informação financeira
+            </DialogTitle>
+            <span className="mt-0.5 block truncate text-[12px] leading-tight text-muted-foreground">
+              Sobre o que é a situação?
+            </span>
+          </div>
           <DialogDescription className="sr-only">Escolha a situação do serviço.</DialogDescription>
         </div>
 
         {confirm ? (
-          <div className="px-3.5 pb-3.5">
+          <div className="px-4 py-3.5">
             <p className="text-[12.5px] leading-snug text-foreground">
               Excluir a situação <b className="break-words">{confirm.name}</b>?
             </p>
@@ -198,7 +200,7 @@ function SituationPickerDialog({
           </div>
         ) : (
           <>
-            <label className="mx-3.5 mb-2 flex shrink-0 items-center gap-2 rounded-[9px] border border-[var(--panel-div)] bg-[var(--panel-well)] px-2.5 py-2 text-foreground/40">
+            <label className="mx-4 mb-1.5 mt-2 flex h-8 shrink-0 items-center gap-2 border-b border-[var(--panel-div)] text-foreground/40">
               <Search className="size-3.5 shrink-0" strokeWidth={2} />
               <input
                 value={query}
@@ -208,11 +210,11 @@ function SituationPickerDialog({
               />
             </label>
 
-            <div className="sg-elegant-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain border-t border-[var(--panel-div)]">
+            <div className="sg-elegant-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-gutter:auto]!">
               {loading ? (
-                <p className="px-3.5 py-5 text-center text-xs text-muted-foreground">Carregando…</p>
+                <p className="px-4 py-5 text-center text-xs text-muted-foreground">Carregando…</p>
               ) : shown.length === 0 ? (
-                <p className="px-3.5 py-5 text-center text-xs text-muted-foreground">Nenhuma situação encontrada.</p>
+                <p className="px-4 py-5 text-center text-xs text-muted-foreground">Nenhuma situação encontrada.</p>
               ) : (
                 shown.map((s, i) => {
                   const blocked = s.id === "cleaning" && !canCreateCleaning;
@@ -222,7 +224,7 @@ function SituationPickerDialog({
                     <div key={s.id}>
                       {/* Mockup 0b: grupo "Criadas por você" antes das situações do usuário. */}
                       {firstCustom && (
-                        <div className="border-b border-[var(--panel-div)] bg-foreground/[0.02] px-3.5 pb-[5px] pt-[7px] text-[9.5px] font-bold uppercase tracking-[0.1em] text-muted-foreground">
+                        <div className="border-b border-[var(--panel-div)] bg-foreground/[0.02] px-4 pb-[5px] pt-[7px] text-[9.5px] font-bold uppercase tracking-[0.1em] text-muted-foreground">
                           Criadas por você
                         </div>
                       )}
@@ -237,7 +239,7 @@ function SituationPickerDialog({
                           disabled={blocked}
                           onClick={() => onPick(s)}
                           title={blocked ? "Você não tem permissão para criar limpezas." : undefined}
-                          className="flex min-w-0 flex-1 items-center gap-2.5 py-2.5 pl-3.5 pr-0 text-left disabled:cursor-not-allowed disabled:opacity-45"
+                          className="flex min-w-0 flex-1 items-center gap-2.5 py-2.5 pl-4 pr-0 text-left disabled:cursor-not-allowed disabled:opacity-45"
                         >
                           <span className="grid size-7 shrink-0 place-items-center rounded-[9px] bg-foreground/[0.06] text-foreground">
                             <Icon className="size-[15px]" strokeWidth={2} />
@@ -253,7 +255,7 @@ function SituationPickerDialog({
                         </button>
                         {/* Lápis e lixeira SÓ nas situações criadas pelo usuário. */}
                         {!s.system && (
-                          <span className="flex shrink-0 gap-0.5 pr-3.5">
+                          <span className="flex shrink-0 gap-0.5 pr-4">
                             <button
                               type="button"
                               onClick={() => onEdit(s)}
@@ -284,7 +286,7 @@ function SituationPickerDialog({
             <button
               type="button"
               onClick={onAdd}
-              className="flex w-full shrink-0 items-center gap-2.5 border-t border-[var(--panel-div)] px-3.5 py-[11px] text-left text-accent transition-colors hover:bg-foreground/[0.03]"
+              className="flex w-full shrink-0 items-center gap-2.5 border-t border-[var(--panel-div)] px-4 py-[11px] text-left text-accent transition-colors hover:bg-foreground/[0.03]"
             >
               <Plus className="size-[15px]" strokeWidth={2.4} />
               <span className="text-[12.5px] font-bold">Adicionar situação</span>
@@ -318,12 +320,13 @@ function SituationForm({
   const valid = normalized.length > 0;
   return (
     <DialogContent
-      hideClose
       onOpenAutoFocus={(e) => e.preventDefault()}
+      onBack={onCancel}
       className={cn(SHELL, "max-h-[min(520px,calc(100dvh-32px))]")}
     >
-      <div className="flex shrink-0 items-center gap-[9px] px-3.5 py-[11px]">
-        <DialogTitle className="font-display text-[13px] font-bold leading-snug text-foreground">
+      {/* Cabeçalho padrão; a janela vem da lista, então o botão do canto é o "Voltar". */}
+      <div className="flex min-h-12 shrink-0 items-center border-b border-[var(--panel-div)] py-1.5 pl-4 pr-24">
+        <DialogTitle className="block truncate font-display text-[14px] font-bold leading-tight text-foreground">
           {initial ? "Editar situação" : "Nova situação"}
         </DialogTitle>
         <DialogDescription className="sr-only">Dê um título e, se quiser, detalhe a situação.</DialogDescription>
@@ -335,7 +338,7 @@ function SituationForm({
           if (valid && !busy) onSubmit({ name: normalized, detail: detail.trim() });
         }}
       >
-        <div className="px-3.5 pt-1">
+        <div className="px-4 pt-3.5">
           <label className="block">
             <span className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground">
               Nome da situação
@@ -364,7 +367,7 @@ function SituationForm({
             />
           </label>
         </div>
-        <div className="flex gap-2 p-3.5">
+        <div className="flex gap-2 px-4 pb-4 pt-3.5">
           <button
             type="button"
             disabled={busy}
