@@ -1283,3 +1283,30 @@ describe("prazo do turno autônomo (16/11/2026, casos Matheus e Larissa: geraç�
     expect(p.calls).toBe(2);
   });
 });
+
+import type { GenerationTrace } from "@/lib/guest-ai/copilot/generate.server";
+describe("rastro da geração (16/11/2026, auditoria)", () => {
+  it("grava tempo total, tentativas, motivo da nova tentativa e desfecho; só códigos fechados", async () => {
+    const clock = { t: 1_000_000 };
+    const p = fakeProvider(() => {
+      clock.t += 5_000;
+      return okJson({ resposta: "oi" });
+    });
+    const traces: GenerationTrace[] = [];
+    const d = deps(p, { now: () => clock.t, schedule: () => () => {}, recordTrace: async (r) => void traces.push(r) });
+    await generateCopilotSuggestion(REQ, d);
+    expect(traces).toHaveLength(1);
+    const t = traces[0]!;
+    expect(t.attempts).toBe(2);
+    expect(t.retry_reason).toMatch(/^[a-z0-9_ ,]+$/);
+    expect(t.total_ms).toBe(10_000);
+    expect(t.autonomous).toBe(false);
+    expect(t.final_kind).toBe("refused");
+  });
+  it("falha ao gravar o rastro não derruba a geração", async () => {
+    const p = fakeProvider(okJson(v6()));
+    const d = deps(p, { recordTrace: async () => { throw new Error("db down"); } });
+    const r = await generateCopilotSuggestion(REQ, d);
+    expect(r).toMatchObject({ status: "stored" });
+  });
+});

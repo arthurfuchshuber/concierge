@@ -19,6 +19,8 @@ import {
   extractMentionedDates,
   extractRequestedPeriod,
   isNightOccupied,
+  nearestBookableWindows,
+  NEAREST_WINDOW_MAX_SHIFT_DAYS,
   parseStayRules,
   type CalendarRow,
   type PeriodAssessment,
@@ -73,7 +75,7 @@ async function fetchPortfolioAlternatives(
   turn: ValidatedTurn,
   period: RequestedPeriod,
   today: string,
-  opts: { allowBelowMinNights?: boolean } = {},
+  opts: { allowBelowMinNights?: boolean; partySize?: number | null } = {},
 ): Promise<PortfolioAlternative[] | null> {
   try {
     const props = await db
@@ -83,10 +85,25 @@ async function fetchPortfolioAlternatives(
       .is("archived_at", null)
       .limit(200);
     if (props.error || !Array.isArray(props.data)) return null;
-    const all = props.data as Array<{ id: string; name: string | null; city: string | null; airbnb_listing_url: string | null }>;
+    const all = props.data as Array<{
+      id: string;
+      name: string | null;
+      city: string | null;
+      airbnb_listing_url: string | null;
+      airbnb_guest_count?: number | null;
+      airbnb_bedroom_count?: number | null;
+    }>;
     const own = all.find((p) => p.id === turn.propertyId);
     const city = (own?.city ?? "").trim().toLowerCase();
-    const candidates = all.filter((p) => p.id !== turn.propertyId && city && (p.city ?? "").trim().toLowerCase() === city);
+    // mesmo anfitrião, mesma cidade e, sabendo o tamanho do grupo, com capacidade para ele (16/11/2026: imóvel similar)
+    const party = typeof opts.partySize === "number" && opts.partySize > 0 ? opts.partySize : null;
+    const candidates = all.filter(
+      (p) =>
+        p.id !== turn.propertyId &&
+        city &&
+        (p.city ?? "").trim().toLowerCase() === city &&
+        !(party !== null && typeof p.airbnb_guest_count === "number" && p.airbnb_guest_count > 0 && p.airbnb_guest_count < party),
+    );
     if (candidates.length === 0) return [];
     const ids = candidates.map((p) => p.id);
     const [listings, reservations] = await Promise.all([
@@ -123,6 +140,8 @@ async function fetchPortfolioAlternatives(
         nights: period.nights,
         minNights: a.minNights,
         meetsMinNights: a.meetsMinNights !== false,
+        maxGuests: typeof p.airbnb_guest_count === "number" ? p.airbnb_guest_count : null,
+        bedrooms: typeof p.airbnb_bedroom_count === "number" ? p.airbnb_bedroom_count : null,
       });
       if (out.length >= PORTFOLIO_MAX_ALTERNATIVES) break;
     }
@@ -139,7 +158,7 @@ const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 export async function fetchPropertyOccupancy(
   turn: ValidatedTurn,
-  opts: { today: string; guestTexts?: readonly string[]; inquiryPeriod?: RequestedPeriod | null },
+  opts: { today: string; guestTexts?: readonly string[]; inquiryPeriod?: RequestedPeriod | null; partySize?: number | null },
   deps?: { db?: GuestAiDb },
 ): Promise<PropertyCalendarOccupancy> {
   assertIssued("turn", turn, "data_requires_validated_turn");
@@ -211,7 +230,7 @@ export async function fetchPropertyOccupancy(
       if (checkin < opts.today) return null;
       const night: RequestedPeriod = { checkin, checkout: addDaysSafe(checkin, 1), nights: 1 };
       const freeHere = !isNightOccupied(occ, checkin);
-      const alternatives = freeHere ? null : await fetchPortfolioAlternatives(db, turn, night, opts.today, { allowBelowMinNights: true });
+      const alternatives = freeHere ? null : await fetchPortfolioAlternatives(db, turn, night, opts.today, { allowBelowMinNights: true, partySize: opts.partySize });
       return { checkin: night.checkin, checkout: night.checkout, freeHere, alternatives };
     };
     try {
@@ -255,8 +274,30 @@ export async function fetchPropertyOccupancy(
     });
   }
   const requested: PeriodAssessment = assessPeriod(periodOcc, period, ownRules);
-  const alternatives = requested.bookable === "sim" ? null : await fetchPortfolioAlternatives(db, turn, period, opts.today);
-  return { ...occ, requested, alternatives };
+  if (requested.bookable === "sim") return { ...occ, requested, alternatives: null };
+  // NÃO CABE AQUI (16/11/2026, caso José): datas do mesmo tamanho mais próximas NESTE imóvel (oferecidas primeiro) e,
+  // em paralelo, o portfólio no período pedido (para quando o hóspede não aceitar mudar as datas).
+  const nearest = async (): Promise<RequestedPeriod[] | null> => {
+    if (!ownRules) return null;
+    const from = addDaysSafe(period.checkin, -NEAREST_WINDOW_MAX_SHIFT_DAYS);
+    const to = addDaysSafe(period.checkout, NEAREST_WINDOW_MAX_SHIFT_DAYS);
+    const nr = await db
+      .from("property_reservations")
+      .select(cols(RESERVATION_COLUMNS))
+      .eq("property_id", turn.propertyId)
+      .in("status", ["confirmed", "blocked"])
+      .gt("checkout_date", from)
+      .lt("checkin_date", to)
+      .limit(300);
+    if (nr.error) return null;
+    const near = buildOccupancy((nr.data ?? []) as CalendarRow[], { propertyId: turn.propertyId, today: opts.today, windowStart: from, windowEnd: to });
+    return nearestBookableWindows(near, period, ownRules);
+  };
+  const [nearestWindows, alternatives] = await Promise.all([
+    nearest().catch(() => null),
+    fetchPortfolioAlternatives(db, turn, period, opts.today, { partySize: opts.partySize }),
+  ]);
+  return { ...occ, requested, alternatives, nearestWindows };
 }
 
 function addDaysSafe(date: string, days: number): string {

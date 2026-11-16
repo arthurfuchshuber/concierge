@@ -90,6 +90,20 @@ export function hasSacJargon(reply: string): boolean {
   return SAC_JARGON.test(strip(String(reply ?? "")));
 }
 
+/**
+ * Resposta em PORTUGUÊS sem nenhum acento (16/11/2026, caso Ricardo: "voces", "instrucoes"). Só em texto longo o
+ * bastante para que a ausência total de acento seja certamente um defeito; links e marcadores não contam.
+ */
+export function missingPortugueseAccents(reply: string, language: string): boolean {
+  if (language !== "pt") return false;
+  const text = String(reply ?? "")
+    .replace(/https?:\/\/\S+|www\.\S+/gi, " ")
+    .replace(/\[\[[^\]]*\]\]|\{\{[^}]*\}\}/g, " ");
+  const words = text.match(/\p{L}+/gu) ?? [];
+  if (words.length < 20) return false;
+  return !/[áàâãéêíóôõúüç]/i.test(text);
+}
+
 /** Evidência que o SISTEMA tem para afirmações retrospectivas. */
 export interface TextEvidence {
   credentialReleaseAllowed: boolean;
@@ -97,7 +111,7 @@ export interface TextEvidence {
   humanOwnershipActive: boolean;
 }
 
-export const TEXT_BLOCKS = ["text_commitment_undeclared", "text_completion_without_evidence", "text_commitment_unclassifiable", "text_time_mismatch", "text_calendar_collision", "text_asks_known_dates", "text_sac_jargon"] as const;
+export const TEXT_BLOCKS = ["text_commitment_undeclared", "text_completion_without_evidence", "text_commitment_unclassifiable", "text_time_mismatch", "text_calendar_collision", "text_asks_known_dates", "text_sac_jargon", "text_missing_accents"] as const;
 export type TextBlock = (typeof TEXT_BLOCKS)[number];
 
 export interface TextCheck {
@@ -324,5 +338,7 @@ export function checkReplyAgainstDecision(d: ModelDecision, ctx: TextContext, ev
   if (ctx.inquiry === true && asksForKnownDates(reply)) blocks.add("text_asks_known_dates");
   // Jargão de SAC (15/11/2026): a regra de estilo do prompt ganha rede de segurança em código (uma nova tentativa).
   if (hasSacJargon(reply)) blocks.add("text_sac_jargon");
+  // Acentuação (16/11/2026): resposta longa em português sem nenhum acento ⇒ uma nova tentativa.
+  if (missingPortugueseAccents(reply, a.language)) blocks.add("text_missing_accents");
   return { blocks: [...blocks], detectedKinds: [...new Set(a.claims.map((c) => c.kind))], undeclaredKinds: [...undeclared], language: a.language };
 }

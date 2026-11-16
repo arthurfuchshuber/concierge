@@ -158,7 +158,7 @@ export const RESERVATION_COLUMNS = ["id", "property_id", "status", "source", "ch
  * Das configurações do anúncio, SÓ a regra de disponibilidade (mínimo de noites, horizonte), por caminho JSON:
  * nada de mensagem de boas-vindas, preços, taxas ou dados de conta.
  */
-export const PORTFOLIO_PROPERTY_COLUMNS = ["id", "name", "city", "owner_id", "archived_at", "airbnb_listing_url"] as const;
+export const PORTFOLIO_PROPERTY_COLUMNS = ["id", "name", "city", "owner_id", "archived_at", "airbnb_listing_url", "airbnb_guest_count", "airbnb_bedroom_count"] as const;
 export const LISTING_STAY_RULE_COLUMNS = [
   "property_id",
   "airbnb_listing_id",

@@ -236,7 +236,7 @@ export async function buildGuestContext(input: TurnInput, deps: BuilderDeps = {}
   const today = localDate(nowIso, timezone);
   if (today) {
     try {
-      const occ = await (deps.fetchPropertyOccupancy ?? fetchPropertyOccupancy)(turn, { today, inquiryPeriod: inquiry ? { checkin: inquiry.checkinDate, checkout: inquiry.checkoutDate, nights: Math.round((Date.parse(inquiry.checkoutDate) - Date.parse(inquiry.checkinDate)) / 86_400_000) } : null }, { db });
+      const occ = await (deps.fetchPropertyOccupancy ?? fetchPropertyOccupancy)(turn, { today, partySize: partySizeOf(inquiry, guests), inquiryPeriod: inquiry ? { checkin: inquiry.checkinDate, checkout: inquiry.checkoutDate, nights: Math.round((Date.parse(inquiry.checkoutDate) - Date.parse(inquiry.checkinDate)) / 86_400_000) } : null }, { db });
       calendar = { status: "available", ...occ };
     } catch {
       /* indisponível */
@@ -349,3 +349,16 @@ export async function buildGuestContext(input: TurnInput, deps: BuilderDeps = {}
 }
 
 export { GuestAiScopeError };
+
+/** Tamanho do grupo que ocupa camas (adultos + crianças; bebês não contam na capacidade do anúncio). `null` = desconhecido. */
+export function partySizeOf(
+  inquiry: { guests: number | null; adults: number | null; children: number | null } | null | undefined,
+  stayGuests: { adults: number; children: number } | null | undefined,
+): number | null {
+  if (inquiry) {
+    if (typeof inquiry.adults === "number" && inquiry.adults > 0) return inquiry.adults + (inquiry.children ?? 0);
+    if (typeof inquiry.guests === "number" && inquiry.guests > 0) return inquiry.guests;
+  }
+  if (stayGuests && stayGuests.adults > 0) return stayGuests.adults + stayGuests.children;
+  return null;
+}
