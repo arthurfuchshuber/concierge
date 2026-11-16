@@ -147,7 +147,22 @@ export const fiscalSetupCompanyWithCertificate = createServerFn({ method: "POST"
     }).parse(i))
   .handler(async ({ data, context }) => {
     const s = await svc();
-    return s.setupCompanyWithCertificate(await s.adminDb(), context.userId, data);
+    const db = await s.adminDb();
+    const { assertTaxIdIsAccountCnpj } = await import("./company-prefill");
+    // O CNPJ é o da conta (janela bloqueada): qualquer outro valor é recusado antes de falar com o provedor.
+    if (!(await assertTaxIdIsAccountCnpj(db, context.userId, data.taxId))) return { ok: false as const, code: "cnpj_mismatch" };
+    return s.setupCompanyWithCertificate(db, context.userId, data);
+  });
+
+/** Dados da empresa (CNPJ da conta + Receita Federal) para a janela de ativação. Só o titular; nada sensível. */
+export const fiscalCompanyPrefill = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const s = await svc();
+    const db = await s.adminDb();
+    const { data } = await db.from("profiles").select("cpf").eq("id", context.userId).maybeSingle();
+    const { lookupCompanyByCnpj } = await import("./company-prefill");
+    return lookupCompanyByCnpj(data?.cpf);
   });
 
 /** Arquivos (XML/PDF) de um documento: só metadados. */

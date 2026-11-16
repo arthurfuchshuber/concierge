@@ -10,6 +10,8 @@ const { resolvers, deferred } = vi.hoisted(() => {
 });
 
 vi.mock("@tanstack/react-start", () => ({ useServerFn: (fn: unknown) => fn }));
+vi.mock("@/components/admin-pages/FiscalPanel", () => ({ FiscalPanel: () => null, FISCAL_STATUS_KEY: ["fiscal-status"] }));
+vi.mock("@/lib/fiscal/fiscal.functions", () => ({ fiscalStatus: "fiscalStatus" }));
 vi.mock("@/lib/channex.functions", () => ({ getChannexStatus: "getChannexStatus" }));
 vi.mock("@/lib/clicksign.functions", () => ({ getMyClicksignConfig: deferred("cs") }));
 vi.mock("@/lib/google-calendar.functions", () => ({ getMyGoogleCalendarStatus: deferred("gcal") }));

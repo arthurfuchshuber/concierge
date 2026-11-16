@@ -1,0 +1,54 @@
+/**
+ * Dados da empresa para a janela de ativação do módulo fiscal.
+ * O CNPJ vem SEMPRE do cadastro da conta (`profiles.cpf`, só dígitos) e os demais dados da Receita Federal (BrasilAPI):
+ * a janela mostra tudo bloqueado, exceto nome fantasia e inscrição municipal (que não existe na consulta pública).
+ * Sem segredo aqui; o certificado nunca passa por este arquivo.
+ */
+export type CompanyPrefill =
+  | {
+      ok: true;
+      taxId: string;
+      legalName: string;
+      tradeName: string;
+      situation: string;
+      address: { cep: string; street: string; number: string; neighborhood: string; city: string; state: string };
+    }
+  | { ok: false; code: "no_cnpj" | "not_found" | "unavailable" };
+
+type FetchLike = (url: string, init?: { headers?: Record<string, string> }) => Promise<{ ok: boolean; status: number; json: () => Promise<unknown> }>;
+
+export const onlyDigits = (v: unknown) => String(v ?? "").replace(/\D/g, "");
+
+export async function lookupCompanyByCnpj(cnpjRaw: unknown, fetchImpl: FetchLike = fetch as unknown as FetchLike): Promise<CompanyPrefill> {
+  const cnpj = onlyDigits(cnpjRaw);
+  if (cnpj.length !== 14) return { ok: false, code: "no_cnpj" };
+  try {
+    const res = await fetchImpl(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`, { headers: { accept: "application/json" } });
+    if (res.status === 404) return { ok: false, code: "not_found" };
+    if (!res.ok) return { ok: false, code: "unavailable" };
+    const j = (await res.json()) as Record<string, unknown>;
+    const s = (v: unknown) => (v == null ? "" : String(v).trim());
+    const street = [s(j["descricao_tipo_de_logradouro"]), s(j["logradouro"])].filter(Boolean).join(" ");
+    return {
+      ok: true,
+      taxId: cnpj,
+      legalName: s(j["razao_social"]),
+      tradeName: s(j["nome_fantasia"]),
+      situation: s(j["descricao_situacao_cadastral"] ?? j["situacao"]).toUpperCase() || "ATIVA",
+      address: { cep: onlyDigits(j["cep"]), street, number: s(j["numero"]) || "S/N", neighborhood: s(j["bairro"]), city: s(j["municipio"]), state: s(j["uf"]).toUpperCase() },
+    };
+  } catch {
+    return { ok: false, code: "unavailable" };
+  }
+}
+
+/** O CNPJ enviado na ativação precisa ser o do cadastro da própria conta (a janela o mostra bloqueado). */
+export async function assertTaxIdIsAccountCnpj(
+  db: { from: (t: string) => any },
+  userId: string,
+  taxId: string,
+): Promise<boolean> {
+  const { data } = await db.from("profiles").select("cpf").eq("id", userId).maybeSingle();
+  const mine = onlyDigits(data?.cpf);
+  return mine.length === 14 && mine === onlyDigits(taxId);
+}
