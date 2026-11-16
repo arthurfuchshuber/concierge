@@ -295,7 +295,11 @@ function productionPorts(
       // mesmo anfitrião, não arquivado: `authorizeCandidateProperty`), para a IA saber o que oferece e conduzir a
       // reserva. Opcional: falha num candidato só o deixa de fora.
       const candidates = [];
-      for (const id of portfolioCandidateIds(calendar && calendar.status === "available" ? calendar : null)) {
+      // DESLIGADO por padrão (16/11/2026, 20h): em produção as consultas com alternativas pararam de terminar
+      // (generation_timeout / geração presa) logo após a ativação. Só liga com GUEST_AI_PORTFOLIO_DOSSIERS=on,
+      // depois de medir e enxugar o dossiê alternativo. Calendário e link das alternativas seguem ativos.
+      const portfolioDossiersOn = process.env["GUEST_AI_PORTFOLIO_DOSSIERS"] === "on";
+      for (const id of portfolioDossiersOn ? portfolioCandidateIds(calendar && calendar.status === "available" ? calendar : null) : []) {
         try {
           const auth = await authorizeCandidateProperty(t, id, ALTERNATIVE_PURPOSE, { db, signal: s });
           if (!auth.ok) continue;
