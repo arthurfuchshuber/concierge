@@ -30,5 +30,5 @@ export function useMyPermissions() {
     if (!q.data) return false;
     return !!q.data.permissions[p];
   }
-  return { isOwner: q.data?.isOwner ?? false, can, loading: q.isLoading };
+  return { isOwner: q.data?.isOwner ?? false, can, loading: q.isLoading, myUserId };
 }

@@ -21,7 +21,20 @@ export type { FiscalView };
  * é digitada. O certificado A1 e a senha vão direto ao provedor e nada fica no navegador depois do envio.
  * Estados: Conectar (3 abas) → Ativando → Ativo (Empresa | Serviços | Preferências) ou Erro; subjanelas com "‹ Voltar".
  */
-export function FiscalPanel({ view, setView }: { view: FiscalView; setView: (v: FiscalView) => void }) {
+export function FiscalPanel({ view, setView, readOnly = false }: { view: FiscalView; setView: (v: FiscalView) => void; readOnly?: boolean }) {
+  if (readOnly) {
+    return (
+      <IntegrationShell inWindow bodyPad="pl-4 pr-2" title="Notas Fiscais (NFS-e)" subtitle="Financeiro" bodyDeps={["readonly"]}>
+        <div className="rounded-[12px] border border-border bg-[var(--card-surface)] p-3 text-[12px] leading-[1.5] text-muted-foreground">
+          Apenas o titular da empresa pode ativar e gerenciar o módulo fiscal.
+        </div>
+      </IntegrationShell>
+    );
+  }
+  return <FiscalPanelOwner view={view} setView={setView} />;
+}
+
+function FiscalPanelOwner({ view, setView }: { view: FiscalView; setView: (v: FiscalView) => void }) {
   const statusFn = useServerFn(fiscalStatus);
   const prefillFn = useServerFn(fiscalCompanyPrefill);
   const status = useQuery({
