@@ -75,6 +75,8 @@ export interface PeriodAssessment extends RequestedPeriod {
 
 /** Outro imóvel do MESMO anfitrião, livre e reservável no período pedido, com o link oficial do anúncio. */
 export interface PortfolioAlternative {
+  /** Imóvel do anfitrião (só para carregar o dossiê público; nunca vai ao texto). */
+  propertyId?: string;
   name: string;
   url: string;
   checkin: string;
@@ -394,6 +396,17 @@ export function findCalendarCollisions(
     }
   }
   return [...out].sort();
+}
+
+/** Imóveis do portfólio que o calendário achou livres (alternativas do período e das noites vizinhas), sem repetir. */
+export function portfolioCandidateIds(occ: Partial<Pick<PropertyCalendarOccupancy, "alternatives" | "stayEdges">> | null | undefined, max = 2): string[] {
+  if (!occ) return [];
+  const out: string[] = [];
+  for (const a of [...(occ.alternatives ?? []), ...(occ.stayEdges?.before?.alternatives ?? []), ...(occ.stayEdges?.after?.alternatives ?? [])]) {
+    if (a.propertyId && !out.includes(a.propertyId)) out.push(a.propertyId);
+    if (out.length >= max) break;
+  }
+  return out;
 }
 
 /** Padrões do nome das alternativas do portfólio ("Studio n° 101 ..." ⇒ "studio 101", "studio n 101"). */

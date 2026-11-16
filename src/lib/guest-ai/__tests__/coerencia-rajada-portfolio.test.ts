@@ -270,6 +270,7 @@ describe("sugestão de portfólio", () => {
     expect(occ.requested).toMatchObject({ checkin: "2026-11-18", checkout: "2026-11-19", bookable: "nao", minNights: 2 });
     expect(occ.alternatives).toEqual([
       {
+        propertyId: "s4",
         name: "Studio n° 4 Natureza Próx. a Corredor Turístico",
         url: "https://www.airbnb.com.br/rooms/1793590014642613896",
         checkin: "2026-11-18",
@@ -339,10 +340,10 @@ describe("sugestão de portfólio", () => {
 });
 
 // ─────────────── roteiro ───────────────
-describe("roteiro e persona (system.2026-11-16.18 / persona.2026-11-12.3)", () => {
+describe("roteiro e persona (system.2026-11-16.19 / persona.2026-11-12.3)", () => {
   const sys = buildSystemPrompt("airbnb");
   it("versões", () => {
-    expect(SYSTEM_PROMPT_VERSION).toBe("system.2026-11-16.18");
+    expect(SYSTEM_PROMPT_VERSION).toBe("system.2026-11-16.19");
     expect(PERSONA_VERSION).toBe("persona.2026-11-12.3");
   });
   it("período consultado: resposta comercial direta, mínimo de noites e sem promessa vazia", () => {
@@ -386,5 +387,23 @@ describe("colisão de calendário × alternativa do portfólio (caso Marcela)", 
   });
   it("sugerir reservar ESTE imóvel na noite ocupada continua bloqueado", () => {
     expect(collisions("Vocês podem reservar a noite do dia 18 aqui mesmo.", occ)).toEqual(["2026-11-18"]);
+  });
+});
+
+import { portfolioCandidateIds } from "@/lib/guest-ai/calendar-occupancy";
+
+describe("consultora do portfólio: dossiês públicos dos imóveis livres", () => {
+  it("ids das alternativas (período e noites vizinhas), sem repetir, no máximo 2", () => {
+    const alt = (propertyId: string) => ({ propertyId, name: propertyId, url: "u", checkin: "a", checkout: "b", nights: 1, minNights: 1 });
+    expect(
+      portfolioCandidateIds({
+        alternatives: [alt("a")],
+        stayEdges: { before: { checkin: "x", checkout: "y", freeHere: false, alternatives: [alt("a"), alt("b"), alt("c")] }, after: null },
+      }),
+    ).toEqual(["a", "b"]);
+    expect(portfolioCandidateIds(null)).toEqual([]);
+  });
+  it("o prompt manda agir como consultora pelo dossiê alternativo e conduzir à reserva pelo link", () => {
+    expect(buildSystemPrompt("airbnb")).toMatch(/Aja como consultora: o dossiê alternativo dessa acomodação/);
   });
 });
