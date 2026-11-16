@@ -8,7 +8,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 type AnyClient = { from: (t: string) => any; storage: { from: (b: string) => any } };
 
 const BUCKET = "reservation-records";
-const SIGN_TTL_SECONDS = 300;
+const SIGN_TTL_SECONDS = 3600; // 1 h: recibos e comprovantes não quebram depois de alguns minutos na tela
 const MEDIA_MAX = 12;
 
 export type FinanceEntryMedia = {

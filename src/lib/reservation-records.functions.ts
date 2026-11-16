@@ -16,7 +16,7 @@ import { resolveReservationIdentity } from "@/lib/reservation-identity";
 type AnyClient = { from: (table: string) => any; storage: any; rpc: any };
 
 const BUCKET = "reservation-records";
-const SIGN_TTL_SECONDS = 60; // 1 min — acesso removido deixa de abrir anexos quase imediatamente.
+const SIGN_TTL_SECONDS = 3600; // 1 h — com 60 s o Safari mostrava [?] (403) ao abrir um cartão depois de 1 min na tela.
 
 /**
  * URLS ASSINADAS ESTÁVEIS (03/10/2026: "as imagens demoram, deveria ser
@@ -33,7 +33,7 @@ const SIGN_TTL_SECONDS = 60; // 1 min — acesso removido deixa de abrir anexos 
  * chamador já checou que a pessoa pode ver, e some sozinho ao vencer.
  */
 const SIGNED_URL_CACHE = new Map<string, { url: string; expiresAt: number }>();
-const SIGNED_URL_MIN_REMAINING_MS = 20_000;
+const SIGNED_URL_MIN_REMAINING_MS = 5 * 60_000; // folga antes de pedir nova assinatura ao Storage
 const SIGNED_URL_CACHE_MAX = 5000;
 
 async function signPathsCached(supabase: AnyClient, paths: string[]): Promise<Map<string, string>> {
