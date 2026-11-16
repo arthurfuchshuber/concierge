@@ -755,7 +755,7 @@ dd {
    Trocar aqui muda Operacional, Kanban, Registros, Calendário, Financeiro,
    Guias e Proprietários de uma vez. */
 :root {
-  --ds-block-gap: 24px;
+  --ds-block-gap: 10px; /* 15/11/2026: menu → 1º bloco = o mesmo vão entre cartões (era 24px) */
   --ds-grid-gap: 10px;
 }
 

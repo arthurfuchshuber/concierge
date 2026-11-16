@@ -722,7 +722,7 @@ function ServiceRecordTrail({
         open={!sheet}
         onOpenChange={(v) => !v && onClose()}
         title={`Novo serviço · ${situation.name}`}
-        progress={`${Math.min(step, 2)} de 2`}
+        progress=""
         onBack={step > 1 ? () => setStep(step - 1) : undefined}
         footer={
           <button

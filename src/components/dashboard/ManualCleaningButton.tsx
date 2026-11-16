@@ -599,7 +599,7 @@ function ManualCleaningPanel({
       open={open}
       title={conflict ? "Já existe uma limpeza" : isClean ? "Nova limpeza" : "Novo serviço"}
       subtitle={conflict || isClean ? null : situation?.name}
-      progress={conflict ? "" : `${stepNumber} de ${TOTAL}`}
+      progress=""
       onBack={conflict ? () => setConflict(null) : step > 1 && !busy ? () => setStep(step - 1) : undefined}
       footer={conflict ? null : (
               <button

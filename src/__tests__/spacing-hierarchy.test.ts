@@ -7,8 +7,8 @@ const read = (p: string) => readFileSync(join(process.cwd(), "src", p), "utf8");
 describe("hierarquia única de espaçamento vertical", () => {
   const css = read("styles.css");
 
-  it("os dois tokens vivem na raiz (24px / 10px)", () => {
-    expect(css).toMatch(/--ds-block-gap:\s*24px/);
+  it("os dois tokens vivem na raiz (10px / 10px)", () => {
+    expect(css).toMatch(/--ds-block-gap:\s*10px/);
     expect(css).toMatch(/--ds-grid-gap:\s*10px/);
   });
 

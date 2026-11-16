@@ -1979,7 +1979,7 @@ function editorFooterRef(node: HTMLDivElement | null) {
  * quadrantes, subabas → quadrantes) e 10px entre QUADRANTES vizinhos
  * (`--ds-grid-gap`, `ds-card-grid`). Flex/grid `gap`, nunca margem.
  */
-const TAB_CONTENT = "mt-6 flex flex-col gap-[var(--ds-block-gap,24px)]";
+const TAB_CONTENT = "mt-[var(--ds-block-gap,10px)] flex flex-col gap-[var(--ds-block-gap,10px)]";
 const SECTION_LIST = "ds-card-grid grid-cols-[minmax(0,1fr)]";
 
 /**
