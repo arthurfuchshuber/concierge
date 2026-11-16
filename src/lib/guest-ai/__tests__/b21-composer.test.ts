@@ -317,6 +317,16 @@ describe("Nome e gênero do hóspede no contexto (11/11/2026)", () => {
     }
   });
 
+  it("ctx:hospedes_da_reserva (16/11/2026): ocupação da reserva vai ao modelo para a concordância de número; sem dado, nao_informado", () => {
+    const stay = { reservationId: "r1", phase: "pre_stay" as const, status: "confirmed", checkInAt: "2026-11-04T18:00:00.000Z", checkOutAt: "2026-11-07T14:00:00.000Z", timezone: "America/Sao_Paulo" };
+    const withGuests = prompt(compose({ stay: { ...stay, guests: { adults: 2, children: 1, infants: 0 } } }));
+    const d = JSON.parse(block(withGuests.prompt.messages[0]!.content, CONTEXT_TAG));
+    expect(d.fatos.find((x: { id: string }) => x.id === "ctx:hospedes_da_reserva").valor).toEqual({ adultos: 2, criancas: 1, bebes: 0, total: 3 });
+    const none = prompt(compose({ stay }));
+    const d2 = JSON.parse(block(none.prompt.messages[0]!.content, CONTEXT_TAG));
+    expect(d2.fatos.find((x: { id: string }) => x.id === "ctx:hospedes_da_reserva").valor).toEqual({ status: "nao_informado" });
+  });
+
   it("ctx:hospede_nome vai ao modelo com origem do cadastro; sem nome, tudo nulo e gênero indeterminado", () => {
     const withName = prompt(compose({ interlocutor: { guestId: "s", conversationId: CONV, messageId: MSG, surface: "airbnb", guestName: "Jenifer Souza" } }));
     const d = JSON.parse(block(withName.prompt.messages[0]!.content, CONTEXT_TAG));

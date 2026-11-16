@@ -321,12 +321,17 @@ describe("resposta proporcional (11/11/2026, caso Karen)", () => {
 describe("nome, gênero, fim do SAC, aviso de chegada e acolhimento breve em pre_stay (11/11/2026)", () => {
   const sys = buildSystemPrompt("airbnb");
 
-  it("usa o primeiro nome com naturalidade e concorda o gênero (bem-vinda × bem-vindo × neutro)", () => {
-    expect(sys).toMatch(/ctx:hospede_nome/);
-    expect(sys).toMatch(/primeiro_nome/);
-    expect(sys).toMatch(/nunca bem-vindo/);
-    expect(sys).toMatch(/genero_sugerido/);
-    expect(sys).toMatch(/indeterminado pede construções neutras/);
+  it("usa o primeiro nome com naturalidade e concorda gênero, número e tempo verbal (16/11/2026, sem frase pronta)", () => {
+    const rule = sys.slice(sys.indexOf("Nome e concordância:"), sys.indexOf("Tempo verbal:") + 300);
+    expect(rule).toMatch(/ctx:hospede_nome/);
+    expect(rule).toMatch(/primeiro_nome/);
+    expect(rule).toMatch(/A concordância é rigorosa em gênero, número e tempo verbal/);
+    expect(rule).toMatch(/genero_sugerido em adjetivos, particípios e saudações/);
+    expect(rule).toMatch(/indeterminado pede construção neutra/);
+    expect(rule).toMatch(/Número: plural quando a reserva ou a consulta for de mais de uma pessoa \(ctx:hospedes_da_reserva, ctx:consulta_hospedes\)/);
+    expect(rule).toMatch(/Tempo verbal: acompanhe a fase \(ctx:fase\)/);
+    // nenhuma frase pronta na regra (titular, 16/11/2026)
+    expect(rule).not.toMatch(/bem-vind|prazer receber|boa tarde/i);
   });
 
   it("proíbe os clichês de telemarketing no roteiro e na persona", () => {
@@ -355,7 +360,7 @@ describe("aviso de chegada coerente com canal e dossiê (system.2026-11-11.3)", 
   const arrival = sys.slice(sys.indexOf("Aviso de deslocamento"), sys.indexOf("Continue declarando guestEtas"));
 
   it("versão do roteiro", () => {
-    expect(SYSTEM_PROMPT_VERSION).toBe("system.2026-11-16.20");
+    expect(SYSTEM_PROMPT_VERSION).toBe("system.2026-11-16.21");
   });
 
   it("corrobora o histórico em vez de vetar a palavra guia", () => {

@@ -168,7 +168,7 @@ export const LISTING_STAY_RULE_COLUMNS = [
 ] as const;
 export const CALENDAR_GUEST_TEXT_COLUMNS = ["id", "conversation_id", "role", "sender_type", "is_internal_note", "content", "created_at"] as const;
 /** Modalidade de cancelamento DA RESERVA (playbook de cancelamento, 10/11/2026). Sem valores nem contatos. */
-export const RESERVATION_CANCELLATION_COLUMNS = ["id", "property_id", "checkin_date", "checkout_date", "cancellation_policy_category", "is_non_refundable", "created_at"] as const;
+export const RESERVATION_CANCELLATION_COLUMNS = ["id", "property_id", "checkin_date", "checkout_date", "cancellation_policy_category", "is_non_refundable", "created_at", "occupancy"] as const;
 export const ARRIVAL_STATUS_COLUMNS = [
   "kind",
   "status",

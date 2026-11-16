@@ -352,6 +352,18 @@ function buildContextData(ctx: ConversationContext, guarded: Guarded, unavailabl
         },
         origem: "reserva_calculado_pelo_sistema",
       },
+      {
+        id: "ctx:hospedes_da_reserva",
+        valor: g.stay.guests
+          ? {
+              adultos: g.stay.guests.adults,
+              criancas: g.stay.guests.children,
+              bebes: g.stay.guests.infants,
+              total: g.stay.guests.adults + g.stay.guests.children + g.stay.guests.infants,
+            }
+          : { status: "nao_informado" },
+        origem: "reserva",
+      },
     );
   } else {
     facts.push({ id: "ctx:reserva_status", valor: { status: "nao_informado" }, origem: "backend" });

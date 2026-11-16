@@ -250,6 +250,8 @@ export interface GuestContext {
      * 10/11/2026). `unknown` = modalidade não comprovada (nunca presumir).
      */
     freeCancellation?: { status: "open" | "closed" | "unknown"; until: string | null; policyLabel: string | null };
+    /** Ocupação da reserva (adultos, crianças, bebês). Ausente/`null` = não informada (não presumir). */
+    guests?: { adults: number; children: number; infants: number } | null;
   } | null;
   /**
    * Ocupação do calendário do imóvel (reservas confirmadas de outros hóspedes e bloqueios manuais), só datas,
