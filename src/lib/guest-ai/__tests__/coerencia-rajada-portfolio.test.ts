@@ -278,6 +278,8 @@ describe("sugestão de portfólio", () => {
         nights: 1,
         minNights: 1,
         meetsMinNights: true,
+        maxGuests: null,
+        bedrooms: null,
       },
     ]);
     const fact = calendarFactValue(occ) as Record<string, Array<Record<string, unknown>>>;
@@ -340,10 +342,10 @@ describe("sugestão de portfólio", () => {
 });
 
 // ─────────────── roteiro ───────────────
-describe("roteiro e persona (system.2026-11-16.21 / persona.2026-11-16.1)", () => {
+describe("roteiro e persona (system.2026-11-16.22 / persona.2026-11-16.1)", () => {
   const sys = buildSystemPrompt("airbnb");
   it("versões", () => {
-    expect(SYSTEM_PROMPT_VERSION).toBe("system.2026-11-16.21");
+    expect(SYSTEM_PROMPT_VERSION).toBe("system.2026-11-16.22");
     expect(PERSONA_VERSION).toBe("persona.2026-11-16.1");
   });
   it("período consultado: resposta comercial direta, mínimo de noites e sem promessa vazia", () => {
@@ -405,5 +407,62 @@ describe("consultora do portfólio: dossiês públicos dos imóveis livres", () 
   });
   it("o prompt manda agir como consultora pelo dossiê alternativo e conduzir à reserva pelo link", () => {
     expect(buildSystemPrompt("airbnb")).toMatch(/Aja como consultora: o dossiê alternativo dessa acomodação/);
+  });
+});
+
+import { partySizeOf } from "@/lib/guest-ai/context/builder.server";
+describe("não cabe aqui (16/11/2026, caso José): datas próximas neste imóvel e portfólio com capacidade", () => {
+  const scenario = () => ({
+    property_chat_messages: [
+      { id: "g1", conversation_id: "conv", role: "user", sender_type: "guest", is_internal_note: false, content: "Tem disponibilidade? chego dia 17 e saio dia 20" },
+    ],
+    properties: [
+      prop("s105", "Studio n° 105 Próximo ao Paraguai", { airbnb_guest_count: 4, airbnb_bedroom_count: 1 }),
+      prop("s4", "Studio n° 4 Natureza Próx. a Corredor Turístico", { airbnb_listing_url: "https://www.airbnb.com.br/rooms/1793590014642613896", airbnb_guest_count: 2, airbnb_bedroom_count: 1 }),
+      prop("s3", "Studio n° 3 com Piscina Compartilhada", { airbnb_listing_url: "https://www.airbnb.com.br/rooms/1793590014642613333", airbnb_guest_count: 4, airbnb_bedroom_count: 1 }),
+    ],
+    property_listing_raw_data: [listing("s105", "1668254267295787925", RULE_1_NIGHT), listing("s4", "1793590014642613896", RULE_1_NIGHT), listing("s3", "1793590014642613333", RULE_1_NIGHT)],
+    property_reservations: [res("s105", "2026-11-16", "2026-11-18"), res("s105", "2026-11-19", "2026-11-21")],
+  });
+
+  it("período ocupado aqui ⇒ datas do mesmo tamanho mais próximas e reserváveis NESTE imóvel, pelas regras do anúncio", async () => {
+    const occ = await fetchPropertyOccupancy(turn(), { today: TODAY }, { db: fakeDb(scenario()) });
+    expect(occ.requested).toMatchObject({ checkin: "2026-11-17", checkout: "2026-11-20", bookable: "nao" });
+    // mesma distância (4 dias) antes e depois: a mais cedo primeiro; nunca antes de hoje (12/11)
+    expect(occ.nearestWindows).toEqual([
+      { checkin: "2026-11-13", checkout: "2026-11-16", nights: 3 },
+      { checkin: "2026-11-21", checkout: "2026-11-24", nights: 3 },
+    ]);
+    const fact = calendarFactValue(occ) as Record<string, Array<Record<string, unknown>>>;
+    expect(fact.datas_livres_mais_proximas_neste_imovel![1]).toEqual({ entrada: "2026-11-21", saida: "2026-11-24", noites: 3 });
+  });
+
+  it("portfólio só com imóveis que comportam o grupo; capacidade e quartos vão ao fato", async () => {
+    const four = await fetchPropertyOccupancy(turn(), { today: TODAY, partySize: 4 }, { db: fakeDb(scenario()) });
+    expect(four.alternatives!.map((a) => a.name)).toEqual(["Studio n° 3 com Piscina Compartilhada"]);
+    const fact = calendarFactValue(four) as Record<string, Array<Record<string, unknown>>>;
+    expect(fact.alternativas_portfolio![0]).toMatchObject({ capacidade_hospedes: 4, quartos: 1, link_airbnb: "https://www.airbnb.com.br/rooms/1793590014642613333" });
+    const unknown = await fetchPropertyOccupancy(turn(), { today: TODAY }, { db: fakeDb(scenario()) });
+    expect(unknown.alternatives!.map((a) => a.name).sort()).toEqual(["Studio n° 3 com Piscina Compartilhada", "Studio n° 4 Natureza Próx. a Corredor Turístico"]);
+  });
+
+  it("tamanho do grupo: adultos + crianças (bebês não contam); consulta prevalece; sem dado ⇒ null", () => {
+    expect(partySizeOf({ guests: 5, adults: 2, children: 1 }, null)).toBe(3);
+    expect(partySizeOf({ guests: 4, adults: null, children: null }, null)).toBe(4);
+    expect(partySizeOf(null, { adults: 2, children: 2 })).toBe(4);
+    expect(partySizeOf(null, null)).toBeNull();
+  });
+
+  it("roteiro: próprio imóvel primeiro, portfólio com link se a pessoa não aceitar; desconto vai à equipe; chegada sem reforço de material", () => {
+    const sys = buildSystemPrompt("airbnb");
+    expect(sys).toMatch(/Quando o período pedido não cabe neste imóvel, conduza em etapas\. Primeiro ofereça o que ele tem/);
+    expect(sys).toMatch(/datas_livres_mais_proximas_neste_imovel/);
+    expect(sys).toMatch(/Se a pessoa não aceitar mudar as datas, ou se não houver datas próximas, sugira uma ou duas acomodações de alternativas_portfolio/);
+    expect(sys).toMatch(/com capacidade para o grupo/);
+    expect(sys).toMatch(/Pedido de desconto, valor especial ou negociação: explique com naturalidade que o valor já está com o desconto máximo aplicado/);
+    expect(sys).toMatch(/um ou dois benefícios reais do imóvel \(só do dossiê\)/);
+    expect(sys).toMatch(/avise a equipe \(strategy answer_and_handoff, urgência normal\), que pode intervir na negociação/);
+    expect(sys).not.toMatch(/cite e reforce com naturalidade o material enviado/);
+    expect(sys).not.toMatch(/as instruções que te passamos por aqui/);
   });
 });

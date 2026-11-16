@@ -83,6 +83,9 @@ export interface PortfolioAlternative {
   checkout: string;
   nights: number;
   minNights: number;
+  /** Capacidade e quartos do anúncio (cadastro), para a IA escolher a mais parecida. `null` = não informado. */
+  maxGuests?: number | null;
+  bedrooms?: number | null;
   /** O período cumpre o mínimo de noites do anúncio? (antecipar/prorrogar 1 noite pode ficar abaixo: depende da equipe). */
   meetsMinNights?: boolean;
 }
@@ -210,6 +213,11 @@ export interface PropertyCalendarOccupancy {
   requested?: PeriodAssessment | null;
   /** Outros imóveis do anfitrião reserváveis no período (`null` = não consultado; `[]` = nenhum). */
   alternatives?: readonly PortfolioAlternative[] | null;
+  /**
+   * Período pedido que não cabe aqui: as janelas do MESMO tamanho mais próximas, reserváveis NESTE imóvel pelas regras
+   * do anúncio (mínimo de noites, horizonte de reserva). Vazio = nenhuma em ±21 dias; ausente = não calculado.
+   */
+  nearestWindows?: readonly RequestedPeriod[] | null;
   /** Com estadia: a noite anterior à entrada e a noite da saída (antecipar/prorrogar), aqui e no portfólio. */
   stayEdges?: { before: StayEdgeNight | null; after: StayEdgeNight | null } | null;
 }
@@ -462,6 +470,11 @@ export function calendarFactValue(occ: PropertyCalendarOccupancy): Record<string
       ? { datas_citadas: occ.mentionedDates.map((m) => ({ data: m.date, noite_ocupada: m.nightOccupied, outro_checkin_no_dia: m.otherCheckinOnDay })) }
       : {}),
     ...(occ.requested ? { periodo_consultado: periodFactValue(occ.requested) } : {}),
+    ...(occ.nearestWindows
+      ? {
+          datas_livres_mais_proximas_neste_imovel: occ.nearestWindows.map((w) => ({ entrada: w.checkin, saida: w.checkout, noites: w.nights })),
+        }
+      : {}),
     ...(occ.alternatives
       ? {
           alternativas_portfolio: occ.alternatives.map((a) => ({
@@ -471,6 +484,8 @@ export function calendarFactValue(occ: PropertyCalendarOccupancy): Record<string
             saida: a.checkout,
             noites: a.nights,
             minimo_noites: a.minNights,
+            capacidade_hospedes: a.maxGuests ?? null,
+            quartos: a.bedrooms ?? null,
             situacao: "livre e reservável no período",
           })),
         }
@@ -498,6 +513,8 @@ export function calendarFactValue(occ: PropertyCalendarOccupancy): Record<string
                           entrada: a.checkin,
                           saida: a.checkout,
                           minimo_noites: a.minNights,
+                          capacidade_hospedes: a.maxGuests ?? null,
+                          quartos: a.bedrooms ?? null,
                           situacao:
                             a.meetsMinNights === false
                               ? `noite livre, mas abaixo do mínimo de ${a.minNights} noites do anúncio: pode oferecer, e a liberação dessa noite avulsa fica com a equipe (handoff)`
@@ -537,4 +554,37 @@ export function periodFactValue(p: PeriodAssessment): Record<string, unknown> {
     cumpre_minimo: p.meetsMinNights ?? "desconhecido",
     reservavel_neste_anuncio: p.bookable,
   };
+}
+
+/** Distância máxima (dias) para procurar datas alternativas no próprio imóvel. */
+export const NEAREST_WINDOW_MAX_SHIFT_DAYS = 21;
+
+/**
+ * Janelas do MESMO tamanho do período pedido, reserváveis neste imóvel (noites livres + regras do anúncio), as mais
+ * próximas primeiro (empate: a mais cedo), sem repetir o próprio período. Pura. Fonte: calendário + regras do anúncio.
+ */
+export function nearestBookableWindows(
+  occ: Pick<PropertyCalendarOccupancy, "occupiedRanges" | "today">,
+  period: RequestedPeriod,
+  rules: StayRules | null | undefined,
+  max = 2,
+  maxShift = NEAREST_WINDOW_MAX_SHIFT_DAYS,
+): RequestedPeriod[] {
+  if (!rules) return [];
+  const shift = (d: string, n: number) => {
+    const x = new Date(`${d}T00:00:00Z`);
+    x.setUTCDate(x.getUTCDate() + n);
+    return x.toISOString().slice(0, 10);
+  };
+  const out: RequestedPeriod[] = [];
+  for (let k = 1; k <= maxShift && out.length < max; k++) {
+    for (const dir of [-1, 1]) {
+      if (out.length >= max) break;
+      const checkin = shift(period.checkin, dir * k);
+      if (checkin < occ.today) continue;
+      const cand: RequestedPeriod = { checkin, checkout: shift(checkin, period.nights), nights: period.nights };
+      if (assessPeriod(occ, cand, rules).bookable === "sim") out.push(cand);
+    }
+  }
+  return out;
 }

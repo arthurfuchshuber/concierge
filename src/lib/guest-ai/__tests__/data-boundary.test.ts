@@ -36,7 +36,8 @@ describe("F0 · fronteira de dados (varredura estática do módulo guest-ai/)", 
     expect(client).not.toMatch(/\.(insert|update|upsert|delete)\s*\(/);
     expect(client.match(/\.rpc\s*\(/g)).toHaveLength(1);
     expect(client).toMatch(/if \(!\(COPILOT_RPC_FUNCTIONS as readonly string\[\]\)\.includes\(fn\)\) return/);
-    expect(client).toMatch(/COPILOT_RPC_FUNCTIONS = \["copilot_claim_generation", "copilot_generation_state", "copilot_store_result", "copilot_purge_expired"\] as const/);
+    // 16/11/2026: + copilot_record_trace (rastro da geração: só números e códigos fechados, EXECUTE só service_role)
+    expect(client).toMatch(/COPILOT_RPC_FUNCTIONS = \["copilot_claim_generation", "copilot_generation_state", "copilot_store_result", "copilot_purge_expired", "copilot_record_trace"\] as const/);
     // nenhuma porta de lease ou Shadow existe nesta entrega
     expect(files.filter((f) => /LEASE_RPC_FUNCTIONS|SHADOW_RPC_FUNCTIONS|LeaseRpc|ShadowRpc/.test(code(f))).map(rel)).toEqual([]);
     // porta do Copiloto: só o adaptador e o serviço de geração

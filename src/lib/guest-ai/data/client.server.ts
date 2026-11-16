@@ -29,7 +29,7 @@ export interface RpcCapableClient {
  * atendente (editar, descartar, enviar) NÃO passam por aqui: correm com o cliente da SESSÃO do usuário
  * (removidas com o cartão de sugestão em 10/11/2026). Só o adaptador `copilot/store.server.ts` usa esta porta.
  */
-export const COPILOT_RPC_FUNCTIONS = ["copilot_claim_generation", "copilot_generation_state", "copilot_store_result", "copilot_purge_expired"] as const;
+export const COPILOT_RPC_FUNCTIONS = ["copilot_claim_generation", "copilot_generation_state", "copilot_store_result", "copilot_purge_expired", "copilot_record_trace"] as const;
 export type CopilotRpcFunction = (typeof COPILOT_RPC_FUNCTIONS)[number];
 export interface GuestAiCopilotRpc {
   call(fn: CopilotRpcFunction, args: Record<string, unknown>): Promise<{ data: unknown; error: unknown }>;

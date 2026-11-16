@@ -152,6 +152,8 @@ export interface CopilotGenerateDeps {
   schedule?: (fn: () => void, ms: number) => () => void;
   env?: Record<string, string | undefined>;
   deadlineMs?: number;
+  /** Teste: substitui a gravação do rastro da geração. */
+  recordTrace?: (row: GenerationTrace) => Promise<void>;
   /**
    * G2 · ações operacionais (padrão: `runOps`, modo por `GUEST_AI_OPS_MODE`). Roda depois da gravação da
    * sugestão, só com decisão validada; nunca altera a sugestão, e falha nunca derruba a geração.
@@ -839,6 +841,8 @@ export async function generateCopilotSuggestion(
       return { ...chainDeps, stageTimeoutMs: left, turnDeadlineMs: left };
     };
     const retryMinMs = deps.autonomous ? AUTONOMOUS_RETRY_MIN_MS : 6_000;
+    let chainRuns = 1;
+    let retryUsed: string | null = null;
     let outcome = await runTurnChain(
       { turn, traceId: claimed.suggestionId, batch: null, suggest: { alwaysSuggest } },
       fresh(),
@@ -857,6 +861,8 @@ export async function generateCopilotSuggestion(
       remainingMs() > Math.max(TRUNCATED_RETRY_MIN_MS, retryMinMs)
     ) {
       generator = makeGenerator("low");
+      chainRuns += 1;
+      retryUsed = "model_truncated_or_timeout";
       outcome = await runTurnChain(
         { turn, traceId: claimed.suggestionId, batch: null, suggest: { alwaysSuggest } },
         fresh(),
@@ -866,6 +872,8 @@ export async function generateCopilotSuggestion(
     const reason = deps.autonomous && outcome.kind === "silence" ? null : rawReason;
     if (reason && generator.telemetry().status !== "blocked" && remainingMs() > retryMinMs) {
       generator = makeGenerator();
+      chainRuns += 1;
+      retryUsed = reason.slice(0, 120);
       const second = await runTurnChain(
         { turn, traceId: claimed.suggestionId, batch: null, suggest: { alwaysSuggest, retryNote: reason } },
         fresh(),
@@ -916,6 +924,23 @@ export async function generateCopilotSuggestion(
         latencyMs: g.calls > 0 ? g.latencyMs : null,
         error: g.error,
       },
+    });
+    // RASTRO DA GERAÇÃO (16/11/2026, auditoria): tempo total, tentativas, motivo da nova tentativa, desfecho e etapa da
+    // falha. Sem isso, um estouro de prazo não deixava rastro de onde o tempo se perdeu. Melhor esforço: nunca atrasa
+    // a resposta além de 1,5 s nem a derruba.
+    // em teste (armazenamento injetado, sem gravador próprio) não toca o banco real
+    const traceWriter = deps.recordTrace ?? (deps.store ? null : defaultRecordTrace);
+    if (traceWriter) await recordGenerationTrace(traceWriter, {
+      suggestion_id: claimed.suggestionId,
+      autonomous: !!deps.autonomous,
+      total_ms: Math.max(0, Math.round(now() - started)),
+      attempts: chainRuns,
+      retry_reason: retryUsed,
+      final_kind: outcome.kind,
+      final_code: outcomeCode ?? null,
+      failed_stage: outcome.kind === "technical_error" ? String(outcome.stage ?? "") || null : null,
+      remaining_ms: Math.max(0, Math.round(remainingMs())),
+      tool_rounds: g.toolRounds ?? null,
     });
     // Sinais operacionais: a decisão validada da resposta é a fonte única; sem ela, o leitor de reserva.
     const decided =
@@ -1002,5 +1027,44 @@ export async function generateCopilotSuggestion(
     };
   } finally {
     cancelTimer();
+  }
+}
+
+/** Uma linha de `guest_ai_generation_traces` (sem texto do hóspede nem do modelo: só números e códigos fechados). */
+export interface GenerationTrace {
+  suggestion_id: string;
+  autonomous: boolean;
+  total_ms: number;
+  attempts: number;
+  retry_reason: string | null;
+  final_kind: string;
+  final_code: string | null;
+  failed_stage: string | null;
+  remaining_ms: number;
+  tool_rounds: number | null;
+}
+
+export const GENERATION_TRACE_MAX_MS = 1_500;
+
+/** Gravação pela função restrita do banco (`copilot_record_trace`): o módulo da IA não escreve em tabela. */
+async function defaultRecordTrace(row: GenerationTrace): Promise<void> {
+  const rpc = await getGuestAiCopilotRpc();
+  const { error } = await rpc.call("copilot_record_trace", { p_trace: row });
+  if (error) throw new Error("trace_record_failed");
+}
+
+export async function recordGenerationTrace(write: (row: GenerationTrace) => Promise<void>, row: GenerationTrace): Promise<void> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    await Promise.race([
+      write(row),
+      new Promise<void>((resolve) => {
+        timer = setTimeout(resolve, GENERATION_TRACE_MAX_MS);
+      }),
+    ]);
+  } catch {
+    console.error("[copilot] rastro da geração falhou");
+  } finally {
+    if (timer) clearTimeout(timer);
   }
 }
