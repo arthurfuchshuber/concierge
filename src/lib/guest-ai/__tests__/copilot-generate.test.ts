@@ -1257,3 +1257,29 @@ describe("Uma cabeça só: o marco vem da resposta (caso Vânia, 11/11/2026)", (
     expect(noAdvance.mock.calls[0]![0]).toMatchObject({ code: "reader_abstain_context_unclear" });
   });
 });
+
+describe("prazo do turno autônomo (16/11/2026, casos Matheus e Larissa: geração morta sem gravar)", () => {
+  // relógio falso: cada chamada ao modelo "gasta" 13 s e devolve uma saída fora do contrato (pede 2ª tentativa)
+  const slowWrong = (clock: { t: number }) =>
+    fakeProvider(() => {
+      clock.t += 13_000;
+      return okJson({ resposta: "oi" });
+    });
+
+  it("autônomo: com menos de ~14 s restantes NÃO faz a 2ª chamada; grava a falha dentro do prazo", async () => {
+    const clock = { t: 1_000_000 };
+    const p = slowWrong(clock);
+    const d = deps(p, { autonomous: true, now: () => clock.t, schedule: () => () => {} });
+    const r = await generateCopilotSuggestion(REQ, d);
+    expect(p.calls).toBe(1);
+    expect(r).toMatchObject({ status: "stored", state: "generation_failed" });
+  });
+
+  it("copiloto (sem corrida com a contingência de 30 s): ainda tem tempo e faz a 2ª tentativa", async () => {
+    const clock = { t: 1_000_000 };
+    const p = slowWrong(clock);
+    const d = deps(p, { now: () => clock.t, schedule: () => () => {} });
+    await generateCopilotSuggestion(REQ, d);
+    expect(p.calls).toBe(2);
+  });
+});

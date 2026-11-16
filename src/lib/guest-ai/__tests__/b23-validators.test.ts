@@ -138,6 +138,19 @@ describe("B2.3 · semântico — alteração contratual, alternativas e contexto
     expect(sem(d, { dossiers: views }).blocks).toContain("alternatives_not_grounded");
     expect(sem(dec({ strategy: "suggest_alternatives", groundedOn: ["dos:alt1:a"] }), { dossiers: views }).blocks).toEqual([]);
   });
+  it("alternativa do portfólio trazida pelo calendário: citar ctx:calendario_ocupacao fundamenta (16/11/2026)", () => {
+    const base = ctx();
+    const alt = { propertyId: "p9", name: "Studio n° 3", url: "https://www.airbnb.com.br/rooms/9", checkin: "2026-11-18", checkout: "2026-11-19", nights: 1, minNights: 1 };
+    const withCal = { ...base, guest: { ...base.guest, calendar: { status: "available", alternatives: [alt] } } } as unknown as typeof base;
+    const d = dec({ strategy: "suggest_alternatives", groundedOn: ["ctx:calendario_ocupacao"] });
+    expect(sem(d, { context: withCal }).blocks).toEqual([]);
+    // sem alternativa no calendário, citar o calendário não basta
+    const noAlt = { ...base, guest: { ...base.guest, calendar: { status: "available", alternatives: [] } } } as unknown as typeof base;
+    expect(sem(d, { context: noAlt }).blocks).toContain("alternatives_without_candidates");
+    // alternativa só na noite vizinha da estadia também vale
+    const edge = { ...base, guest: { ...base.guest, calendar: { status: "available", alternatives: null, stayEdges: { before: { checkin: "2026-11-18", checkout: "2026-11-19", freeHere: false, alternatives: [alt] }, after: null } } } } as unknown as typeof base;
+    expect(sem(d, { context: edge }).blocks).toEqual([]);
+  });
   it("contradição com o contexto: marco de saída antes da estadia; marco sem reserva", () => {
     const out = dec({ intents: ["departure_confirmation"], hospitalityMilestone: { kind: "checkout_confirmed", evidence: ["hist:guest:h1"] } });
     expect(sem(out).blocks).toContain("milestone_phase_incompatible");

@@ -295,19 +295,21 @@ function productionPorts(
       // mesmo anfitrião, não arquivado: `authorizeCandidateProperty`), para a IA saber o que oferece e conduzir a
       // reserva. Opcional: falha num candidato só o deixa de fora.
       const candidates = [];
-      // DESLIGADO por padrão (16/11/2026, 20h): em produção as consultas com alternativas pararam de terminar
-      // (generation_timeout / geração presa) logo após a ativação. Só liga com GUEST_AI_PORTFOLIO_DOSSIERS=on,
-      // depois de medir e enxugar o dossiê alternativo. Calendário e link das alternativas seguem ativos.
-      const portfolioDossiersOn = process.env["GUEST_AI_PORTFOLIO_DOSSIERS"] === "on";
-      for (const id of portfolioDossiersOn ? portfolioCandidateIds(calendar && calendar.status === "available" ? calendar : null) : []) {
-        try {
-          const auth = await authorizeCandidateProperty(t, id, ALTERNATIVE_PURPOSE, { db, signal: s });
-          if (!auth.ok) continue;
-          candidates.push(await fetchPropertyDossier(auth.target, { db, signal: s }));
-        } catch (e) {
-          if (s.aborted) throw e;
-        }
-      }
+      // Ligado por padrão; desligável com GUEST_AI_PORTFOLIO_DOSSIERS=off. Carregados em paralelo.
+      const portfolioDossiersOn = process.env["GUEST_AI_PORTFOLIO_DOSSIERS"] !== "off";
+      const ids = portfolioDossiersOn ? portfolioCandidateIds(calendar && calendar.status === "available" ? calendar : null) : [];
+      const loaded = await Promise.all(
+        ids.map(async (id) => {
+          try {
+            const auth = await authorizeCandidateProperty(t, id, ALTERNATIVE_PURPOSE, { db, signal: s });
+            return auth.ok ? await fetchPropertyDossier(auth.target, { db, signal: s }) : null;
+          } catch (e) {
+            if (s.aborted) throw e;
+            return null;
+          }
+        }),
+      );
+      for (const d of loaded) if (d) candidates.push(d);
       meta.onDossierEntries(primary.entries.length + primary.manuals.length + candidates.reduce((n, c) => n + c.entries.length + c.manuals.length, 0));
       return candidates.length ? { primary, candidates } : { primary };
     },
@@ -349,6 +351,15 @@ export function refusalCodeWithReason(code: string, structural: readonly string[
 export const COPILOT_AUTO_CALL_MAX_MS = 20_000;
 /** Tempo mínimo restante para a nova tentativa com raciocínio `low` após saída truncada ou chamada lenta. */
 export const TRUNCATED_RETRY_MIN_MS = 6_000;
+/**
+ * Prazo do turno AUTÔNOMO (16/11/2026, casos Matheus e Larissa): o atendimento autônomo desiste em 30 s
+ * (`GENERATION_FALLBACK_MS`), entrega à equipe e o servidor encerra o processo logo depois. A geração tinha prazo de
+ * 40 s e a 2ª tentativa reaproveitava o prazo calculado no início: passava dos 30 s e morria sem gravar nada (linha
+ * presa em `generating`). No autônomo, tudo cabe em 26 s, e uma nova tentativa só começa com tempo para terminar.
+ */
+export const AUTONOMOUS_DEADLINE_MS = 26_000;
+/** Tempo mínimo restante para uma 2ª chamada ao modelo no autônomo (uma chamada leva ~10–13 s). */
+export const AUTONOMOUS_RETRY_MIN_MS = 14_000;
 
 export function retryReason(o: ChainOutcome): string | null {
   if (o.kind === "silence") return "silence_not_allowed_in_suggestion_mode";
@@ -542,7 +553,7 @@ export async function generateCopilotSuggestion(
   const now = deps.now ?? (() => Date.now());
   const schedule = deps.schedule ?? defaultSchedule;
   const started = now();
-  const deadlineMs = deps.deadlineMs ?? COPILOT_DEADLINE_MS;
+  const deadlineMs = deps.deadlineMs ?? (deps.autonomous ? AUTONOMOUS_DEADLINE_MS : COPILOT_DEADLINE_MS);
   const remainingMs = () => Math.max(0, deadlineMs - (now() - started));
   const controller = new AbortController();
   const cancelTimer = schedule(() => controller.abort(), deadlineMs);
@@ -822,9 +833,15 @@ export async function generateCopilotSuggestion(
     // escopo e falhas técnicas NÃO são recontadas aqui.
     // Na condução autônoma o silêncio é LEGÍTIMO (ex.: "ok, obrigado"): sem exigir texto e sem refazer por silêncio.
     const alwaysSuggest = !deps.autonomous;
+    // cada tentativa usa o prazo que REALMENTE resta (antes: o calculado no início, e a 2ª passava do teto)
+    const fresh = (): ChainDeps => {
+      const left = Math.max(1_000, Math.min(COPILOT_STAGE_MAX_MS, Math.floor(remainingMs())));
+      return { ...chainDeps, stageTimeoutMs: left, turnDeadlineMs: left };
+    };
+    const retryMinMs = deps.autonomous ? AUTONOMOUS_RETRY_MIN_MS : 6_000;
     let outcome = await runTurnChain(
       { turn, traceId: claimed.suggestionId, batch: null, suggest: { alwaysSuggest } },
-      chainDeps,
+      fresh(),
     );
     // telemetria de prazo (10/11/2026): em corte por tempo, registra EM QUE ETAPA estourou (código fixo, sem dados)
     if (outcome.kind === "technical_error")
@@ -837,21 +854,21 @@ export async function generateCopilotSuggestion(
       outcome.kind === "technical_error" &&
       outcome.code === "model_call_failed" &&
       (generator.telemetry().error === "truncated_response" || generator.telemetry().error === "timeout") &&
-      remainingMs() > TRUNCATED_RETRY_MIN_MS
+      remainingMs() > Math.max(TRUNCATED_RETRY_MIN_MS, retryMinMs)
     ) {
       generator = makeGenerator("low");
       outcome = await runTurnChain(
         { turn, traceId: claimed.suggestionId, batch: null, suggest: { alwaysSuggest } },
-        chainDeps,
+        fresh(),
       );
     }
     const rawReason = retryReason(outcome);
     const reason = deps.autonomous && outcome.kind === "silence" ? null : rawReason;
-    if (reason && generator.telemetry().status !== "blocked" && remainingMs() > 6_000) {
+    if (reason && generator.telemetry().status !== "blocked" && remainingMs() > retryMinMs) {
       generator = makeGenerator();
       const second = await runTurnChain(
         { turn, traceId: claimed.suggestionId, batch: null, suggest: { alwaysSuggest, retryNote: reason } },
-        chainDeps,
+        fresh(),
       );
       if (second.kind === "reply" || retryReason(second) === null) outcome = second;
     }

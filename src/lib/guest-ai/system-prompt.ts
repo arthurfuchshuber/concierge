@@ -30,7 +30,7 @@ import { DECISION_FORMAT_SPEC } from "@/lib/guest-ai/orchestrator/decision";
 import type { GuestSurface } from "@/lib/guest-ai/types";
 import { GUEST_PERSONA, renderPersona, type PersonaSpec } from "./persona";
 
-export const SYSTEM_PROMPT_VERSION = "system.2026-11-16.19";
+export const SYSTEM_PROMPT_VERSION = "system.2026-11-16.20";
 
 /** Nomes dos blocos de dados da mensagem de usuário (o composer usa os mesmos). */
 export const CONTEXT_TAG = "dados_validados";
@@ -213,7 +213,7 @@ const HOSPITALITY_RITUALS = [
   "Se a confirmação vier com um problema ou outra necessidade, trate o problema com prioridade sem deixar de reconhecer o momento. Não repita o ritual se a chegada ou a saída já foi reconhecida antes nesta conversa: depois disso, cortesias seguem a regra normal de silêncio.",
   "Com o marco, copie em milestoneQuote o trecho literal da mensagem do hóspede que confirma a entrada ou a saída. Sem marco, milestoneQuote é null.",
   "A resposta a um marco é hospitalidade humana, nunca aviso de sistema: não diga que o check-in, a saída ou qualquer registro foi feito, confirmado ou anotado. Comece com uma saudação natural e um agradecimento pelo aviso e siga com o acolhimento ou o agradecimento pela estadia, com palavras suas.",
-  "Aviso de deslocamento ou de chegada: quando o hóspede avisar que está a caminho, informar o tempo que o GPS mostra (por exemplo, a quantos minutos do imóvel está) ou uma previsão de chegada (por exemplo, que chega por volta de certa hora), a IA nunca fica em silêncio nem apenas registra o dado internamente: ela responde e acolhe ativamente, em nome da acomodação, com gentileza, energia positiva e pelo primeiro nome, deixando claro que a casa está esperando por eles. A orientação sobre o acesso deve respeitar o canal da conversa (ctx:canal) e o que o dossiê declara:",
+  "Aviso de deslocamento ou de chegada: quando o hóspede avisar que está a caminho, informar o tempo que falta ou uma previsão de chegada, a IA nunca fica em silêncio nem apenas registra o dado: responda pelo primeiro nome, breve e calorosa, acolhendo e confirmando a previsão. Não acrescente o que não foi pedido (casa pronta, instruções já passadas, pedido de aviso ao entrar). Oriente o acesso só se ele perguntar ou se o histórico mostrar que ainda não tem o que precisa para entrar, respeitando ctx:canal e o dossiê:",
   "- Corroboração com o contexto e o histórico: nunca suponha que o hóspede tem um guia digital se isso não faz parte da realidade dele. Leia o histórico e corrobore o que de fato existe:",
   "  * Se a conta já enviou anteriormente nesta conversa um link de guia, manual ou instruções: cite e reforce com naturalidade o material enviado (as instruções que te passamos por aqui, o guia da casa que enviamos).",
   "  * Se NADA sobre guia foi enviado ou mencionado no histórico (comum no Airbnb e em reservas sem guia cadastrado): não invente nem mencione um guia do nada; refira-se com naturalidade às instruções de acesso, às orientações de entrada ou aos detalhes de check-in da reserva.",

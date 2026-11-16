@@ -232,7 +232,19 @@ export function validateSemantics(input: SemanticInput): SemanticReport {
   // 3) Alternativas: só com candidatos autorizados e citados.
   if (d.strategy === "suggest_alternatives") {
     const candidates = (dossiers ?? []).filter((x) => x.role === "candidate");
-    if (candidates.length === 0) add("alternatives_without_candidates");
+    // A alternativa do portfólio vem do CALENDÁRIO (imóveis do anfitrião livres no período, consultados pelo sistema):
+    // citar o fato do calendário que a traz também fundamenta (16/11/2026).
+    const cal = (input.context as { guest?: { calendar?: unknown } }).guest?.calendar as
+      | { status?: string; alternatives?: readonly unknown[] | null; stayEdges?: { before?: { alternatives?: readonly unknown[] | null } | null; after?: { alternatives?: readonly unknown[] | null } | null } | null }
+      | null
+      | undefined;
+    const calendarHasAlternatives =
+      cal?.status === "available" &&
+      ((cal.alternatives?.length ?? 0) > 0 || (cal.stayEdges?.before?.alternatives?.length ?? 0) > 0 || (cal.stayEdges?.after?.alternatives?.length ?? 0) > 0);
+    const groundedOnCalendar = calendarHasAlternatives && d.groundedOn.includes("ctx:calendario_ocupacao");
+    if (groundedOnCalendar) {
+      // fundamentado pelo calendário
+    } else if (candidates.length === 0) add("alternatives_without_candidates");
     else if (!candidates.some((c) => d.groundedOn.some((id) => id.startsWith(`dos:${c.ref}:`)))) add("alternatives_not_grounded");
   }
 
