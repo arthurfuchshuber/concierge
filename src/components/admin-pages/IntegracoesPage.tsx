@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { AirbnbAiPanel } from "@/components/admin-pages/AirbnbAiPanel";
-import { FiscalPanel, FISCAL_STATUS_KEY } from "@/components/admin-pages/FiscalPanel";
+import { FiscalPanel, FISCAL_STATUS_KEY, type FiscalView } from "@/components/admin-pages/FiscalPanel";
 import { fiscalStatus } from "@/lib/fiscal/fiscal.functions";
 import { ClicksignPanel } from "@/components/admin-pages/ClicksignPanel";
 import { GoogleCalendarPanel } from "@/components/admin-pages/GoogleCalendarPanel";
@@ -191,7 +191,7 @@ export function IntegracoesPage() {
   const asaasRow = asaasItem(banks.data?.items ?? []);
   const asaasActive = !!asaasRow;
   const fiscalActive = !!fiscal.data?.companies.some((c) => c.status !== "Pendente");
-  const [fiscalView, setFiscalView] = useState<"main" | "replace">("main");
+  const [fiscalView, setFiscalView] = useState<FiscalView>("main");
   const showFiscal = isOwner && !accountOwnerId;
   const bankRows = bankSummaryRows(banks.data?.items ?? [], banks.data?.accounts ?? []);
   // Todos os cards abrem recolhidos (pedido 10/11/2026): a lista de bancos só aparece ao tocar na seta.
@@ -319,7 +319,7 @@ export function IntegracoesPage() {
         <DialogContent
           aria-describedby={undefined}
           className={INTEGRATION_WINDOW_CLASS}
-          onBack={panelCfg?.key === "fiscal" && fiscalView === "replace" ? () => setFiscalView("main") : undefined}
+          onBack={panelCfg?.key === "fiscal" && fiscalView !== "main" ? () => setFiscalView("main") : undefined}
         >
           {panelCfg?.key === "gcal" ? (
             <GoogleCalendarPanel accountOwnerId={accountOwnerId} readOnly={!!accountOwnerId || !canManage} inWindow />

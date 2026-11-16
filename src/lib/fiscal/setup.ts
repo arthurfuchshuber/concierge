@@ -7,6 +7,9 @@
 export interface CompanyAddress { cep: string; street: string; number: string; neighborhood: string; city: string; state: string }
 export interface CompanySetupFields {
   taxId: string; legalName: string; tradeName?: string | null; municipalRegistration: string; address: CompanyAddress;
+  /** Aba Fiscal (Receita; editável só quando a Receita não informa e-mail/telefone). */
+  email?: string | null; phone?: string | null; simples?: "nao_optante" | "mei" | "me_epp" | null;
+  cnaeCode?: string | null; cnaeDescription?: string | null; ibgeCityCode?: string | null;
 }
 
 export const onlyDigits = (v: string) => v.replace(/\D+/g, "");
@@ -26,15 +29,17 @@ export function isValidCnpj(raw: string): boolean {
 
 const UFS = new Set(["AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG","PA","PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO"]);
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export class SetupInputError extends Error {
-  constructor(readonly code: "cnpj_invalid" | "legal_name_required" | "municipal_registration_required" | "address_invalid", message: string) {
+  constructor(readonly code: "cnpj_invalid" | "legal_name_required" | "municipal_registration_required" | "address_invalid" | "email_invalid" | "phone_invalid", message: string) {
     super(message);
     this.name = "SetupInputError";
   }
 }
 
 /** Normaliza e valida; devolve os campos públicos já no formato da Focus (sem certificado). */
-export function buildSetupCompanyFields(f: CompanySetupFields): { taxId: string; legalName: string; tradeName: string | null; providerFields: Record<string, unknown> } {
+export function buildSetupCompanyFields(f: CompanySetupFields): { taxId: string; legalName: string; tradeName: string | null; contact: { email: string | null; phone: string | null }; providerFields: Record<string, unknown> } {
   const taxId = onlyDigits(f.taxId);
   if (!isValidCnpj(taxId)) throw new SetupInputError("cnpj_invalid", "CNPJ inválido.");
   const legalName = f.legalName.trim();
@@ -45,11 +50,16 @@ export function buildSetupCompanyFields(f: CompanySetupFields): { taxId: string;
   const cep = onlyDigits(a.cep), uf = a.state.trim().toUpperCase();
   if (cep.length !== 8 || !a.street.trim() || !a.number.trim() || !a.neighborhood.trim() || !a.city.trim() || !UFS.has(uf)) throw new SetupInputError("address_invalid", "Endereço incompleto ou inválido.");
   const tradeName = f.tradeName?.trim() ? f.tradeName.trim() : null;
+  const email = f.email?.trim().toLowerCase() || null;
+  if (email && (email.length > 200 || !EMAIL_RE.test(email))) throw new SetupInputError("email_invalid", "E-mail inválido.");
+  const phone = f.phone ? onlyDigits(f.phone) : "";
+  if (phone && (phone.length < 10 || phone.length > 11)) throw new SetupInputError("phone_invalid", "Telefone inválido.");
   return {
-    taxId, legalName, tradeName,
+    taxId, legalName, tradeName, contact: { email, phone: phone || null },
     providerFields: {
       cnpj: taxId, razao_social: legalName, ...(tradeName ? { nome_fantasia: tradeName } : {}), inscricao_municipal: im,
       logradouro: a.street.trim(), numero: a.number.trim(), bairro: a.neighborhood.trim(), municipio: a.city.trim(), uf, cep, habilita_nfse: true,
+      ...(email ? { email } : {}), ...(phone ? { telefone: phone } : {}),
     },
   };
 }

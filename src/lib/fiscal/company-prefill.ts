@@ -4,6 +4,8 @@
  * a janela mostra tudo bloqueado, exceto nome fantasia e inscrição municipal (que não existe na consulta pública).
  * Sem segredo aqui; o certificado nunca passa por este arquivo.
  */
+export type SimplesOption = "nao_optante" | "mei" | "me_epp";
+
 export type CompanyPrefill =
   | {
       ok: true;
@@ -11,6 +13,12 @@ export type CompanyPrefill =
       legalName: string;
       tradeName: string;
       situation: string;
+      /** Contato e enquadramento vindos da Receita (mockup Fiscal, 16/11/2026): vazio ⇒ o campo abre para digitação. */
+      email: string;
+      phone: string;
+      simples: SimplesOption;
+      cnae: { code: string; description: string };
+      ibgeCityCode: string;
       address: { cep: string; street: string; number: string; neighborhood: string; city: string; state: string };
     }
   | { ok: false; code: "no_cnpj" | "not_found" | "unavailable" };
@@ -35,6 +43,11 @@ export async function lookupCompanyByCnpj(cnpjRaw: unknown, fetchImpl: FetchLike
       legalName: s(j["razao_social"]),
       tradeName: s(j["nome_fantasia"]),
       situation: s(j["descricao_situacao_cadastral"] ?? j["situacao"]).toUpperCase() || "ATIVA",
+      email: s(j["email"]).toLowerCase(),
+      phone: onlyDigits(j["ddd_telefone_1"]),
+      simples: j["opcao_pelo_mei"] === true ? "mei" : j["opcao_pelo_simples"] === true ? "me_epp" : "nao_optante",
+      cnae: { code: onlyDigits(j["cnae_fiscal"]), description: s(j["cnae_fiscal_descricao"]) },
+      ibgeCityCode: onlyDigits(j["codigo_municipio_ibge"]),
       address: { cep: onlyDigits(j["cep"]), street, number: s(j["numero"]) || "S/N", neighborhood: s(j["bairro"]), city: s(j["municipio"]), state: s(j["uf"]).toUpperCase() },
     };
   } catch {

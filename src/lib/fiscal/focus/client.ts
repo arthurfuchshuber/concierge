@@ -126,6 +126,10 @@ export class FocusClient {
   registerCompany(body: Record<string, unknown>, opts: { dryRun: boolean }) {
     return this.call("POST", `/v2/empresas${opts.dryRun ? "?dry_run=1" : ""}`, body);
   }
+  /** Atualiza dados cadastrais da empresa (PUT /v2/empresas/{cnpj}); nunca carrega certificado. */
+  updateCompany(cnpj: string, body: Record<string, unknown>) {
+    return this.call("PUT", `/v2/empresas/${encodeURIComponent(cnpj.replace(/\D/g, ""))}`, body);
+  }
   /**
    * Gatilho (webhook) da Focus: `POST /v2/hooks` com {cnpj, event, url}. A Focus passa a chamar `url` a cada evento do documento.
    * Máx. 5 gatilhos por empresa/evento (documentação pública). A `url` carrega o segredo: nunca logar o corpo desta chamada.

@@ -143,6 +143,8 @@ export const fiscalSetupCompanyWithCertificate = createServerFn({ method: "POST"
     z.object({
       taxId: z.string().min(14).max(18), legalName: z.string().min(2).max(200), tradeName: z.string().max(200).nullish(),
       municipalRegistration: z.string().min(1).max(30), address: Address,
+      email: z.string().max(200).nullish(), phone: z.string().max(20).nullish(), simples: z.enum(["nao_optante", "mei", "me_epp"]).nullish(),
+      cnaeCode: z.string().max(10).nullish(), cnaeDescription: z.string().max(300).nullish(), ibgeCityCode: z.string().max(10).nullish(),
       pfxBase64: z.string().min(16).max(400_000), password: z.string().min(1).max(200), dryRun: z.boolean().optional(),
     }).parse(i))
   .handler(async ({ data, context }) => {
@@ -152,6 +154,67 @@ export const fiscalSetupCompanyWithCertificate = createServerFn({ method: "POST"
     // O CNPJ é o da conta (janela bloqueada): qualquer outro valor é recusado antes de falar com o provedor.
     if (!(await assertTaxIdIsAccountCnpj(db, context.userId, data.taxId))) return { ok: false as const, code: "cnpj_mismatch" };
     return s.setupCompanyWithCertificate(db, context.userId, data);
+  });
+
+/** Janelas Fiscal/Serviços/Preferências (mockups A–R). Todas `owner_only` pelo guarda; empresa sempre conferida contra a conta. */
+const Co = Owner.extend({ companyId: uuid });
+export const fiscalCompanyUpdate = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => Co.extend({ data: z.record(z.string(), z.unknown()) }).parse(i))
+  .handler(async ({ data, context }) => {
+    const s = await svc();
+    const { db, ownerId } = await s.authorizeFiscal(context.userId, data.ownerId, "empresas.cadastrar");
+    return s.updateCompanyData(db, ownerId, context.userId, data.companyId, data.data);
+  });
+export const fiscalPreferencesSave = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => Co.extend({ data: z.record(z.string(), z.unknown()) }).parse(i))
+  .handler(async ({ data, context }) => {
+    const s = await svc();
+    const { db, ownerId } = await s.authorizeFiscal(context.userId, data.ownerId, "empresas.cadastrar");
+    return s.savePreferences(db, ownerId, context.userId, data.companyId, data.data);
+  });
+export const fiscalServicesList = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => Co.parse(i))
+  .handler(async ({ data, context }) => {
+    const s = await svc();
+    const { db, ownerId } = await s.authorizeFiscal(context.userId, data.ownerId, "empresas.ver");
+    return s.listServices(db, ownerId, data.companyId);
+  });
+export const fiscalServiceSave = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => Co.extend({ serviceId: uuid.nullish(), data: z.record(z.string(), z.unknown()) }).parse(i))
+  .handler(async ({ data, context }) => {
+    const s = await svc();
+    const { db, ownerId } = await s.authorizeFiscal(context.userId, data.ownerId, "empresas.cadastrar");
+    return data.serviceId ? s.updateService(db, ownerId, context.userId, data.companyId, data.serviceId, data.data) : s.createService(db, ownerId, context.userId, data.companyId, data.data);
+  });
+export const fiscalServiceDelete = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => Co.extend({ serviceId: uuid }).parse(i))
+  .handler(async ({ data, context }) => {
+    const s = await svc();
+    const { db, ownerId } = await s.authorizeFiscal(context.userId, data.ownerId, "empresas.cadastrar");
+    return s.deleteService(db, ownerId, context.userId, data.companyId, data.serviceId);
+  });
+export const fiscalDeactivate = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => Co.parse(i))
+  .handler(async ({ data, context }) => {
+    const s = await svc();
+    const { db, ownerId } = await s.authorizeFiscal(context.userId, data.ownerId, "empresas.desativar");
+    return s.deactivateCompany(db, ownerId, context.userId, data.companyId);
+  });
+/** Busca do código de tributação nacional (lupa): catálogo local, sem rede. */
+export const fiscalSearchServiceCodes = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) => Owner.extend({ query: z.string().max(80) }).parse(i))
+  .handler(async ({ data, context }) => {
+    const s = await svc();
+    await s.authorizeFiscal(context.userId, data.ownerId, "empresas.ver");
+    const { searchNationalCodes } = await import("./national-codes");
+    return { items: searchNationalCodes(data.query) };
   });
 
 /** Dados da empresa (CNPJ da conta + Receita Federal) para a janela de ativação. Só o titular; nada sensível. */
