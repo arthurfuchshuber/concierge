@@ -15,7 +15,7 @@ async function admin(): Promise<any> {
 }
 
 /** Reenvia a disponibilidade dos anúncios (e gêmeos) do imóvel. */
-async function pushPropertyAvailability(propertyId: string, userId: string | null) {
+export async function pushPropertyAvailability(propertyId: string, userId: string | null) {
   const { allSyncTargets, syncRealAvailability } = await import("@/lib/channex-mapping.server");
   const { flushAriOutbox } = await import("@/lib/channex-ari.server");
   const all = await allSyncTargets();

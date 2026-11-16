@@ -140,12 +140,33 @@ async function createUnit(d: any, r: any): Promise<string> {
     .update({ channex_property_id: prop.data.id, channex_room_type_id: rt.data.id, channex_rate_plan_id: rp.data.id })
     .eq("property_id", r.property_id);
   if (error) throw new Error(error.message);
-  // Reservas e bloqueios já conhecidos + tarifa base na criação, para a ferramenta de preços sincronizar de primeira.
+  // Calendário real + tarifa base já na criação, para a ferramenta de preços sincronizar de primeira.
   await seedUnitCalendar(r.property_id).catch((e) => console.error("[full-connect] seed", e));
   return prop.data.id;
 }
 
 const isoDay = (d: Date) => d.toISOString().slice(0, 10);
+
+/** Noites fechadas no calendário REAL do Airbnb (reservas + bloqueios manuais), lidas do iCal oficial. */
+export async function airbnbClosedNights(icalUrl: string | null | undefined): Promise<Set<string> | null> {
+  const url = String(icalUrl ?? "").trim();
+  if (!url) return null;
+  const { isAllowedIcalUrl } = await import("@/lib/airbnb-ical-url");
+  if (!isAllowedIcalUrl(url)) return null;
+  const res = await fetch(url, { headers: { Accept: "text/calendar" } });
+  if (!res.ok) throw new Error(`iCal ${res.status}`);
+  const text = (await res.text()).replace(/\r?\n[ \t]/g, "");
+  const nights = new Set<string>();
+  for (const ev of text.split("BEGIN:VEVENT").slice(1)) {
+    const s = /DTSTART[^:]*:(\d{8})/.exec(ev)?.[1];
+    const e = /DTEND[^:]*:(\d{8})/.exec(ev)?.[1];
+    if (!s || !e) continue;
+    const f = (x: string) => `${x.slice(0, 4)}-${x.slice(4, 6)}-${x.slice(6, 8)}`;
+    const end = f(e);
+    for (let d = new Date(`${f(s)}T00:00:00Z`); isoDay(d) < end; d = new Date(d.getTime() + 86_400_000)) nights.add(isoDay(d));
+  }
+  return nights;
+}
 
 export const SEED_BASE_RATE = 100;
 
@@ -176,21 +197,21 @@ export async function listingAvailabilityRule(
 }
 
 /**
- * Carga inicial da unidade ainda NÃO mapeada: fecha as noites já ocupadas no ConciergeIA (fechado = 0,
+ * Carga inicial da unidade ainda NÃO mapeada: espelha o calendário real do Airbnb (fechado = 0,
  * livre = 1 até a janela de reservas do anúncio) e, se a unidade ainda não tem nenhuma diária, uma tarifa base para a
  * ferramenta de preços ter ponto de partida. Seguro: sem mapeamento, nada chega ao Airbnb.
  */
-async function seedUnitCalendar(propertyId: string, userId: string | null = null) {
+export async function seedUnitCalendar(propertyId: string, userId: string | null = null) {
   const d = await db();
   const { data: r } = await d
     .from("property_listing_raw_data")
-    .select("channex_property_id, channex_room_type_id, channex_rate_plan_id, channex_channel_id, airbnb_listing_id, owner_id")
+    .select("channex_property_id, channex_room_type_id, channex_rate_plan_id, channex_channel_id, airbnb_listing_id, owner_id, properties(airbnb_ical_url)")
     .eq("property_id", propertyId)
     .maybeSingle();
   if (!r?.channex_property_id || !r.channex_room_type_id || !r.channex_rate_plan_id) return { ok: false, reason: "no_unit" };
-  // A unidade ainda não está mapeada (nada chega ao Airbnb): vale o que o ConciergeIA já sabe —
-  // reservas confirmadas e bloqueios manuais criados aqui.
-  const closed = new Set<string>();
+  // Sem iCal: a unidade ainda não está mapeada (nada chega ao Airbnb), então vale o que o ConciergeIA
+  // já sabe (reservas confirmadas + bloqueios manuais importados). Com iCal, soma o calendário real.
+  const closed = (await airbnbClosedNights((r as any).properties?.airbnb_ical_url)) ?? new Set<string>();
   const { data: known } = await d
     .from("property_reservations")
     .select("checkin_date, checkout_date, status, source")
@@ -228,7 +249,7 @@ async function seedUnitCalendar(propertyId: string, userId: string | null = null
 
 /**
  * Blindagem para qualquer vínculo (De → Para, importação, troca de imóvel): se a unidade própria
- * ainda NÃO está mapeada no Airbnb, garante a carga inicial (reservas e bloqueios + tarifa base se não
+ * ainda NÃO está mapeada no Airbnb, garante a carga inicial (calendário real + tarifa base se não
  * houver diárias), para a ferramenta de preços nunca encontrar a unidade zerada. Mapeada → nada.
  */
 export async function seedIfUnmapped(propertyId: string) {
