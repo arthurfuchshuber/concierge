@@ -4,7 +4,7 @@
  * prestadores e o admin SaaS recebem 403. Não há acesso por herança nem por permissão da árvore.
  */
 export type FiscalAction =
-  | "empresas.ver" | "empresas.cadastrar" | "empresas.certificado" | "empresas.desativar"
+  | "empresas.ver" | "empresas.ativar" | "empresas.cadastrar" | "empresas.certificado" | "empresas.desativar"
   | "documentos.ver" | "documentos.preparar" | "documentos.consultar" | "documentos.baixar" | "documentos.cancelar-preparar"
   | "autorizacoes.ver" | "autorizacoes.autorizar" | "autorizacoes.rejeitar"
   | "provedor.ver" | "provedor.configurar" | "provedor.webhook" | "provedor.testar"

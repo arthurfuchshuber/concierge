@@ -9,6 +9,7 @@ import { extractFileLinks, FocusClient, FocusTransportError, type FetchLike, typ
 import { buildCompanyBody, CertificateInputError, formatCertificateLabel, parseCertificateExpiry, scrubCertificate, validateCertificateInput } from "./certificate";
 import { certificateAlert, contentType, FILE_URL_TTL_SECONDS, FISCAL_BUCKET, FiscalFileError, MAX_FILE_BYTES, filePath, sha256Bytes, validateFiscalFile, type CertificateAlert, type FileKind } from "./files";
 import { requireFiscalAccess, type FiscalAction, type FiscalGuardPorts } from "./guard";
+import { buildSetupCompanyFields, SetupInputError, type CompanySetupFields } from "./setup";
 import { redactBody, hashBody } from "./redact";
 import { reconcileOne, type ReconcileCandidate } from "./reconcile";
 import { runSendSequence, type SendOutcome } from "./send-sequence";
@@ -81,18 +82,47 @@ export async function getConnectionPublic(db: Db, ownerId: string) {
   return (data ?? []).map((c) => ({ id: c.id as string, environment: c.environment as FocusEnvironment, status: c.status as string, tokenFingerprint: c.token_fingerprint as string | null, lastOkAt: c.last_ok_at as string | null, lastErrorCode: c.last_error_code as string | null, hasWebhook: !!c.webhook_secret_hash, updatedAt: c.updated_at as string }));
 }
 
-async function focusFor(db: Db, ownerId: string, connectionId: string, fetchImpl?: FetchLike): Promise<FocusClient> {
+/**
+ * Resolve o cliente Focus de uma conexão. Conexão da PLATAFORMA (`owner_id` nulo) usa o token mestre de `process.env.FOCUSNFE_API`
+ * (nunca gravado no banco). Ela só é aceita quando o chamador já derivou o id da empresa do próprio titular (`viaCompany`);
+ * um id de conexão vindo do cliente nunca resolve para a conexão da plataforma.
+ */
+async function focusFor(db: Db, ownerId: string, connectionId: string, fetchImpl?: FetchLike, opts: { viaCompany?: boolean } = { viaCompany: true }): Promise<FocusClient> {
   const { data } = await db.from("fiscal_provider_connections").select("environment, secret_ref, status, owner_id").eq("id", connectionId).maybeSingle();
-  if (!data || data.owner_id !== ownerId) throw new Error("Conexão fiscal não encontrada.");
+  const platform = !!data && data.owner_id === null;
+  if (!data || (data.owner_id !== ownerId && !(platform && opts.viaCompany))) throw new Error("Conexão fiscal não encontrada.");
   if (data.status === "revoked" || data.status === "paused") throw new Error("Conexão fiscal desativada.");
+  const fetchFn = fetchImpl ?? (globalThis.fetch as unknown as FetchLike);
+  if (platform) {
+    const master = process.env.FOCUSNFE_API?.trim();
+    if (!master) throw new Error("Módulo fiscal indisponível no momento.");
+    return new FocusClient({ environment: data.environment as FocusEnvironment, token: master, fetch: fetchFn });
+  }
   const ct = (data.secret_ref as { ct?: string } | null)?.ct;
   if (!ct) throw new Error("Token da conexão não configurado.");
-  return new FocusClient({ environment: data.environment as FocusEnvironment, token: decryptConnectionKey(ct), fetch: fetchImpl ?? (globalThis.fetch as unknown as FetchLike) });
+  return new FocusClient({ environment: data.environment as FocusEnvironment, token: decryptConnectionKey(ct), fetch: fetchFn });
+}
+
+/**
+ * Conexão Mestre da Plataforma (`owner_id` nulo, produção). Existe só como referência: o token vem de `FOCUSNFE_API` e NÃO é gravado
+ * (`secret_ref` nulo; guarda-se apenas a impressão digital). Idempotente.
+ */
+export async function ensurePlatformConnection(db: Db): Promise<{ id: string }> {
+  const master = process.env.FOCUSNFE_API?.trim();
+  if (!master) throw new Error("Módulo fiscal indisponível no momento.");
+  const now = new Date().toISOString();
+  const existing = await db.from("fiscal_provider_connections").select("id, status").is("owner_id", null).eq("environment", "production").maybeSingle();
+  if (existing.data?.id) {
+    if (existing.data.status !== "active") must(await db.from("fiscal_provider_connections").update({ status: "active", last_error_code: null, updated_at: now }).eq("id", existing.data.id), "reativar conexão da plataforma");
+    return { id: existing.data.id as string };
+  }
+  const ins = must(await db.from("fiscal_provider_connections").insert({ owner_id: null, provider: "focus", environment: "production", status: "active", base_url: "https://api.focusnfe.com.br", secret_ref: null, token_fingerprint: tokenFingerprint(master) }).select("id").single(), "criar conexão da plataforma") as { id: string };
+  return { id: ins.id };
 }
 
 /** Teste de credencial SEM efeito fiscal: consulta uma ref que não existe. 404 ⇒ autenticou; 401/403 ⇒ token recusado. */
 export async function testConnection(db: Db, ownerId: string, connectionId: string, fetchImpl?: FetchLike): Promise<{ ok: boolean; code: string }> {
-  const client = await focusFor(db, ownerId, connectionId, fetchImpl);
+  const client = await focusFor(db, ownerId, connectionId, fetchImpl, { viaCompany: false });
   let res: FocusHttpResult;
   try { res = await client.query("nfe", `cia-teste-${randomBytes(6).toString("hex")}`); }
   catch (e) { const code = e instanceof FocusTransportError ? e.reason : "unreachable"; await setConnState(db, connectionId, "error", code); return { ok: false, code }; }
@@ -211,7 +241,7 @@ export type FiscalStatusPublic = {
 
 export async function getFiscalStatusPublic(db: Db, ownerId: string): Promise<FiscalStatusPublic> {
   const { data: comps } = await db.from("fiscal_companies").select("id, tax_id, legal_name, trade_name, status, connection_id, certificate_valid_until").eq("owner_id", ownerId).is("soft_deleted_at", null).order("created_at");
-  const { data: conns } = await db.from("fiscal_provider_connections").select("id, environment, status").eq("owner_id", ownerId);
+  const { data: conns } = await db.from("fiscal_provider_connections").select("id, environment, status, owner_id").or(`owner_id.eq.${ownerId},owner_id.is.null`);
   const byId = new Map((conns ?? []).map((c) => [c.id as string, c]));
   return {
     companies: (comps ?? []).map((c) => {
@@ -240,7 +270,7 @@ export async function submitCompanyCertificate(
     const { data: co } = await db.from("fiscal_companies").select("id, owner_id, tax_id, connection_id").eq("id", args.companyId).eq("owner_id", ownerId).is("soft_deleted_at", null).maybeSingle();
     if (!co) throw new Error("Empresa fiscal não encontrada.");
     const body = buildCompanyBody(args.companyFields, pfxBase64, password, co.tax_id as string);
-    const { data: conn } = await db.from("fiscal_provider_connections").select("environment").eq("id", co.connection_id).eq("owner_id", ownerId).maybeSingle();
+    const { data: conn } = await db.from("fiscal_provider_connections").select("environment").eq("id", co.connection_id).maybeSingle();
     if (conn?.environment !== "production") throw new Error("A API de Empresas da Focus opera apenas em produção: use uma conexão de produção.");
     const client = await focusFor(db, ownerId, co.connection_id as string, fetchImpl);
     let res: FocusHttpResult;
@@ -262,6 +292,65 @@ export async function submitCompanyCertificate(
   } catch (e) {
     if (e instanceof CertificateInputError) return { ok: false, dryRun: args.dryRun, code: e.code };
     throw new Error(scrubCertificate(String((e as Error)?.message ?? e), pfxBase64, password));
+  }
+}
+
+/**
+ * Ativação de ponta a ponta pelo titular (White-Label): habilita o módulo para a própria conta, valida os dados, envia empresa +
+ * certificado A1 à Focus (POST /v2/empresas, conexão mestre da plataforma) e SÓ DEPOIS registra a empresa como ativa.
+ * O `.pfx` e a senha vivem apenas nesta requisição: não são gravados, logados nem devolvidos; erros passam por `scrubCertificate`.
+ * Retorna somente metadados públicos. `dryRun` (opcional) simula na Focus sem criar a empresa e não grava nada local.
+ */
+export async function setupCompanyWithCertificate(
+  db: Db, userId: string,
+  args: CompanySetupFields & { pfxBase64: string; password: string; dryRun?: boolean },
+  fetchImpl?: FetchLike,
+): Promise<{ ok: true; certificateValidUntil: string | null; legalName: string; dryRun: boolean } | { ok: false; code: string }> {
+  const ownerId = userId; // owner_only: a conta é sempre a do próprio usuário autenticado
+  const { pfxBase64, password } = args;
+  const dryRun = args.dryRun === true;
+  try {
+    await requireFiscalAccess({ moduleEnabled: async () => true }, { userId, ownerId, action: "empresas.ativar" });
+    const f = buildSetupCompanyFields(args);
+    validateCertificateInput(pfxBase64, password);
+    const body = buildCompanyBody(f.providerFields, pfxBase64, password, f.taxId);
+
+    // CNPJ já cadastrado em OUTRA conta: recusa antes de qualquer chamada externa.
+    const dup = await db.from("fiscal_companies").select("id, owner_id").eq("tax_id", f.taxId).is("soft_deleted_at", null).maybeSingle();
+    if (dup.data && dup.data.owner_id !== ownerId) return { ok: false, code: "cnpj_in_use" };
+
+    const conn = await ensurePlatformConnection(db);
+    const client = await focusFor(db, ownerId, conn.id, fetchImpl);
+    let res: FocusHttpResult;
+    try { res = await client.registerCompany(body, { dryRun }); }
+    catch (e) {
+      const code = e instanceof FocusTransportError ? e.reason : "unreachable";
+      await audit(db, ownerId, userId, "company_setup_error", "company", null, { dryRun, code });
+      return { ok: false, code };
+    }
+    const ok = res.status >= 200 && res.status < 300;
+    await audit(db, ownerId, userId, dryRun ? "company_setup_dry_run" : "company_setup", "company", dup.data?.id ?? null, { dryRun, httpStatus: res.status });
+    if (!ok) return { ok: false, code: `http_${res.status}` };
+    const until = parseCertificateExpiry(res.body);
+    if (dryRun) return { ok: true, certificateValidUntil: until, legalName: f.legalName, dryRun: true };
+
+    // Aprovada pela Focus: habilita o módulo para esta conta (incluído no plano) e registra a empresa.
+    const now = new Date().toISOString();
+    must(await db.from("fiscal_tenant_enablement").upsert({ owner_id: ownerId, enabled: true, enabled_by: userId, enabled_at: now, note: "ativado pelo titular (incluído no plano)", updated_at: now }, { onConflict: "owner_id" }), "habilitar módulo");
+    const row = { connection_id: conn.id, legal_name: f.legalName, trade_name: f.tradeName, status: "active", certificate_valid_until: until, certificate_updated_at: now, updated_at: now };
+    if (dup.data?.id) must(await db.from("fiscal_companies").update(row).eq("id", dup.data.id).eq("owner_id", ownerId), "atualizar empresa");
+    else {
+      const ins = await db.from("fiscal_companies").insert({ owner_id: ownerId, tax_id: f.taxId, ...row }).select("id").single();
+      if (ins.error) throw new Error(ins.error.code === "23505" ? "cnpj_in_use" : `registrar empresa: ${ins.error.message}`);
+      await audit(db, ownerId, userId, "company_create", "company", ins.data.id as string, {});
+    }
+    return { ok: true, certificateValidUntil: until, legalName: f.legalName, dryRun: false };
+  } catch (e) {
+    if (e instanceof CertificateInputError || e instanceof SetupInputError) return { ok: false, code: e.code };
+    if ((e as { code?: string }).code === "not_owner") return { ok: false, code: "not_owner" };
+    const msg = scrubCertificate(String((e as Error)?.message ?? e), pfxBase64, password);
+    if (msg === "cnpj_in_use") return { ok: false, code: "cnpj_in_use" };
+    throw new Error(msg);
   }
 }
 

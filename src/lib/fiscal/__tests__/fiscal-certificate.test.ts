@@ -24,7 +24,7 @@ function fakeDb(over: { env?: string; companyRow?: Record<string, unknown> | nul
     const api: Record<string, unknown> = {};
     const chain = () => api;
     Object.assign(api, {
-      select: chain, eq: chain, is: chain, order: chain,
+      select: chain, eq: chain, is: chain, or: chain, order: chain,
       maybeSingle: async () => ({ data: table === "fiscal_companies" ? company : table === "fiscal_provider_connections" ? conn : null, error: null }),
       insert: async (payload: unknown) => { writes.push({ table, op: "insert", payload }); return { data: null, error: null }; },
       update: (payload: unknown) => { writes.push({ table, op: "update", payload }); return { eq: () => ({ eq: async () => ({ data: null, error: null }) }) }; },
@@ -111,7 +111,7 @@ describe("projeção segura do status", () => {
       const rows = t === "fiscal_companies" ? comps : conns;
       const api: Record<string, unknown> = {};
       const chain = () => api;
-      Object.assign(api, { select: chain, eq: chain, is: chain });
+      Object.assign(api, { select: chain, eq: chain, is: chain, or: chain });
       (api as { order: unknown }).order = async () => ({ data: rows, error: null });
       (api as { then: unknown }).then = (res: (v: unknown) => unknown) => res({ data: rows, error: null });
       return api;

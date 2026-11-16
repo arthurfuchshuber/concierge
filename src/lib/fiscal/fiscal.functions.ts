@@ -131,6 +131,25 @@ export const fiscalSubmitCertificate = createServerFn({ method: "POST" })
     return s.submitCompanyCertificate(db, ownerId, context.userId, data);
   });
 
+
+/**
+ * Ativação em uma chamada (White-Label): dados da empresa + certificado A1 → Focus (conexão mestre da plataforma).
+ * Só o titular da conta; o `.pfx`/senha nunca são gravados nem devolvidos. Retorna apenas metadados públicos.
+ */
+const Address = z.object({ cep: z.string().min(8).max(9), street: z.string().min(1).max(200), number: z.string().min(1).max(20), neighborhood: z.string().min(1).max(100), city: z.string().min(1).max(100), state: z.string().length(2) });
+export const fiscalSetupCompanyWithCertificate = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((i: unknown) =>
+    z.object({
+      taxId: z.string().min(14).max(18), legalName: z.string().min(2).max(200), tradeName: z.string().max(200).nullish(),
+      municipalRegistration: z.string().min(1).max(30), address: Address,
+      pfxBase64: z.string().min(16).max(400_000), password: z.string().min(1).max(200), dryRun: z.boolean().optional(),
+    }).parse(i))
+  .handler(async ({ data, context }) => {
+    const s = await svc();
+    return s.setupCompanyWithCertificate(await s.adminDb(), context.userId, data);
+  });
+
 /** Arquivos (XML/PDF) de um documento: só metadados. */
 export const fiscalDocumentFiles = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
