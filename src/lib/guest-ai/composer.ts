@@ -6,7 +6,7 @@
  * excedido ou composição indisponível (com motivo). Nunca lança, nunca corta, nunca resume.
  *
  * Estrutura do prompt (decisão D3 do Gate B2.0):
- *  - mensagem `system`: só `buildSystemPrompt(canal)` — sem nenhum dado variável;
+ *  - mensagem `system`: só `buildSystemPrompt(canal, fase)` — a fase é calculada pelo backend; nenhum dado do hóspede;
  *  - UMA mensagem `user` com dois blocos de DADOS delimitados: `<dados_validados>` (fatos
  *    estruturados do backend, com ids citáveis) e `<historico>` (conversa inteira até a mensagem
  *    atual, em JSON). O histórico nunca vira várias mensagens do Gateway: são sempre 2 mensagens.
@@ -645,7 +645,8 @@ export function composeTurnPrompt(input: ComposeInput, options: ComposeOptions =
 
   let system: string;
   try {
-    system = buildSystemPrompt(it.surface, undefined, input.suggest ?? {});
+    // prompt por fase (16/11/2026): a fase vem do contexto validado pelo backend, nunca do modelo nem do hóspede
+    system = buildSystemPrompt(it.surface, undefined, { ...(input.suggest ?? {}), phase: ctx.guest.phase });
   } catch {
     return { kind: "unavailable", reason: "surface_invalid" };
   }

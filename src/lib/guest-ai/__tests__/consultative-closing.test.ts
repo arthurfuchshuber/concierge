@@ -64,11 +64,11 @@ describe("Condução consultiva · cenários (o que o modelo recebe para decidir
     );
   });
 
-  it("fora da consulta (pre_stay): a fase enviada não é inquiry, e a regra só vale para inquiry", () => {
+  it("fora da consulta (pre_stay): a fase enviada não é inquiry e a regra de condução ao fechamento nem entra no prompt (16/11/2026)", () => {
     const p = compose(preStay(), hist([], "Que horas posso chegar?"));
     expect(p.user).toContain('"id":"ctx:fase","valor":"pre_stay"');
     expect(p.user).not.toContain('"valor":"inquiry"');
-    expect(p.system).toMatch(/quando a fase do contexto for inquiry \(sem reserva\)/);
+    expect(p.system).not.toMatch(/Condução ao fechamento em consultas/);
   });
 
   it("uma única vez: o histórico completo vai ao modelo, e a regra manda não repetir se a condução já foi feita", () => {

@@ -84,8 +84,8 @@ describe("B2.1 · composer — estrutura e hierarquia", () => {
     expect(r.prompt.messages[0]!.role).toBe("user");
     expect(r.metrics.messages).toBe(2); // system + user
   });
-  it("system = System Prompt do canal, sem nenhum dado variável", () => {
-    expect(r.prompt.system).toBe(buildSystemPrompt("guide_chat"));
+  it("system = System Prompt do canal e da fase (calculada pelo backend), sem nenhum dado variável", () => {
+    expect(r.prompt.system).toBe(buildSystemPrompt("guide_chat", undefined, { phase: "pre_stay" }));
     for (const data of ["Flat ao lado da Santa Casa", "Que horas posso entrar", "2026-11-04T18:00", "outside_release_window"]) {
       expect(r.prompt.system).not.toContain(data);
     }
