@@ -46,7 +46,8 @@ import { formatForChannel } from "./channel-format";
 import { diagnosisNeedsTeam, diagnosisUrgency, reconcileVisualDiagnosis, stripRoboticAck } from "@/lib/guest-ai/vision/analyzer";
 import type { HistoryResult } from "@/lib/guest-ai/history";
 import { fetchPropertyDossier } from "@/lib/guest-ai/data/property-dossier.server";
-import { primaryDossierTarget } from "@/lib/guest-ai/data/property-access.server";
+import { ALTERNATIVE_PURPOSE, authorizeCandidateProperty, primaryDossierTarget } from "@/lib/guest-ai/data/property-access.server";
+import { portfolioCandidateIds, type CalendarFact } from "@/lib/guest-ai/calendar-occupancy";
 import { loadStayAuthorizationSource } from "@/lib/guest-ai/data/stay-authorization.server";
 import { loadSenderIdentitySource } from "@/lib/guest-ai/data/sender-identity.server";
 import {
@@ -254,6 +255,7 @@ function productionPorts(
   meta: { onDossierEntries: (n: number) => void; onHistoryMessages: (n: number) => void },
 ): CopilotPorts {
   let audiences: readonly string[] | null = null;
+  let calendar: CalendarFact | null = null;
   return {
     loadContext: async (t, s) => {
       const ctx = await loadConversationContext(
@@ -274,6 +276,7 @@ function productionPorts(
         s,
       );
       audiences = ctx.guest.audiences;
+      calendar = ctx.guest.calendar ?? null;
       return ctx;
     },
     loadHistory: async (t, s) => {
@@ -287,8 +290,22 @@ function productionPorts(
         db,
         signal: s,
       });
-      meta.onDossierEntries(primary.entries.length + primary.manuals.length);
-      return { primary };
+      // CONSULTORA DO PORTFÓLIO (16/11/2026, caso Marcela): os imóveis do anfitrião que o calendário achou livres
+      // para o período pedido ou para antecipar/prorrogar entram com o dossiê PÚBLICO (público "P", sem credencial,
+      // mesmo anfitrião, não arquivado: `authorizeCandidateProperty`), para a IA saber o que oferece e conduzir a
+      // reserva. Opcional: falha num candidato só o deixa de fora.
+      const candidates = [];
+      for (const id of portfolioCandidateIds(calendar && calendar.status === "available" ? calendar : null)) {
+        try {
+          const auth = await authorizeCandidateProperty(t, id, ALTERNATIVE_PURPOSE, { db, signal: s });
+          if (!auth.ok) continue;
+          candidates.push(await fetchPropertyDossier(auth.target, { db, signal: s }));
+        } catch (e) {
+          if (s.aborted) throw e;
+        }
+      }
+      meta.onDossierEntries(primary.entries.length + primary.manuals.length + candidates.reduce((n, c) => n + c.entries.length + c.manuals.length, 0));
+      return candidates.length ? { primary, candidates } : { primary };
     },
     loadStayAuthorizationSource: (t, s) => loadStayAuthorizationSource(t, { db, signal: s }),
     loadSenderIdentitySource: (t, s) => loadSenderIdentitySource(t, { db, signal: s }),

@@ -115,6 +115,7 @@ async function fetchPortfolioAlternatives(
       const belowMinOnly = a.allNightsFree && a.meetsMinNights === false && a.withinBookingWindow !== false && period.checkin >= today;
       if (a.bookable !== "sim" && !(opts.allowBelowMinNights && belowMinOnly)) continue;
       out.push({
+        propertyId: p.id,
         name,
         url,
         checkin: period.checkin,
