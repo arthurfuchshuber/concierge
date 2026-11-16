@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 
 /**
  * Webhook do provedor fiscal. Autenticidade pelo segredo na URL (guardado só como hash), corpo limitado,
- * gravação idempotente. O corpo é apenas uma DICA: o estado do documento só muda por consulta ao provedor.
+ * gravação idempotente e processamento imediato. O corpo é apenas uma DICA: o estado do documento só muda por consulta ao provedor.
  */
 export const Route = createFileRoute("/api/public/webhooks/fiscal/$connectionId/$secret")({
   server: {
@@ -13,6 +13,7 @@ export const Route = createFileRoute("/api/public/webhooks/fiscal/$connectionId/
         const raw = await request.text();
         const { adminDb } = await import("@/lib/fiscal/service.server");
         const { handleFocusWebhook } = await import("@/lib/fiscal/webhook");
+        const { processWebhookEventById } = await import("@/lib/fiscal/service.server");
         const db = await adminDb();
         try {
           const r = await handleFocusWebhook(
@@ -24,8 +25,15 @@ export const Route = createFileRoute("/api/public/webhooks/fiscal/$connectionId/
               async ingest(id, key, hash, body, ref) {
                 const { data, error } = await db.rpc("fiscal_webhook_ingest", { p_connection: id, p_dedupe_key: key, p_body_hash: hash, p_body: body, p_ref: ref });
                 if (error) throw new Error(error.message);
-                return { new: (data as { new: boolean }).new };
+                const r = data as { new: boolean; id?: string };
+                return { new: r.new, id: r.id };
               },
+              async findPending(id, key) {
+                const { data } = await db.from("fiscal_webhook_events").select("id").eq("connection_id", id).eq("dedupe_key", key).eq("status", "pending").maybeSingle();
+                return (data?.id as string | undefined) ?? null;
+              },
+              // Processamento imediato (sem cron): consulta a Focus, guarda XML/PDF e marca o evento.
+              async process(eventId) { await processWebhookEventById(db, eventId); },
             },
             { connectionId: params.connectionId, secret: params.secret, rawBody: raw },
           );
