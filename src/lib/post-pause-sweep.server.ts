@@ -184,14 +184,21 @@ export async function runPostPauseSweep(deps: SweepDeps = {}): Promise<SweepResu
         if (shouldReleaseHostTakeover(c as never, paused)) {
           await db.from("property_chat_conversations").update({ status: "ai" }).eq("id", c.id).eq("status", "assigned").is("assigned_to", null);
         }
-        // descarta a sugestão da pausa (não enviada); a geração nova lê o contexto de agora
-        await db
+        // descarta a sugestão da pausa (não enviada); a geração nova lê o contexto de agora. O papel de serviço só LÊ
+        // a tabela, então o descarte é uma função do banco. Sem descartar não há turno: o banco só aceita uma geração
+        // por mensagem e a IA cairia na contingência (encaminhamento à equipe).
+        const rel = await db.rpc("copilot_release_unsent_suggestion", {
+          p_conversation_id: c.id,
+          p_trigger_message_id: plan.triggerId,
+          p_before: plan.pauseEndsAt,
+        });
+        if (rel?.error) throw new Error("release_failed");
+        const { data: left } = await db
           .from("guest_ai_copilot_suggestions")
-          .delete()
+          .select("created_at")
           .eq("conversation_id", c.id)
-          .eq("trigger_message_id", plan.triggerId)
-          .is("sent_at", null)
-          .lt("created_at", plan.pauseEndsAt);
+          .eq("trigger_message_id", plan.triggerId);
+        if (Array.isArray(left) && left.length > 0) throw new Error("suggestion_still_there");
 
         const { data: trig } = await db.from("property_chat_messages").select("content").eq("id", plan.triggerId).maybeSingle();
         const threadId = (c.guest_session_id ?? "").replace(/^airbnb:/, "");
