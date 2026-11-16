@@ -577,7 +577,7 @@ export async function handleChannexMessage(payload: unknown): Promise<void> {
   const sessionId = `airbnb:${m.threadId}`;
   const { data: existing } = await admin
     .from("property_chat_conversations")
-    .select("id, ai_paused, paused_until, assigned_to")
+    .select("id, status, ai_paused, paused_until, assigned_to")
     .eq("property_id", listing.property_id)
     .eq("guest_session_id", sessionId)
     .maybeSingle();
@@ -586,8 +586,12 @@ export async function handleChannexMessage(payload: unknown): Promise<void> {
   let aiPaused = false;
   if (existing?.id) {
     convId = existing.id as string;
-    const { resolvePause } = await import("@/lib/chat/pause");
+    const { resolvePause, shouldReleaseHostTakeover } = await import("@/lib/chat/pause");
     aiPaused = await resolvePause(admin, convId, existing as never);
+    // Pausa vencida: o `assigned` deixado pelo anfitrião do Airbnb (sem responsável) volta para a IA (16/11/2026).
+    if (shouldReleaseHostTakeover(existing as never, aiPaused)) {
+      await admin.from("property_chat_conversations").update({ status: "ai" }).eq("id", convId).eq("status", "assigned").is("assigned_to", null);
+    }
   } else {
     const { data: created, error } = await admin
       .from("property_chat_conversations")

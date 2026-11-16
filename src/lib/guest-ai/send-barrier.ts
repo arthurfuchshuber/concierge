@@ -10,7 +10,9 @@
  *  - qualquer mensagem do HÓSPEDE mais nova que o gatilho  ⇒ aborta (a mais nova responde o bloco);
  *  - qualquer mensagem HUMANA (anfitrião/equipe) mais nova ⇒ aborta (a fala humana prevalece);
  *  - qualquer mensagem da IA mais nova (outro turno já respondeu) ⇒ aborta (sem resposta duplicada);
- *  - conversa assumida (`status = assigned`) ou com pausa humana vigente ⇒ aborta;
+ *  - posse humana = pausa vigente OU conversa assumida por uma PESSOA (`assigned` com responsável). O `assigned` SEM
+ *    responsável é o resíduo da fala do anfitrião no Airbnb: vencida a pausa, a IA retoma o controle (16/11/2026,
+ *    titular), e cada fala humana nova renova a pausa;
  *  - mensagem de SISTEMA/programada (boas-vindas, lembretes) NÃO bloqueia: não indica que alguém esteja atendendo
  *    a pergunta do hóspede, e calar a IA por causa dela deixaria a pergunta sem resposta;
  *  - nota interna da equipe nunca conta como fala ao hóspede;
@@ -71,12 +73,13 @@ export const HUMAN_BARRIER_REASONS: ReadonlySet<BarrierReason> = new Set(["human
 export function evaluateSendBarrier(i: BarrierInput): BarrierVerdict {
   if (!i.conversation || i.rowsAfter === null) return { abort: true, reason: "unknown_state" };
 
-  const status = (i.conversation.status ?? "").toLowerCase();
   // humano tem prioridade sobre qualquer outro motivo: é o que mais importa não atropelar
   if (i.rowsAfter.some((r) => !r.is_internal_note && r.id !== i.triggerId && isHumanSender(r))) {
     return { abort: true, reason: "human_message" };
   }
-  if (status === "assigned" || i.pausedNow === true) return { abort: true, reason: "human_ownership" };
+  const status = (i.conversation.status ?? "").toLowerCase();
+  const personAssigned = status === "assigned" && !!i.conversation.assigned_to;
+  if (personAssigned || i.pausedNow === true) return { abort: true, reason: "human_ownership" };
   if (i.pausedNow === null) return { abort: true, reason: "unknown_state" };
 
   const visible = i.rowsAfter.filter((r) => !r.is_internal_note && r.id !== i.triggerId);

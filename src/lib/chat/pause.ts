@@ -106,3 +106,17 @@ export async function resolvePause(
   }
   return false;
 }
+
+/**
+ * Resíduo da fala do anfitrião no Airbnb (16/11/2026, titular: passada a pausa a IA retoma o controle).
+ * `hostTakeoverPatch` grava `status = assigned` sem responsável; vencida a pausa, esse status não é posse de ninguém e
+ * deixava a conversa na aba "Humano" para sempre. Devolve `true` quando a conversa deve voltar a `ai`: pausa vencida,
+ * status `assigned` e NENHUM responsável atribuído (quem clicou em "Assumir" continua com a conversa). Puro.
+ */
+export function shouldReleaseHostTakeover(
+  conv: { status?: string | null; assigned_to?: string | null } | null | undefined,
+  pausedNow: boolean,
+): boolean {
+  if (!conv || pausedNow) return false;
+  return (conv.status ?? "").toLowerCase() === "assigned" && !conv.assigned_to;
+}

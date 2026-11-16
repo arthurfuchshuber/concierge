@@ -18,8 +18,11 @@ describe("barreira pré-envio · caso Jayr (IA atropelou o atendente humano)", (
   it("anfitrião humano falou durante a geração (18:10:09) ⇒ aborta, mesmo sem pausa gravada ainda", () => {
     expect(evaluateSendBarrier({ ...ok, rowsAfter: [row("h1", "human")] })).toEqual({ abort: true, reason: "human_message" });
   });
-  it("conversa virou 'assigned' ⇒ aborta", () => {
-    expect(evaluateSendBarrier({ ...ok, conversation: { ...ok.conversation!, status: "assigned" } })).toEqual({ abort: true, reason: "human_ownership" });
+  it("conversa assumida por uma PESSOA (assigned com responsável) ⇒ aborta mesmo sem pausa", () => {
+    expect(evaluateSendBarrier({ ...ok, conversation: { ...ok.conversation!, status: "assigned", assigned_to: "u1" }, pausedNow: false })).toEqual({ abort: true, reason: "human_ownership" });
+  });
+  it("conversa 'assigned' SEM responsável e pausa já vencida (anfitrião falou há mais de 10 min) ⇒ a IA retoma e pode enviar", () => {
+    expect(evaluateSendBarrier({ ...ok, conversation: { ...ok.conversation!, status: "assigned" }, pausedNow: false })).toEqual({ abort: false });
   });
   it("pausa humana vigente ⇒ aborta", () => {
     expect(evaluateSendBarrier({ ...ok, pausedNow: true })).toEqual({ abort: true, reason: "human_ownership" });
@@ -80,8 +83,8 @@ describe("T-BARRIER-01 · mensagem de atendente com timestamp posterior ao gatil
       expect(JSON.stringify(conv)).toBe(before); // a barreira só decide; nunca escreve
     });
   }
-  it("conversa 'assigned' ⇒ allowed:false human_ownership", () => {
-    const v = evaluateSendBarrier({ ...ok, conversation: { ...ok.conversation, status: "assigned" } as never });
+  it("conversa 'assigned' com pausa vigente ⇒ allowed:false human_ownership", () => {
+    const v = evaluateSendBarrier({ ...ok, conversation: { ...ok.conversation, status: "assigned" } as never, pausedNow: true });
     expect(barrierGate(v)).toEqual({ allowed: false, reason: "human_ownership" });
   });
   it("nada novo ⇒ allowed:true", () => {

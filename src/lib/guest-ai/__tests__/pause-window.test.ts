@@ -4,7 +4,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { HUMAN_PAUSE_WINDOW_MS, deriveHumanPause } from "@/lib/guest-ai/policy/human-pause";
-import { PAUSE_MINUTES, isPausedNow, pausePatch } from "@/lib/chat/pause";
+import { PAUSE_MINUTES, isPausedNow, pausePatch, shouldReleaseHostTakeover } from "@/lib/chat/pause";
 
 const T0 = Date.parse("2026-11-11T18:00:00Z");
 const at = (min: number) => new Date(T0 + min * 60_000).toISOString();
@@ -46,5 +46,21 @@ describe("janela de respeito à intervenção humana", () => {
     const until = Date.parse(p.paused_until);
     expect(isPausedNow(p, until - 60_000)).toBe(true);
     expect(isPausedNow(p, until + 1)).toBe(false);
+  });
+});
+
+describe("pós-pausa: o `assigned` deixado pelo anfitrião do Airbnb volta para a IA (16/11/2026)", () => {
+  it("pausa vencida + assigned sem responsável ⇒ libera", () => {
+    expect(shouldReleaseHostTakeover({ status: "assigned", assigned_to: null }, false)).toBe(true);
+  });
+  it("pausa ainda vigente ⇒ não libera", () => {
+    expect(shouldReleaseHostTakeover({ status: "assigned", assigned_to: null }, true)).toBe(false);
+  });
+  it("quem clicou em Assumir (responsável atribuído) continua com a conversa", () => {
+    expect(shouldReleaseHostTakeover({ status: "assigned", assigned_to: "u1" }, false)).toBe(false);
+  });
+  it("outros status não são tocados (needs_human, ai, resolved) nem conversa inexistente", () => {
+    for (const status of ["needs_human", "ai", "resolved"]) expect(shouldReleaseHostTakeover({ status, assigned_to: null }, false)).toBe(false);
+    expect(shouldReleaseHostTakeover(null, false)).toBe(false);
   });
 });
