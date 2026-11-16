@@ -1,8 +1,15 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from "@/components/ui/command";
-import { Check, ChevronDown, Home } from "lucide-react";
+import {
+  FILTER_PANEL_CLASS,
+  FILTER_PANEL_COLLISION,
+  FILTER_PANEL_OFFSET,
+  FilterMultiSelect,
+  FilterScreenHeader,
+  type FilterMultiOption,
+} from "@/components/dashboard/filter-panel";
+import { ChevronDown, Home } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type Prop = { id: string; name: string };
@@ -23,11 +30,9 @@ export function PropertyMultiSelect({
     ? properties.find((p) => p.id === selected[0])?.name ?? "1 imóvel"
     : `${selected.length} imóveis`;
 
-  function toggle(id: string) {
-    if (isAll) { onChange([id]); return; }
-    const set = new Set(selected);
-    if (set.has(id)) set.delete(id); else set.add(id);
-    const next = Array.from(set);
+  const options = useMemo<FilterMultiOption[]>(() => properties.map((p) => ({ value: p.id, label: p.name })), [properties]);
+  // "Todos" (vazio ou ["all"]) = nada marcado; marcar tudo ou desmarcar tudo volta para "Todos".
+  function change(next: string[]) {
     onChange(next.length === 0 || next.length === properties.length ? ["all"] : next);
   }
 
@@ -46,43 +51,21 @@ export function PropertyMultiSelect({
           <ChevronDown className="size-3.5 opacity-60 shrink-0" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="start" className="p-0 w-[280px]">
-        <Command>
-          <CommandInput placeholder="Buscar imóvel…" className="h-9" />
-          <CommandList>
-            <CommandEmpty>Nenhum imóvel.</CommandEmpty>
-            <CommandGroup>
-              <CommandItem
-                onSelect={() => onChange(["all"])}
-                className="text-xs"
-              >
-                <div className={cn("mr-2 flex size-4 items-center justify-center rounded-sm border", isAll ? "bg-primary border-primary text-primary-foreground" : "border-border")}>
-                  {isAll && <Check className="size-3" />}
-                </div>
-                Selecionar todos
-              </CommandItem>
-              {!isAll && (
-                <CommandItem onSelect={() => onChange(["all"])} className="text-xs text-muted-foreground">
-                  Limpar seleção
-                </CommandItem>
-              )}
-            </CommandGroup>
-            <CommandSeparator />
-            <CommandGroup>
-              {properties.map((p) => {
-                const checked = !isAll && selected.includes(p.id);
-                return (
-                  <CommandItem key={p.id} onSelect={() => toggle(p.id)} className="text-xs">
-                    <div className={cn("mr-2 flex size-4 items-center justify-center rounded-sm border", checked ? "bg-primary border-primary text-primary-foreground" : "border-border")}>
-                      {checked && <Check className="size-3" />}
-                    </div>
-                    <span className="truncate">{p.name}</span>
-                  </CommandItem>
-                );
-              })}
-            </CommandGroup>
-          </CommandList>
-        </Command>
+      <PopoverContent
+        align="start"
+        sideOffset={FILTER_PANEL_OFFSET}
+        collisionPadding={FILTER_PANEL_COLLISION}
+        className={FILTER_PANEL_CLASS}
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
+        <FilterScreenHeader icon={Home} title="Imóveis" />
+        <FilterMultiSelect
+          options={options}
+          selected={isAll ? [] : selected}
+          onChange={change}
+          searchPlaceholder="Buscar imóvel..."
+          emptyLabel="Nenhum imóvel."
+        />
       </PopoverContent>
     </Popover>
   );

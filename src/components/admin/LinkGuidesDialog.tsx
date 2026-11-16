@@ -1,3 +1,4 @@
+import { FilterMultiSelect } from "@/components/dashboard/filter-panel";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -17,7 +18,6 @@ import {
 } from "@/components/ResponsiveDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Link as LinkIcon, Loader2, Unlink, Save } from "lucide-react";
 import { toast } from "sonner";
@@ -186,27 +186,14 @@ function LinkGuidesDialog({
               Nenhum outro guia disponível nesta cidade.
             </p>
           ) : (
-            <ul className="max-h-56 overflow-auto rounded-md border border-border divide-y divide-border">
-              {linkable.map((p) => {
-                const checked = selected.has(p.id);
-                return (
-                  <li key={p.id} className="flex items-center gap-2 p-2">
-                    <Checkbox
-                      checked={checked}
-                      onCheckedChange={(v) => {
-                        setSelected((s) => {
-                          const n = new Set(s);
-                          if (v) n.add(p.id); else n.delete(p.id);
-                          return n;
-                        });
-                      }}
-                    />
-                    <span className="text-sm truncate">{p.name}</span>
-                    {p.city && <span className="text-[11px] text-muted-foreground ml-auto">{p.city}</span>}
-                  </li>
-                );
-              })}
-            </ul>
+            <div className="overflow-hidden rounded-md border border-[var(--panel-border)] pb-0">
+              <FilterMultiSelect
+                options={linkable.map((p) => ({ value: p.id, label: p.name, sublabel: p.city }))}
+                selected={[...selected]}
+                onChange={(next) => setSelected(new Set(next))}
+                searchPlaceholder="Buscar guia..."
+              />
+            </div>
           )}
         </div>
 

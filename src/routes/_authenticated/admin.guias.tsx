@@ -76,7 +76,6 @@ import {
   FILTER_PANEL_COLLISION,
   FILTER_PANEL_OFFSET,
   FilterCountBadge,
-  FilterHeaderClear,
   FilterMenuRow,
   FilterMultiSelect,
   FilterOptionRow,
@@ -788,7 +787,6 @@ function Dashboard() {
                         icon={Users}
                         title="Proprietário"
                         onBack={() => setFilterScreen("root")}
-                        right={<FilterHeaderClear disabled={(ownerFilters.length) === 0} onClick={() => setOwnerFilters([])} />}
                       />
                       <FilterMultiSelect
                         options={ownerOptions.map((o) => ({ value: o, label: o }))}
@@ -804,7 +802,6 @@ function Dashboard() {
                         icon={MapPin}
                         title="Cidade"
                         onBack={() => setFilterScreen("root")}
-                        right={<FilterHeaderClear disabled={(cityFilters.length) === 0} onClick={() => setCityFilters([])} />}
                       />
                       <FilterMultiSelect
                         options={cityOptions.map((o) => ({ value: o, label: o }))}

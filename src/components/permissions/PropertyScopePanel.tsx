@@ -4,7 +4,9 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { Checkbox } from "@/components/ui/checkbox";
+import { SelectionBar, SELECTED_ITEM_BG_CLASS } from "@/components/ui/selection-bar";
+import { useLongPress } from "@/hooks/useLongPress";
+import { cn } from "@/lib/utils";
 import {
   Accordion,
   AccordionContent,
@@ -169,19 +171,18 @@ export function PropertyScopePanel({
           </div>
 
           <div className="space-y-2 rounded-lg border bg-muted/30 px-3 py-2">
-            <div className="flex items-center gap-2">
-              <label className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
-                <Checkbox
-                  checked={allVisibleSelected}
-                  onCheckedChange={(v) => setSelected(v ? filteredIds : [])}
-                  disabled={locked || filteredIds.length === 0}
-                />
-                <span className="truncate">Selecionar {filtered.length} visíveis</span>
-              </label>
-              <span className="ml-auto shrink-0 text-xs text-muted-foreground">
-                {selectedVisible.length} selecionadas
-              </span>
-            </div>
+            {!locked && filteredIds.length > 0 ? (
+              <SelectionBar
+                count={selectedVisible.length}
+                allSelected={allVisibleSelected}
+                onClear={() => setSelected((prev) => prev.filter((id) => !filteredIds.includes(id)))}
+                onToggleAll={() =>
+                  setSelected((prev) =>
+                    allVisibleSelected ? prev.filter((id) => !filteredIds.includes(id)) : [...new Set([...prev, ...filteredIds])],
+                  )
+                }
+              />
+            ) : null}
             <div className="flex items-center gap-2">
               <Button
                 size="sm"
@@ -220,14 +221,12 @@ export function PropertyScopePanel({
               >
                 {filtered.map((p) => (
                   <AccordionItem key={p.id} value={p.id} className="border-0">
-                    <div className="flex w-full min-w-0 max-w-full items-center gap-3 overflow-hidden px-3 py-2">
-                      <span className="shrink-0">
-                        <Checkbox
-                          checked={selected.includes(p.id)}
-                          onCheckedChange={(v) => toggleSelect(p.id, !!v)}
-                          disabled={disabled}
-                        />
-                      </span>
+                    <ScopeRowHeader
+                      on={selected.includes(p.id)}
+                      selecting={selected.length > 0}
+                      disabled={disabled}
+                      onToggle={() => toggleSelect(p.id, !selected.includes(p.id))}
+                    >
                       <AccordionTrigger className="min-w-0 flex-1 overflow-hidden py-1 hover:no-underline [&>svg]:shrink-0">
 
                         {/* ds-card-lines: espaçamento padrão entre linhas de
@@ -251,8 +250,8 @@ export function PropertyScopePanel({
                         disabled={disabled || pending}
                         onCheckedChange={(v) => onToggle(p.id, v)}
                       />
-                    </div>
-                    <AccordionContent className="px-3 pb-3 pl-11">
+                    </ScopeRowHeader>
+                    <AccordionContent className="px-3 pb-3">
                       <div className="space-y-1">
                         {p.address ? (
                           <p className="flex items-start gap-1 text-xs text-muted-foreground">
@@ -282,5 +281,50 @@ export function PropertyScopePanel({
         </div>
       ) : null}
     </Card>
+  );
+}
+
+/**
+ * Cabeçalho de uma residência na lista de escopo — PADRÃO DE SELEÇÃO (sem checkbox): segurar seleciona;
+ * com algo selecionado, tocar alterna; a linha selecionada ganha o tom neutro.
+ */
+function ScopeRowHeader({
+  on,
+  selecting,
+  disabled,
+  onToggle,
+  children,
+}: {
+  on: boolean;
+  selecting: boolean;
+  disabled?: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+}) {
+  const press = useLongPress(() => {
+    if (!disabled && !on) onToggle();
+  });
+  return (
+    <div
+      {...press.handlers}
+      onClickCapture={(e) => {
+        if (press.consumeClick()) {
+          e.preventDefault();
+          e.stopPropagation();
+          return;
+        }
+        if (!selecting || disabled) return;
+        if ((e.target as HTMLElement).closest('[role="switch"]')) return;
+        e.preventDefault();
+        e.stopPropagation();
+        onToggle();
+      }}
+      className={cn(
+        "flex w-full min-w-0 max-w-full items-center gap-3 overflow-hidden px-3 py-2 transition-colors",
+        on && SELECTED_ITEM_BG_CLASS,
+      )}
+    >
+      {children}
+    </div>
   );
 }

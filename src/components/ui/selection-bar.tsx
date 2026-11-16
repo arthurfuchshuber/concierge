@@ -5,10 +5,11 @@ import { cn } from "@/lib/utils";
  * PADRÃO DE SELEÇÃO MÚLTIPLA (regra do sistema, mockup IA no Airbnb, 15/11/2026):
  *  - entra segurando um item (toque longo), SEM checkbox; depois é só tocar nos demais;
  *  - item selecionado ganha `SELECTED_ITEM_CLASS` (tom neutro: 9% do texto sobre o cartão no claro, 20% no escuro);
- *  - a linha de controle é `SelectionBar`, SEMPRE alinhada à direita e logo ABAIXO do campo de busca
- *    (a busca vem primeiro): "N Selecionados" + X "Remover seleção" + "Selecionar Todos" /
- *    "Desmarcar Todos", sem hífen. O "N Selecionados" e o X só aparecem com 1 ou mais itens
- *    selecionados; sem seleção sobra só o "Selecionar Todos". Janela somente leitura não mostra a linha.
+ *  - a linha de controle é `SelectionBar`, logo ABAIXO do campo de busca (a busca vem primeiro), em
+ *    duas pontas (decisão de 16/11/2026): "Selecionar Todos" / "Desmarcar Todos" à ESQUERDA, alinhado ao
+ *    título da janela, e "N Selecionados" (negrito) + X "Remover seleção" à DIREITA. O "N Selecionados" e o X
+ *    só aparecem com 1 ou mais itens selecionados; sem seleção sobra só o "Selecionar Todos".
+ *    Janela somente leitura não mostra a linha.
  */
 /**
  * Tom do item selecionado: 9% do texto sobre o cartão no tema CLARO (mais suave) e 20% no ESCURO.
@@ -38,10 +39,17 @@ export function SelectionBar({
   className?: string;
 }) {
   return (
-    <div className={cn("flex items-center justify-end gap-1.5 text-[12px]", className)}>
+    <div className={cn("flex items-center justify-between gap-1.5 text-[13px]", className)}>
+      <button
+        type="button"
+        onClick={onToggleAll}
+        className="font-semibold text-foreground/60 transition-colors hover:text-foreground"
+      >
+        {allSelected ? "Desmarcar Todos" : "Selecionar Todos"}
+      </button>
       {count > 0 ? (
-        <>
-          <span className="font-bold">
+        <span className="flex items-center gap-1.5">
+          <span className="font-bold text-foreground">
             {count} {count === 1 ? "Selecionado" : "Selecionados"}
           </span>
           <button
@@ -49,19 +57,12 @@ export function SelectionBar({
             aria-label="Remover seleção"
             title="Remover seleção"
             onClick={onClear}
-            className="grid size-6 place-items-center rounded-[7px] text-muted-foreground transition-colors hover:text-foreground [&_svg]:size-3.5"
+            className="grid size-6 place-items-center rounded-[7px] text-foreground transition-colors hover:text-foreground/70 [&_svg]:size-3.5"
           >
             <X strokeWidth={2.2} />
           </button>
-        </>
+        </span>
       ) : null}
-      <button
-        type="button"
-        onClick={onToggleAll}
-        className="font-semibold text-muted-foreground transition-colors hover:text-foreground"
-      >
-        {allSelected ? "Desmarcar Todos" : "Selecionar Todos"}
-      </button>
     </div>
   );
 }

@@ -42,15 +42,19 @@ import {
   type ReactNode,
 } from "react";
 import type { LucideIcon } from "lucide-react";
-import { Check, ChevronLeft, ChevronRight, Search } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Search, X } from "lucide-react";
 import { DayPicker, type DateRange, type DayButtonProps, type Matcher } from "react-day-picker";
 import { addDays, addMonths, endOfMonth, format, isAfter, isBefore, isSameDay, startOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 import { WINDOW_TITLE_CLASS } from "@/components/dashboard/window-header";
 import { OVERLAY_COLLISION_PADDING } from "@/components/ui/overlay-collision";
-import { PopoverContent } from "@/components/ui/popover";
+import { PopoverClose, PopoverContent, useInsidePopover } from "@/components/ui/popover";
 import { MonthYearPicker } from "@/components/ui/month-year-picker";
+import { CORNER_CLOSE_CLASS } from "@/components/ui/corner-close";
+import { SELECTED_ITEM_BG_CLASS, SelectionBar } from "@/components/ui/selection-bar";
+import { useLongPress } from "@/hooks/useLongPress";
+import { ScrollArea } from "@/components/dashboard/TrailParts";
 
 /* ------------------------------------------------------------------------ */
 /* Casca do painel                                                           */
@@ -67,9 +71,13 @@ import { MonthYearPicker } from "@/components/ui/month-year-picker";
  * de `36rem`, que já ficava perto de 75% num celular comum mas não
  * acompanhava telas maiores/menores. `sg-elegant-scroll` já dava a barra de
  * rolagem fina e visível pedida.
+ *
+ * SEM CALHA DE ROLAGEM (16/11/2026, mockup aprovado): `[scrollbar-gutter:auto]!` anula o `stable` do
+ * `.sg-elegant-scroll` — a calha reservada deixava um vão vazio à direita das linhas; a informação e a cor da
+ * seleção ocupam a largura toda da janela.
  */
 export const FILTER_PANEL_CLASS =
-  "sg-elegant-scroll overscroll-contain relative before:pointer-events-none before:absolute before:inset-x-7 before:top-0 before:h-px before:content-[''] before:bg-[image:var(--panel-hair)] w-[280px] max-w-[calc(100vw-32px)] max-h-[min(90dvh,var(--radix-popover-content-available-height))] overflow-y-auto overflow-x-hidden rounded-[var(--win-radius)] border border-[var(--panel-border)] bg-[var(--panel)] p-0 text-foreground shadow-[0_24px_60px_rgba(0,0,0,0.6),0_2px_8px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.05)]";
+  "sg-elegant-scroll [scrollbar-gutter:auto]! overscroll-contain relative before:pointer-events-none before:absolute before:inset-x-7 before:top-0 before:h-px before:content-[''] before:bg-[image:var(--panel-hair)] w-[280px] max-w-[calc(100vw-32px)] max-h-[min(90dvh,var(--radix-popover-content-available-height))] overflow-y-auto overflow-x-hidden rounded-[var(--win-radius)] border border-[var(--panel-border)] bg-[var(--panel)] p-0 text-foreground shadow-[0_24px_60px_rgba(0,0,0,0.6),0_2px_8px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.05)]";
 
 /**
  * Mesma casca, um tom mais claro (`--panel-2`) — para um quadrante que flutua
@@ -353,23 +361,41 @@ export function FilterSection({ children }: { children: ReactNode }) {
 /* Telas internas                                                            */
 /* ------------------------------------------------------------------------ */
 
-/** Cabeçalho de tela interna: voltar, selo pequeno, título em Sora e extra à direita. */
+/**
+ * Cabeçalho de tela interna: título em Manrope e, DENTRO de um popover, o X de canto (`CORNER_CLOSE_CLASS`) —
+ * "sempre o botão pertinente à janela": estas telas abrem direto da página e só dá para fechar, então é o X
+ * (decisão de 16/11/2026). `shortcuts` são os atalhos (ex.: Hoje / Este mês) logo à direita do título, no
+ * tamanho normal. Sem "Limpar" aqui: quem limpa a seleção é o ✕ da `SelectionBar`.
+ */
 export function FilterScreenHeader({
   title,
   right,
+  shortcuts,
 }: {
   /** Mantidos só por compatibilidade com quem chama: o cabeçalho não mostra mais seta nem ícone (23/10/2026). */
   icon?: LucideIcon;
   title: string;
   onBack?: () => void;
   right?: ReactNode;
+  /** Atalhos ao lado do título (pílulas de 11px). */
+  shortcuts?: ReactNode;
 }) {
+  const closable = useInsidePopover();
   return (
     /* Cabeçalho PADRÃO das janelas (Regra 5, 14/11/2026): faixa de 48px, título Manrope 14px negrito,
        margem esquerda de 16px e filete embaixo — igual ao "+ registro". */
-    <div className="flex min-h-12 shrink-0 items-center gap-2.5 border-b border-[var(--panel-div)] py-1.5 pl-4 pr-4">
-      <span className={`min-w-0 flex-1 ${WINDOW_TITLE_CLASS}`}>{title}</span>
+    <div
+      className={`flex min-h-12 shrink-0 items-center gap-1.5 border-b border-[var(--panel-div)] py-1.5 pl-4 ${closable ? "pr-9" : "pr-4"}`}
+    >
+      <span className={`min-w-0 ${shortcuts ? "flex-none" : "flex-1"} ${WINDOW_TITLE_CLASS}`}>{title}</span>
+      {shortcuts ? <span className="flex min-w-0 items-center gap-1">{shortcuts}</span> : null}
       {right ? <span className="flex shrink-0 items-center self-center leading-none">{right}</span> : null}
+      {closable ? (
+        <PopoverClose className={CORNER_CLOSE_CLASS}>
+          <X className="size-[13px]" strokeWidth={1.8} />
+          <span className="sr-only">Fechar</span>
+        </PopoverClose>
+      ) : null}
     </div>
   );
 }
@@ -443,10 +469,58 @@ function normalize(s: string) {
     .toLowerCase();
 }
 
+/** Altura da lista de escolha múltipla: 5 linhas de 51px (nome + subtítulo); passou disso, rola. */
+const MULTI_LIST_MAX = "max-h-[255px] sm:max-h-[255px]";
+
+/** Linha da lista múltipla: toque longo entra na seleção múltipla; a linha marcada ganha o tom neutro. */
+function FilterPickRow({
+  option,
+  checked,
+  last,
+  onTap,
+  onHold,
+}: {
+  option: FilterMultiOption;
+  checked: boolean;
+  last: boolean;
+  onTap: () => void;
+  onHold: () => void;
+}) {
+  const press = useLongPress(onHold);
+  return (
+    <button
+      type="button"
+      role="checkbox"
+      aria-checked={checked}
+      {...press.handlers}
+      onClick={() => {
+        if (press.consumeClick()) return;
+        onTap();
+      }}
+      className={`flex w-full select-none flex-col gap-px px-4 py-2.5 text-left transition-colors ${
+        checked ? SELECTED_ITEM_BG_CLASS : "hover:bg-foreground/[0.03]"
+      } ${last ? "" : ROW_DIVIDER}`}
+    >
+      <span
+        className={`truncate text-[12.5px] font-semibold leading-[1.3] text-foreground ${option.italic ? "italic text-foreground/70" : ""}`}
+      >
+        {option.label}
+      </span>
+      {option.sublabel ? (
+        <span className="truncate text-[10.5px] leading-[1.3] text-muted-foreground">{option.sublabel}</span>
+      ) : null}
+    </button>
+  );
+}
+
 /**
- * Lista de escolha MÚLTIPLA com busca (Cidade, Proprietário, Imóvel):
- * campo de busca em caixa própria, "Selecionar todos"/"Limpar", e linhas
- * com caixinha — a linha marcada ganha o fundo rosa suave.
+ * Lista de escolha MÚLTIPLA com busca (Cidade, Proprietário, Imóvel) — o MESMO padrão do "Novo registro"
+ * (mockups aprovados, 16/11/2026):
+ *  - busca reta (sem preenchimento, só ícone, texto e filete), alinhada à esquerda do título;
+ *  - `SelectionBar` abaixo: "Selecionar Todos" à esquerda, "N Selecionados ✕" à direita;
+ *  - SEM caixinha: toque escolhe um item; SEGURAR o primeiro habilita a seleção múltipla e aí é só tocar nos
+ *    demais; a linha marcada ganha o tom neutro (`SELECTED_ITEM_BG_CLASS`);
+ *  - linhas na LARGURA TOTAL da janela (sem calha); passou de 5 linhas, rola com a barra fina por cima.
  */
 export function FilterMultiSelect({
   options,
@@ -462,19 +536,30 @@ export function FilterMultiSelect({
   emptyLabel?: string;
 }) {
   const [query, setQuery] = useState("");
+  // Seleção múltipla ligada: ao segurar um item, ao "Selecionar Todos" ou quando já abre com mais de um marcado.
+  const [multi, setMulti] = useState(selected.length > 1);
   const visible = useMemo(() => {
     const q = normalize(query.trim());
     if (!q) return options;
     return options.filter((o) => normalize(`${o.label} ${o.sublabel ?? ""}`).includes(q));
   }, [options, query]);
+  const allOn = options.length > 0 && selected.length === options.length;
 
-  function toggle(value: string) {
-    onChange(selected.includes(value) ? selected.filter((v) => v !== value) : [...selected, value]);
+  function tap(value: string) {
+    if (multi) {
+      onChange(selected.includes(value) ? selected.filter((v) => v !== value) : [...selected, value]);
+      return;
+    }
+    onChange(selected.length === 1 && selected[0] === value ? [] : [value]);
+  }
+  function hold(value: string) {
+    setMulti(true);
+    if (!selected.includes(value)) onChange([...selected, value]);
   }
 
   return (
     <>
-      <label className="mx-4 mb-2.5 mt-1 flex items-center gap-2 rounded-[9px] border border-border bg-[var(--panel-well)] px-2.5 py-2">
+      <label className="mx-4 mb-1.5 mt-2 flex h-8 min-w-0 items-center gap-2 border-b border-[var(--panel-div)]">
         <Search className="size-3.5 shrink-0 text-foreground/40" strokeWidth={2} />
         <input
           value={query}
@@ -483,49 +568,36 @@ export function FilterMultiSelect({
           className="min-w-0 flex-1 bg-transparent text-xs text-foreground outline-none placeholder:text-foreground/40"
         />
       </label>
-      {/* "Selecionar Todos": linha com caixinha (mockup 31/10/2026); o "Limpar" mora no cabeçalho. */}
-      <button
-        type="button"
-        role="checkbox"
-        aria-checked={options.length > 0 && selected.length === options.length}
-        onClick={() => onChange(selected.length === options.length ? [] : options.map((o) => o.value))}
-        className={`flex w-full items-center gap-2.5 border-t border-[var(--panel-div)] px-4 py-2.5 text-left ${ROW_HOVER}`}
-      >
-        <CheckBox checked={options.length > 0 && selected.length === options.length} />
-        <span className="text-[12.5px] font-bold text-foreground">Selecionar Todos</span>
-      </button>
+      <SelectionBar
+        className="px-4 py-2"
+        count={selected.length}
+        allSelected={allOn}
+        onClear={() => {
+          onChange([]);
+          setMulti(false);
+        }}
+        onToggleAll={() => {
+          onChange(allOn ? [] : options.map((o) => o.value));
+          setMulti(!allOn);
+        }}
+      />
       <div className="border-t border-[var(--panel-div)]">
-        {visible.length === 0 ? (
-          <div className="px-4 py-6 text-center text-xs text-muted-foreground">{emptyLabel}</div>
-        ) : (
-          visible.map((o, i) => {
-            const checked = selected.includes(o.value);
-            return (
-              <button
+        <ScrollArea overlay listClassName={MULTI_LIST_MAX}>
+          {visible.length === 0 ? (
+            <div className="px-4 py-6 text-center text-xs text-muted-foreground">{emptyLabel}</div>
+          ) : (
+            visible.map((o, i) => (
+              <FilterPickRow
                 key={o.value}
-                type="button"
-                role="checkbox"
-                aria-checked={checked}
-                onClick={() => toggle(o.value)}
-                className={`flex w-full items-center gap-2.5 px-4 py-2.5 text-left transition-colors ${
-                  checked ? "bg-accent/[0.14]" : "hover:bg-foreground/[0.03]"
-                } ${i === visible.length - 1 ? "" : ROW_DIVIDER}`}
-              >
-                <CheckBox checked={checked} />
-                <span className="flex min-w-0 flex-1 flex-col gap-px">
-                  <span
-                    className={`truncate text-[12.5px] font-semibold leading-[1.3] text-foreground ${o.italic ? "italic text-foreground/70" : ""}`}
-                  >
-                    {o.label}
-                  </span>
-                  {o.sublabel ? (
-                    <span className="truncate text-[10.5px] leading-[1.3] text-muted-foreground">{o.sublabel}</span>
-                  ) : null}
-                </span>
-              </button>
-            );
-          })
-        )}
+                option={o}
+                checked={selected.includes(o.value)}
+                last={i === visible.length - 1}
+                onTap={() => tap(o.value)}
+                onHold={() => hold(o.value)}
+              />
+            ))
+          )}
+        </ScrollArea>
       </div>
     </>
   );
@@ -591,11 +663,119 @@ function clampRange(from: Date, to: Date, min?: Date, max?: Date): DateRange | u
   return { from: a, to: b };
 }
 
+type PeriodShortcutProps = {
+  /** Atalho "padrão" (ex.: "Últimos 7 dias") que limpa o período; vem primeiro e marcado quando não há período. */
+  defaultChip?: { label: string; active: boolean; onSelect: () => void };
+  value: DateRange | undefined;
+  /** Recebe cada clique (com o dia clicado); atalhos vêm sem dia. O pai decide quando propagar. */
+  onChange: (next: DateRange | undefined, clicked?: Date) => void;
+  onMonthChange: (next: Date) => void;
+  today: Date;
+  /** Limites opcionais (ex.: só dias com demanda real, na aba Limpeza). */
+  min?: Date;
+  max?: Date;
+};
+
+const sameRange = (a?: DateRange, b?: DateRange) =>
+  !!a?.from && !!a?.to && !!b?.from && !!b?.to && isSameDay(a.from, b.from) && isSameDay(a.to, b.to);
+
 /**
- * Corpo da tela "Período" com calendário: atalhos (Hoje / 7 dias / Este
- * mês), o mês com setas próprias, e os chips Início → Fim.
- * `month`/`onMonthChange` são controlados pelo pai (o mês SEMPRE abre no
- * de hoje — pedido explícito de 23/09/2026).
+ * Atalhos do Período: "Hoje" e "Este mês" (16/11/2026: o "7 dias" saiu do filtro de período; só a página que
+ * tem atalho padrão mantém "Próximos 7 dias"). No mockup aprovado ficam NO CABEÇALHO, logo à direita do título
+ * (`FilterScreenHeader shortcuts`), no tamanho normal e sem quebra de linha.
+ */
+export function FilterPeriodShortcuts({
+  defaultChip,
+  value,
+  onChange,
+  onMonthChange,
+  today,
+  min,
+  max,
+}: PeriodShortcutProps) {
+  const monthChip = !!defaultChip && /m[eê]s/i.test(defaultChip.label);
+  const quick: Array<{ key: string; label: string; range: DateRange | undefined }> = [
+    { key: "today", label: "Hoje", range: clampRange(today, today, min, max) },
+    ...(defaultChip
+      ? [{ key: "7d", label: "Próximos 7 dias", range: clampRange(today, addDays(today, 6), min, max) }]
+      : []),
+    // Sem duplicar: quando o atalho padrão já é o mês atual, "Este mês" some.
+    ...(monthChip ? [] : [{ key: "month", label: "Este mês", range: clampRange(startOfMonth(today), endOfMonth(today), min, max) }]),
+  ];
+  return (
+    <>
+      {defaultChip ? (
+        <button
+          type="button"
+          onClick={defaultChip.onSelect}
+          className={`whitespace-nowrap rounded-full px-2 py-[5px] text-[11px] font-semibold transition-colors ${
+            defaultChip.active
+              ? "bg-accent/[0.14] text-accent"
+              : "bg-foreground/[0.06] text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          {defaultChip.label}
+        </button>
+      ) : null}
+      {quick.map((q) => {
+        const active = sameRange(q.range, value);
+        return (
+          <button
+            key={q.key}
+            type="button"
+            disabled={!q.range}
+            onClick={() => {
+              if (!q.range?.from) return;
+              onMonthChange(startOfMonth(q.range.from));
+              onChange(q.range);
+            }}
+            className={`whitespace-nowrap rounded-full px-2 py-[5px] text-[11px] font-semibold transition-colors disabled:opacity-40 ${
+              active
+                ? "bg-accent/[0.14] text-accent"
+                : "bg-foreground/[0.06] text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {q.label}
+          </button>
+        );
+      })}
+    </>
+  );
+}
+
+/**
+ * Cabeçalho da tela de Período: título + atalhos NA MESMA LINHA (mockup aprovado, 16/11/2026) e o X de canto.
+ * Quando a página tem atalho padrão (`defaultChip`, ex.: "Últimos 7 dias") há pílulas demais para uma linha só
+ * de 280px: nesse caso os atalhos descem para uma linha própria logo abaixo do cabeçalho.
+ */
+export function FilterPeriodScreenHeader({
+  title = "Período",
+  icon,
+  onBack,
+  ...props
+}: PeriodShortcutProps & { title?: string; icon?: LucideIcon; onBack?: () => void }) {
+  const ownRow = !!props.defaultChip;
+  return (
+    <>
+      <FilterScreenHeader
+        icon={icon}
+        title={title}
+        onBack={onBack}
+        shortcuts={ownRow ? undefined : <FilterPeriodShortcuts {...props} />}
+      />
+      {ownRow ? (
+        <div className="flex flex-wrap gap-1.5 px-4 pt-2.5">
+          <FilterPeriodShortcuts {...props} />
+        </div>
+      ) : null}
+    </>
+  );
+}
+
+/**
+ * Corpo da tela "Período" com calendário: o mês com setas próprias e os chips Início → Fim. Os atalhos
+ * (`FilterPeriodShortcuts`) moram no cabeçalho, ao lado do título. `month`/`onMonthChange` são controlados pelo
+ * pai (o mês SEMPRE abre no de hoje — pedido explícito de 23/09/2026).
  */
 export function FilterPeriodCalendar({
   value,
@@ -605,33 +785,14 @@ export function FilterPeriodCalendar({
   today,
   min,
   max,
-  defaultChip,
-}: {
-  /** Atalho "padrão" (ex.: "Últimos 7 dias") que limpa o período; vem primeiro e marcado quando não há período. */
-  defaultChip?: { label: string; active: boolean; onSelect: () => void };
-  value: DateRange | undefined;
-  /** Recebe cada clique (com o dia clicado); atalhos vêm sem dia. O pai decide quando propagar. */
-  onChange: (next: DateRange | undefined, clicked?: Date) => void;
+}: Omit<PeriodShortcutProps, "defaultChip"> & {
   month: Date;
-  onMonthChange: (next: Date) => void;
-  today: Date;
-  /** Limites opcionais (ex.: só dias com demanda real, na aba Limpeza). */
-  min?: Date;
-  max?: Date;
+  /** Mantido só por compatibilidade: o atalho padrão agora é passado a `FilterPeriodShortcuts`. */
+  defaultChip?: PeriodShortcutProps["defaultChip"];
 }) {
   const disabled: Matcher[] = [];
   if (min) disabled.push({ before: min });
   if (max) disabled.push({ after: max });
-
-  const monthChip = !!defaultChip && /m[eê]s/i.test(defaultChip.label);
-  const quick: Array<{ key: string; label: string; range: DateRange | undefined }> = [
-    { key: "today", label: "Hoje", range: clampRange(today, today, min, max) },
-    { key: "7d", label: defaultChip ? "Próximos 7 dias" : "7 dias", range: clampRange(today, addDays(today, 6), min, max) },
-    // Sem duplicar: quando o atalho padrão já é o mês atual, "Este mês" some.
-    ...(monthChip ? [] : [{ key: "month", label: "Este mês", range: clampRange(startOfMonth(today), endOfMonth(today), min, max) }]),
-  ];
-  const sameRange = (a?: DateRange, b?: DateRange) =>
-    !!a?.from && !!a?.to && !!b?.from && !!b?.to && isSameDay(a.from, b.from) && isSameDay(a.to, b.to);
 
   const canPrev = !min || isAfter(startOfMonth(month), startOfMonth(min));
   const canNext = !max || isBefore(startOfMonth(month), startOfMonth(max));
@@ -653,45 +814,7 @@ export function FilterPeriodCalendar({
 
   return (
     <>
-      <div className="flex flex-wrap gap-1.5 px-3.5 pt-2.5">
-        {defaultChip ? (
-          <button
-            type="button"
-            onClick={defaultChip.onSelect}
-            className={`rounded-full px-[11px] py-[5px] text-[11px] font-semibold transition-colors ${
-              defaultChip.active
-                ? "bg-accent/[0.14] text-accent"
-                : "bg-foreground/[0.06] text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {defaultChip.label}
-          </button>
-        ) : null}
-        {quick.map((q) => {
-          const active = sameRange(q.range, value);
-          return (
-            <button
-              key={q.key}
-              type="button"
-              disabled={!q.range}
-              onClick={() => {
-                if (!q.range?.from) return;
-                onMonthChange(startOfMonth(q.range.from));
-                onChange(q.range);
-              }}
-              className={`rounded-full px-[11px] py-[5px] text-[11px] font-semibold transition-colors disabled:opacity-40 ${
-                active
-                  ? "bg-accent/[0.14] text-accent"
-                  : "bg-foreground/[0.06] text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {q.label}
-            </button>
-          );
-        })}
-      </div>
-
-      <div className="px-3.5 pb-1 pt-2.5">
+      <div className="px-4 pb-1 pt-2.5">
         <div className="flex items-center justify-between px-0.5 pb-2 pt-0.5">
           <button
             type="button"
@@ -882,7 +1005,7 @@ export function FilterDateCalendar({
         })}
       </div>
 
-      <div className="px-3.5 pb-1 pt-2.5">
+      <div className="px-4 pb-1 pt-2.5">
         <div className="flex items-center justify-between px-0.5 pb-2 pt-0.5">
           <button
             type="button"

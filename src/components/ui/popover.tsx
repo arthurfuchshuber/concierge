@@ -23,12 +23,22 @@ const Popover = ({
 
 const PopoverTrigger = PopoverPrimitive.Trigger;
 
+const PopoverClose = PopoverPrimitive.Close;
+
+/**
+ * Avisa quem está DENTRO de um popover (ex.: o cabeçalho das janelas de filtro) que existe um popover para
+ * fechar — é o que liga o X de canto (`CORNER_CLOSE_CLASS`) só onde ele fecha de verdade. Dentro de um
+ * Dialog o contexto é falso e o X do próprio Dialog continua sendo o único.
+ */
+const InsidePopoverContext = React.createContext(false);
+const useInsidePopover = () => React.useContext(InsidePopoverContext);
+
 const PopoverAnchor = PopoverPrimitive.Anchor;
 
 const PopoverContent = React.forwardRef<
   React.ElementRef<typeof PopoverPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof PopoverPrimitive.Content>
->(({ className, align = "center", sideOffset = 4, collisionPadding = OVERLAY_COLLISION_PADDING, ...props }, ref) => {
+>(({ className, align = "center", sideOffset = 4, collisionPadding = OVERLAY_COLLISION_PADDING, children, ...props }, ref) => {
   const [layerRef, layerNodeRef] = useOverlayLayer("float", useAntiClipWindow(ref));
   return (
   <PopoverPrimitive.Portal>
@@ -74,10 +84,12 @@ const PopoverContent = React.forwardRef<
       }}
       onPointerDownOutside={guardNestedOutside(layerRef, props.onPointerDownOutside)}
       onInteractOutside={guardNestedOutside(layerRef, props.onInteractOutside)}
-    />
+    >
+      <InsidePopoverContext.Provider value>{children}</InsidePopoverContext.Provider>
+    </PopoverPrimitive.Content>
   </PopoverPrimitive.Portal>
 );
 });
 PopoverContent.displayName = PopoverPrimitive.Content.displayName;
 
-export { Popover, PopoverTrigger, PopoverContent, PopoverAnchor };
+export { Popover, PopoverTrigger, PopoverContent, PopoverAnchor, PopoverClose, useInsidePopover };

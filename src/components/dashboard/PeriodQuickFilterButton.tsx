@@ -5,9 +5,8 @@ import { Popover, PopoverTrigger } from "@/components/ui/popover";
 import {
   FILTER_PANEL_CLASS,
   FILTER_PANEL_OFFSET,
-  FilterHeaderClear,
   FilterPeriodCalendar,
-  FilterScreenHeader,
+  FilterPeriodScreenHeader,
   FitPopoverContent,
 } from "@/components/dashboard/filter-panel";
 import { ACTION_BUTTON_TONE, ACTION_ICON_LABELED, ACTION_LABEL, ACTION_SEGMENT } from "@/components/dashboard/panel-chrome";
@@ -73,6 +72,42 @@ export function PeriodQuickFilterButton({
     onChange(null);
   };
 
+  // Mesmas props para os atalhos (no cabeçalho, ao lado do título) e para o calendário.
+  const calendarProps = {
+    defaultChip: defaultChip
+      ? { label: defaultChip, active: !draft?.from && !value, onSelect: () => { clear(); setOpen(false); } }
+      : undefined,
+    value: draft,
+    month,
+    onMonthChange: setMonth,
+    today: toDate(todaySP()),
+    min: min ? toDate(min) : undefined,
+    max: max ? toDate(max) : undefined,
+    onChange: (next: DateRange | undefined, clicked?: Date) => {
+      // Atalhos (sem dia clicado) aplicam direto.
+      if (!clicked) {
+        setAnchor(null);
+        setDraft(next);
+        if (next?.from && next?.to) {
+          onChange({ start: toISO(next.from), end: toISO(next.to) });
+          setOpen(false);
+        }
+        return;
+      }
+      // 1º clique = início (janela continua aberta); 2º clique = fim.
+      if (!anchor) {
+        setAnchor(clicked);
+        setDraft({ from: clicked, to: undefined });
+        return;
+      }
+      const [a, b] = anchor <= clicked ? [anchor, clicked] : [clicked, anchor];
+      setAnchor(null);
+      setDraft({ from: a, to: b });
+      onChange({ start: toISO(a), end: toISO(b) });
+      setOpen(false);
+    },
+  };
+
   return (
     <>
     {shortcut ? (
@@ -125,46 +160,8 @@ export function PeriodQuickFilterButton({
         className={FILTER_PANEL_CLASS}
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
-        <FilterScreenHeader
-          title="Período"
-          right={value || draft?.from ? <FilterHeaderClear onClick={clear} /> : undefined}
-        />
-        <FilterPeriodCalendar
-          defaultChip={
-            defaultChip
-              ? { label: defaultChip, active: !draft?.from && !value, onSelect: () => { clear(); setOpen(false); } }
-              : undefined
-          }
-          value={draft}
-          month={month}
-          onMonthChange={setMonth}
-          today={toDate(todaySP())}
-          min={min ? toDate(min) : undefined}
-          max={max ? toDate(max) : undefined}
-          onChange={(next, clicked) => {
-            // Atalhos (sem dia clicado) aplicam direto.
-            if (!clicked) {
-              setAnchor(null);
-              setDraft(next);
-              if (next?.from && next?.to) {
-                onChange({ start: toISO(next.from), end: toISO(next.to) });
-                setOpen(false);
-              }
-              return;
-            }
-            // 1º clique = início (janela continua aberta); 2º clique = fim.
-            if (!anchor) {
-              setAnchor(clicked);
-              setDraft({ from: clicked, to: undefined });
-              return;
-            }
-            const [a, b] = anchor <= clicked ? [anchor, clicked] : [clicked, anchor];
-            setAnchor(null);
-            setDraft({ from: a, to: b });
-            onChange({ start: toISO(a), end: toISO(b) });
-            setOpen(false);
-          }}
-        />
+        <FilterPeriodScreenHeader title="Período" {...calendarProps} />
+        <FilterPeriodCalendar {...calendarProps} />
       </FitPopoverContent>
     </Popover>
     </>

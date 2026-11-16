@@ -185,12 +185,11 @@ import {
   FilterActionRow,
   FilterCountBadge,
   FilterDateCalendar,
-  FilterHeaderClear,
-  FilterIconBadge,
   FitPopoverContent,
   FilterMenuRow,
   FilterMultiSelect,
   FilterPeriodCalendar,
+  FilterPeriodScreenHeader,
   FilterRootHeader,
   FilterScreenHeader,
   FilterSection,
@@ -6379,6 +6378,23 @@ function CalendarPeriodButton({ onJump, bare }: { onJump: (startISO: string) => 
   const [draft, setDraft] = useState<DateRange | undefined>(undefined);
   // O mês abre SEMPRE no de hoje (regra de 23/09/2026).
   const [month, setMonth] = useState<Date>(() => parseISODateLocal(todayISOSaoPaulo()));
+  const jumpCalendarProps = {
+    value: draft,
+    month,
+    onMonthChange: setMonth,
+    today: parseISODateLocal(todayISOSaoPaulo()),
+    onChange: (nextRange: DateRange | undefined) => {
+      setDraft(nextRange);
+      // Só age com início E fim (o 1º clique sozinho ainda não é período):
+      // rola o calendário até o início e fecha — nada fica selecionado.
+      if (nextRange?.from && nextRange?.to) {
+        onJump(dateToISOLocal(nextRange.from));
+        setOpen(false);
+        setDraft(undefined);
+      }
+    },
+  };
+
   return (
     <Popover
       open={open}
@@ -6412,161 +6428,9 @@ function CalendarPeriodButton({ onJump, bare }: { onJump: (startISO: string) => 
         className={FILTER_PANEL_CLASS}
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
-        <div className="flex items-center gap-[9px] px-3.5 py-[11px]">
-          <FilterIconBadge icon={CalendarRange} size="sm" />
-          <span className="ds-card-title min-w-0 flex-1">Ir para</span>
-        </div>
-        <FilterPeriodCalendar
-          value={draft}
-          month={month}
-          onMonthChange={setMonth}
-          today={parseISODateLocal(todayISOSaoPaulo())}
-          onChange={(nextRange) => {
-            setDraft(nextRange);
-            // Só age com início E fim (o 1º clique sozinho ainda não é período):
-            // rola o calendário até o início e fecha — nada fica selecionado.
-            if (nextRange?.from && nextRange?.to) {
-              onJump(dateToISOLocal(nextRange.from));
-              setOpen(false);
-              setDraft(undefined);
-            }
-          }}
-        />
+        <FilterPeriodScreenHeader title="Ir para" {...jumpCalendarProps} />
+        <FilterPeriodCalendar {...jumpCalendarProps} />
       </FitPopoverContent>
-    </Popover>
-  );
-}
-
-/** Filtro de período — calendário de início E fim (substitui o antigo campo de uma data só). */
-function PeriodRangeFilterButton({
-  value,
-  onChange,
-}: {
-  value: { start: string; end: string } | null;
-  onChange: (next: { start: string; end: string } | null) => void;
-}) {
-  const [draft, setDraft] = useState<DateRange | undefined>(
-    value ? { from: parseISODateLocal(value.start), to: parseISODateLocal(value.end) } : undefined,
-  );
-  // Resincroniza o rascunho quando o valor muda por FORA deste popover (ex.:
-  // o ícone de "limpar filtros" ao lado, que volta tudo pro dia atual).
-  useEffect(() => {
-    setDraft(value ? { from: parseISODateLocal(value.start), to: parseISODateLocal(value.end) } : undefined);
-  }, [value]);
-
-  return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <button type="button" className={FILTER_BUTTON_CLASS}>
-          <CalendarRange className="size-3.5 opacity-60" />
-          Período
-          {value ? FILTER_DOT : null}
-        </button>
-      </PopoverTrigger>
-      <PopoverContent align="start" className="w-auto p-3" onOpenAutoFocus={(e) => e.preventDefault()}>
-        <RangeCalendar
-          mode="range"
-          numberOfMonths={1}
-          locale={ptBR}
-          selected={draft}
-          onSelect={(nextRange) => {
-            setDraft(nextRange);
-            // Só propaga pro resto da página (agenda + cards de limpeza)
-            // quando o intervalo estiver completo (início E fim) — o
-            // primeiro clique sozinho ainda não é um período válido.
-            if (nextRange?.from && nextRange?.to) {
-              onChange({
-                start: dateToISOLocal(nextRange.from),
-                end: dateToISOLocal(nextRange.to),
-              });
-            }
-          }}
-        />
-        <div className="mt-1 flex items-center justify-between gap-2 border-t border-border pt-2">
-          <span className="text-[11px] text-muted-foreground">
-            {draft?.from ? format(draft.from, "dd/MM", { locale: ptBR }) : "Início"}
-            {" – "}
-            {draft?.to ? format(draft.to, "dd/MM", { locale: ptBR }) : "Fim"}
-          </span>
-          <button
-            type="button"
-            className="text-[11px] text-muted-foreground hover:text-foreground hover:underline underline-offset-2 transition-colors"
-            onClick={() => {
-              setDraft(undefined);
-              onChange(null);
-            }}
-          >
-            Limpar
-          </button>
-        </div>
-      </PopoverContent>
-    </Popover>
-  );
-}
-
-/**
- * Filtro de seleção múltipla com busca (Cidade/Proprietário) — campo de
- * texto pra digitar, checkbox por item, "selecionar todos" e "limpar".
- */
-function MultiSelectFilterButton({
-  label,
-  icon: Icon,
-  options,
-  selected,
-  onChange,
-  className,
-}: {
-  label: string;
-  icon: React.ElementType;
-  options: string[];
-  selected: string[];
-  onChange: (next: string[]) => void;
-  className?: string;
-}) {
-  function toggle(o: string) {
-    onChange(selected.includes(o) ? selected.filter((s) => s !== o) : [...selected, o]);
-  }
-  return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <button type="button" className={cn(FILTER_BUTTON_CLASS, className)}>
-          <Icon className="size-3.5 opacity-60 shrink-0" />
-          <span className="truncate">{label}</span>
-          {selected.length > 0 ? FILTER_DOT : null}
-        </button>
-      </PopoverTrigger>
-      <PopoverContent align="start" className="w-64 p-0" onOpenAutoFocus={(e) => e.preventDefault()}>
-        <Command>
-          <CommandInput placeholder={`Buscar ${label.toLowerCase()}...`} />
-          <div className="flex items-center justify-between gap-2 border-b border-border px-2 py-1.5">
-            <button
-              type="button"
-              className="text-[11px] text-muted-foreground hover:text-foreground hover:underline underline-offset-2 transition-colors"
-              onClick={() => onChange(options)}
-            >
-              Selecionar todos
-            </button>
-            <button
-              type="button"
-              className="text-[11px] text-muted-foreground hover:text-foreground hover:underline underline-offset-2 transition-colors"
-              onClick={() => onChange([])}
-            >
-              Limpar
-            </button>
-          </div>
-          <CommandList className="sg-elegant-scroll">
-            <CommandEmpty>Nenhum resultado.</CommandEmpty>
-            <CommandGroup>
-              {options.map((o) => (
-                <CommandItem key={o} value={o} onSelect={() => toggle(o)} className="cursor-pointer gap-2">
-                  <Checkbox checked={selected.includes(o)} className="pointer-events-none" />
-                  <span className="truncate">{o}</span>
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          </CommandList>
-        </Command>
-      </PopoverContent>
     </Popover>
   );
 }
@@ -6752,6 +6616,37 @@ function CalendarFiltersButton({
   });
   const shot = screenshot ? shotActions : null;
 
+  // Mesmas props para os atalhos (cabeçalho, ao lado do título) e para o calendário da tela "Período".
+  const periodCalendarProps = {
+    defaultChip: defaultPeriodLabel
+      ? {
+          label: defaultPeriodLabel,
+          active: !draft?.from && !periodRange,
+          onSelect: () => {
+            setDraft(undefined);
+            onPeriodRangeChange(null);
+          },
+        }
+      : undefined,
+    value: draft,
+    month: calendarMonth,
+    onMonthChange: setCalendarMonth,
+    today: parseISODateLocal(todayISOSaoPaulo()),
+    min: demandMinDate,
+    max: demandMaxDate,
+    onChange: (nextRange: DateRange | undefined) => {
+      setDraft(nextRange);
+      // Só propaga quando o intervalo estiver completo (início E fim) — o primeiro clique sozinho ainda não é
+      // um período válido.
+      if (nextRange?.from && nextRange?.to) {
+        onPeriodRangeChange({
+          start: dateToISOLocal(nextRange.from),
+          end: dateToISOLocal(nextRange.to),
+        });
+      }
+    },
+  };
+
   return (
     <Popover
       open={filtersOpen}
@@ -6915,7 +6810,6 @@ function CalendarFiltersButton({
               icon={Layers}
               title="Situação"
               onBack={() => setScreen("root")}
-              right={<FilterHeaderClear disabled={situation == null} onClick={() => onSituationChange(null)} />}
             />
             <div className="border-t border-[var(--panel-div)]">
               {situationOptions.map((o, i) => (
@@ -6936,52 +6830,8 @@ function CalendarFiltersButton({
 
         {screen === "period" ? (
           <>
-            <FilterScreenHeader
-              icon={CalendarRange}
-              title="Período"
-              onBack={() => setScreen("root")}
-              right={
-                <FilterHeaderClear
-                  disabled={!draft && !periodRange}
-                  onClick={() => {
-                    setDraft(undefined);
-                    onPeriodRangeChange(null);
-                  }}
-                />
-              }
-            />
-            <FilterPeriodCalendar
-              defaultChip={
-                defaultPeriodLabel
-                  ? {
-                      label: defaultPeriodLabel,
-                      active: !draft?.from && !periodRange,
-                      onSelect: () => {
-                        setDraft(undefined);
-                        onPeriodRangeChange(null);
-                      },
-                    }
-                  : undefined
-              }
-              value={draft}
-              month={calendarMonth}
-              onMonthChange={setCalendarMonth}
-              today={parseISODateLocal(todayISOSaoPaulo())}
-              min={demandMinDate}
-              max={demandMaxDate}
-              onChange={(nextRange) => {
-                setDraft(nextRange);
-                // Só propaga quando o intervalo estiver completo (início E
-                // fim) — o primeiro clique sozinho ainda não é um período
-                // válido.
-                if (nextRange?.from && nextRange?.to) {
-                  onPeriodRangeChange({
-                    start: dateToISOLocal(nextRange.from),
-                    end: dateToISOLocal(nextRange.to),
-                  });
-                }
-              }}
-            />
+            <FilterPeriodScreenHeader icon={CalendarRange} title="Período" onBack={() => setScreen("root")} {...periodCalendarProps} />
+            <FilterPeriodCalendar {...periodCalendarProps} />
           </>
         ) : null}
 
@@ -6991,7 +6841,6 @@ function CalendarFiltersButton({
               icon={MapPin}
               title="Cidade"
               onBack={() => setScreen("root")}
-              right={<FilterHeaderClear disabled={(cityFilters.length) === 0} onClick={() => onCityFiltersChange([])} />}
             />
             <FilterMultiSelect
               options={cityOptions.map((o) => ({ value: o, label: o }))}
@@ -7008,7 +6857,6 @@ function CalendarFiltersButton({
               icon={Users}
               title="Proprietário"
               onBack={() => setScreen("root")}
-              right={<FilterHeaderClear disabled={(ownerFilters.length) === 0} onClick={() => onOwnerFiltersChange([])} />}
             />
             <FilterMultiSelect
               options={ownerOptions.map((o) => ({
@@ -7029,7 +6877,6 @@ function CalendarFiltersButton({
               icon={HardHat}
               title="Prestador"
               onBack={() => setScreen("root")}
-              right={<FilterHeaderClear disabled={(providerFilters.length) === 0} onClick={() => onProviderFiltersChange([])} />}
             />
             <FilterMultiSelect
               options={providerOptions.map((o) => ({
@@ -7051,7 +6898,6 @@ function CalendarFiltersButton({
               icon={PropertyFilterIcon}
               title="Imóveis"
               onBack={() => setScreen("root")}
-              right={<FilterHeaderClear disabled={(propertyFilters?.length ?? 0) === 0} onClick={() => onPropertyFiltersChange([])} />}
             />
             <FilterMultiSelect
               options={propertyOptions}

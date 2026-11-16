@@ -1,3 +1,4 @@
+import { SelectionBar } from "@/components/ui/selection-bar";
 import { createFileRoute, useNavigate, Link, redirect } from "@tanstack/react-router";
 import { PageDateRow, PAGE_BACK_CLASS } from "@/components/ds/PageDateRow";
 import { useGuidePreviewUrl } from "@/hooks/useGuidePreviewUrl";
@@ -2651,13 +2652,13 @@ export function RecGroup({
         {/* Linha 1: ações de seleção (alinhadas à esquerda) */}
         {items.length > 0 && (
           <div className="flex flex-wrap items-center gap-1.5 -mt-1">
-            <button
-              type="button"
-              onClick={toggleSelectAll}
-              className="text-[11px] text-muted-foreground hover:text-foreground transition-colors px-2 h-8 inline-flex items-center"
-            >
-              {selectedIdx.size === items.length ? "Limpar" : "Selecionar todos"}
-            </button>
+            <SelectionBar
+              className="w-full"
+              count={selectedIdx.size}
+              allSelected={selectedIdx.size === items.length}
+              onClear={() => setSelectedIdx(new Set())}
+              onToggleAll={toggleSelectAll}
+            />
             {selectedIdx.size > 0 && (
               <>
                 <Button

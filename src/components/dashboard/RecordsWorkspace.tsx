@@ -59,9 +59,9 @@ import {
   FILTER_PANEL_CLASS,
   FILTER_PANEL_OFFSET,
   FilterCountBadge,
-  FilterHeaderClear,
   FilterMenuRow,
   FilterPeriodCalendar,
+  FilterPeriodScreenHeader,
   FitPopoverContent,
   FilterMultiSelect,
   FilterOptionRow,
@@ -3315,6 +3315,20 @@ function RecordsFiltersButton({
         ? (propertyOptions.find((p) => p.id === propertyFilters[0])?.name ?? "1 selecionado")
         : `${propertyFilters.length} selecionados`;
 
+  // Mesmas props para os atalhos (cabeçalho, ao lado do título) e para o calendário.
+  const periodCalendarProps = {
+    value: draft,
+    month: calendarMonth,
+    onMonthChange: setCalendarMonth,
+    today: isoToDate(todayISOSaoPaulo()),
+    min: periodBounds?.min ? isoToDate(periodBounds.min) : undefined,
+    max: periodBounds?.max ? isoToDate(periodBounds.max) : undefined,
+    onChange: (next: DateRange | undefined) => {
+      setDraft(next);
+      if (next?.from && next?.to) onPeriodChange({ start: dateToISO(next.from), end: dateToISO(next.to) });
+    },
+  };
+
   return (
     <Popover
       onOpenChange={(open) => {
@@ -3416,44 +3430,19 @@ function RecordsFiltersButton({
 
         {screen === "period" ? (
           <>
-            <FilterScreenHeader
+            <FilterPeriodScreenHeader
               icon={CalendarRange}
               title="Período"
               onBack={() => setScreen("root")}
-              right={
-                <FilterHeaderClear
-                  disabled={!draft && !period}
-                  onClick={() => {
-                    setDraft(undefined);
-                    onPeriodChange(null);
-                  }}
-                />
-              }
+              {...periodCalendarProps}
             />
-            <FilterPeriodCalendar
-              value={draft}
-              month={calendarMonth}
-              onMonthChange={setCalendarMonth}
-              today={isoToDate(todayISOSaoPaulo())}
-              min={periodBounds?.min ? isoToDate(periodBounds.min) : undefined}
-              max={periodBounds?.max ? isoToDate(periodBounds.max) : undefined}
-              onChange={(next) => {
-                setDraft(next);
-                if (next?.from && next?.to)
-                  onPeriodChange({ start: dateToISO(next.from), end: dateToISO(next.to) });
-              }}
-            />
+            <FilterPeriodCalendar {...periodCalendarProps} />
           </>
         ) : null}
 
         {screen === "owner" ? (
           <>
-            <FilterScreenHeader
-              icon={Users}
-              title="Proprietário"
-              onBack={() => setScreen("root")}
-              right={<FilterHeaderClear disabled={(ownerFilters.length) === 0} onClick={() => onOwnerFiltersChange([])} />}
-            />
+            <FilterScreenHeader icon={Users} title="Proprietário" onBack={() => setScreen("root")} />
             <FilterMultiSelect
               options={ownerOptions.map((o) => {
                 const n = propertyOptions.filter((p) => p.ownerName === o).length;
@@ -3472,12 +3461,7 @@ function RecordsFiltersButton({
 
         {screen === "property" ? (
           <>
-            <FilterScreenHeader
-              icon={Building2}
-              title="Imóvel"
-              onBack={() => setScreen("root")}
-              right={<FilterHeaderClear disabled={(propertyFilters.length) === 0} onClick={() => onPropertyFiltersChange([])} />}
-            />
+            <FilterScreenHeader icon={Building2} title="Imóvel" onBack={() => setScreen("root")} />
             <FilterMultiSelect
               options={propertyOptions.map((p) => ({
                 value: p.id,

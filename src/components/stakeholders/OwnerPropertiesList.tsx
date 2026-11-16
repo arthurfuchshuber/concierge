@@ -44,7 +44,6 @@ import {
   FILTER_PANEL_COLLISION,
   FILTER_PANEL_OFFSET,
   FilterCountBadge,
-  FilterHeaderClear,
   FilterMenuRow,
   FilterMultiSelect,
   FilterRootHeader,
@@ -382,7 +381,6 @@ export function OwnerPropertiesList({
               icon={Users}
               title="Conta"
               onBack={() => setFilterScreen("root")}
-              right={<FilterHeaderClear disabled={(accountFilters.length) === 0} onClick={() => setAccountFilters([])} />}
             />
             <FilterMultiSelect
               options={accountOptions}
@@ -398,7 +396,6 @@ export function OwnerPropertiesList({
               icon={Home}
               title="Anúncio"
               onBack={() => setFilterScreen("root")}
-              right={<FilterHeaderClear disabled={(listingFilters.length) === 0} onClick={() => setListingFilters([])} />}
             />
             <FilterMultiSelect
               options={listingOptions}
@@ -414,7 +411,6 @@ export function OwnerPropertiesList({
               icon={MapPin}
               title="Cidade"
               onBack={() => setFilterScreen("root")}
-              right={<FilterHeaderClear disabled={(cityFilters.length) === 0} onClick={() => setCityFilters([])} />}
             />
             <FilterMultiSelect
               options={cityOptions}
@@ -430,7 +426,6 @@ export function OwnerPropertiesList({
               icon={MapPin}
               title="Estado"
               onBack={() => setFilterScreen("root")}
-              right={<FilterHeaderClear disabled={(stateFilters.length) === 0} onClick={() => setStateFilters([])} />}
             />
             <FilterMultiSelect
               options={stateOptions}
@@ -446,7 +441,6 @@ export function OwnerPropertiesList({
               icon={Link2}
               title="Integração"
               onBack={() => setFilterScreen("root")}
-              right={<FilterHeaderClear disabled={(integrationFilters.length) === 0} onClick={() => setIntegrationFilters([])} />}
             />
             <FilterMultiSelect
               options={integrationOptions}

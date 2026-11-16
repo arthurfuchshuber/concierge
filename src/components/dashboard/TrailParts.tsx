@@ -151,20 +151,27 @@ export function Choice({
  * Área rolável das listas. No modo `cards` a barra nativa some e uma linha fina (3px) é desenhada POR CIMA
  * do conteúdo: a cor dos cartões vai até a borda direita, sem calha vazia (mockup Novo registro, 15/11/2026).
  */
-function ScrollArea({
+export function ScrollArea({
   cards,
+  overlay,
   listClassName,
   children,
 }: {
   cards?: boolean;
+  /**
+   * Só a barra de rolagem por cima (3px, na borda direita, sem calha) — sem a grade de cartões. É a lista das
+   * janelas de filtro (Imóvel, Proprietário…): a cor da linha selecionada vai até a borda da janela.
+   */
+  overlay?: boolean;
   listClassName?: string;
   children: ReactNode;
 }) {
+  const bare = !!cards || !!overlay;
   const ref = useRef<HTMLDivElement>(null);
   const [thumb, setThumb] = useState<{ top: number; height: number } | null>(null);
   useEffect(() => {
     const el = ref.current;
-    if (!el || !cards) return;
+    if (!el || !bare) return;
     const update = () => {
       const { scrollTop, scrollHeight, clientHeight } = el;
       if (scrollHeight <= clientHeight + 1) return setThumb(null);
@@ -182,20 +189,21 @@ function ScrollArea({
       el.removeEventListener("scroll", update);
       ro.disconnect();
     };
-  }, [cards, children]);
+  }, [bare, children]);
   return (
     <div className="relative">
       <div
         ref={ref}
         className={cn(
           "sg-elegant-scroll max-h-[min(320px,46dvh)] overflow-y-auto overscroll-contain sm:max-h-[380px]",
-          cards && "sg-card-list grid auto-rows-max gap-1.5",
+          bare && "sg-card-list",
+          cards && "grid auto-rows-max gap-1.5",
           listClassName,
         )}
       >
         {children}
       </div>
-      {cards && thumb ? (
+      {bare && thumb ? (
         <span
           aria-hidden
           className="pointer-events-none absolute right-0 w-[3px] rounded-full bg-[var(--scroll-thumb)]"
@@ -241,8 +249,9 @@ export function PickList({
       {onSearch && (
         <label
           className={cn(
-            "flex h-8 min-w-0 items-center gap-2 border-b border-[var(--panel-div)] px-2.5",
-            cards && "mb-1.5",
+            "flex h-8 min-w-0 items-center gap-2 border-b border-[var(--panel-div)]",
+            // Busca reta e ALINHADA à esquerda do título da janela (16/11/2026): nos cartões não há recuo.
+            cards ? "mb-1.5 px-0" : "px-2.5",
           )}
         >
           <Search className="size-3.5 shrink-0 text-foreground/40" />

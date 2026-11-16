@@ -1,9 +1,9 @@
+import { FilterMultiSelect } from "@/components/dashboard/filter-panel";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { bulkUpdatePlaybookEntries, listBulkTargets } from "@/lib/playbook.functions";
 
@@ -32,7 +32,6 @@ export function ReplicateRowDialog({
     staleTime: 60_000,
   });
   const list = targets.data ?? [];
-  const all = list.length > 0 && picked.length === list.length;
 
   const close = () => {
     setPicked([]);
@@ -74,20 +73,13 @@ export function ReplicateRowDialog({
           ) : list.length === 0 ? (
             <p className="py-4 text-sm text-muted-foreground">Nenhum outro imóvel nesta conta.</p>
           ) : (
-            <div className="flex flex-col gap-1">
-              <label className="flex items-center gap-3 rounded-lg px-2 py-2 text-sm font-semibold">
-                <Checkbox checked={all} onCheckedChange={(v) => setPicked(v ? list.map((p) => p.id) : [])} />
-                Selecionar todos
-              </label>
-              {list.map((p) => (
-                <label key={p.id} className="flex items-center gap-3 rounded-lg px-2 py-2 text-sm">
-                  <Checkbox
-                    checked={picked.includes(p.id)}
-                    onCheckedChange={(v) => setPicked((cur) => (v ? [...cur, p.id] : cur.filter((x) => x !== p.id)))}
-                  />
-                  <span className="min-w-0 break-words">{p.name}</span>
-                </label>
-              ))}
+            <div className="overflow-hidden rounded-md border border-[var(--panel-border)]">
+              <FilterMultiSelect
+                options={list.map((p) => ({ value: p.id, label: p.name }))}
+                selected={picked}
+                onChange={setPicked}
+                searchPlaceholder="Buscar imóvel..."
+              />
             </div>
           )}
         </div>
