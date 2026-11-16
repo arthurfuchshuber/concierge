@@ -14,9 +14,12 @@ import {
   Landmark,
   Wallet,
   Bot,
+  ReceiptText,
 } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { AirbnbAiPanel } from "@/components/admin-pages/AirbnbAiPanel";
+import { FiscalPanel, FISCAL_STATUS_KEY } from "@/components/admin-pages/FiscalPanel";
+import { fiscalStatus } from "@/lib/fiscal/fiscal.functions";
 import { ClicksignPanel } from "@/components/admin-pages/ClicksignPanel";
 import { GoogleCalendarPanel } from "@/components/admin-pages/GoogleCalendarPanel";
 import { INTEGRATION_WINDOW_CLASS } from "@/components/admin-pages/integration-window";
@@ -102,6 +105,15 @@ const INTEGRATIONS: IntegrationConfig[] = [
     detalhe:
       "Conta digital PJ do Asaas sincronizada automaticamente pela API: saldo, extrato e transações.",
   },
+  {
+    key: "fiscal",
+    nome: "Notas Fiscais (NFS-e)",
+    descricao: "Emita notas fiscais de serviço com o certificado A1 da sua empresa.",
+    subtitulo: "Emissão de NFS-e",
+    categoria: "Financeiro",
+    icon: ReceiptText,
+    detalhe: "Ative o módulo fiscal com o certificado digital A1 da empresa para emitir NFS-e pelo sistema.",
+  },
 ];
 
 const COMING_SOON = new Set<string>([]);
@@ -148,7 +160,18 @@ export function useIntegrationStatusQueries() {
     staleTime: QUERY_STALE_MS,
     gcTime: QUERY_GC_MS,
   });
-  return { cs, gcal, banks, channex };
+  // Notas fiscais: só o titular. Contas sem o módulo respondem com erro, tratado como "não conectado" (nunca estoura).
+  const { isOwner } = useMyPermissions();
+  const fiscalFn = useServerFn(fiscalStatus);
+  const fiscal = useQuery({
+    queryKey: FISCAL_STATUS_KEY,
+    queryFn: () => fiscalFn({ data: {} }),
+    enabled: isOwner && !accountOwnerId,
+    retry: false,
+    staleTime: QUERY_STALE_MS,
+    gcTime: QUERY_GC_MS,
+  });
+  return { cs, gcal, banks, channex, fiscal };
 }
 
 export function IntegracoesPage() {
@@ -156,7 +179,7 @@ export function IntegracoesPage() {
   const accountOwnerId = impersonation?.userId ?? null;
   const [q, setQ] = useState("");
 
-  const { cs, gcal, banks, channex } = useIntegrationStatusQueries();
+  const { cs, gcal, banks, channex, fiscal } = useIntegrationStatusQueries();
   // Todos veem os cards e as informações; só titular/administrador conecta, edita ou desconecta.
   const { isOwner } = useMyPermissions();
   const { isAdmin } = useIsAdmin();
@@ -167,6 +190,9 @@ export function IntegracoesPage() {
   const bancosActive = bankItems.length > 0;
   const asaasRow = asaasItem(banks.data?.items ?? []);
   const asaasActive = !!asaasRow;
+  const fiscalActive = !!fiscal.data?.companies.some((c) => c.status !== "Pendente");
+  const [fiscalView, setFiscalView] = useState<"main" | "replace">("main");
+  const showFiscal = isOwner && !accountOwnerId;
   const bankRows = bankSummaryRows(banks.data?.items ?? [], banks.data?.accounts ?? []);
   // Todos os cards abrem recolhidos (pedido 10/11/2026): a lista de bancos só aparece ao tocar na seta.
   const [bancosOpen, setBancosOpen] = useState(false);
@@ -186,13 +212,14 @@ export function IntegracoesPage() {
         else if (cfg.key === "bancos") statusKey = bancosActive ? "ativa" : "inativa";
         else if (cfg.key === "airbnb_ai") statusKey = (channex.data?.imported ?? 0) > 0 ? "ativa" : "inativa";
         else if (cfg.key === "asaas") statusKey = asaasActive ? "ativa" : "inativa";
+        else if (cfg.key === "fiscal") statusKey = fiscalActive ? "ativa" : "inativa";
         return { cfg, statusKey };
       })
         .sort(
           (a, b) =>
             STATUS_ORDER[a.statusKey] - STATUS_ORDER[b.statusKey] || a.cfg.nome.localeCompare(b.cfg.nome, "pt-BR"),
         ),
-    [csActive, gcalActive, bancosActive, asaasActive],
+    [csActive, gcalActive, bancosActive, asaasActive, fiscalActive],
   );
 
   // CELULAR — mockup "Proposta · Integrações" (05/11/2026): quadradinhos compactos, sem rótulos de seção;
@@ -201,6 +228,7 @@ export function IntegracoesPage() {
   const mobileItems = items
         // Ativas primeiro; dentro de cada grupo, na ordem dos mockups: ClickSign, Google Agenda, Bancos, Asaas PJ.
     .sort((a, b) => STATUS_ORDER[a.statusKey] - STATUS_ORDER[b.statusKey] || INTEGRATIONS.indexOf(a.cfg) - INTEGRATIONS.indexOf(b.cfg))
+    .filter(({ cfg }) => cfg.key !== "fiscal" || showFiscal)
     .filter(({ cfg }) => {
     const term = q.trim().toLowerCase();
     return !term || `${cfg.nome} ${cfg.descricao} ${cfg.categoria}`.toLowerCase().includes(term);
@@ -287,8 +315,12 @@ export function IntegracoesPage() {
       </div>
       {/* Janelas das integrações (mockups aprovados, 08/11/2026): o próprio painel monta cabeçalho,
           botões suaves, lista com anticorte e rodapé. */}
-      <Dialog open={!!panelCfg} onOpenChange={(v) => !v && setPanel(null)}>
-        <DialogContent aria-describedby={undefined} className={INTEGRATION_WINDOW_CLASS}>
+      <Dialog open={!!panelCfg} onOpenChange={(v) => { if (!v) { setPanel(null); setFiscalView("main"); } }}>
+        <DialogContent
+          aria-describedby={undefined}
+          className={INTEGRATION_WINDOW_CLASS}
+          onBack={panelCfg?.key === "fiscal" && fiscalView === "replace" ? () => setFiscalView("main") : undefined}
+        >
           {panelCfg?.key === "gcal" ? (
             <GoogleCalendarPanel accountOwnerId={accountOwnerId} readOnly={!!accountOwnerId || !canManage} inWindow />
           ) : panelCfg?.key === "clicksign" ? (
@@ -297,6 +329,8 @@ export function IntegracoesPage() {
             <BancosPanel inWindow readOnly={!canManage} ownerId={accountOwnerId} />
           ) : panelCfg?.key === "airbnb_ai" ? (
             <AirbnbAiPanel readOnly={!!accountOwnerId || !canManage} />
+          ) : panelCfg?.key === "fiscal" ? (
+            <FiscalPanel view={fiscalView} setView={setFiscalView} />
           ) : panelCfg?.key === "asaas" ? (
             <AsaasPanel inWindow readOnly={!canManage} ownerId={accountOwnerId} />
           ) : null}

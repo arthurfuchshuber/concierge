@@ -21,6 +21,8 @@ const { bankData, state } = vi.hoisted(() => ({
 }));
 
 vi.mock("@tanstack/react-start", () => ({ useServerFn: (fn: unknown) => fn }));
+vi.mock("@/components/admin-pages/FiscalPanel", () => ({ FiscalPanel: () => null, FISCAL_STATUS_KEY: ["fiscal-status"] }));
+vi.mock("@/lib/fiscal/fiscal.functions", () => ({ fiscalStatus: "fiscalStatus" }));
 vi.mock("@/lib/channex.functions", () => ({ getChannexStatus: "getChannexStatus" }));
 vi.mock("@/lib/clicksign.functions", () => ({ getMyClicksignConfig: () => Promise.resolve({ hasToken: true }) }));
 vi.mock("@/lib/google-calendar.functions", () => ({ getMyGoogleCalendarStatus: () => Promise.resolve({ connected: true }) }));
