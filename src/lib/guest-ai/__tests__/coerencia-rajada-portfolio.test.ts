@@ -276,6 +276,7 @@ describe("sugestão de portfólio", () => {
         checkout: "2026-11-19",
         nights: 1,
         minNights: 1,
+        meetsMinNights: true,
       },
     ]);
     const fact = calendarFactValue(occ) as Record<string, Array<Record<string, unknown>>>;
@@ -286,6 +287,42 @@ describe("sugestão de portfólio", () => {
     t.property_reservations.push(res("s4", "2026-11-18", "2026-11-22", { status: "blocked", source: "manual" }));
     const occ = await fetchPropertyOccupancy(turn(), { today: TODAY }, { db: fakeDb(t) });
     expect(occ.alternatives).toEqual([]);
+  });
+  it("COM ESTADIA (caso Marcela, 16/11): antecipar 1 noite ocupada aqui ⇒ studios livres do portfólio, inclusive abaixo do mínimo (sinalizado)", async () => {
+    const t = base();
+    t.property_chat_messages = [
+      { id: "g3", conversation_id: "conv", role: "user", sender_type: "guest", is_internal_note: false, content: "vc tem a noite de quarta para locarmos o mesmo ambiente?" },
+    ];
+    // estadia da conversa no 105: 19→20; o 105 está ocupado na noite de 18 (reserva 12→18 não cobre; outra 18→19)
+    t.property_reservations = [res("s105", "2026-11-16", "2026-11-19"), { ...res("s105", "2026-11-19", "2026-11-20"), id: "mine" }, res("s101", "2026-11-14", "2026-11-17")];
+    const withStay = () =>
+      issue("turn", { surface: "airbnb", conversationId: "conv", messageId: "m", propertyId: "s105", tenantId: "owner", guestSessionId: "airbnb:1", conversationStatus: "ai", reservationId: "mine", guestName: "Marcela", messageCreatedAt: null }) as ValidatedTurn;
+    const occ = await fetchPropertyOccupancy(withStay(), { today: TODAY }, { db: fakeDb(t) });
+    expect(occ.stayEdges?.before).toMatchObject({ checkin: "2026-11-18", checkout: "2026-11-19", freeHere: false });
+    const names = occ.stayEdges!.before!.alternatives!.map((a) => a.name);
+    expect(names).toContain("Studio n° 101 Aconchegante Próximo ao Paraguai");
+    expect(names).toContain("Studio n° 4 Natureza Próx. a Corredor Turístico");
+    const s101 = occ.stayEdges!.before!.alternatives!.find((a) => a.name.startsWith("Studio n° 101"))!;
+    expect(s101).toMatchObject({ minNights: 2, meetsMinNights: false, url: "https://www.airbnb.com.br/rooms/1668247859065922881" });
+    // noite da saída (20) livre aqui ⇒ portfólio nem consultado
+    expect(occ.stayEdges?.after).toMatchObject({ checkin: "2026-11-20", freeHere: true, alternatives: null });
+    const fact = calendarFactValue(occ) as Record<string, Record<string, Record<string, unknown>>>;
+    const antes = fact.antecipar_ou_prorrogar!.noite_antes_da_entrada as { livre_neste_imovel: boolean; alternativas_portfolio: Array<Record<string, unknown>> };
+    expect(antes.livre_neste_imovel).toBe(false);
+    const alt101 = antes.alternativas_portfolio.find((a) => String(a.acomodacao).startsWith("Studio n° 101"))!;
+    expect(String(alt101.situacao)).toMatch(/abaixo do mínimo de 2 noites/);
+    expect(String(alt101.situacao)).toMatch(/handoff/);
+  });
+  it("COM ESTADIA e noites vizinhas livres aqui ⇒ não consulta o portfólio", async () => {
+    const t = base();
+    t.property_reservations = [{ ...res("s105", "2026-11-25", "2026-11-27"), id: "mine" }];
+    const occ = await fetchPropertyOccupancy(
+      issue("turn", { surface: "airbnb", conversationId: "conv", messageId: "m", propertyId: "s105", tenantId: "owner", guestSessionId: "airbnb:1", conversationStatus: "ai", reservationId: "mine", guestName: null, messageCreatedAt: null }) as ValidatedTurn,
+      { today: TODAY },
+      { db: fakeDb(t) },
+    );
+    expect(occ.stayEdges?.before).toMatchObject({ freeHere: true, alternatives: null });
+    expect(occ.stayEdges?.after).toMatchObject({ freeHere: true, alternatives: null });
   });
   it("o imóvel da conversa reservável ⇒ nem consulta o portfólio", async () => {
     const t = base();
@@ -302,10 +339,10 @@ describe("sugestão de portfólio", () => {
 });
 
 // ─────────────── roteiro ───────────────
-describe("roteiro e persona (system.2026-11-16.17 / persona.2026-11-12.3)", () => {
+describe("roteiro e persona (system.2026-11-16.18 / persona.2026-11-12.3)", () => {
   const sys = buildSystemPrompt("airbnb");
   it("versões", () => {
-    expect(SYSTEM_PROMPT_VERSION).toBe("system.2026-11-16.17");
+    expect(SYSTEM_PROMPT_VERSION).toBe("system.2026-11-16.18");
     expect(PERSONA_VERSION).toBe("persona.2026-11-12.3");
   });
   it("período consultado: resposta comercial direta, mínimo de noites e sem promessa vazia", () => {
@@ -322,5 +359,32 @@ describe("roteiro e persona (system.2026-11-16.17 / persona.2026-11-12.3)", () =
     expect(sys).toMatch(/Saudação isolada e anti-eco/);
     expect(sys).toMatch(/Nunca repita o mesmo parágrafo, oferta ou conselho/);
     expect(sys).toMatch(/Despedida e saída concluída/);
+  });
+});
+
+import { findCalendarCollisions as collisions } from "@/lib/guest-ai/calendar-occupancy";
+
+describe("colisão de calendário × alternativa do portfólio (caso Marcela)", () => {
+  const occ = {
+    today: "2026-11-16",
+    windowStart: "2026-11-18",
+    windowEnd: "2026-11-23",
+    occupiedRanges: [{ checkin: "2026-11-16", checkout: "2026-11-19", status: "confirmed" as const }],
+    stayEdges: {
+      before: {
+        checkin: "2026-11-18",
+        checkout: "2026-11-19",
+        freeHere: false,
+        alternatives: [{ name: "Studio n° 101 Aconchegante Próximo ao Paraguai", url: "https://www.airbnb.com.br/rooms/1", checkin: "2026-11-18", checkout: "2026-11-19", nights: 1, minNights: 2, meetsMinNights: false }],
+      },
+      after: null,
+    },
+  };
+  it("sugerir reservar OUTRO studio na noite ocupada aqui não é colisão", () => {
+    expect(collisions("Vocês podem reservar o Studio 101 para a noite do dia 18, no mesmo condomínio.", occ)).toEqual([]);
+    expect(collisions("Dá para reservar o studio nº 101 no dia 18.", occ)).toEqual([]);
+  });
+  it("sugerir reservar ESTE imóvel na noite ocupada continua bloqueado", () => {
+    expect(collisions("Vocês podem reservar a noite do dia 18 aqui mesmo.", occ)).toEqual(["2026-11-18"]);
   });
 });
