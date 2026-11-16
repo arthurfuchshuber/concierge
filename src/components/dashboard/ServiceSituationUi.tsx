@@ -20,7 +20,7 @@ import {
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Popover, PopoverTrigger } from "@/components/ui/popover";
-import { FILTER_PANEL_CLASS, FILTER_PANEL_OFFSET, FitPopoverContent } from "@/components/dashboard/filter-panel";
+import { FILTER_PANEL_CLASS, FILTER_PANEL_OFFSET, FilterScreenHeader, FitPopoverContent } from "@/components/dashboard/filter-panel";
 import { ACTION_BUTTON_TONE, ACTION_ICON, ACTION_ICON_LABELED, ACTION_LABEL, ACTION_SEGMENT } from "@/components/dashboard/panel-chrome";
 import { ManualCleaningHost, useCanCreateCleaning } from "@/components/dashboard/ManualCleaningButton";
 import { RecordSituationSheet } from "@/components/dashboard/RecordSituationSheet";
@@ -478,20 +478,7 @@ export function SituationFilterSegment({
         className={FILTER_PANEL_CLASS}
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
-        <div className="relative flex items-center gap-2.5 border-b border-[var(--panel-div)] px-3.5 py-3">
-          <span className="ds-eyebrow text-muted-foreground">Situação</span>
-          <button
-            type="button"
-            disabled={!value}
-            onClick={() => {
-              onChange(null);
-              setOpen(false);
-            }}
-            className="ml-auto text-[11px] font-semibold text-foreground/70 transition-colors hover:text-foreground disabled:pointer-events-none disabled:text-foreground/30"
-          >
-            Limpar
-          </button>
-        </div>
+        <FilterScreenHeader icon={Layers} title="Situação" />
         {options.map((o, i) => (
           <SituationOptionRow
             key={o.id ?? "all"}
