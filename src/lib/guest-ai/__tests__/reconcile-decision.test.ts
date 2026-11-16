@@ -91,3 +91,19 @@ describe("retomada depois de atendimento humano (todos os modos)", () => {
     }
   });
 });
+
+describe("responder só ao que foi dito e fatos sem fonte (16/11/2026, caso Ilizandra)", () => {
+  it("vale para qualquer assunto, sem virar obrigação de ampliar", () => {
+    for (const sys of [buildSystemPrompt("airbnb"), buildSystemPrompt("airbnb", undefined, { alwaysSuggest: true })]) {
+      expect(sys).toMatch(/Responda ao que a pessoa disse ou perguntou e nada além/);
+      expect(sys).toMatch(/Ampliar a orientação só vale quando, naquele contexto, ajuda de verdade/);
+      expect(sys).toMatch(/nunca é obrigação/);
+      expect(sys).toMatch(/Também não afirme o contrário sem fonte/);
+    }
+  });
+  it("as regras de abertura não mandam mais 'convite para ajudar' nem 'ficar à disposição' num cumprimento", () => {
+    const sys = buildSystemPrompt("airbnb");
+    expect(sys).not.toMatch(/simpatia e um convite para ajudar/);
+    expect(sys).not.toMatch(/fique à disposição de forma natural/);
+  });
+});
