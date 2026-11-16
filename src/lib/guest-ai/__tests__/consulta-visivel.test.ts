@@ -112,7 +112,7 @@ const compose = (inquiry: InquiryDetails | null) => {
 };
 
 describe("fatos do compositor", () => {
-  it("com a consulta: período, hóspedes e valor (como repasse ao anfitrião)", () => {
+  it("com a consulta: período e hóspedes; o repasse ao anfitrião nunca vai ao modelo", () => {
     const u = compose(INQ);
     expect(u).toContain('"id":"ctx:consulta_periodo"');
     expect(u).toContain('"checkin":"2026-12-03"');
@@ -120,21 +120,17 @@ describe("fatos do compositor", () => {
     expect(u).toContain('"id":"ctx:consulta_hospedes"');
     expect(u).toContain('"adultos":3');
     expect(u).toContain('"criancas":1');
-    expect(u).toContain('"id":"ctx:consulta_valor"');
-    expect(u).toContain("repasse_ao_anfitriao");
-  });
-  it("sem a consulta: nenhum fato ctx:consulta_*; sem valor: só período e hóspedes", () => {
-    expect(compose(null)).not.toContain("ctx:consulta_");
-    const u = compose({ ...INQ, payoutAmount: null });
-    expect(u).toContain("ctx:consulta_periodo");
     expect(u).not.toContain("ctx:consulta_valor");
+    expect(u).not.toContain("1633");
   });
-  it("o prompt do sistema manda usar os fatos e não citar o repasse como preço", () => {
+  it("sem a consulta: nenhum fato ctx:consulta_*", () => {
+    expect(compose(null)).not.toContain("ctx:consulta_");
+  });
+  it("o prompt do sistema manda usar os fatos da consulta e não fala de repasse", () => {
     const s = buildSystemPrompt("airbnb");
     expect(s).toContain("ctx:consulta_periodo");
     expect(s).toContain("ctx:consulta_hospedes");
-    expect(s).toContain("ctx:consulta_valor");
-    expect(s).toMatch(/NÃO o preço final pago pelo hóspede/);
+    expect(s).not.toContain("ctx:consulta_valor");
   });
 });
 

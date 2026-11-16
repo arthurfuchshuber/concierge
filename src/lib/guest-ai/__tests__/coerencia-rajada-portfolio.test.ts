@@ -342,10 +342,10 @@ describe("sugestão de portfólio", () => {
 });
 
 // ─────────────── roteiro ───────────────
-describe("roteiro e persona (system.2026-11-16.23 / persona.2026-11-16.1)", () => {
+describe("roteiro e persona (system.2026-11-16.24 / persona.2026-11-16.1)", () => {
   const sys = buildSystemPrompt("airbnb");
   it("versões", () => {
-    expect(SYSTEM_PROMPT_VERSION).toBe("system.2026-11-16.23");
+    expect(SYSTEM_PROMPT_VERSION).toBe("system.2026-11-16.24");
     expect(PERSONA_VERSION).toBe("persona.2026-11-16.1");
   });
   it("período consultado: resposta comercial direta, mínimo de noites e sem promessa vazia", () => {

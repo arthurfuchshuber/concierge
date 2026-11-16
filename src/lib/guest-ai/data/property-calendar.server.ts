@@ -273,7 +273,9 @@ export async function fetchPropertyOccupancy(
       windowEnd: period.checkout,
     });
   }
-  const requested: PeriodAssessment = assessPeriod(periodOcc, period, ownRules);
+  // Datas iguais às da consulta do Airbnb: a plataforma já validou as regras de estadia (inclusive as condicionais).
+  const platformAccepted = !!inquiryPeriod && period.checkin === inquiryPeriod.checkin && period.checkout === inquiryPeriod.checkout;
+  const requested: PeriodAssessment = assessPeriod(periodOcc, period, ownRules, { platformAccepted });
   if (requested.bookable === "sim") return { ...occ, requested, alternatives: null };
   // NÃO CABE AQUI (16/11/2026, caso José): datas do mesmo tamanho mais próximas NESTE imóvel (oferecidas primeiro) e,
   // em paralelo, o portfólio no período pedido (para quando o hóspede não aceitar mudar as datas).
