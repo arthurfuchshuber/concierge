@@ -30,6 +30,16 @@ describe("B2.3 · silêncio legítimo (sem pergunta, pedido, problema ou ação)
   });
 });
 
+describe("caso Felipe (17/11/2026): quem só conta algo da viagem pode ficar sem resposta", () => {
+  it("silêncio com intents [other] é aceito", async () => {
+    const { r, h } = await run(silence({ intents: ["other"] }), {
+      loadHistory: async () => history("Somos três funcionários públicos indo a trabalho. Pode ficar tranquilo com as regras. Obrigado."),
+    });
+    expect(r.kind).toBe("silence");
+    expect(h.calls.generate).toBe(1);
+  });
+});
+
 describe("B2.3 · silêncio NÃO permitido quando há necessidade", () => {
   it.each([
     ["pergunta acompanhada de agradecimento", ["acknowledgment", "informational_query"]],
