@@ -53,8 +53,8 @@ describe("nota no ato da reserva vira silêncio (casos Simone e Felipe, 17/11/20
     expect(d.shouldReply).toBe(false);
   });
 
-  it("'tudo bem?' é cortesia: a nota do Felipe vira silêncio", () => {
-    expect(bookingNoteSilence(reply(), { bookedMinutesAgo: 1, history: hist(FELIPE) }).strategy).toBe("silence");
+  it("'tudo bem?' é pergunta: a nota do Felipe segue para resposta breve (titular, 17/11/2026)", () => {
+    expect(bookingNoteSilence(reply(), { bookedMinutesAgo: 1, history: hist(FELIPE) }).strategy).toBe("answer");
   });
 
   it("pergunta de verdade segue para o modelo decidir", () => {
@@ -92,5 +92,20 @@ describe("roteiro: pré-estadia sem pergunta não pede resposta", () => {
     expect(sys).not.toMatch(/pré-estadia e primeiro contato: ali uma mensagem sem resposta/);
     expect(sys).toMatch(/Com a reserva já confirmada \(pre_stay\)/);
     expect(sys).toMatch(/responda apenas a esse ponto/);
+    expect(sys).toMatch(/inclusive um cumprimento como 'tudo bem\?', pede resposta/);
+    expect(sys).toMatch(/Tempo verbal, em toda e qualquer situação: situe cada fato no tempo pelo ctx:agora/);
+  });
+});
+
+describe("âncora de tempo (ctx:agora)", () => {
+  it("dá data, hora e dia da semana no fuso do imóvel e os dias até a entrada", async () => {
+    const { timeAnchor, timeAnchorFact } = await import("@/lib/guest-ai/time-anchor");
+    const a = timeAnchor("2026-11-17T21:46:00Z", "America/Sao_Paulo")!;
+    expect(a).toEqual({ localDate: "2026-11-17", localTime: "18:46", weekday: "terça-feira" });
+    const f = timeAnchorFact(a, { timeZone: "America/Sao_Paulo", checkInAt: "2026-11-25T18:00:00Z", checkOutAt: "2026-12-01T14:00:00Z" });
+    expect(f).toMatchObject({ data_de_entrada: "2026-11-25", dias_ate_entrada: 8, data_de_saida: "2026-12-01", dias_desde_saida: -14 });
+    const q = timeAnchorFact(a, { timeZone: "America/Sao_Paulo", inquiryCheckin: "2026-11-18", inquiryCheckout: "2026-11-20" });
+    expect(q).toMatchObject({ dias_ate_entrada: 1 });
+    expect(timeAnchor("2026-11-17T21:46:00Z", null)).toBeNull();
   });
 });

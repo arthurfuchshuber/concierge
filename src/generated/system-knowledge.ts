@@ -11,7 +11,7 @@ export type GeneratedSystemDoc = {
   content_hash: string;
 };
 
-export const GENERATED_AT = "2026-11-17T22:13:48.980Z";
+export const GENERATED_AT = "2026-11-17T22:40:55.210Z";
 
 export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
   {
@@ -7134,7 +7134,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "fa9395eb0b16678cf73b59ae3b120b13"
   },
   {
-    "doc_key": "rule:src/lib/guest-ai/composer.ts:5063",
+    "doc_key": "rule:src/lib/guest-ai/composer.ts:5124",
     "kind": "rule",
     "title": "Regra em composer.ts",
     "content": "B2.4: estado operacional VERIFICADO pelo sistema (nunca pelo modelo): autorizações formais de\nhorário (`policy/stay-authorizations.ts`) e atendimento humano por assunto (`case-ownership.ts`).\nAusente ⇒ o prompt declara `nao_informado`, como antes.",
@@ -7143,7 +7143,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "77202763b63a6e7d702dbb4fa43d5777"
   },
   {
-    "doc_key": "rule:src/lib/guest-ai/composer.ts:5584",
+    "doc_key": "rule:src/lib/guest-ai/composer.ts:5645",
     "kind": "rule",
     "title": "Regra em composer.ts",
     "content": "B2.5: lote fechado de mensagens consecutivas do hóspede (um turno lógico). As mensagens do lote\nsão marcadas no histórico (`lote_atual`), cada uma com a sua identidade e fronteira; o guard é\naplicado a cada mensagem E ao conjunto (um segredo dividido entre mensagens não escapa).",
@@ -7152,7 +7152,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "c76b273cd23dda3d321a938aaa4c86ed"
   },
   {
-    "doc_key": "rule:src/lib/guest-ai/composer.ts:5927",
+    "doc_key": "rule:src/lib/guest-ai/composer.ts:5988",
     "kind": "rule",
     "title": "Regra em composer.ts",
     "content": "Memória do hóspede recorrente (06/11/2026): bloco leve, sem PII nem financeiro. As preferências são\ntexto livre e passam pelo guard. Ausente ⇒ o bloco não entra (comportamento anterior).",
@@ -7161,7 +7161,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "0298b46b00d9c1056fdf70ac2cc04b10"
   },
   {
-    "doc_key": "rule:src/lib/guest-ai/composer.ts:6181",
+    "doc_key": "rule:src/lib/guest-ai/composer.ts:6242",
     "kind": "rule",
     "title": "Regra em composer.ts",
     "content": "Pilar 1 (06/11/2026): eventos da Home do guia para a cidade do imóvel (`data/city-events.server.ts`).\nAusente ⇒ o bloco não entra; indisponível ⇒ o bloco declara a indisponibilidade.",
@@ -7170,7 +7170,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "0c794aee03e95389a497ca403cd723b9"
   },
   {
-    "doc_key": "rule:src/lib/guest-ai/composer.ts:6424",
+    "doc_key": "rule:src/lib/guest-ai/composer.ts:6485",
     "kind": "rule",
     "title": "Regra em composer.ts",
     "content": "Etapa 4 (08/11/2026): Documento Vivo do imóvel do turno (só aprendizados APROVADOS). Ausente,\nindisponível, vazio ou de outro imóvel ⇒ o bloco não entra (comportamento anterior).",
@@ -7188,7 +7188,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "972f348f0f0257f73fb0bf4e8b6fcdc6"
   },
   {
-    "doc_key": "rule:src/lib/guest-ai/context/builder.server.ts:3993",
+    "doc_key": "rule:src/lib/guest-ai/context/builder.server.ts:4050",
     "kind": "rule",
     "title": "Regra em builder.server.ts",
     "content": "F2-B: `\"skip\"` = avalia a D9 (decisão e motivo) mas NUNCA busca credenciais — nem revalida\npara entrega, nem emite grant. Usado pelo Orchestrator (o modelo nunca recebe credenciais).\nPadrão `\"fetch\"` preserva o comportamento F1.",
@@ -7800,6 +7800,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "69c92fa10b6f760514485d0fcbb6f264"
   },
   {
+    "doc_key": "rule:src/lib/guest-ai/time-anchor.ts:0",
+    "kind": "rule",
+    "title": "Regra em time-anchor.ts",
+    "content": "Âncora de tempo do turno (17/11/2026, titular: \"o tempo precisa ser visto em toda e qualquer situação\").\nO modelo só via instantes em UTC (mensagens, check-in); agora recebe o \"agora\" no fuso do imóvel e quantos dias\nfaltam para a entrada (ou passaram da saída) da reserva ou do período consultado, para acertar o tempo verbal.\nPuro: o instante chega por parâmetro.",
+    "source_path": "src/lib/guest-ai/time-anchor.ts",
+    "audience": [],
+    "content_hash": "462423fee93312368578be1849b92eaf"
+  },
+  {
     "doc_key": "rule:src/lib/guest-ai/tools/contracts.ts:0",
     "kind": "rule",
     "title": "Regra em contracts.ts",
@@ -8016,7 +8025,16 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "8f4ad04aa1b4556c1e605931fe140646"
   },
   {
-    "doc_key": "rule:src/lib/guest-ai/types.ts:10364",
+    "doc_key": "rule:src/lib/guest-ai/types.ts:10140",
+    "kind": "rule",
+    "title": "Regra em types.ts",
+    "content": "Ocupação do calendário do imóvel (reservas confirmadas de outros hóspedes e bloqueios manuais), só datas,\nsem PII (11/11/2026, caso Gleison). Ausente/`unavailable` ⇒ a IA não presume disponibilidade.",
+    "source_path": "src/lib/guest-ai/types.ts",
+    "audience": [],
+    "content_hash": "4e8fd6ebde44fe10ec893d5f4b3edeb2"
+  },
+  {
+    "doc_key": "rule:src/lib/guest-ai/types.ts:10548",
     "kind": "rule",
     "title": "Regra em types.ts",
     "content": "Como se entra no imóvel (14/11/2026): `autonomous` = há credencial de acesso cadastrada; `in_person` = nenhuma\n(entrega presencial de chaves é o padrão); `unknown`/ausente = não comprovado. Só a modalidade, nunca valor.",
@@ -8034,7 +8052,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "42e2c0b8e3aeab1684a6b4d548d7fb1a"
   },
   {
-    "doc_key": "rule:src/lib/guest-ai/types.ts:9180",
+    "doc_key": "rule:src/lib/guest-ai/types.ts:9364",
     "kind": "rule",
     "title": "Regra em types.ts",
     "content": "Prazo de cancelamento SEM CUSTO desta reserva, calculado pelo sistema (playbook de cancelamento,\n10/11/2026). `unknown` = modalidade não comprovada (nunca presumir).",
@@ -8043,22 +8061,13 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "4958c454fc15429ed287bba46f4c3b7e"
   },
   {
-    "doc_key": "rule:src/lib/guest-ai/types.ts:9956",
-    "kind": "rule",
-    "title": "Regra em types.ts",
-    "content": "Ocupação do calendário do imóvel (reservas confirmadas de outros hóspedes e bloqueios manuais), só datas,\nsem PII (11/11/2026, caso Gleison). Ausente/`unavailable` ⇒ a IA não presume disponibilidade.",
-    "source_path": "src/lib/guest-ai/types.ts",
-    "audience": [],
-    "content_hash": "4e8fd6ebde44fe10ec893d5f4b3edeb2"
-  },
-  {
     "doc_key": "rule:src/lib/guest-ai/validation/booking-note.ts:0",
     "kind": "rule",
     "title": "Regra em booking-note.ts",
-    "content": "Mensagem escrita no ato da reserva (casos Simone e Felipe, 17/11/2026).\n\nNo Airbnb, quem reserva costuma deixar uma nota ao anfitrião (motivo da viagem, quem vem, que vai cumprir as\nregras, um boa-noite). A confirmação da plataforma e as mensagens programadas da conta já fazem a recepção; a\nnota sem pergunta nem pedido não pede resposta. O roteiro já manda silenciar; esta trava, em código, garante:\ndentro da janela da reserva recém-feita (`stay.bookedMinutesAgo`, só preenchido nas primeiras 3 h), uma resposta\ncuja própria decisão diz que o hóspede não perguntou, não pediu e não alterou nada vira silêncio.\n\nNunca silencia: pergunta (`?` na mensagem atual, fora a cortesia \"tudo bem?\"), mídia, pedido, problema, emergência, alteração formal\n(inclui anunciar algo que muda as condições, como pet ou mais pessoas), encaminhamento, compromisso,\ncredencial ou marco de hospitalidade. Função pura.",
+    "content": "Mensagem escrita no ato da reserva (casos Simone e Felipe, 17/11/2026).\n\nNo Airbnb, quem reserva costuma deixar uma nota ao anfitrião (motivo da viagem, quem vem, que vai cumprir as\nregras, um boa-noite). A confirmação da plataforma e as mensagens programadas da conta já fazem a recepção; a\nnota sem pergunta nem pedido não pede resposta. O roteiro já manda silenciar; esta trava, em código, garante:\ndentro da janela da reserva recém-feita (`stay.bookedMinutesAgo`, só preenchido nas primeiras 3 h), uma resposta\ncuja própria decisão diz que o hóspede não perguntou, não pediu e não alterou nada vira silêncio.\n\nNunca silencia: pergunta (qualquer `?` na mensagem atual, inclusive \"tudo bem?\"), mídia, pedido, problema, emergência, alteração formal\n(inclui anunciar algo que muda as condições, como pet ou mais pessoas), encaminhamento, compromisso,\ncredencial ou marco de hospitalidade. Função pura.",
     "source_path": "src/lib/guest-ai/validation/booking-note.ts",
     "audience": [],
-    "content_hash": "b237884e1e59ef9e61fffd4443994542"
+    "content_hash": "31ca30a85ccd71fdfb9e5179b1acf641"
   },
   {
     "doc_key": "rule:src/lib/guest-ai/validation/commitment-text.ts:0",

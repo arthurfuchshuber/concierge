@@ -864,6 +864,9 @@ export function ConversationView({ conversationId, compact, myUserId, stay, owne
                           {(m.sender_user_id && senderProfiles[m.sender_user_id]?.displayName) ||
                             "Atendente"}
                         </span>
+                      ) : m.sender_type === "system" ? (
+                        // mensagem automática (programada da conta ou aviso da plataforma), não escrita pela IA
+                        <span className="opacity-70">Mensagem automática</span>
                       ) : (
                         <span className="uppercase tracking-wide opacity-70">IA</span>
                       )}

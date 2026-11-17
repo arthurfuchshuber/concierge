@@ -236,6 +236,8 @@ export interface GuestContext {
   };
   /** Fase calculada pelo servidor. `inquiry` quando não há reserva vinculada. */
   phase: StayPhase;
+  /** "Agora" no fuso do imóvel, pelo relógio do turno (17/11/2026). Ausente/`null` = sem fuso comprovado. */
+  now?: { localDate: string; localTime: string; weekday: string } | null;
   /** Dados da consulta do Airbnb (período, hóspedes, valor); `null` quando não há ou não foi possível ler. */
   inquiry?: InquiryDetails | null;
   stay: {
