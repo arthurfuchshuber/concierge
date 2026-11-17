@@ -446,7 +446,7 @@ export function createCopilotGenerator(deps: CopilotGeneratorDeps): CopilotGener
             maxOutputTokens: outputTokens,
             reasoningEffort: deps.reasoningEffort,
             responseFormat: "json",
-            timeoutMs: Math.max(1_000, Math.min(deps.callTimeoutMs ?? COPILOT_STAGE_MAX_MS, COPILOT_STAGE_MAX_MS, Math.floor(deps.remainingMs()))),
+            timeoutMs: Math.max(1_000, Math.min(deps.callTimeoutMs ?? COPILOT_STAGE_MAX_MS, Math.floor(deps.remainingMs()))),
             signal: sg,
             traceId: deps.traceId,
             ...(tools.length > 0 && toolChoice ? { tools, toolChoice } : {}),

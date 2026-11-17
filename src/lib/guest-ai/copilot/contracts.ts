@@ -79,6 +79,21 @@ export const COPILOT_MAX_TURN_COST_USD = 1;
  * no canal) cobre leitura + 30 s de cadeia + validação. Nada bloqueia o atendimento humano.
  */
 export const COPILOT_STAGE_MAX_MS = 30_000;
+
+/**
+ * TURNO LONGO (17/11/2026, decisão do titular: "não quero limitar raciocínio, aumente o tempo"). O turno autônomo
+ * roda numa requisição própria disparada pelo banco (`dispatch_guest_ai_turn` → /api/public/ia/turno), que não morre
+ * em ~30 s como o processamento do webhook. Com isso: raciocínio sempre em `auto`, cada chamada ao modelo pode levar
+ * até 45 s, a geração inteira até 80 s, e uma nova tentativa (também `auto`) começa com pelo menos 20 s restantes.
+ * A contingência (equipe assume) só entra se nada for decidido em 95 s.
+ */
+export const LONG_TURN = {
+  deadlineMs: 80_000,
+  stageMaxMs: 45_000,
+  callMaxMs: 45_000,
+  retryMinMs: 20_000,
+  fallbackMs: 95_000,
+} as const;
 export const COPILOT_DEADLINE_MS = 40_000;
 /**
  * Bastidores (disparo do Copiloto em segundo plano, `waitUntil` do Worker: ~30 s depois da resposta) seguem com

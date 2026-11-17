@@ -36,6 +36,8 @@ export type GuestAiRequest = {
   messageId: string;
   /** Dono (conta) que o canal já provou; se vier, o backend confere com o dono real do imóvel. */
   expectedOwnerId?: string | null;
+  /** Turno em requisição própria (`/api/public/ia/turno`): prazos de `LONG_TURN` (17/11/2026). */
+  longTurn?: boolean;
 };
 
 export type GuestAiReply = {
@@ -215,7 +217,9 @@ export async function requestGuestAiReply(req: GuestAiRequest, deps: SlotDeps = 
 
     // 3) a cadeia completa (modo autônomo)
     const TIMED_OUT = Symbol("generation_timeout");
-    const limitMs = deps.generationTimeoutMs ?? GENERATION_FALLBACK_MS;
+    const limitMs =
+      deps.generationTimeoutMs ??
+      (req.longTurn ? (await import("@/lib/guest-ai/copilot/contracts")).LONG_TURN.fallbackMs : GENERATION_FALLBACK_MS);
     const run = deps.generate
       ? deps.generate(req)
       : (await import("@/lib/guest-ai/copilot/generate.server")).generateCopilotSuggestion(
@@ -225,7 +229,7 @@ export async function requestGuestAiReply(req: GuestAiRequest, deps: SlotDeps = 
             messageId: req.messageId,
             expectedOwnerId: req.expectedOwnerId ?? null,
           },
-          { autonomous: true },
+          { autonomous: true, longTurn: req.longTurn === true },
         );
     let timer: ReturnType<typeof setTimeout> | undefined;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

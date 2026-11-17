@@ -127,9 +127,9 @@ describe("F2-A · contrato validado antes da rede", () => {
     expect(r.error.code).toBe("invalid_request");
   });
 
-  it("timeout é limitado a [1 s, 30 s]; padrão 15 s (30 s só quando pedido: Copiloto/slot, 10/11/2026)", () => {
+  it("timeout é limitado a [1 s, 45 s]; padrão 15 s (45 s só quando pedido: turno longo, 17/11/2026)", () => {
     expect(validateLlmRequest(req())!.timeoutMs).toBe(15_000);
-    expect(validateLlmRequest(req({ timeoutMs: 60_000 }))!.timeoutMs).toBe(30_000);
+    expect(validateLlmRequest(req({ timeoutMs: 60_000 }))!.timeoutMs).toBe(45_000);
     expect(validateLlmRequest(req({ timeoutMs: 25_000 }))!.timeoutMs).toBe(25_000);
     expect(validateLlmRequest(req({ timeoutMs: 10 }))!.timeoutMs).toBe(1_000);
     expect(validateLlmRequest(req({ timeoutMs: 8_000.9 }))!.timeoutMs).toBe(8_000);
@@ -477,7 +477,7 @@ describe("Prazo de 30 s do Copiloto/slot (titular, 10/11/2026)", () => {
     expect(c.COPILOT_STAGE_MAX_MS).toBe(30_000);
     expect(c.COPILOT_DEADLINE_MS).toBe(40_000);
     expect(c.COPILOT_BACKSTAGE_DEADLINE_MS).toBe(25_000);
-    expect(chain.TURN_DEADLINE_CEILING_MS).toBe(30_000);
+    expect(chain.TURN_DEADLINE_CEILING_MS).toBe(45_000); // teto do turno longo (17/11/2026); o Copiloto segue em 30 s
     expect(String(c.COPILOT_REASONING_EFFORT)).toBe("auto");
   });
 });

@@ -77,7 +77,7 @@ export const STRUCTURAL_VALIDATOR_VERSION = "structural.2026-11-03.3";
 /** Prazo padrão de cada etapa assíncrona (leitura e modelo). O turno inteiro respeita o teto de 15 s (`TURN_MAX_DEADLINE_MS`). */
 export const CHAIN_STAGE_TIMEOUT_MS = 5_000;
 /** Teto absoluto que um chamador pode pedir para o turno inteiro (Copiloto/slot, 10/11/2026). */
-export const TURN_DEADLINE_CEILING_MS = 30_000;
+export const TURN_DEADLINE_CEILING_MS = 45_000;
 
 // Conferência de tipos em compilação: o espelho do validador semântico = o estado do dossiê.
 type _AvailabilityMirror = AvailabilityState["status"] extends AvailabilityStatus ? (AvailabilityStatus extends AvailabilityState["status"] ? true : never) : never;

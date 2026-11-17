@@ -129,8 +129,8 @@ export interface LlmRequest {
 
 /** Limites rígidos do gateway (independentes do modelo). */
 export const LIMITS = {
-  /** Teto absoluto por chamada (30 s desde 10/11/2026, para o Copiloto/slot). */
-  maxTimeoutMs: 30_000,
+  /** Teto absoluto por chamada (45 s desde 17/11/2026, turno longo; cada chamador passa o próprio prazo). */
+  maxTimeoutMs: 45_000,
   /** Sem `timeoutMs` no pedido: 15 s (comportamento de antes para os demais chamadores). */
   defaultTimeoutMs: 15_000,
   minTimeoutMs: 1_000,
