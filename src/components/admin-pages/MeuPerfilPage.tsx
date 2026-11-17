@@ -8,7 +8,7 @@ import {
   removeMyAvatar,
   requestEmailChange,
 } from "@/lib/profile.functions";
-import { Camera, Check, Clock, Loader2, Trash2, Mail, Lock, CalendarDays, Info } from "lucide-react";
+import { Camera, Check, Clock, Loader2, Trash2, Mail, Lock, CalendarDays } from "lucide-react";
 import { PANEL_SHELL } from "@/components/dashboard/panel-chrome";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ActionButton } from "@/components/admin-pages/admin-mobile-ui";
@@ -16,6 +16,8 @@ import { toast } from "sonner";
 import { formatCPF } from "@/lib/masks";
 import { useImpersonation } from "@/hooks/useImpersonation";
 import { useAutosave } from "@/hooks/useAutosave";
+import { UField, UHAIR, UINPUT, UINPUT_BARE, UROW } from "@/components/admin-pages/profile-fields";
+import { CompanySection } from "@/components/admin-pages/CompanySection";
 
 
 export function MeuPerfilPage() {
@@ -252,15 +254,6 @@ export function MeuPerfilPage() {
               placeholder="Como aparece nos documentos"
             />
           </UField>
-          <UField label="Nome Fantasia" optional info="Se preenchido, substitui o nome completo no cabeçalho.">
-            <input
-              value={tradeName}
-              onChange={(e) => setTradeName(e.target.value)}
-              maxLength={120}
-              className={UINPUT}
-              placeholder="Ex.: Sigma Turismo"
-            />
-          </UField>
           <div className="grid grid-cols-1 gap-[18px]">
             {/* Mockup adm-d-perfil-assinatura: o cadeado fica DENTRO da linha, à direita do valor. */}
             <UField label="Número do CPF">
@@ -379,6 +372,9 @@ export function MeuPerfilPage() {
         </div>
       </section>
 
+      {/* Somos uma Empresa (CNPJ): chave + quadrante Empresa (mockups 17/11/2026). */}
+      <CompanySection ownerId={accountOwnerId} />
+
       {/* O "Salvo" saiu a pedido; só aparece o que exige atenção. */}
       {autosave.status === "saving" ? (
         <p className="inline-flex items-center justify-center gap-1 text-[11px] font-bold text-muted-foreground">
@@ -397,54 +393,5 @@ export function MeuPerfilPage() {
       />
     </div>
     </>
-  );
-}
-
-/** Campos "sem caixa" do celular (direção E): rótulo pequeno em cima, valor em texto e só um fio embaixo. */
-const UHAIR = "border-foreground/[0.07]";
-const UROW = `flex h-[34px] min-w-0 items-center gap-2 border-b ${UHAIR} text-[14px] text-foreground tabular-nums focus-within:border-foreground/40`;
-const UINPUT_BARE =
-  "h-full w-full min-w-0 flex-1 border-0 bg-transparent p-0 text-[14px] text-foreground outline-none placeholder:text-[var(--faint)]";
-const UINPUT = `${UINPUT_BARE} border-b ${UHAIR} focus:border-foreground/40`;
-
-function UField({
-  label,
-  required,
-  optional,
-  info,
-  badge,
-  children,
-}: {
-  label: string;
-  required?: boolean;
-  optional?: boolean;
-  info?: string;
-  badge?: React.ReactNode;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="min-w-0">
-      <div className="flex min-h-4 items-center gap-1.5">
-        <label className="text-[11.5px] font-semibold text-[var(--faint)]">
-          {label}
-          {optional ? <span className="font-medium"> (Opcional)</span> : null}
-          {required ? <span className="text-[#c98c8c]"> *</span> : null}
-        </label>
-        {badge}
-        {info ? (
-          <Popover>
-            <PopoverTrigger asChild>
-              <button type="button" aria-label="Mais informações" className="ml-auto flex cursor-pointer text-[var(--faint)]">
-                <Info className="size-[13px]" strokeWidth={2} />
-              </button>
-            </PopoverTrigger>
-            <PopoverContent align="start" className="w-[260px] max-w-[calc(100vw-32px)] p-3 text-[12px] leading-[1.45] text-muted-foreground">
-              {info}
-            </PopoverContent>
-          </Popover>
-        ) : null}
-      </div>
-      {children}
-    </div>
   );
 }
