@@ -89,9 +89,9 @@ export function FiscalConnectView({ view, setView, company, prefill }: { view: F
   const replace = view === "replace";
   const p = prefill;
   const [tab, setTab] = useState<Tab>("empresa");
-  const [im, setIm] = useState(company?.municipalRegistration ?? "");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
+  const [im, setIm] = useState(p?.municipalRegistration || company?.municipalRegistration || "");
+  const [email, setEmail] = useState(p?.email ?? "");
+  const [phone, setPhone] = useState(p?.phone ?? "");
   const [file, setFile] = useState<Cert>(null);
   const [password, setPassword] = useState("");
   const [localError, setLocalError] = useState<string | null>(null);
@@ -100,6 +100,8 @@ export function FiscalConnectView({ view, setView, company, prefill }: { view: F
   const activating = useIsMutating({ mutationKey: FISCAL_SETUP_KEY }) > 0;
 
   useEffect(() => { if (errorCode) setTab("certificado"); }, [errorCode]);
+  // Os dados do Perfil podem chegar depois da montagem: preenche só o que o titular ainda não digitou.
+  useEffect(() => { if (p?.municipalRegistration && !im) setIm(p.municipalRegistration); }, [p?.municipalRegistration]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const send = useMutation({
     mutationKey: FISCAL_SETUP_KEY,

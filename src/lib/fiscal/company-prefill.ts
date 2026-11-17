@@ -20,6 +20,8 @@ export type CompanyPrefill =
       cnae: { code: string; description: string };
       ibgeCityCode: string;
       address: { cep: string; street: string; number: string; neighborhood: string; city: string; state: string };
+      /** Inscrição municipal já cadastrada no Perfil da conta (quadrante Empresa); vazio ⇒ o campo abre para digitação. */
+      municipalRegistration?: string;
     }
   | { ok: false; code: "no_cnpj" | "not_found" | "unavailable" };
 
@@ -67,4 +69,34 @@ export async function assertTaxIdIsAccountCnpj(
 ): Promise<boolean> {
   const { isValidCnpj } = await import("./setup");
   return isValidCnpj(onlyDigits(taxId));
+}
+
+type AccountCompanyRow = Record<string, unknown> | null | undefined;
+
+/**
+ * Empresa já cadastrada no Perfil (`account_companies`): tem prioridade sobre `profiles.cpf`. Consulta a Receita para o
+ * restante e sobrepõe o que o titular já salvou (nome fantasia, e-mail, telefone, inscrição municipal). Se a Receita
+ * estiver instável, usa o cadastro salvo no Perfil. Sem CNPJ válido no Perfil ⇒ `null` (o chamador cai no fallback).
+ */
+export async function prefillFromAccountCompany(ac: AccountCompanyRow, fetchImpl?: FetchLike): Promise<CompanyPrefill | null> {
+  if (!ac) return null;
+  const str = (v: unknown) => (v == null ? "" : String(v).trim());
+  const cnpj = onlyDigits(ac["cnpj"]);
+  if (cnpj.length !== 14) return null;
+  const im = str(ac["municipal_registration"]);
+  const r = await lookupCompanyByCnpj(cnpj, fetchImpl);
+  if (r.ok) {
+    return { ...r, tradeName: str(ac["trade_name"]) || r.tradeName, email: str(ac["email"]).toLowerCase() || r.email, phone: onlyDigits(ac["phone"]) || r.phone, municipalRegistration: im };
+  }
+  if (r.code === "not_found" || !str(ac["legal_name"])) return null;
+  const simplesRaw = str(ac["simples"]);
+  const simples: SimplesOption = simplesRaw === "mei" || simplesRaw === "me_epp" || simplesRaw === "nao_optante" ? simplesRaw
+    : ac["tax_regime"] === "mei" ? "mei" : ac["tax_regime"] === "simples_nacional" ? "me_epp" : "nao_optante";
+  return {
+    ok: true, taxId: cnpj, legalName: str(ac["legal_name"]), tradeName: str(ac["trade_name"]), situation: str(ac["situation"]).toUpperCase() || "ATIVA",
+    email: str(ac["email"]).toLowerCase(), phone: onlyDigits(ac["phone"]), simples,
+    cnae: { code: onlyDigits(ac["cnae_code"]), description: str(ac["cnae_description"]) }, ibgeCityCode: onlyDigits(ac["ibge_city_code"]),
+    address: { cep: onlyDigits(ac["cep"]), street: str(ac["street"]), number: str(ac["number"]) || "S/N", neighborhood: str(ac["neighborhood"]), city: str(ac["city"]), state: str(ac["state"]).toUpperCase() },
+    municipalRegistration: im,
+  };
 }
