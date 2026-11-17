@@ -567,11 +567,20 @@
   background: transparent;
   margin: 14px;
 }
+/* ENCOSTADA NA LINHA LATERAL (16/11/2026): a barra fica rente à borda externa da calha de 8px (direita na vertical,
+   embaixo na horizontal) — em TODO o sistema. Exceção: quando a mesma janela tem DUAS barras (uma num quadrante
+   interno e outra da janela toda), a de dentro leva `sg-scroll-inset` e continua centralizada na calha. */
 ::-webkit-scrollbar-track:vertical {
-  background: linear-gradient(90deg, transparent 3.5px, var(--scroll-track-line) 3.5px, var(--scroll-track-line) 4.5px, transparent 4.5px);
+  background: linear-gradient(90deg, transparent 6.5px, var(--scroll-track-line) 6.5px, var(--scroll-track-line) 7.5px, transparent 7.5px);
 }
 ::-webkit-scrollbar-track:horizontal {
-  background: linear-gradient(180deg, transparent 3.5px, var(--scroll-track-line) 3.5px, var(--scroll-track-line) 4.5px, transparent 4.5px);
+  background: linear-gradient(180deg, transparent 6.5px, var(--scroll-track-line) 6.5px, var(--scroll-track-line) 7.5px, transparent 7.5px);
+}
+::-webkit-scrollbar-thumb:vertical {
+  border-width: 3px 0 3px 6px;
+}
+::-webkit-scrollbar-thumb:horizontal {
+  border-width: 6px 3px 0 3px;
 }
 ::-webkit-scrollbar-thumb {
   background: var(--scroll-thumb);
@@ -585,6 +594,24 @@
 ::-webkit-scrollbar-thumb:active {
   background: var(--scroll-thumb-hover);
   background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:vertical:hover,
+::-webkit-scrollbar-thumb:vertical:active {
+  border-width: 3px 0 3px 4px;
+}
+::-webkit-scrollbar-thumb:horizontal:hover,
+::-webkit-scrollbar-thumb:horizontal:active {
+  border-width: 4px 3px 0 3px;
+}
+/* Barra interna de uma janela que já tem outra barra (exceção da regra): centralizada na calha. */
+.sg-scroll-inset::-webkit-scrollbar-track:vertical {
+  background: linear-gradient(90deg, transparent 3.5px, var(--scroll-track-line) 3.5px, var(--scroll-track-line) 4.5px, transparent 4.5px);
+}
+.sg-scroll-inset::-webkit-scrollbar-thumb:vertical {
+  border-width: 3px;
+}
+.sg-scroll-inset::-webkit-scrollbar-thumb:vertical:hover,
+.sg-scroll-inset::-webkit-scrollbar-thumb:vertical:active {
   border-width: 2px;
 }
 /* Página do sistema sem barra de rolagem — só dentro dos quadrantes. */
@@ -606,14 +633,6 @@ body::-webkit-scrollbar {
   scrollbar-gutter: stable;
   -webkit-overflow-scrolling: touch;
 }
-/* Barra das janelas encostada na borda direita (linha e alça no canto externo da calha de 8px). */
-[role="dialog"] .sg-elegant-scroll::-webkit-scrollbar-track:vertical {
-  background: linear-gradient(90deg, transparent 6.5px, var(--scroll-track-line) 6.5px, var(--scroll-track-line) 7.5px, transparent 7.5px);
-}
-[role="dialog"] .sg-elegant-scroll::-webkit-scrollbar-thumb {
-  border-width: 3px 0 3px 6px;
-}
-
 /* Lista de cartões de imóvel: sem barra nativa (a linha fina é desenhada por cima, ver ScrollArea em
    TrailParts) — a cor da seleção vai até a borda direita. */
 .sg-card-list {
