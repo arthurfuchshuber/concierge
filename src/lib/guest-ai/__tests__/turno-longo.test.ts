@@ -81,3 +81,24 @@ describe("alteração da reserva vira registro na conversa (caso Larissa)", () =
     expect(reservationChangeNote(antes, { ...antes, occupancy: null })).toBeNull();
   });
 });
+
+import { copilotYieldsToAutonomous } from "@/lib/channex-messages.server";
+
+// Caso Whyll (17/11/2026, "Qual seria?"): o Copiloto do painel (prazo de 20 s) pegou a mensagem antes da IA autônoma,
+// estourou o tempo, e a IA autônoma encontrou a vaga ocupada — ninguém respondeu.
+describe("Copiloto do painel cede a vez à IA autônoma", () => {
+  const on = { aiEnabled: true, aiPaused: false, autonomous: true, propertyAllowed: true };
+  it("IA autônoma vai responder ⇒ sem sugestão do painel disputando a mensagem", () => {
+    expect(copilotYieldsToAutonomous(on)).toBe(true);
+  });
+  it("IA desligada, pausada pela equipe, fora da lista ou modo autônomo desligado ⇒ o painel segue gerando a sugestão", () => {
+    expect(copilotYieldsToAutonomous({ ...on, aiEnabled: false })).toBe(false);
+    expect(copilotYieldsToAutonomous({ ...on, aiPaused: true })).toBe(false);
+    expect(copilotYieldsToAutonomous({ ...on, autonomous: false })).toBe(false);
+    expect(copilotYieldsToAutonomous({ ...on, propertyAllowed: false })).toBe(false);
+  });
+  it("o webhook só dispara o Copiloto quando a IA autônoma não assume o turno", () => {
+    const src = readFileSync("src/lib/channex-messages.server.ts", "utf8");
+    expect(src).toMatch(/if \(triggerId && !autonomousOwnsTurn\) \{/);
+  });
+});
