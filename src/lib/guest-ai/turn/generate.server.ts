@@ -150,6 +150,8 @@ export interface TurnGenerateDeps {
    * (até 80 s, chamadas de até 45 s, raciocínio sempre `auto`, nova tentativa também `auto`).
    */
   longTurn?: boolean;
+  /** Teste: intervalo de leitura quando outra execução já gera a mesma mensagem (padrão `EXISTS_POLL_MS`). */
+  existsPollMs?: number;
   /** Teste: substitui a gravação do rastro da geração. */
   recordTrace?: (row: GenerationTrace) => Promise<void>;
   /**
@@ -352,6 +354,8 @@ export const TRUNCATED_RETRY_MIN_MS = 6_000;
 export const AUTONOMOUS_DEADLINE_MS = 26_000;
 /** Tempo mínimo restante para uma 2ª chamada ao modelo no autônomo (uma chamada leva ~10–13 s). */
 export const AUTONOMOUS_RETRY_MIN_MS = 14_000;
+/** Intervalo de leitura do estado quando outra execução já gera a mesma mensagem. */
+export const EXISTS_POLL_MS = 2_000;
 
 /** Prazos de uma geração (pura). No turno longo a nova tentativa após timeout segue `auto`. */
 export function turnTimings(p: { longTurn: boolean }): {
@@ -602,8 +606,19 @@ export async function generateGuestAiTurn(
       dailyCostLimitUsd: turnListingDailyCostUsd(env), // teto POR ANÚNCIO; a conta soma os anúncios (no banco)
       turnCostCeilingUsd: TURN_MAX_COST_USD,
     });
-    if (claim.kind === "exists")
-      return { status: "exists", suggestionId: claim.suggestionId, state: claim.state };
+    if (claim.kind === "exists") {
+      // outra execução já gera esta mensagem (ex.: disparo repetido): acompanha até ela terminar, para o slot saber
+      // se a resposta saiu (silêncio aqui) ou se falhou (contingência), em vez de encaminhar às cegas (17/11/2026)
+      let state: string = claim.state;
+      const pollMs = deps.existsPollMs ?? EXISTS_POLL_MS;
+      for (let i = Math.floor(deadlineMs / Math.max(1, pollMs)); state === "generating" && i > 0 && remainingMs() > pollMs; i--) {
+        await new Promise<void>((resolve) => setTimeout(resolve, pollMs));
+        const s = await store.state(claim.suggestionId).catch(() => null);
+        if (!s || s.state === "missing") break;
+        state = s.state;
+      }
+      return { status: "exists", suggestionId: claim.suggestionId, state };
+    }
     if (claim.kind === "daily_budget_exceeded")
       return { status: "daily_budget_exceeded", suggestionId: claim.suggestionId };
     if (claim.kind === "invalid")

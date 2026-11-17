@@ -59,11 +59,11 @@ export function TelemetryKpis({ kpis, loading }: { kpis: Kpis | null; loading: b
           note={k ? modelNote(k) : null}
         />
         <StatCard
-          label="Assertividade"
+          label="Resolvidas pela IA"
           icon={Target}
           loading={loading}
-          value={k ? formatPct(k.assertivenessPct) : "—"}
-          note={k ? `sem edição · adoção ${formatPct(k.adoptionPct)}` : null}
+          value={k ? formatPct(k.resolvedPct) : "—"}
+          note={k ? `${k.repliedCount} respostas · ${k.silentCount} silêncios · ${k.forwardedCount} à equipe` : null}
         />
         <StatCard
           label="Ações nos cards"

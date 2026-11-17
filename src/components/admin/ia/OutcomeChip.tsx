@@ -9,7 +9,7 @@ const TONE: Record<OutcomeKey, string> = {
   d9: "bg-warning/15 text-warning",
   error: "bg-destructive/15 text-destructive",
   silence: "bg-foreground/[0.05] text-muted-foreground",
-  sent: "bg-foreground/[0.08] text-foreground",
+  forwarded: "bg-foreground/[0.08] text-foreground",
   available: "bg-foreground/[0.08] text-foreground",
   superseded: "bg-foreground/[0.05] text-muted-foreground",
   generating: "bg-foreground/[0.05] text-muted-foreground",

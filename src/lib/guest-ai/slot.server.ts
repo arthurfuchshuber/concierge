@@ -250,6 +250,8 @@ export async function requestGuestAiReply(req: GuestAiRequest, deps: SlotDeps = 
     // 4) projeção para o canal
     if (r?.status === "skipped" && r.code === "superseded_by_newer_message") return SILENT; // a mensagem mais nova responde
     if (r?.status === "stale") return toHandoff("", undefined, "normal"); // a mensagem mais nova assume o turno
+    // outra execução gerou esta mensagem e cuida da entrega; só cai na contingência se ela falhou ou não terminou
+    if (r?.status === "exists" && ["available", "no_suggestion", "superseded"].includes(String(r.state))) return SILENT;
     if (r?.status !== "stored" || !r.result) return await deterministicFallback(req, deps, { inquiry: turn.reservationId === null });
     // a geração foi gravada como falha (prazo, erro do modelo): mesma contingência, o hóspede não fica mudo
     if (r.state === "generation_failed") return await deterministicFallback(req, deps, { inquiry: turn.reservationId === null });

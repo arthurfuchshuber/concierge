@@ -86,7 +86,7 @@ describe("desfecho de cada inferência", () => {
     expect(classifyOutcome(sug({ warnings: ["credential_request_denied"] }), [])).toBe("d9");
     expect(classifyOutcome(sug({ state: "no_suggestion" }), [])).toBe("silence");
     expect(classifyOutcome(sug({ strategy: "silence" }), [])).toBe("silence");
-    expect(classifyOutcome(sug({ state: "sent" }), [])).toBe("sent");
+    expect(classifyOutcome(sug({ handoffNeeded: true }), [])).toBe("forwarded");
     expect(classifyOutcome(sug({ state: "superseded" }), [])).toBe("superseded");
     expect(classifyOutcome(sug({ state: "generating" }), [])).toBe("generating");
   });
@@ -108,14 +108,14 @@ describe("filtros rápidos do feed", () => {
       "Todos",
       "Ações de cartão",
       "Erros e oscilações",
-      "Aprovados",
+      "Respondidas",
     ]);
   });
 
   it("regra pura e filtro das linhas do servidor concordam", () => {
     const cases: Array<[SuggestionRow, OpsRow[]]> = [
       [sug({ id: "a" }), []],
-      [sug({ id: "b", state: "sent" }), []],
+      [sug({ id: "b", handoffNeeded: true }), []],
       [sug({ id: "c", state: "generation_failed" }), []],
       [sug({ id: "d", modelId: RESERVE_MODEL }), []],
       [sug({ id: "e" }), [op()]],
@@ -147,16 +147,17 @@ describe("filtros rápidos do feed", () => {
     }
     expect(filterFeedRows(feed, "cards").map((r) => r.id)).toEqual(["e", "f"]);
     expect(filterFeedRows(feed, "errors").map((r) => r.id)).toEqual(["c", "d"]);
-    expect(filterFeedRows(feed, "approved").map((r) => r.id)).toEqual(["b", "e"]);
+    expect(filterFeedRows(feed, "replied").map((r) => r.id)).toEqual(["a", "d", "e", "f"]);
   });
 });
 
 describe("indicadores", () => {
   const rows = [
-    sug({ id: "1", state: "sent", costUsd: 0.02, latencyMs: 2000, surface: "airbnb" }),
+    sug({ id: "1", state: "available", costUsd: 0.02, latencyMs: 2000, surface: "airbnb" }),
     sug({
       id: "2",
-      state: "sent",
+      state: "available",
+      handoffNeeded: true,
       costUsd: 0.03,
       latencyMs: 4000,
       surface: "whatsapp",
@@ -170,7 +171,7 @@ describe("indicadores", () => {
       modelId: RESERVE_MODEL,
     }),
     sug({ id: "4", state: "no_suggestion", hasSuggestion: false, costUsd: 0.005, latencyMs: null }),
-    sug({ id: "5", state: "sent", costUsd: 1, startedAt: "2026-11-01T10:00:00Z" }),
+    sug({ id: "5", state: "superseded", costUsd: 1, startedAt: "2026-11-01T10:00:00Z" }),
   ];
   const ops = [
     op(),
@@ -186,11 +187,11 @@ describe("indicadores", () => {
     expect(utcDayStart(NOW)).toBe(Date.parse("2026-11-07T00:00:00Z"));
   });
 
-  it("assertividade = enviadas sem alteração ÷ enviadas; adoção = enviadas ÷ geradas", () => {
-    expect(k.sentCount).toBe(3);
-    expect(k.generatedCount).toBe(4);
-    expect(k.assertivenessPct).toBe(100);
-    expect(k.adoptionPct).toBe(75);
+  it("resolvidas pela IA = respostas e silêncios sem encaminhamento ÷ turnos concluídos", () => {
+    expect(k.repliedCount).toBe(2);
+    expect(k.silentCount).toBe(1);
+    expect(k.forwardedCount).toBe(1);
+    expect(k.resolvedPct).toBe(75);
   });
 
   it("latência, modelo ativo, reserva e canais de hoje", () => {
@@ -209,8 +210,7 @@ describe("indicadores", () => {
 
   it("sem envios ou sem geradas ⇒ taxa indefinida, nunca divisão por zero", () => {
     const e = computeKpis([], [], { nowMs: NOW, dailyLimitUsd: 3 });
-    expect(e.assertivenessPct).toBeNull();
-    expect(e.adoptionPct).toBeNull();
+    expect(e.resolvedPct).toBeNull();
     expect(e.avgLatencyMs).toBeNull();
     expect(e.costTodayUsd).toBe(0);
   });
