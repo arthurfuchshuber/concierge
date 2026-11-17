@@ -11,7 +11,7 @@ export type GeneratedSystemDoc = {
   content_hash: string;
 };
 
-export const GENERATED_AT = "2026-11-17T21:52:44.922Z";
+export const GENERATED_AT = "2026-11-17T22:13:48.980Z";
 
 export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
   {
@@ -2659,15 +2659,6 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/guide-live.ts",
     "audience": [],
     "content_hash": "6ad9219bacabd7222325ab59403790f6"
-  },
-  {
-    "doc_key": "rule:GUIDE_TEMPLATE_SYNTAX",
-    "kind": "rule",
-    "title": "Regra — GUIDE_TEMPLATE_SYNTAX",
-    "content": "Sintaxe de expansão do guia (`[[info:…]]`, `[[tag:…]]`). A rotina humana de envio EXPANDE essas marcas com\ncampos do imóvel — inclusive senhas de fechadura, portão e Wi-Fi. Um texto vindo do MODELO nunca pode\ncarregá-las (seria um caminho para revelar credencial depois da aprovação). Recusada na geração.",
-    "source_path": "src/lib/guest-ai/turn/generate.server.ts",
-    "audience": [],
-    "content_hash": "2faf9d0ea5dc4b8fc18f36bb2ecd901c"
   },
   {
     "doc_key": "rule:GuidePlace",
@@ -7152,7 +7143,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "77202763b63a6e7d702dbb4fa43d5777"
   },
   {
-    "doc_key": "rule:src/lib/guest-ai/composer.ts:5678",
+    "doc_key": "rule:src/lib/guest-ai/composer.ts:5584",
     "kind": "rule",
     "title": "Regra em composer.ts",
     "content": "B2.5: lote fechado de mensagens consecutivas do hóspede (um turno lógico). As mensagens do lote\nsão marcadas no histórico (`lote_atual`), cada uma com a sua identidade e fronteira; o guard é\naplicado a cada mensagem E ao conjunto (um segredo dividido entre mensagens não escapa).",
@@ -7161,7 +7152,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "c76b273cd23dda3d321a938aaa4c86ed"
   },
   {
-    "doc_key": "rule:src/lib/guest-ai/composer.ts:6021",
+    "doc_key": "rule:src/lib/guest-ai/composer.ts:5927",
     "kind": "rule",
     "title": "Regra em composer.ts",
     "content": "Memória do hóspede recorrente (06/11/2026): bloco leve, sem PII nem financeiro. As preferências são\ntexto livre e passam pelo guard. Ausente ⇒ o bloco não entra (comportamento anterior).",
@@ -7170,7 +7161,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "0298b46b00d9c1056fdf70ac2cc04b10"
   },
   {
-    "doc_key": "rule:src/lib/guest-ai/composer.ts:6275",
+    "doc_key": "rule:src/lib/guest-ai/composer.ts:6181",
     "kind": "rule",
     "title": "Regra em composer.ts",
     "content": "Pilar 1 (06/11/2026): eventos da Home do guia para a cidade do imóvel (`data/city-events.server.ts`).\nAusente ⇒ o bloco não entra; indisponível ⇒ o bloco declara a indisponibilidade.",
@@ -7179,7 +7170,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "0c794aee03e95389a497ca403cd723b9"
   },
   {
-    "doc_key": "rule:src/lib/guest-ai/composer.ts:6518",
+    "doc_key": "rule:src/lib/guest-ai/composer.ts:6424",
     "kind": "rule",
     "title": "Regra em composer.ts",
     "content": "Etapa 4 (08/11/2026): Documento Vivo do imóvel do turno (só aprendizados APROVADOS). Ausente,\nindisponível, vazio ou de outro imóvel ⇒ o bloco não entra (comportamento anterior).",
@@ -7791,7 +7782,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "ae038d029ddc1b2e9f63f90f7647f93b"
   },
   {
-    "doc_key": "rule:src/lib/guest-ai/slot.server.ts:19020",
+    "doc_key": "rule:src/lib/guest-ai/slot.server.ts:19002",
     "kind": "rule",
     "title": "Regra em slot.server.ts",
     "content": "Fallback sem modelo (timeout, erro ou resultado inválido): lê a rajada do hóspede por regex e, se houver pedido\nde saída tardia/entrada antecipada, abre a decisão com botões e responde com os horários oficiais. Sem pedido\nreconhecido, mantém o encaminhamento de sempre (fila humana + push), sem texto.",
@@ -7890,7 +7881,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "1ffdb550cccd9d75cb95475089e1c0c4"
   },
   {
-    "doc_key": "rule:src/lib/guest-ai/turn-chain.ts:16674",
+    "doc_key": "rule:src/lib/guest-ai/turn-chain.ts:16751",
     "kind": "rule",
     "title": "Regra em turn-chain.ts",
     "content": "Resposta barrada pelos validadores (17/11/2026, auditoria): texto que o modelo escreveu e os bloqueios, para\na auditoria ver POR QUE foi barrada. Só existe quando o guard de saída diz que o texto é seguro (sem\ncredencial); caso contrário fica `null`.",
@@ -7899,7 +7890,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "c60fcb7d9af5cbe0e121a64ddf078d60"
   },
   {
-    "doc_key": "rule:src/lib/guest-ai/turn-chain.ts:17926",
+    "doc_key": "rule:src/lib/guest-ai/turn-chain.ts:18003",
     "kind": "rule",
     "title": "Regra em turn-chain.ts",
     "content": "B2.4 — fonte das autorizações de horário (R6; entrada antecipada sem fonte). A identidade\n(imóvel, reserva) e o instante vêm SEMPRE do turno/cadeia, nunca desta fonte. Ausente ou falha\n⇒ nada autorizado (não recusa o turno: só impede promessas).",
@@ -7908,7 +7899,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "9bef0357039b4d1a134e33ef6ce4acc6"
   },
   {
-    "doc_key": "rule:src/lib/guest-ai/turn-chain.ts:18549",
+    "doc_key": "rule:src/lib/guest-ai/turn-chain.ts:18626",
     "kind": "rule",
     "title": "Regra em turn-chain.ts",
     "content": "Memória do hóspede recorrente — perfil canônico (só leitura). Enriquecimento: falha ou ausência ⇒\n`indisponivel` no prompt, nunca recusa o turno. Cancelamento externo continua encerrando o turno.",
@@ -7917,7 +7908,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "642fd8eac8b7c3de7c0c007c88868a35"
   },
   {
-    "doc_key": "rule:src/lib/guest-ai/turn-chain.ts:19071",
+    "doc_key": "rule:src/lib/guest-ai/turn-chain.ts:19148",
     "kind": "rule",
     "title": "Regra em turn-chain.ts",
     "content": "Pilar 1 (06/11/2026) — eventos da Home do guia para a cidade do imóvel (só leitura). Enriquecimento:\nfalha ⇒ bloco `indisponivel` (a IA admite não saber), nunca recusa o turno.",
@@ -7953,25 +7944,16 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "e29d1af601fb10ba904e8df5ee64734d"
   },
   {
-    "doc_key": "rule:src/lib/guest-ai/turn/generate.server.ts:5306",
+    "doc_key": "rule:src/lib/guest-ai/turn/generate.server.ts:7176",
     "kind": "rule",
     "title": "Regra em generate.server.ts",
-    "content": "CONDUÇÃO AUTÔNOMA (10/11/2026): chamada pelo `slot.server.ts`, que tem a própria chave e lista de imóveis.\nAqui só muda: não confere a chave/lista da IA e o silêncio é legítimo (o roteiro não exige texto).",
+    "content": "Turno longo (17/11/2026): a geração roda numa requisição própria (`/api/public/ia/turno`) e usa `LONG_TURN`\n(até 80 s, chamadas de até 45 s, raciocínio sempre `auto`, nova tentativa também `auto`).",
     "source_path": "src/lib/guest-ai/turn/generate.server.ts",
     "audience": [],
-    "content_hash": "87ba56326838f605e3c1974713c1a757"
+    "content_hash": "ec01f331734a9ac8f8120ce619c8e50b"
   },
   {
-    "doc_key": "rule:src/lib/guest-ai/turn/generate.server.ts:7448",
-    "kind": "rule",
-    "title": "Regra em generate.server.ts",
-    "content": "Turno longo (17/11/2026): a geração roda numa requisição própria (`/api/public/ia/turno`) e usa `LONG_TURN`\n(até 80 s, chamadas de até 45 s, raciocínio sempre `auto`, nova tentativa também `auto`). Só com `autonomous`.",
-    "source_path": "src/lib/guest-ai/turn/generate.server.ts",
-    "audience": [],
-    "content_hash": "4c08915a3be561f2e114876097769581"
-  },
-  {
-    "doc_key": "rule:src/lib/guest-ai/turn/generate.server.ts:7827",
+    "doc_key": "rule:src/lib/guest-ai/turn/generate.server.ts:7534",
     "kind": "rule",
     "title": "Regra em generate.server.ts",
     "content": "G2 · ações operacionais (padrão: `runOps`, modo por `GUEST_AI_OPS_MODE`). Roda depois da gravação da\nsugestão, só com decisão validada; nunca altera a sugestão, e falha nunca derruba a geração.",
@@ -7980,7 +7962,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "f2125800eea3a703820456980343d9bb"
   },
   {
-    "doc_key": "rule:src/lib/guest-ai/turn/generate.server.ts:8093",
+    "doc_key": "rule:src/lib/guest-ai/turn/generate.server.ts:7800",
     "kind": "rule",
     "title": "Regra em generate.server.ts",
     "content": "Bastidores (08/11/2026): extrator próprio dos sinais operacionais (padrão: `extractOpsSignals`, Reserva).\nRoda em paralelo com a resposta assim que contexto e histórico estão lidos e NÃO depende dela dar certo.",
@@ -7989,7 +7971,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "c9bcd7316c996149fc3fd28a41ff9f43"
   },
   {
-    "doc_key": "rule:src/lib/guest-ai/turn/generate.server.ts:8399",
+    "doc_key": "rule:src/lib/guest-ai/turn/generate.server.ts:8106",
     "kind": "rule",
     "title": "Regra em generate.server.ts",
     "content": "Observabilidade (14/11/2026): grava o motivo quando o turno terminou SEM avançar card (padrão:\n`recordOpsNoAdvance`, só quando `ops` não é substituído). Prazo próprio de 2,5 s; nunca derruba a geração.",
@@ -8068,6 +8050,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/guest-ai/types.ts",
     "audience": [],
     "content_hash": "4e8fd6ebde44fe10ec893d5f4b3edeb2"
+  },
+  {
+    "doc_key": "rule:src/lib/guest-ai/validation/booking-note.ts:0",
+    "kind": "rule",
+    "title": "Regra em booking-note.ts",
+    "content": "Mensagem escrita no ato da reserva (casos Simone e Felipe, 17/11/2026).\n\nNo Airbnb, quem reserva costuma deixar uma nota ao anfitrião (motivo da viagem, quem vem, que vai cumprir as\nregras, um boa-noite). A confirmação da plataforma e as mensagens programadas da conta já fazem a recepção; a\nnota sem pergunta nem pedido não pede resposta. O roteiro já manda silenciar; esta trava, em código, garante:\ndentro da janela da reserva recém-feita (`stay.bookedMinutesAgo`, só preenchido nas primeiras 3 h), uma resposta\ncuja própria decisão diz que o hóspede não perguntou, não pediu e não alterou nada vira silêncio.\n\nNunca silencia: pergunta (`?` na mensagem atual, fora a cortesia \"tudo bem?\"), mídia, pedido, problema, emergência, alteração formal\n(inclui anunciar algo que muda as condições, como pet ou mais pessoas), encaminhamento, compromisso,\ncredencial ou marco de hospitalidade. Função pura.",
+    "source_path": "src/lib/guest-ai/validation/booking-note.ts",
+    "audience": [],
+    "content_hash": "b237884e1e59ef9e61fffd4443994542"
   },
   {
     "doc_key": "rule:src/lib/guest-ai/validation/commitment-text.ts:0",
@@ -9274,15 +9265,6 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/guest-ai/turn/generate.server.ts",
     "audience": [],
     "content_hash": "7181e6a6cde2de6bf8c65aab7efa6234"
-  },
-  {
-    "doc_key": "rule:TURN_BACKSTAGE_DEADLINE_MS",
-    "kind": "rule",
-    "title": "Regra — TURN_BACKSTAGE_DEADLINE_MS",
-    "content": "Bastidores (disparo da IA em segundo plano, `waitUntil` do Worker: ~30 s depois da resposta) seguem com\no prazo antigo, para nunca serem cortados pela plataforma no meio de uma gravação.",
-    "source_path": "src/lib/guest-ai/turn/contracts.ts",
-    "audience": [],
-    "content_hash": "1fdb8f0003aefb52c8221ad115a1d8a8"
   },
   {
     "doc_key": "rule:TURN_DEFAULT_LISTING_DAILY_COST_USD",

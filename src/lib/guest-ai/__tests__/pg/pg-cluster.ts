@@ -16,7 +16,7 @@ const PG_ROOT = "/usr/lib/postgresql";
 /** `GUEST_AI_PG_BIN` aponta para outro diretório de binários (ex.: PostgreSQL 17.6). */
 const binOk = (bin: string | null | undefined): bin is string => !!bin && existsSync(path.join(bin, "postgres")) && existsSync(path.join(bin, "initdb"));
 /**
- * As migrations do Copiloto verificam uma impressão digital do catálogo (pg_get_expr, pg_get_constraintdef, ACLs…) cuja
+ * As migrations da IA verificam uma impressão digital do catálogo (pg_get_expr, pg_get_constraintdef, ACLs…) cuja
  * saída muda entre versões MAIORES do Postgres. O valor esperado foi certificado no PostgreSQL 17 (Supabase): num cluster de
  * outra versão maior (ex.: 16 do Ubuntu) a migration recusa corretamente ("impressão digital ≠ esperada"). Por isso só
  * usamos binários da versão certificada; sem eles a suíte é PULADA (como já ocorre sem Postgres), em vez de falhar por ambiente.

@@ -70,7 +70,6 @@ import {
   type OpsSignals,
 } from "./ops-extractor.server";
 import {
-  TURN_DEADLINE_MS,
   TURN_STAGE_MAX_MS,
   LONG_TURN,
   TURN_MAX_OUTPUT_TOKENS,
@@ -104,11 +103,6 @@ export type TurnPorts = Required<
   Pick<ChainDeps, "loadGuestProfile" | "loadCityEvents" | "loadLivingDocument">;
 
 export interface TurnGenerateDeps {
-  /**
-   * CONDUÇÃO AUTÔNOMA (10/11/2026): chamada pelo `slot.server.ts`, que tem a própria chave e lista de imóveis.
-   * Aqui só muda: não confere a chave/lista da IA e o silêncio é legítimo (o roteiro não exige texto).
-   */
-  autonomous?: boolean;
   db?: GuestAiDb;
   store?: TurnStore;
   validateTurnScope?: (input: TurnGenerationRequest, db: GuestAiDb) => Promise<ValidatedTurn>;
@@ -153,7 +147,7 @@ export interface TurnGenerateDeps {
   deadlineMs?: number;
   /**
    * Turno longo (17/11/2026): a geração roda numa requisição própria (`/api/public/ia/turno`) e usa `LONG_TURN`
-   * (até 80 s, chamadas de até 45 s, raciocínio sempre `auto`, nova tentativa também `auto`). Só com `autonomous`.
+   * (até 80 s, chamadas de até 45 s, raciocínio sempre `auto`, nova tentativa também `auto`).
    */
   longTurn?: boolean;
   /** Teste: substitui a gravação do rastro da geração. */
@@ -327,12 +321,6 @@ function productionPorts(
 
 const uniq = (w: TurnWarning[]): TurnWarning[] => [...new Set(w)];
 
-/**
- * Sintaxe de expansão do guia (`[[info:…]]`, `[[tag:…]]`). A rotina humana de envio EXPANDE essas marcas com
- * campos do imóvel — inclusive senhas de fechadura, portão e Wi-Fi. Um texto vindo do MODELO nunca pode
- * carregá-las (seria um caminho para revelar credencial depois da aprovação). Recusada na geração.
- */
-export const GUIDE_TEMPLATE_SYNTAX = /\[\[\s*(info|tag)\s*:/i;
 
 /**
  * Bloqueio estrutural/semântico grava QUAL regra barrou (09/11/2026: 3 mensagens simples foram barradas e o motivo
@@ -365,27 +353,27 @@ export const AUTONOMOUS_DEADLINE_MS = 26_000;
 /** Tempo mínimo restante para uma 2ª chamada ao modelo no autônomo (uma chamada leva ~10–13 s). */
 export const AUTONOMOUS_RETRY_MIN_MS = 14_000;
 
-/** Prazos de uma geração (pura). Turno longo só vale no autônomo; a nova tentativa após timeout segue `auto` nele. */
-export function turnTimings(p: { autonomous: boolean; longTurn: boolean }): {
+/** Prazos de uma geração (pura). No turno longo a nova tentativa após timeout segue `auto`. */
+export function turnTimings(p: { longTurn: boolean }): {
   deadlineMs: number;
   stageMaxMs: number;
   callMaxMs: number;
   retryMinMs: number;
   timeoutRetryEffort: "auto" | "low";
 } {
-  if (p.autonomous && p.longTurn)
+  if (p.longTurn)
     return { deadlineMs: LONG_TURN.deadlineMs, stageMaxMs: LONG_TURN.stageMaxMs, callMaxMs: LONG_TURN.callMaxMs, retryMinMs: LONG_TURN.retryMinMs, timeoutRetryEffort: "auto" };
   return {
-    deadlineMs: p.autonomous ? AUTONOMOUS_DEADLINE_MS : TURN_DEADLINE_MS,
+    deadlineMs: AUTONOMOUS_DEADLINE_MS,
     stageMaxMs: TURN_STAGE_MAX_MS,
     callMaxMs: TURN_AUTO_CALL_MAX_MS,
-    retryMinMs: p.autonomous ? AUTONOMOUS_RETRY_MIN_MS : 6_000,
+    retryMinMs: AUTONOMOUS_RETRY_MIN_MS,
     timeoutRetryEffort: "low",
   };
 }
 
+/** Motivo de UMA nova tentativa (códigos fechados). O silêncio é decisão legítima e não é refeito. */
 export function retryReason(o: ChainOutcome): string | null {
-  if (o.kind === "silence") return "silence_not_allowed_in_suggestion_mode";
   if (o.kind === "refused") {
     const c = o.code as string;
     if (c === "structural_block") return `structural_block ${o.audit.structuralBlocks.join(" ")}`.slice(0, 190).toLowerCase();
@@ -404,11 +392,6 @@ export function projectOutcome(
     reservationLinked: boolean | null;
     /** Fotos do hóspede que foram ao modelo neste turno (diagnóstico visual só vale com foto). */
     imagesSent?: number;
-    /**
-     * Condução autônoma (14/11/2026): `[[info:…]]`/`[[tag:…]]` seguem até o slot, que os resolve com a D9
-     * (`outbound-text.ts`). Fora do modo autônomo (sugestão revisada por humano) continuam recusados.
-     */
-    allowGuideTags?: boolean;
   },
 ): Pick<
   TurnResultInput,
@@ -480,17 +463,7 @@ export function projectOutcome(
   };
   switch (outcome.kind) {
     case "reply":
-      if (!extra.allowGuideTags && GUIDE_TEMPLATE_SYNTAX.test(outcome.text)) {
-        return {
-          ...base,
-          state: "generation_failed",
-          text: null,
-          strategy: outcome.strategy,
-          outcomeKind: "refused",
-          outcomeCode: "template_tag_in_output",
-          warnings: uniq(warnings),
-        };
-      }
+      // `[[info:…]]`/`[[tag:…]]` seguem até o slot, que os resolve com a D9 (`outbound-text.ts`)
       return {
         ...base,
         state: "available",
@@ -573,7 +546,7 @@ export async function generateGuestAiTurn(
   const now = deps.now ?? (() => Date.now());
   const schedule = deps.schedule ?? defaultSchedule;
   const started = now();
-  const timings = turnTimings({ autonomous: !!deps.autonomous, longTurn: deps.longTurn === true });
+  const timings = turnTimings({ longTurn: deps.longTurn === true });
   const stageMaxMs = timings.stageMaxMs;
   const deadlineMs = deps.deadlineMs ?? timings.deadlineMs;
   const remainingMs = () => Math.max(0, deadlineMs - (now() - started));
@@ -844,12 +817,9 @@ export async function generateGuestAiTurn(
       now,
       schedule,
     };
-    // SUGESTÃO EM 100% DAS MENSAGENS (pedido de 09/11/2026): o roteiro exige texto sempre; se mesmo assim a 1ª
-    // tentativa vier sem texto por motivo corrigível (silêncio, incoerência de campos, bloqueio de validação),
-    // faz UMA nova tentativa dizendo ao modelo o que corrigir (só códigos fechados). Credenciais (D9), guard,
+    // Bloqueio corrigível (incoerência de campos, validação) ⇒ UMA nova tentativa dizendo ao modelo o que corrigir
+    // (só códigos fechados). O silêncio é legítimo (ex.: "ok, obrigado") e não é refeito. Credenciais (D9), guard,
     // escopo e falhas técnicas NÃO são recontadas aqui.
-    // Na condução autônoma o silêncio é LEGÍTIMO (ex.: "ok, obrigado"): sem exigir texto e sem refazer por silêncio.
-    const alwaysSuggest = !deps.autonomous;
     // cada tentativa usa o prazo que REALMENTE resta (antes: o calculado no início, e a 2ª passava do teto)
     const fresh = (): ChainDeps => {
       const left = Math.max(1_000, Math.min(stageMaxMs, Math.floor(remainingMs())));
@@ -859,7 +829,7 @@ export async function generateGuestAiTurn(
     let chainRuns = 1;
     let retryUsed: string | null = null;
     let outcome = await runTurnChain(
-      { turn, traceId: claimed.suggestionId, batch: null, suggest: { alwaysSuggest } },
+      { turn, traceId: claimed.suggestionId, batch: null, retryNote: null },
       fresh(),
     );
     // telemetria de prazo (10/11/2026): em corte por tempo, registra EM QUE ETAPA estourou (código fixo, sem dados)
@@ -880,22 +850,21 @@ export async function generateGuestAiTurn(
       chainRuns += 1;
       retryUsed = "model_truncated_or_timeout";
       outcome = await runTurnChain(
-        { turn, traceId: claimed.suggestionId, batch: null, suggest: { alwaysSuggest } },
+        { turn, traceId: claimed.suggestionId, batch: null, retryNote: null },
         fresh(),
       );
     }
-    const rawReason = retryReason(outcome);
-    const reason = deps.autonomous && outcome.kind === "silence" ? null : rawReason;
+    const reason = retryReason(outcome);
     if (reason && generator.telemetry().status !== "blocked" && remainingMs() > retryMinMs) {
       generator = makeGenerator();
       chainRuns += 1;
       retryUsed = reason.slice(0, 120);
       const second = await runTurnChain(
-        { turn, traceId: claimed.suggestionId, batch: null, suggest: { alwaysSuggest, retryNote: reason } },
+        { turn, traceId: claimed.suggestionId, batch: null, retryNote: reason },
         fresh(),
       );
-      // no autônomo, o silêncio decidido na nova tentativa vale (caso Felipe, 17/11/2026)
-      if (second.kind === "reply" || (deps.autonomous && second.kind === "silence") || retryReason(second) === null) outcome = second;
+      // o silêncio decidido na nova tentativa vale (caso Felipe, 17/11/2026)
+      if (second.kind === "reply" || second.kind === "silence" || retryReason(second) === null) outcome = second;
     }
     const g = generator.telemetry();
     const projected = projectOutcome(outcome, {
@@ -903,7 +872,6 @@ export async function generateGuestAiTurn(
       humanInCommand,
       reservationLinked,
       imagesSent: g.imagesSent,
-      allowGuideTags: !!deps.autonomous,
     });
     // bloqueio do gerador (orçamento do turno, substituída, prazo) ⇒ código fechado em vez do técnico genérico
     const outcomeCode =
@@ -949,7 +917,7 @@ export async function generateGuestAiTurn(
     const traceWriter = deps.recordTrace ?? (deps.store ? null : defaultRecordTrace);
     if (traceWriter) await recordGenerationTrace(traceWriter, {
       suggestion_id: claimed.suggestionId,
-      autonomous: !!deps.autonomous,
+      autonomous: true,
       total_ms: Math.max(0, Math.round(now() - started)),
       attempts: chainRuns,
       retry_reason: retryUsed,

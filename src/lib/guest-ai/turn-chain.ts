@@ -42,6 +42,7 @@ import { DECISION_PARSER_VERSION, parseDecisionText, type DecisionParseErrorCode
 import { resolveCaseOwnership, type CaseOwnership } from "@/lib/guest-ai/orchestrator/case-ownership";
 import { validateDecision } from "@/lib/guest-ai/validation/output-validator";
 import { reconcileDecision } from "@/lib/guest-ai/validation/reconcile";
+import { bookingNoteSilence } from "@/lib/guest-ai/validation/booking-note";
 import {
   SEMANTIC_VALIDATOR_VERSION,
   validateSemantics,
@@ -386,8 +387,8 @@ export interface ChainInput {
   traceId: string;
   /** B2.5 — lote fechado de mensagens consecutivas do hóspede (emitido por `buildGuestMessageBatch`). */
   batch?: GuestMessageBatch | null;
-  /** IA (09/11/2026): sugestão obrigatória; `retryNote` = códigos do que barrou a tentativa anterior. */
-  suggest?: { alwaysSuggest?: boolean; retryNote?: string } | null;
+  /** Nova tentativa: códigos fechados do que barrou a anterior. */
+  retryNote?: string | null;
 }
 
 const TRACE = /^[\w.:-]{1,80}$/;
@@ -881,7 +882,7 @@ export async function runTurnChain(input: ChainInput, deps: ChainDeps): Promise<
     const composeStart = now();
     const guardBefore = timings.guard ?? 0;
     const composed = composeTurnPrompt(
-      { context: ctx, history, dossiers, batch, guestProfile, cityEvents, livingDocument, operational: { stayAuthorizations, humanOwnership, aiPausedByTeam: paused }, suggest: input.suggest ?? null },
+      { context: ctx, history, dossiers, batch, guestProfile, cityEvents, livingDocument, operational: { stayAuthorizations, humanOwnership, aiPausedByTeam: paused }, retryNote: input.retryNote ?? null },
       { guard: timedGuard, budget: deps.budget },
     );
     timings.compose = Math.max(0, Math.round(now() - composeStart) - ((timings.guard ?? 0) - guardBefore));
@@ -912,7 +913,11 @@ export async function runTurnChain(input: ChainInput, deps: ChainDeps): Promise<
     const parsed = timeIt("parse", () => parseDecisionText(raw, { expectVersion: CURRENT_DECISION_VERSION }));
     if (!parsed.ok) return refuse("parse", `parse_${parsed.error.code}`);
     decisionVersion = parsed.version;
-    const decision = reconcileDecision(parsed.decision);
+    // nota escrita no ato da reserva, sem pergunta nem pedido ⇒ silêncio (casos Simone e Felipe, 17/11/2026)
+    const decision = bookingNoteSilence(reconcileDecision(parsed.decision), {
+      bookedMinutesAgo: ctx.guest.phase === "pre_stay" ? ctx.guest.stay?.bookedMinutesAgo : null,
+      history,
+    });
     const sig0 = decisionSignals(decision);
     summary = {
       shouldReply: sig0.shouldReply,

@@ -67,13 +67,7 @@ describe("roteiro da IA", () => {
   });
 });
 
-describe("modo sugestão (IA)", () => {
-  it("exige sugestão em toda mensagem, também com a equipe atendendo", () => {
-    const sys = buildSystemPrompt("airbnb", undefined, { alwaysSuggest: true });
-    expect(sys).toMatch(/TODA mensagem recebida recebe uma sugestão de texto, sem exceção/);
-    expect(sys).toMatch(/Retomada depois de atendimento humano/);
-    expect(buildSystemPrompt("airbnb")).not.toMatch(/MODO SUGESTÃO/);
-  });
+describe("nova tentativa", () => {
   it("nota de nova tentativa só aceita códigos fechados", () => {
     const ok = buildSystemPrompt("airbnb", undefined, { retryNote: "structural_block silence_not_allowed" });
     expect(ok).toMatch(/Correção desta tentativa/);
@@ -87,9 +81,9 @@ describe("modo sugestão (IA)", () => {
   });
 });
 
-describe("retomada depois de atendimento humano (todos os modos)", () => {
-  it("o prompt autônomo e o do IA mandam seguir o contexto, sem responder às cegas", () => {
-    for (const sys of [buildSystemPrompt("airbnb"), buildSystemPrompt("airbnb", undefined, { alwaysSuggest: true })]) {
+describe("retomada depois de atendimento humano", () => {
+  it("o prompt manda seguir o contexto, sem responder às cegas", () => {
+    for (const sys of [buildSystemPrompt("airbnb")]) {
       expect(sys).toMatch(/Retomada depois de atendimento humano/);
       expect(sys).toMatch(/Reconstrua o estado real/);
       expect(sys).toMatch(/perguntas feitas durante a pausa que ninguém respondeu/);
@@ -99,7 +93,7 @@ describe("retomada depois de atendimento humano (todos os modos)", () => {
 
 describe("responder só ao que foi dito e fatos sem fonte (16/11/2026, caso Ilizandra)", () => {
   it("vale para qualquer assunto, sem virar obrigação de ampliar", () => {
-    for (const sys of [buildSystemPrompt("airbnb"), buildSystemPrompt("airbnb", undefined, { alwaysSuggest: true })]) {
+    for (const sys of [buildSystemPrompt("airbnb")]) {
       expect(sys).toMatch(/Responda ao que a pessoa disse ou perguntou e nada além/);
       expect(sys).toMatch(/Ampliar a orientação só vale quando, naquele contexto, ajuda de verdade/);
       expect(sys).toMatch(/nunca é obrigação/);
