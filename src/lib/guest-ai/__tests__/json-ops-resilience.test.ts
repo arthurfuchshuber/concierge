@@ -1,5 +1,5 @@
 /**
- * Incidente de 08/11/2026 (07:18 UTC): a OpenAI recusou com 400 a chamada do Copiloto —
+ * Incidente de 08/11/2026 (07:18 UTC): a OpenAI recusou com 400 a chamada da IA —
  * "Response input messages must contain the word 'json' in some form to use 'text.format' of type json_object" —
  * e, sem decisão, a baixa de check-out ("Check out feito" / "Saímos e deixamos chave conforme instruções") não rodou.
  * (a) o prompt montado sempre traz "JSON" na mensagem do usuário;

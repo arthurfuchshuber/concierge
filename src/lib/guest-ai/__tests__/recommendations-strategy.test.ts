@@ -6,7 +6,7 @@
 import { describe, expect, it } from "vitest";
 import { buildSystemPrompt } from "@/lib/guest-ai/system-prompt";
 import type { GuestSurface } from "@/lib/guest-ai/types";
-import { formatForChannel } from "@/lib/guest-ai/copilot/channel-format";
+import { formatForChannel } from "@/lib/guest-ai/turn/channel-format";
 
 const SURFACES: GuestSurface[] = ["airbnb", "whatsapp", "guide_chat"];
 

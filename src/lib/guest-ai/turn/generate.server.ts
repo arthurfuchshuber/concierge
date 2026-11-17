@@ -1,17 +1,17 @@
 /**
- * COPILOTO — serviço de GERAÇÃO de uma sugestão (servidor; nunca bloqueia o atendimento humano).
+ * IA — serviço de GERAÇÃO de uma sugestão (servidor; nunca bloqueia o atendimento humano).
  *
  * Fluxo: identificadores do canal → `validateTurnScope` (F0: conversa, mensagem, imóvel e conta re-derivados
- * e validados no backend) → reivindicação idempotente no banco (`copilot_claim_generation`: uma sugestão por
+ * e validados no backend) → reivindicação idempotente no banco (`guest_ai_claim_turn`: uma sugestão por
  * mensagem do hóspede, teto diário, sugestões anteriores da conversa marcadas `superseded`) → a MESMA cadeia
  * `runTurnChain` da Guest AI (contexto D9 com `credentials: "skip"`, Dossiê, histórico, autorizações
  * formais, identidade de envio, guard de segredos, validadores estrutural e semântico) com o gerador do
- * Copiloto ligado ao Lovable AI Gateway → resultado gravado (`copilot_store_result`) para o cartão da UI.
+ * IA ligado ao Lovable AI Gateway → resultado gravado (`guest_ai_store_turn`) para o cartão da UI.
  *
  * O que NÃO entra aqui, de propósito:
  *  - as portas `loadConversationOwnership`/`loadHumanPause` da cadeia. Elas implementam o VETO da pausa
  *    humana à resposta AUTÔNOMA (B2.5/B3.2): com a equipe no comando, a cadeia só pode devolver `paused`.
- *    No Copiloto a equipe está SEMPRE no comando (é ela quem aprova e envia), então o veto tornaria a
+ *    No IA a equipe está SEMPRE no comando (é ela quem aprova e envia), então o veto tornaria a
  *    sugestão impossível exatamente quando ela é útil. A posse humana continua lida (só leitura) para o
  *    cartão informar "equipe no comando"; os controles D9 (credenciais, horários, remetente, isolamento)
  *    seguem íntegros na própria cadeia. Nenhum controle foi alterado — só não se injeta o veto de envio
@@ -28,7 +28,7 @@ import {
 } from "@/lib/guest-ai/data/scope.server";
 import {
   abortableDb,
-  getGuestAiCopilotRpc,
+  getGuestAiTurnRpc,
   getGuestAiDb,
   type GuestAiDb,
 } from "@/lib/guest-ai/data/client.server";
@@ -70,28 +70,28 @@ import {
   type OpsSignals,
 } from "./ops-extractor.server";
 import {
-  COPILOT_DEADLINE_MS,
-  COPILOT_STAGE_MAX_MS,
+  TURN_DEADLINE_MS,
+  TURN_STAGE_MAX_MS,
   LONG_TURN,
-  COPILOT_MAX_OUTPUT_TOKENS,
-  COPILOT_MAX_TURN_COST_USD,
-  COPILOT_MIN_OUTPUT_TOKENS,
-  COPILOT_REASONING_EFFORT,
-  copilotListingDailyCostUsd,
-  copilotModelId,
-  type CopilotGenerationRequest,
-  type CopilotWarning,
+  TURN_MAX_OUTPUT_TOKENS,
+  TURN_MAX_COST_USD,
+  TURN_MIN_OUTPUT_TOKENS,
+  TURN_REASONING_EFFORT,
+  turnListingDailyCostUsd,
+  turnModelId,
+  type TurnGenerationRequest,
+  type TurnWarning,
 } from "./contracts";
 import {
-  createCopilotGenerator,
-  CopilotGeneratorStop,
+  createTurnGenerator,
+  TurnGeneratorStop,
   NO_VISION,
-  type CopilotGenerator,
-  type CopilotVisionInput,
+  type TurnGenerator,
+  type TurnVisionInput,
 } from "./generator.server";
-import { createCopilotStore, type CopilotResultInput, type CopilotStore } from "./store.server";
+import { createTurnStore, type TurnResultInput, type TurnStore } from "./store.server";
 
-export type CopilotPorts = Required<
+export type TurnPorts = Required<
   Pick<
     ChainDeps,
     | "loadContext"
@@ -103,15 +103,15 @@ export type CopilotPorts = Required<
 > &
   Pick<ChainDeps, "loadGuestProfile" | "loadCityEvents" | "loadLivingDocument">;
 
-export interface CopilotGenerateDeps {
+export interface TurnGenerateDeps {
   /**
    * CONDUÇÃO AUTÔNOMA (10/11/2026): chamada pelo `slot.server.ts`, que tem a própria chave e lista de imóveis.
-   * Aqui só muda: não confere a chave/lista do Copiloto e o silêncio é legítimo (o roteiro não exige texto).
+   * Aqui só muda: não confere a chave/lista da IA e o silêncio é legítimo (o roteiro não exige texto).
    */
   autonomous?: boolean;
   db?: GuestAiDb;
-  store?: CopilotStore;
-  validateTurnScope?: (input: CopilotGenerationRequest, db: GuestAiDb) => Promise<ValidatedTurn>;
+  store?: TurnStore;
+  validateTurnScope?: (input: TurnGenerationRequest, db: GuestAiDb) => Promise<ValidatedTurn>;
   loadOwnership?: (
     turn: ValidatedTurn,
     db: GuestAiDb,
@@ -123,16 +123,16 @@ export interface CopilotGenerateDeps {
     turn: ValidatedTurn,
     db: GuestAiDb,
     meta: { onDossierEntries: (n: number) => void; onHistoryMessages: (n: number) => void },
-  ) => CopilotPorts;
+  ) => TurnPorts;
   generator?: (opts: {
     /** `low` só na nova tentativa após o raciocínio estourar o teto de saída (10/11/2026). */
     reasoningEffort?: "low";
     remainingMs: () => number;
     beforeNetwork: () => Promise<boolean>;
     traceId: string;
-    loadVision: () => Promise<CopilotVisionInput>;
+    loadVision: () => Promise<TurnVisionInput>;
     loadToolContext: () => Promise<GuestToolContext | null>;
-  }) => CopilotGenerator;
+  }) => TurnGenerator;
   /** Rajada: há mensagem do hóspede mais nova na conversa? (produção: `hasNewerGuestMessage`). */
   checkNewerGuestMessage?: (
     turn: ValidatedTurn,
@@ -178,7 +178,7 @@ export interface CopilotGenerateDeps {
 /** Prazo máximo do registro de "não avançou": a auditoria nunca atrasa a resposta além disto. */
 export const OPS_NO_ADVANCE_MAX_MS = 2_500;
 
-export type CopilotGenerateResult =
+export type TurnGenerateResult =
   | {
       status: "stored";
       suggestionId: string;
@@ -219,7 +219,7 @@ export type CopilotGenerateResult =
  * a mensagem é encerrada como `generation_failed` (`retry_circuit_open`) SEM chamar modelo. Só uma NOVA mensagem
  * do hóspede (outro `trigger_message_id`) gera de novo.
  */
-export const COPILOT_MAX_GENERATION_ATTEMPTS = 2;
+export const TURN_MAX_GENERATION_ATTEMPTS = 2;
 
 function failedRecord(suggestionId: string, attempt: number, outcomeCode: string) {
   return {
@@ -257,7 +257,7 @@ function productionPorts(
   turn: ValidatedTurn,
   db: GuestAiDb,
   meta: { onDossierEntries: (n: number) => void; onHistoryMessages: (n: number) => void },
-): CopilotPorts {
+): TurnPorts {
   let audiences: readonly string[] | null = null;
   let calendar: CalendarFact | null = null;
   return {
@@ -325,7 +325,7 @@ function productionPorts(
   };
 }
 
-const uniq = (w: CopilotWarning[]): CopilotWarning[] => [...new Set(w)];
+const uniq = (w: TurnWarning[]): TurnWarning[] => [...new Set(w)];
 
 /**
  * Sintaxe de expansão do guia (`[[info:…]]`, `[[tag:…]]`). A rotina humana de envio EXPANDE essas marcas com
@@ -352,7 +352,7 @@ export function refusalCodeWithReason(code: string, structural: readonly string[
  * Passou do teto ⇒ a chamada é cancelada e o turno refaz com raciocínio `low`, que responde em poucos segundos.
  * 12/11/2026 (caso Gilmar): 12 s cortava turnos densos, que levam 8–13 s; o teto passou a 20 s.
  */
-export const COPILOT_AUTO_CALL_MAX_MS = 20_000;
+export const TURN_AUTO_CALL_MAX_MS = 20_000;
 /** Tempo mínimo restante para a nova tentativa com raciocínio `low` após saída truncada ou chamada lenta. */
 export const TRUNCATED_RETRY_MIN_MS = 6_000;
 /**
@@ -376,9 +376,9 @@ export function turnTimings(p: { autonomous: boolean; longTurn: boolean }): {
   if (p.autonomous && p.longTurn)
     return { deadlineMs: LONG_TURN.deadlineMs, stageMaxMs: LONG_TURN.stageMaxMs, callMaxMs: LONG_TURN.callMaxMs, retryMinMs: LONG_TURN.retryMinMs, timeoutRetryEffort: "auto" };
   return {
-    deadlineMs: p.autonomous ? AUTONOMOUS_DEADLINE_MS : COPILOT_DEADLINE_MS,
-    stageMaxMs: COPILOT_STAGE_MAX_MS,
-    callMaxMs: COPILOT_AUTO_CALL_MAX_MS,
+    deadlineMs: p.autonomous ? AUTONOMOUS_DEADLINE_MS : TURN_DEADLINE_MS,
+    stageMaxMs: TURN_STAGE_MAX_MS,
+    callMaxMs: TURN_AUTO_CALL_MAX_MS,
     retryMinMs: p.autonomous ? AUTONOMOUS_RETRY_MIN_MS : 6_000,
     timeoutRetryEffort: "low",
   };
@@ -411,7 +411,7 @@ export function projectOutcome(
     allowGuideTags?: boolean;
   },
 ): Pick<
-  CopilotResultInput,
+  TurnResultInput,
   | "state"
   | "text"
   | "internalQuestion"
@@ -428,7 +428,7 @@ export function projectOutcome(
   senderIdentity: string | null;
 } {
   const a = outcome.audit;
-  const warnings: CopilotWarning[] = [];
+  const warnings: TurnWarning[] = [];
   const situation = "situation" in outcome ? outcome.situation : null;
   const intents = situation?.intents ?? a.decision?.intents ?? [];
   if (a.checks.unknownFacts > 0) warnings.push("unknown_facts");
@@ -562,11 +562,11 @@ export function projectOutcome(
   }
 }
 
-/** Gera (ou reaproveita) a sugestão do Copiloto para a mensagem do hóspede. Nunca lança. */
-export async function generateCopilotSuggestion(
-  req: CopilotGenerationRequest,
-  deps: CopilotGenerateDeps = {},
-): Promise<CopilotGenerateResult> {
+/** Gera (ou reaproveita) a sugestão da IA para a mensagem do hóspede. Nunca lança. */
+export async function generateGuestAiTurn(
+  req: TurnGenerationRequest,
+  deps: TurnGenerateDeps = {},
+): Promise<TurnGenerateResult> {
   const env = deps.env ?? process.env;
   // relógio de PAREDE (ms desde a época): a cadeia o usa para datas (fase da estadia, janela D9, pausa) e o
   // prazo global é medido pelo mesmo relógio. Nunca `performance.now` aqui (origem ≠ época).
@@ -580,11 +580,11 @@ export async function generateCopilotSuggestion(
   const controller = new AbortController();
   const cancelTimer = schedule(() => controller.abort(), deadlineMs);
   let claimed: { suggestionId: string; attempt: number } | null = null;
-  let store: CopilotStore | null = null;
+  let store: TurnStore | null = null;
 
   try {
     const db = deps.db ?? (await getGuestAiDb());
-    store = deps.store ?? createCopilotStore(await getGuestAiCopilotRpc());
+    store = deps.store ?? createTurnStore(await getGuestAiTurnRpc());
 
     // 1) escopo validado no backend (fail-closed)
     let turn: ValidatedTurn;
@@ -626,8 +626,8 @@ export async function generateCopilotSuggestion(
       conversationId: turn.conversationId,
       triggerMessageId: turn.messageId,
       surface: turn.surface,
-      dailyCostLimitUsd: copilotListingDailyCostUsd(env), // teto POR ANÚNCIO; a conta soma os anúncios (no banco)
-      turnCostCeilingUsd: COPILOT_MAX_TURN_COST_USD,
+      dailyCostLimitUsd: turnListingDailyCostUsd(env), // teto POR ANÚNCIO; a conta soma os anúncios (no banco)
+      turnCostCeilingUsd: TURN_MAX_COST_USD,
     });
     if (claim.kind === "exists")
       return { status: "exists", suggestionId: claim.suggestionId, state: claim.state };
@@ -637,7 +637,7 @@ export async function generateCopilotSuggestion(
       return { status: "skipped", code: "claim_invalid", detail: claim.reason };
     if (claim.kind !== "claimed") return { status: "skipped", code: "claim_failed", detail: null };
     claimed = { suggestionId: claim.suggestionId, attempt: claim.attempt };
-    if (claim.attempt > COPILOT_MAX_GENERATION_ATTEMPTS) {
+    if (claim.attempt > TURN_MAX_GENERATION_ATTEMPTS) {
       const r = await store.store(failedRecord(claim.suggestionId, claim.attempt, "retry_circuit_open"));
       if (r.kind === "stale") return { status: "stale", suggestionId: claim.suggestionId };
       return { status: "stored", suggestionId: claim.suggestionId, state: "generation_failed", code: "retry_circuit_open" };
@@ -658,7 +658,7 @@ export async function generateCopilotSuggestion(
       humanInCommand = null;
     }
 
-    // 4) cadeia real com o gerador do Copiloto
+    // 4) cadeia real com o gerador da IA
     let dossierEntries: number | null = null;
     let historyMessages: number | null = null;
     let reservationLinked: boolean | null = null;
@@ -720,7 +720,7 @@ export async function generateCopilotSuggestion(
             suggestionId: claimed?.suggestionId ?? null,
           });
         } catch {
-          console.error("[copilot] travas determinísticas falharam");
+          console.error("[ia-turno] travas determinísticas falharam");
         }
       };
       if (controller.signal.aborted || remainingMs() < READER_MIN_MS) {
@@ -756,10 +756,10 @@ export async function generateCopilotSuggestion(
           suggestionId: claimed?.suggestionId ?? null,
         });
       } catch {
-        console.error("[copilot] leitor de reserva falhou");
+        console.error("[ia-turno] leitor de reserva falhou");
       }
     };
-    const loadVision = async (): Promise<CopilotVisionInput> => {
+    const loadVision = async (): Promise<TurnVisionInput> => {
       if (!history || history.status !== "available") return NO_VISION;
       const refs = new Map(history.entries.map((e) => [e.messageId, e.ref]));
       if (!history.entries.some((e) => e.speaker === "guest" && e.media?.kind === "image"))
@@ -796,12 +796,12 @@ export async function generateCopilotSuggestion(
     const makeGenerator = (effort?: "low") =>
       deps.generator
         ? deps.generator({ ...(effort ? { reasoningEffort: effort } : {}), remainingMs, beforeNetwork, traceId: claimed!.suggestionId, loadVision, loadToolContext })
-        : createCopilotGenerator({
-            modelId: copilotModelId(env),
-            maxOutputTokens: COPILOT_MAX_OUTPUT_TOKENS,
-            minOutputTokens: COPILOT_MIN_OUTPUT_TOKENS,
+        : createTurnGenerator({
+            modelId: turnModelId(env),
+            maxOutputTokens: TURN_MAX_OUTPUT_TOKENS,
+            minOutputTokens: TURN_MIN_OUTPUT_TOKENS,
             // elasticidade nativa: sem tabela por assunto; o modelo dosa o raciocínio, o custo é contido por fora
-            reasoningEffort: effort ?? COPILOT_REASONING_EFFORT,
+            reasoningEffort: effort ?? TURN_REASONING_EFFORT,
             // a tentativa elástica (`auto`) tem teto próprio por chamada; a de raciocínio curto usa o que resta
             ...(effort ? {} : { callTimeoutMs: timings.callMaxMs }),
             remainingMs,
@@ -864,9 +864,9 @@ export async function generateCopilotSuggestion(
     );
     // telemetria de prazo (10/11/2026): em corte por tempo, registra EM QUE ETAPA estourou (código fixo, sem dados)
     if (outcome.kind === "technical_error")
-      console.warn("[copilot] turno interrompido", outcome.code, `etapa=${outcome.stage}`, `restante_ms=${Math.round(remainingMs())}`);
+      console.warn("[ia-turno] turno interrompido", outcome.code, `etapa=${outcome.stage}`, `restante_ms=${Math.round(remainingMs())}`);
     // RACIOCÍNIO QUE NÃO ENTREGOU (10/11/2026): estourou o teto de saída (caso Karen: 4.089 de 4.096 tokens
-    // gastos pensando, 23 s) ou passou de `COPILOT_AUTO_CALL_MAX_MS` (caso Fabiano: ~35 s sem resposta).
+    // gastos pensando, 23 s) ou passou de `TURN_AUTO_CALL_MAX_MS` (caso Fabiano: ~35 s sem resposta).
     // O padrão segue elástico (`auto`), mas essas duas falhas ganham UMA nova tentativa com raciocínio `low`
     // (curto e rápido), se houver tempo. Nunca em bloqueio de custo/prazo.
     if (
@@ -979,7 +979,7 @@ export async function generateCopilotSuggestion(
           suggestionId: claimed.suggestionId,
         });
       } catch {
-        console.error("[copilot] ações operacionais falharam");
+        console.error("[ia-turno] ações operacionais falharam");
       }
       if (!opsEvaluated && opsReadPhase) noAdvanceReason = "response_no_signal";
     } else {
@@ -998,7 +998,7 @@ export async function generateCopilotSuggestion(
           }),
         ]);
       } catch {
-        console.error("[copilot] registro de não avanço falhou");
+        console.error("[ia-turno] registro de não avanço falhou");
       } finally {
         if (timer) clearTimeout(timer);
       }
@@ -1035,7 +1035,7 @@ export async function generateCopilotSuggestion(
           failedRecord(
             claimed.suggestionId,
             claimed.attempt,
-            e instanceof CopilotGeneratorStop ? e.code : "internal_error",
+            e instanceof TurnGeneratorStop ? e.code : "internal_error",
           ),
         );
       } catch {
@@ -1045,7 +1045,7 @@ export async function generateCopilotSuggestion(
     return {
       status: "skipped",
       code: "internal_error",
-      detail: e instanceof CopilotGeneratorStop ? e.code : null,
+      detail: e instanceof TurnGeneratorStop ? e.code : null,
     };
   } finally {
     cancelTimer();
@@ -1071,10 +1071,10 @@ export interface GenerationTrace {
 
 export const GENERATION_TRACE_MAX_MS = 1_500;
 
-/** Gravação pela função restrita do banco (`copilot_record_trace`): o módulo da IA não escreve em tabela. */
+/** Gravação pela função restrita do banco (`guest_ai_record_trace`): o módulo da IA não escreve em tabela. */
 async function defaultRecordTrace(row: GenerationTrace): Promise<void> {
-  const rpc = await getGuestAiCopilotRpc();
-  const { error } = await rpc.call("copilot_record_trace", { p_trace: row });
+  const rpc = await getGuestAiTurnRpc();
+  const { error } = await rpc.call("guest_ai_record_trace", { p_trace: row });
   if (error) throw new Error("trace_record_failed");
 }
 
@@ -1088,7 +1088,7 @@ export async function recordGenerationTrace(write: (row: GenerationTrace) => Pro
       }),
     ]);
   } catch {
-    console.error("[copilot] rastro da geração falhou");
+    console.error("[ia-turno] rastro da geração falhou");
   } finally {
     if (timer) clearTimeout(timer);
   }

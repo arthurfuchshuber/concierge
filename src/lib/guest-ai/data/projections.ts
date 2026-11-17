@@ -119,7 +119,7 @@ export const CONVERSATION_OWNERSHIP_COLUMNS = ["id", "status", "assigned_to", "h
 export const MESSAGE_COLUMNS = ["id", "conversation_id", "role", "sender_type", "channel", "is_internal_note", "created_at"] as const;
 
 /**
- * COPILOTO · VISÃO — mensagens do hóspede com IMAGEM. Única projeção do módulo com o caminho do anexo no
+ * IA · VISÃO — mensagens do hóspede com IMAGEM. Única projeção do módulo com o caminho do anexo no
  * storage: usada só por `data/guest-images.server.ts`, que baixa a foto pelo acesso de leitura restrito ao
  * bucket `chat-attachments` (`client.server.ts`). O caminho nunca vai ao prompt, a log nem ao resultado.
  */

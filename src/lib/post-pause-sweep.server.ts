@@ -13,7 +13,7 @@
  * Tudo o mais (posse humana, chamado aberto, decisão pendente, barreira pré-envio, tetos de custo, chave
  * `GUEST_AI_AUTONOMOUS`, anúncio com a IA ligada) é decidido pelo MESMO turno do webhook (`runAirbnbAiTurn`).
  *
- * A sugestão que o copiloto gerou DURANTE a pausa (não enviada, para a equipe) é descartada antes: o banco só aceita
+ * A sugestão que o IA gerou DURANTE a pausa (não enviada, para a equipe) é descartada antes: o banco só aceita
  * uma geração por mensagem, e a nova precisa ler o contexto atual. Nunca lança; nunca fala sem passar pela barreira.
  * Desligável com GUEST_AI_POST_PAUSE_SWEEP=off.
  */
@@ -164,7 +164,7 @@ export async function runPostPauseSweep(deps: SweepDeps = {}): Promise<SweepResu
         const cheap = planPostPauseSweep(list, () => [], nowMs, cfg);
         if (!cheap) continue;
         const { data: gens } = await db
-          .from("guest_ai_copilot_suggestions")
+          .from("guest_ai_turns")
           .select("created_at")
           .eq("conversation_id", c.id)
           .eq("trigger_message_id", cheap.triggerId);
@@ -187,14 +187,14 @@ export async function runPostPauseSweep(deps: SweepDeps = {}): Promise<SweepResu
         // descarta a sugestão da pausa (não enviada); a geração nova lê o contexto de agora. O papel de serviço só LÊ
         // a tabela, então o descarte é uma função do banco. Sem descartar não há turno: o banco só aceita uma geração
         // por mensagem e a IA cairia na contingência (encaminhamento à equipe).
-        const rel = await db.rpc("copilot_release_unsent_suggestion", {
+        const rel = await db.rpc("guest_ai_release_unsent_turn", {
           p_conversation_id: c.id,
           p_trigger_message_id: plan.triggerId,
           p_before: plan.pauseEndsAt,
         });
         if (rel?.error) throw new Error("release_failed");
         const { data: left } = await db
-          .from("guest_ai_copilot_suggestions")
+          .from("guest_ai_turns")
           .select("created_at")
           .eq("conversation_id", c.id)
           .eq("trigger_message_id", plan.triggerId);

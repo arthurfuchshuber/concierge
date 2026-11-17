@@ -24,15 +24,15 @@ export interface RpcCapableClient {
 }
 
 /**
- * COPILOTO (diretriz de 05/11/2026) — ÚNICA porta de escrita do módulo, de LISTA FECHADA: só as RPCs de
- * GERAÇÃO da migration `20261105150000_guest_ai_copilot_suggestions` (EXECUTE só service_role). As ações do
+ * IA (diretriz de 05/11/2026) — ÚNICA porta de escrita do módulo, de LISTA FECHADA: só as RPCs de
+ * GERAÇÃO da migration `20261105150000_guest_ai_turns` (EXECUTE só service_role). As ações do
  * atendente (editar, descartar, enviar) NÃO passam por aqui: correm com o cliente da SESSÃO do usuário
- * (removidas com o cartão de sugestão em 10/11/2026). Só o adaptador `copilot/store.server.ts` usa esta porta.
+ * (removidas com o cartão de sugestão em 10/11/2026). Só o adaptador `turn/store.server.ts` usa esta porta.
  */
-export const COPILOT_RPC_FUNCTIONS = ["copilot_claim_generation", "copilot_generation_state", "copilot_store_result", "copilot_purge_expired", "copilot_record_trace"] as const;
-export type CopilotRpcFunction = (typeof COPILOT_RPC_FUNCTIONS)[number];
-export interface GuestAiCopilotRpc {
-  call(fn: CopilotRpcFunction, args: Record<string, unknown>): Promise<{ data: unknown; error: unknown }>;
+export const TURN_RPC_FUNCTIONS = ["guest_ai_claim_turn", "guest_ai_turn_state", "guest_ai_store_turn", "guest_ai_purge_turns", "guest_ai_record_trace"] as const;
+export type TurnRpcFunction = (typeof TURN_RPC_FUNCTIONS)[number];
+export interface GuestAiTurnRpc {
+  call(fn: TurnRpcFunction, args: Record<string, unknown>): Promise<{ data: unknown; error: unknown }>;
 }
 
 /** Única chamada `rpc` do módulo: sempre atrás de uma lista FECHADA conferida pelo adaptador. */
@@ -42,10 +42,10 @@ async function invokeRpc(client: RpcCapableClient, fn: string, args: Record<stri
   return await (signal && typeof q.abortSignal === "function" ? q.abortSignal(signal) : q);
 }
 
-export function copilotRpcFrom(client: RpcCapableClient, signal?: AbortSignal): GuestAiCopilotRpc {
+export function turnRpcFrom(client: RpcCapableClient, signal?: AbortSignal): GuestAiTurnRpc {
   return {
     async call(fn, args) {
-      if (!(COPILOT_RPC_FUNCTIONS as readonly string[]).includes(fn)) return { data: null, error: { code: "copilot_rpc_not_allowed" } };
+      if (!(TURN_RPC_FUNCTIONS as readonly string[]).includes(fn)) return { data: null, error: { code: "turn_rpc_not_allowed" } };
       return await invokeRpc(client, fn, args, signal);
     },
   };
@@ -80,9 +80,9 @@ export async function getGuestAiOpsRpc(signal?: AbortSignal): Promise<GuestAiOps
   return opsRpcFrom(supabaseAdmin as unknown as RpcCapableClient, signal);
 }
 
-export async function getGuestAiCopilotRpc(signal?: AbortSignal): Promise<GuestAiCopilotRpc> {
+export async function getGuestAiTurnRpc(signal?: AbortSignal): Promise<GuestAiTurnRpc> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  return copilotRpcFrom(supabaseAdmin as unknown as RpcCapableClient, signal);
+  return turnRpcFrom(supabaseAdmin as unknown as RpcCapableClient, signal);
 }
 
 /** O turno foi cancelado (prazo do Orchestrator ou cancelamento externo) antes de terminar a leitura. */
@@ -131,7 +131,7 @@ export function abortableDb(db: GuestAiDb, signal?: AbortSignal): GuestAiDb {
 }
 
 /**
- * COPILOTO · VISÃO — leitura de anexos do hóspede no storage, RESTRITA ao bucket `chat-attachments` e só
+ * IA · VISÃO — leitura de anexos do hóspede no storage, RESTRITA ao bucket `chat-attachments` e só
  * a `download` (nenhuma escrita, listagem, URL assinada ou outro bucket). Caminho inválido (absoluto, com
  * `..`, vazio ou longo demais) é recusado sem consulta. Falha devolve `null`; nunca lança nem registra o
  * caminho. Só `data/guest-images.server.ts` usa esta porta.

@@ -2,7 +2,7 @@
  * TRABALHO EM SEGUNDO PLANO DENTRO DO CICLO DE VIDA DA REQUISIÇÃO (Gate G1, risco R2, 06/11/2026).
  *
  * No Cloudflare Worker, uma promessa solta (`void (async () => …)()`) pode ser encerrada junto com a resposta:
- * foi o que deixou uma sugestão do Copiloto presa em `generating`. Regra deste módulo: NUNCA soltar promessa.
+ * foi o que deixou uma sugestão da IA presa em `generating`. Regra deste módulo: NUNCA soltar promessa.
  *  - Com `waitUntil` do Worker disponível (o nitro o pendura no `Request` da Cloudflare; `src/server.ts`
  *    o registra aqui no início de cada requisição), a tarefa é entregue ao `waitUntil` e a resposta não espera.
  *  - Sem `waitUntil`, mas dentro de uma requisição (`src/server.ts`): a tarefa entra na lista da requisição e

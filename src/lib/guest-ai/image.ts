@@ -1,5 +1,5 @@
 /**
- * COPILOTO · VISÃO — utilitários PUROS de imagem (sem banco, rede, relógio nem LLM).
+ * IA · VISÃO — utilitários PUROS de imagem (sem banco, rede, relógio nem LLM).
  *
  * A imagem do hóspede só vai ao modelo como Data URL base64 de JPEG, PNG ou WebP. O formato é decidido
  * pelos BYTES (assinatura do arquivo), nunca pelo `attachment_mime` gravado, e as dimensões são lidas do

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { reconcileDecision } from "@/lib/guest-ai/validation/reconcile";
-import { refusalCodeWithReason } from "@/lib/guest-ai/copilot/generate.server";
+import { refusalCodeWithReason } from "@/lib/guest-ai/turn/generate.server";
 import { buildSystemPrompt } from "@/lib/guest-ai/system-prompt";
 import type { ModelDecision } from "@/lib/guest-ai/orchestrator/contracts";
 
@@ -67,7 +67,7 @@ describe("roteiro da IA", () => {
   });
 });
 
-describe("modo sugestão (copiloto)", () => {
+describe("modo sugestão (IA)", () => {
   it("exige sugestão em toda mensagem, também com a equipe atendendo", () => {
     const sys = buildSystemPrompt("airbnb", undefined, { alwaysSuggest: true });
     expect(sys).toMatch(/TODA mensagem recebida recebe uma sugestão de texto, sem exceção/);
@@ -83,7 +83,7 @@ describe("modo sugestão (copiloto)", () => {
 });
 
 describe("retomada depois de atendimento humano (todos os modos)", () => {
-  it("o prompt autônomo e o do copiloto mandam seguir o contexto, sem responder às cegas", () => {
+  it("o prompt autônomo e o do IA mandam seguir o contexto, sem responder às cegas", () => {
     for (const sys of [buildSystemPrompt("airbnb"), buildSystemPrompt("airbnb", undefined, { alwaysSuggest: true })]) {
       expect(sys).toMatch(/Retomada depois de atendimento humano/);
       expect(sys).toMatch(/Reconstrua o estado real/);

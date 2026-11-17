@@ -13,13 +13,13 @@ import {
   hasOpsSignal,
   parseOpsSignals,
   OPS_EXTRACTOR_SYSTEM,
-} from "@/lib/guest-ai/copilot/ops-extractor.server";
-import { createCopilotGenerator, hedgeDelayMs } from "@/lib/guest-ai/copilot/generator.server";
+} from "@/lib/guest-ai/turn/ops-extractor.server";
+import { createTurnGenerator, hedgeDelayMs } from "@/lib/guest-ai/turn/generator.server";
 import type { HistoryResult } from "@/lib/guest-ai/history";
 import type { ProviderOutcome, ProviderRequest } from "@/lib/guest-ai/llm/providers/types";
 import { llmMessageText } from "@/lib/guest-ai/llm/contracts";
 import { GUEST_AI_DEFAULT_MODEL, GUEST_AI_RESERVE_MODEL } from "@/lib/guest-ai/orchestrator/contracts";
-import { fakeProvider, okJson } from "./helpers/copilot-provider";
+import { fakeProvider, okJson } from "./helpers/turn-provider";
 import type { ComposedPrompt } from "@/lib/guest-ai/orchestrator/contracts";
 
 const TZ = "America/Sao_Paulo";
@@ -150,7 +150,7 @@ describe("Bastidores · extração com o Gateway real (transporte falso)", () =>
   });
 });
 
-describe("Corrida protegida do gerador do Copiloto", () => {
+describe("Corrida protegida do gerador da IA", () => {
   const prompt = {
     system: "Você é o concierge.",
     messages: [{ role: "user" as const, content: "Que horas é o check-in? Responda em JSON." }],
@@ -171,7 +171,7 @@ describe("Corrida protegida do gerador do Copiloto", () => {
     },
   });
   const mk = (provider: ReturnType<typeof slowTitular>, remaining = 12_000) =>
-    createCopilotGenerator({
+    createTurnGenerator({
       modelId: GUEST_AI_DEFAULT_MODEL,
       maxOutputTokens: 1536,
       reasoningEffort: "auto",
@@ -227,7 +227,7 @@ describe("Corrida protegida do gerador do Copiloto", () => {
   }, 15_000);
 });
 
-describe("Falhas técnicas do Copiloto (09/11/2026)", () => {
+describe("Falhas técnicas da IA (09/11/2026)", () => {
   const prompt = {
     system: "Você é o concierge.",
     messages: [{ role: "user" as const, content: "Que horas é o check-in? Responda em JSON." }],
@@ -235,7 +235,7 @@ describe("Falhas técnicas do Copiloto (09/11/2026)", () => {
     promptVersion: "teste",
   } as unknown as ComposedPrompt;
   const mk = (provider: unknown, maxOutputTokens = 1536) =>
-    createCopilotGenerator({
+    createTurnGenerator({
       modelId: GUEST_AI_DEFAULT_MODEL,
       maxOutputTokens,
       reasoningEffort: "auto",
@@ -266,7 +266,7 @@ describe("Falhas técnicas do Copiloto (09/11/2026)", () => {
   });
 });
 
-describe("Copiloto no Gemini Flash: sem corrida paralela (10/11/2026)", () => {
+describe("IA no Gemini Flash: sem corrida paralela (10/11/2026)", () => {
   const prompt = {
     system: "Você é o concierge.",
     messages: [{ role: "user" as const, content: "Que horas é o check-in? Responda em JSON." }],
@@ -274,7 +274,7 @@ describe("Copiloto no Gemini Flash: sem corrida paralela (10/11/2026)", () => {
     promptVersion: "teste",
   } as unknown as ComposedPrompt;
   const mkFlash = (provider: unknown) =>
-    createCopilotGenerator({
+    createTurnGenerator({
       modelId: GUEST_AI_RESERVE_MODEL,
       maxOutputTokens: 1536,
       reasoningEffort: "auto",

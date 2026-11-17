@@ -370,7 +370,7 @@ function stripForAirbnb(text: string): string {
 }
 
 /**
- * Remetente ESTRITO (Copiloto, 05/11/2026): `expectedChannelId` é a conta resolvida e validada pela política
+ * Remetente ESTRITO (IA, 05/11/2026): `expectedChannelId` é a conta resolvida e validada pela política
  * de identidade de envio (`airbnb_sender_pref` do próprio tenant, anúncio do imóvel da conversa). Em modo
  * estrito NÃO existe fallback silencioso: se a preferida falhar, ou se a conta que de fato enviaria (preferida
  * ou canal da thread) não for a esperada, a função LANÇA e nada é enviado.
@@ -419,7 +419,7 @@ export async function deliverToAirbnbThread(
     senderType: "ai" | "human";
     senderUserId?: string | null;
     skipInsert?: boolean;
-    /** Copiloto: remetente estrito (sem fallback silencioso de conta). Ausente = fluxo humano inalterado. */
+    /** IA: remetente estrito (sem fallback silencioso de conta). Ausente = fluxo humano inalterado. */
     strictSender?: StrictSenderOptions;
   },
 ): Promise<{ ok: boolean; messageId?: string; externalId: string | null; text: string; failure?: string }> {
@@ -643,7 +643,7 @@ export async function handleChannexMessage(payload: unknown): Promise<void> {
     .update({ last_message_at: new Date().toISOString() })
     .eq("id", convId);
 
-  // Código da reserva liga a conversa à reserva oficial, mesmo com a IA pausada. ANTES do Copiloto (07/11/2026):
+  // Código da reserva liga a conversa à reserva oficial, mesmo com a IA pausada. ANTES da IA (07/11/2026):
   // o vínculo concluído e gravado evita que a sugestão rode com a conversa ainda sem reserva.
   try {
     const link = await import("@/lib/chat/conversation-link.server");

@@ -63,7 +63,7 @@ async function channelToken(channelId: string): Promise<string | null> {
 }
 
 /**
- * Resultado DETALHADO do envio pela conta escolhida (Copiloto, 05/11/2026). Quem precisa saber POR QUE o
+ * Resultado DETALHADO do envio pela conta escolhida (IA, 05/11/2026). Quem precisa saber POR QUE o
  * envio direto não aconteceu — para recusar o fallback pela Channex — usa este; `trySendAsPreferredSender`
  * continua com o contrato antigo (id ou null) para o fluxo humano existente.
  *
@@ -71,7 +71,7 @@ async function channelToken(channelId: string): Promise<string | null> {
  *  - `no_preference`: sem preferência gravada para o anúncio ⇒ a Channex envia pelo canal da thread;
  *  - `preferred_is_mapped`: a preferida É o canal mapeado da thread ⇒ a Channex envia (mesma conta);
  *  - `failed`: havia preferência e o envio direto por ela NÃO aconteceu (token, anúncio divergente, recusa,
- *    rede). O fluxo humano cai na Channex; o Copiloto NÃO (recusa o fallback silencioso).
+ *    rede). O fluxo humano cai na Channex; a IA NÃO (recusa o fallback silencioso).
  */
 export type PreferredSendOutcome =
   | { outcome: "sent"; messageId: string; channelId: string }
@@ -80,7 +80,7 @@ export type PreferredSendOutcome =
   | { outcome: "failed"; reason: "thread_unresolved" | "token_unavailable" | "listing_mismatch" | "preference_mismatch" | "airbnb_rejected" | "network"; channelId: string | null };
 
 /**
- * `expectedChannelId` (modo estrito do Copiloto): a conta que a política de identidade resolveu. Se existir
+ * `expectedChannelId` (modo estrito da IA): a conta que a política de identidade resolveu. Se existir
  * preferência gravada e ela for OUTRA conta, nada é enviado (`preference_mismatch`) — conferido ANTES da rede do Airbnb.
  */
 export async function sendAsPreferredSenderDetailed(channexThreadId: string, text: string, expectedChannelId?: string): Promise<PreferredSendOutcome> {

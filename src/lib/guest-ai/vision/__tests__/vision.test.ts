@@ -28,13 +28,13 @@ import {
 } from "@/lib/guest-ai/orchestrator/decision";
 import { CURRENT_DECISION_VERSION } from "@/lib/guest-ai/orchestrator/contracts";
 import { runTurnChain } from "@/lib/guest-ai/turn-chain";
-import { projectOutcome } from "@/lib/guest-ai/copilot/generate.server";
-import { createCopilotGenerator, IMAGE_NOT_LOADED } from "@/lib/guest-ai/copilot/generator.server";
+import { projectOutcome } from "@/lib/guest-ai/turn/generate.server";
+import { createTurnGenerator, IMAGE_NOT_LOADED } from "@/lib/guest-ai/turn/generator.server";
 import type { ProviderRequest } from "@/lib/guest-ai/llm/providers/types";
 import type { ComposedPrompt } from "@/lib/guest-ai/orchestrator/contracts";
 import { buildSystemPrompt } from "@/lib/guest-ai/system-prompt";
 import { harness, turn, v5, v6 } from "../../__tests__/helpers/b23-chain";
-import { okJson } from "../../__tests__/helpers/copilot-provider";
+import { okJson } from "../../__tests__/helpers/turn-provider";
 
 const LEAK: VisualDiagnosis = {
   hasIncident: true,
@@ -171,9 +171,9 @@ function capture() {
     },
   };
 }
-const gen = (over: Partial<Parameters<typeof createCopilotGenerator>[0]>) => {
+const gen = (over: Partial<Parameters<typeof createTurnGenerator>[0]>) => {
   const cap = capture();
-  const g = createCopilotGenerator({
+  const g = createTurnGenerator({
     modelId: MODEL,
     maxOutputTokens: 1_536,
     reasoningEffort: "auto",
@@ -310,7 +310,7 @@ describe("(c) nenhuma frase robótica de recibo", () => {
     }
   });
 
-  it("a sugestão do Copiloto nunca sai com o recibo", async () => {
+  it("a sugestão da IA nunca sai com o recibo", async () => {
     const out = await run(
       v6({
         reply: "Recebi sua foto! Pela foto, parece que o registro ao lado da pia está semiaberto.",

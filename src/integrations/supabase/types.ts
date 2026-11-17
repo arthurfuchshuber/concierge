@@ -3400,7 +3400,7 @@ export type Database = {
         }
         Relationships: []
       }
-      guest_ai_copilot_suggestions: {
+      guest_ai_turns: {
         Row: {
           context_credential_policy: string | null
           context_dossier_entries: number | null
@@ -3411,11 +3411,6 @@ export type Database = {
           context_stay_phase: string | null
           conversation_id: string
           created_at: string
-          discarded_at: string | null
-          discarded_by: string | null
-          edited_at: string | null
-          edited_by: string | null
-          edited_text: string | null
           expires_at: string
           gateway_cost_usd: number
           gateway_error: string | null
@@ -3434,16 +3429,6 @@ export type Database = {
           outcome_code: string | null
           outcome_kind: string | null
           property_id: string
-          send_attempts: number
-          send_claimed_at: string | null
-          send_claimed_by: string | null
-          send_error: string | null
-          send_token: string | null
-          sent_at: string | null
-          sent_by: string | null
-          sent_channel: string | null
-          sent_message_id: string | null
-          sent_provider_message_id: string | null
           state: string
           strategy: string | null
           suggested_text: string | null
@@ -3463,11 +3448,6 @@ export type Database = {
           context_stay_phase?: string | null
           conversation_id: string
           created_at?: string
-          discarded_at?: string | null
-          discarded_by?: string | null
-          edited_at?: string | null
-          edited_by?: string | null
-          edited_text?: string | null
           expires_at?: string
           gateway_cost_usd?: number
           gateway_error?: string | null
@@ -3486,16 +3466,6 @@ export type Database = {
           outcome_code?: string | null
           outcome_kind?: string | null
           property_id: string
-          send_attempts?: number
-          send_claimed_at?: string | null
-          send_claimed_by?: string | null
-          send_error?: string | null
-          send_token?: string | null
-          sent_at?: string | null
-          sent_by?: string | null
-          sent_channel?: string | null
-          sent_message_id?: string | null
-          sent_provider_message_id?: string | null
           state?: string
           strategy?: string | null
           suggested_text?: string | null
@@ -3515,11 +3485,6 @@ export type Database = {
           context_stay_phase?: string | null
           conversation_id?: string
           created_at?: string
-          discarded_at?: string | null
-          discarded_by?: string | null
-          edited_at?: string | null
-          edited_by?: string | null
-          edited_text?: string | null
           expires_at?: string
           gateway_cost_usd?: number
           gateway_error?: string | null
@@ -3538,16 +3503,6 @@ export type Database = {
           outcome_code?: string | null
           outcome_kind?: string | null
           property_id?: string
-          send_attempts?: number
-          send_claimed_at?: string | null
-          send_claimed_by?: string | null
-          send_error?: string | null
-          send_token?: string | null
-          sent_at?: string | null
-          sent_by?: string | null
-          sent_channel?: string | null
-          sent_message_id?: string | null
-          sent_provider_message_id?: string | null
           state?: string
           strategy?: string | null
           suggested_text?: string | null
@@ -7949,41 +7904,7 @@ export type Database = {
           requested_at: string
         }[]
       }
-      copilot_actor_claim_send: {
-        Args: { p_actor: string; p_suggestion_id: string; p_text: string }
-        Returns: Json
-      }
-      copilot_actor_discard: {
-        Args: { p_actor: string; p_suggestion_id: string }
-        Returns: Json
-      }
-      copilot_actor_edit: {
-        Args: { p_actor: string; p_suggestion_id: string; p_text: string }
-        Returns: Json
-      }
-      copilot_actor_finish_send: {
-        Args: {
-          p_actor: string
-          p_channel: string
-          p_error_code: string
-          p_message_id: string
-          p_outcome: string
-          p_provider_message_id: string
-          p_send_token: string
-          p_suggestion_id: string
-        }
-        Returns: Json
-      }
-      copilot_actor_reconcile_send: {
-        Args: {
-          p_actor: string
-          p_attempt_finished?: boolean
-          p_error_code?: string
-          p_suggestion_id: string
-        }
-        Returns: Json
-      }
-      copilot_claim_generation: {
+      guest_ai_claim_turn: {
         Args: {
           p_conversation_id: string
           p_daily_cost_limit_usd: number
@@ -7995,12 +7916,12 @@ export type Database = {
         }
         Returns: Json
       }
-      copilot_generation_state: {
+      guest_ai_turn_state: {
         Args: { p_suggestion_id: string }
         Returns: Json
       }
-      copilot_purge_expired: { Args: never; Returns: Json }
-      copilot_store_result: {
+      guest_ai_purge_turns: { Args: never; Returns: Json }
+      guest_ai_store_turn: {
         Args: {
           p_attempt: number
           p_context_credential_policy: string
@@ -8040,70 +7961,9 @@ export type Database = {
         Args: { _error: string; _owner_id: string; _requested_at: string }
         Returns: undefined
       }
-      guest_ai_copilot_lock_for_actor: {
-        Args: { p_actor: string; p_suggestion_id: string }
-        Returns: {
-          context_credential_policy: string | null
-          context_dossier_entries: number | null
-          context_history_messages: number | null
-          context_human_in_command: boolean | null
-          context_reservation_linked: boolean | null
-          context_sender_identity: string | null
-          context_stay_phase: string | null
-          conversation_id: string
-          created_at: string
-          discarded_at: string | null
-          discarded_by: string | null
-          edited_at: string | null
-          edited_by: string | null
-          edited_text: string | null
-          expires_at: string
-          gateway_cost_usd: number
-          gateway_error: string | null
-          gateway_input_tokens: number | null
-          gateway_latency_ms: number | null
-          gateway_output_tokens: number | null
-          generation_attempts: number
-          generation_finished_at: string | null
-          generation_started_at: string
-          handoff_needed: boolean
-          handoff_urgency: string | null
-          id: string
-          intents: string[]
-          internal_question: string | null
-          model_id: string | null
-          outcome_code: string | null
-          outcome_kind: string | null
-          property_id: string
-          send_attempts: number
-          send_claimed_at: string | null
-          send_claimed_by: string | null
-          send_error: string | null
-          send_token: string | null
-          sent_at: string | null
-          sent_by: string | null
-          sent_channel: string | null
-          sent_message_id: string | null
-          sent_provider_message_id: string | null
-          state: string
-          strategy: string | null
-          suggested_text: string | null
-          surface: string
-          tenant_id: string
-          trigger_message_id: string
-          updated_at: string
-          warnings: string[]
-        }
-        SetofOptions: {
-          from: "*"
-          to: "guest_ai_copilot_suggestions"
-          isOneToOne: true
-          isSetofReturn: false
-        }
-      }
-      guest_ai_copilot_summary: {
+      guest_ai_turn_summary: {
         Args: {
-          r: Database["public"]["Tables"]["guest_ai_copilot_suggestions"]["Row"]
+          r: Database["public"]["Tables"]["guest_ai_turns"]["Row"]
         }
         Returns: Json
       }

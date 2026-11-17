@@ -61,7 +61,7 @@ export async function fetchPropertyDossier(target: DossierTarget, deps: Property
   ]);
   throwIfAborted(deps.signal);
   // Estrutura do imóvel é crítica; recomendações do guia são OPCIONAIS (07/11/2026): falha na leitura delas
-  // deixa a seção vazia, nunca derruba o dossiê (e com ele a sugestão do Copiloto).
+  // deixa a seção vazia, nunca derruba o dossiê (e com ele a sugestão da IA).
   for (const r of [access, prop, faqs, checkout, emergency, manuals, entries, listing]) {
     if (r?.error) throw new Error("dossier_lookup_failed");
   }

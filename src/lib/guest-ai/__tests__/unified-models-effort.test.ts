@@ -17,12 +17,12 @@ import {
   GUEST_AI_RESERVE_MODEL,
 } from "@/lib/guest-ai/orchestrator/contracts";
 import {
-  COPILOT_MAX_OUTPUT_TOKENS,
-  COPILOT_MAX_TURN_COST_USD,
-  COPILOT_MIN_OUTPUT_TOKENS,
-  COPILOT_REASONING_EFFORT,
-  copilotModelId,
-} from "@/lib/guest-ai/copilot/contracts";
+  TURN_MAX_OUTPUT_TOKENS,
+  TURN_MAX_COST_USD,
+  TURN_MIN_OUTPUT_TOKENS,
+  TURN_REASONING_EFFORT,
+  turnModelId,
+} from "@/lib/guest-ai/turn/contracts";
 import { generateGuestLlm, validateLlmRequest } from "@/lib/guest-ai/llm/gateway.server";
 import {
   buildChatBody,
@@ -34,7 +34,7 @@ import type {
   ProviderRequest,
 } from "@/lib/guest-ai/llm/providers/types";
 import { LIMITS } from "@/lib/guest-ai/llm/contracts";
-import { createCopilotGenerator } from "@/lib/guest-ai/copilot/generator.server";
+import { createTurnGenerator } from "@/lib/guest-ai/turn/generator.server";
 
 const TITULAR = "openai/gpt-6-astra";
 const RESERVA = "google/gemini-3.8-flash";
@@ -56,7 +56,7 @@ describe("catálogo único de modelos", () => {
   it("Titular é o padrão global; Reserva só como reserva e rotina de fundo", () => {
     expect(GUEST_AI_DEFAULT_MODEL).toBe(TITULAR);
     expect(GUEST_AI_RESERVE_MODEL).toBe(RESERVA);
-    expect(copilotModelId({})).toBe(RESERVA);
+    expect(turnModelId({})).toBe(RESERVA);
     expect(AI_MODELS.contracts).toBe(TITULAR);
     expect(AI_MODELS.internal).toBe(TITULAR);
   });
@@ -67,7 +67,7 @@ describe("catálogo único de modelos", () => {
       "src/lib/llm/gateway.server.ts",
       "src/lib/guest-ai/llm/models.ts",
       "src/lib/guest-ai/orchestrator/contracts.ts",
-      "src/lib/guest-ai/copilot/contracts.ts",
+      "src/lib/guest-ai/turn/contracts.ts",
       "src/lib/guest-memory/worker.server.ts",
     ];
     for (const f of files) {
@@ -93,9 +93,9 @@ describe("catálogo único de modelos", () => {
 describe("raciocínio 100% elástico (sem tabela de esforço por assunto)", () => {
   it("não existe mais classificação estática de esforço em lugar nenhum", () => {
     const files = [
-      "src/lib/guest-ai/copilot/contracts.ts",
-      "src/lib/guest-ai/copilot/generate.server.ts",
-      "src/lib/guest-ai/copilot/generator.server.ts",
+      "src/lib/guest-ai/turn/contracts.ts",
+      "src/lib/guest-ai/turn/generate.server.ts",
+      "src/lib/guest-ai/turn/generator.server.ts",
       "src/lib/llm/models.ts",
       "src/lib/llm/gateway.server.ts",
       "src/lib/translate.functions.ts",
@@ -107,16 +107,16 @@ describe("raciocínio 100% elástico (sem tabela de esforço por assunto)", () =
     for (const f of files) {
       const src = readFileSync(f, "utf8");
       expect(src, f).not.toMatch(
-        /copilotReasoningEffort|TASK_REASONING_EFFORT|reasoningEffortFor|OUTPUT_TOKENS_BY_EFFORT/,
+        /turnReasoningEffort|TASK_REASONING_EFFORT|reasoningEffortFor|OUTPUT_TOKENS_BY_EFFORT/,
       );
       expect(src, f).not.toMatch(/reasoning_effort:\s*["'](low|medium|high)["']/);
     }
   });
 
-  it("o Copiloto chama o modelo em `auto`", () => {
-    expect(COPILOT_REASONING_EFFORT).toBe("auto");
-    expect(readFileSync("src/lib/guest-ai/copilot/generate.server.ts", "utf8")).toMatch(
-      /reasoningEffort: effort \?\? COPILOT_REASONING_EFFORT/,
+  it("a IA chama o modelo em `auto`", () => {
+    expect(TURN_REASONING_EFFORT).toBe("auto");
+    expect(readFileSync("src/lib/guest-ai/turn/generate.server.ts", "utf8")).toMatch(
+      /reasoningEffort: effort \?\? TURN_REASONING_EFFORT/,
     );
   });
 
@@ -126,7 +126,7 @@ describe("raciocínio 100% elástico (sem tabela de esforço por assunto)", () =
         purpose: "test",
         model,
         messages: [{ role: "user", content: "oi" }],
-        maxOutputTokens: COPILOT_MAX_OUTPUT_TOKENS,
+        maxOutputTokens: TURN_MAX_OUTPUT_TOKENS,
         reasoningEffort: "auto",
       });
       expect(v, model).not.toBeNull();
@@ -162,7 +162,7 @@ describe("raciocínio 100% elástico (sem tabela de esforço por assunto)", () =
   });
 });
 
-describe("guarda-corpo financeiro externo do Copiloto", () => {
+describe("guarda-corpo financeiro externo da IA", () => {
   const prompt = {
     system: "s",
     messages: [{ role: "user" as const, content: "olá" }],
@@ -184,11 +184,11 @@ describe("guarda-corpo financeiro externo do Copiloto", () => {
         };
       },
     };
-    const g = createCopilotGenerator({
+    const g = createTurnGenerator({
       modelId: TITULAR,
-      maxOutputTokens: COPILOT_MAX_OUTPUT_TOKENS,
-      minOutputTokens: COPILOT_MIN_OUTPUT_TOKENS,
-      reasoningEffort: COPILOT_REASONING_EFFORT,
+      maxOutputTokens: TURN_MAX_OUTPUT_TOKENS,
+      minOutputTokens: TURN_MIN_OUTPUT_TOKENS,
+      reasoningEffort: TURN_REASONING_EFFORT,
       remainingMs: () => 10_000,
       beforeNetwork: async () => true,
       traceId: "t",
@@ -207,17 +207,17 @@ describe("guarda-corpo financeiro externo do Copiloto", () => {
   };
 
   it("teto de US$ 1,00 por turno e teto de saída dentro do limite do gateway", () => {
-    expect(COPILOT_MAX_TURN_COST_USD).toBe(1);
-    expect(COPILOT_MAX_OUTPUT_TOKENS).toBeLessThanOrEqual(LIMITS.maxOutputTokens);
-    expect(COPILOT_MIN_OUTPUT_TOKENS).toBeLessThan(COPILOT_MAX_OUTPUT_TOKENS);
+    expect(TURN_MAX_COST_USD).toBe(1);
+    expect(TURN_MAX_OUTPUT_TOKENS).toBeLessThanOrEqual(LIMITS.maxOutputTokens);
+    expect(TURN_MIN_OUTPUT_TOKENS).toBeLessThan(TURN_MAX_OUTPUT_TOKENS);
   });
 
   it("chamada normal: `auto` + teto de saída cheio, no Titular", async () => {
     const r = await run();
-    expect(r.seen).toEqual([{ effort: "auto", max: COPILOT_MAX_OUTPUT_TOKENS, model: TITULAR }]);
+    expect(r.seen).toEqual([{ effort: "auto", max: TURN_MAX_OUTPUT_TOKENS, model: TITULAR }]);
     expect(r.telemetry).toMatchObject({
       reasoningEffort: "auto",
-      maxOutputTokens: COPILOT_MAX_OUTPUT_TOKENS,
+      maxOutputTokens: TURN_MAX_OUTPUT_TOKENS,
       model: TITULAR,
     });
   });
@@ -225,7 +225,7 @@ describe("guarda-corpo financeiro externo do Copiloto", () => {
   it("teto cheio que não cabe no custo do turno ⇒ recua para o teto mínimo (ainda em `auto`)", async () => {
     // US$ 0,02 comporta 1.536 tokens de saída do Titular (US$ 0,0154), mas não 4.096 (US$ 0,041)
     const r = await run({ maxTurnCostUsd: 0.02 });
-    expect(r.seen).toEqual([{ effort: "auto", max: COPILOT_MIN_OUTPUT_TOKENS, model: TITULAR }]);
+    expect(r.seen).toEqual([{ effort: "auto", max: TURN_MIN_OUTPUT_TOKENS, model: TITULAR }]);
   });
 
   it("nem o teto mínimo cabe ⇒ bloqueia antes da rede (disjuntor financeiro)", async () => {

@@ -493,7 +493,7 @@ describe("(d) slot continua null; D9 e credenciais fora das ferramentas", () => 
     const iface = src.slice(start, src.indexOf("\n}", start));
     expect(iface).toMatch(/origin/);
     expect(iface).not.toMatch(/reserv|guest|credential|senha|wifi|pin|lock|gate/i);
-    const gen = readFileSync(path.join(ROOT, "copilot", "generate.server.ts"), "utf8");
+    const gen = readFileSync(path.join(ROOT, "turn", "generate.server.ts"), "utf8");
     expect(gen).toMatch(
       /return \{ origin: o\.origin, city: o\.city, region: o\.region, country: o\.country, surface: turn\.surface \};/,
     );

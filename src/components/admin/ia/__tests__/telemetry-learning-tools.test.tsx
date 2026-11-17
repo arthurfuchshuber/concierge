@@ -43,8 +43,8 @@ describe("Telemetria IA · blocos de aprendizado e ferramentas (Etapa 4)", () =>
     expect(html).not.toMatch(/#[0-9a-fA-F]{3,6}\b|text-(red|green|blue|amber|rose)-\d/);
   });
 
-  it("cartão Modelo: Flash como titular do Copiloto; outro titular conta a reserva", () => {
-    expect(modelNote({ activeModel: "google/gemini-3.8-flash", reserveUsesToday: 40 })).toBe("titular do Copiloto");
+  it("cartão Modelo: Flash como titular da IA; outro titular conta a reserva", () => {
+    expect(modelNote({ activeModel: "google/gemini-3.8-flash", reserveUsesToday: 40 })).toBe("titular da IA");
     expect(modelNote({ activeModel: "openai/gpt-6-astra", reserveUsesToday: 2 })).toBe("reserva usada 2× hoje");
     expect(modelNote({ activeModel: "openai/gpt-6-astra", reserveUsesToday: 0 })).toBe("sem reserva hoje");
   });

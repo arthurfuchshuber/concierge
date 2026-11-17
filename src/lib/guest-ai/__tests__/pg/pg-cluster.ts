@@ -1,5 +1,5 @@
 /**
- * Postgres REAL e LOCAL para os testes do Copiloto. Sobe um cluster temporário (initdb + pg_ctl,
+ * Postgres REAL e LOCAL para os testes da IA. Sobe um cluster temporário (initdb + pg_ctl,
  * só socket Unix, porta efêmera), cria um banco por suíte, aplica o ambiente "tipo Supabase"
  * (`supabase-like-setup.sql`) e as migrations pedidas pela suíte. Cada consulta roda num processo `psql`
  * separado ⇒ cada uma é uma CONEXÃO independente (é isso que torna a concorrência real).
@@ -77,7 +77,7 @@ export function startCluster(
   // no próprio comando do pg_ctl porque `su` descarta LD_PRELOAD do ambiente herdado
   const envPrefix = Object.entries(opts.env ?? {}).map(([k, v]) => `${k}=${v}`);
   asPgUser([...(envPrefix.length ? ["env", ...envPrefix] : []), path.join(BIN, "pg_ctl"), "-D", data, "-w", "-l", path.join(dir, "pg.log"), "-o", `-p ${port} -k ${dir} -c listen_addresses= -c max_connections=100${extra}`, "start"]);
-  const db = "copilottest";
+  const db = "iatest";
   const base = ["-h", dir, "-p", String(port), "-U", "postgres", "-v", "ON_ERROR_STOP=1", "-q", "-tA"];
   execFileSync("psql", [...base, "-d", "postgres", "-c", `create database ${db}`]);
   execFileSync("psql", [...base, "-d", db, "-f", SETUP_PATH]);

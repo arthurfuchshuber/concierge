@@ -9,7 +9,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { PG_AVAILABLE, startCluster, type PgCluster } from "./pg/pg-cluster";
 
 const ROOT = path.resolve(__dirname, "../../../..");
-const SETUP = path.join(__dirname, "pg/copilot-setup.sql");
+const SETUP = path.join(__dirname, "pg/turn-setup.sql");
 const MIGRATION = path.join(ROOT, "supabase/migrations/20261110200000_guest_ai_human_decisions.sql");
 
 const T1 = "11111111-1111-4111-8111-111111111111"; // dono

@@ -1,5 +1,5 @@
 /**
- * GATE G2 · executor (modos `shadow` e `live`) e integração com a geração do Copiloto. Nada toca a produção.
+ * GATE G2 · executor (modos `shadow` e `live`) e integração com a geração da IA. Nada toca a produção.
  * Cobre: chave (`live`/`on` ⇒ ação real; `shadow` ⇒ registro; resto ⇒ desligado), piloto por imóvel,
  * registro em shadow, ciclo live claim → apply → finish (applied com foto depois; recusa do painel ⇒
  * refused), reentrega nunca aplica duas vezes, recusa da política nunca chama a escrita, nunca lança, e a
@@ -546,9 +546,9 @@ describe("G2 · estáticos: o módulo guest-ai nunca escreve em card", () => {
   });
 });
 
-describe("G2 · integração com a geração do Copiloto", () => {
+describe("G2 · integração com a geração da IA", () => {
   it("a geração chama o executor depois da gravação, com a decisão validada; falha do executor não afeta a sugestão", async () => {
-    const src = readFileSync(path.join(ROOT, "copilot/generate.server.ts"), "utf8");
+    const src = readFileSync(path.join(ROOT, "turn/generate.server.ts"), "utf8");
     const store = src.indexOf("const stored = await store.store(");
     // Uma cabeça só (11/11/2026): o executor padrão é único (`opsRun`); DEPOIS da gravação, a decisão validada da
     // resposta é a fonte; o leitor separado só entra sem decisão (e nunca em paralelo).

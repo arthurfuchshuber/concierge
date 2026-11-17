@@ -1,5 +1,5 @@
 /**
- * Resiliência do pipeline do Copiloto (diretriz de 07/11/2026): emojis reais não derrubam a composição
+ * Resiliência do pipeline da IA (diretriz de 07/11/2026): emojis reais não derrubam a composição
  * (`guard_failed`), a corrida webhook × vínculo da reserva não gera `reservation_conversation_mismatch`, seções
  * opcionais isoladas, verdade estrita do dossiê e fim das muletas. Puro / bancos falsos.
  */
@@ -136,15 +136,15 @@ describe("B · conversa ainda sem reserva vinculada: degradação graciosa, sem 
     expect(checkContextIntegrity(snapshot, ctx)).toBeNull();
   });
 
-  it("o Copiloto monta o contexto com o MESMO turno já validado (nunca revalida a conversa no meio)", () => {
-    const src = readFileSync(path.join(ROOT, "copilot", "generate.server.ts"), "utf8");
+  it("a IA monta o contexto com o MESMO turno já validado (nunca revalida a conversa no meio)", () => {
+    const src = readFileSync(path.join(ROOT, "turn", "generate.server.ts"), "utf8");
     expect(src).toMatch(/\{ db, validateTurnScope: async \(\) => t \}/);
   });
 
-  it("Airbnb: o vínculo da reserva termina (await) ANTES do disparo do Copiloto", () => {
+  it("Airbnb: o vínculo da reserva termina (await) ANTES do disparo da IA", () => {
     const src = readFileSync(path.join(SRC, "lib", "channex-messages.server.ts"), "utf8");
     const link = src.indexOf("await link.linkConversationByCode(");
-    const trigger = src.indexOf("await triggerCopilotSuggestion(");
+    const trigger = src.indexOf("await dispatchAirbnbAiTurn(admin, {");
     expect(link).toBeGreaterThan(0);
     expect(trigger).toBeGreaterThan(link);
   });

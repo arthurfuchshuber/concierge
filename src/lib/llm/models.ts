@@ -44,7 +44,7 @@ export function modelFor(task: AiTask): string {
 
 /**
  * CATÁLOGO ÚNICO (07/11/2026, Diretiva Global): só dois modelos de texto no sistema inteiro.
- *  - Titular: `openai/gpt-6-astra` (atendimento, copiloto, contratos, assistente do painel).
+ *  - Titular: `openai/gpt-6-astra` (atendimento, IA, contratos, assistente do painel).
  *  - Reserva: `google/gemini-3.8-flash` (tarefas rápidas e reserva do titular).
  *  - Embeddings: `google/gemini-embedding-2` (sem reserva: trocar de modelo mudaria o espaço de busca).
  */

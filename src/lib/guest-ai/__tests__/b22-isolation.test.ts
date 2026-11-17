@@ -77,14 +77,14 @@ describe("B2.2 · nada de produção usa a capacidade multipropriedade ou o guar
     // B3.3 (Entrega 2): o executor Shadow usa o guard REAL (secret-scrub) e o io de produção do worker
     // carrega o dossiê do imóvel do turno (imports dinâmicos, só com o tick liberado). Lista nominal.
     path.join(ROOT, "shadow-exec/executor.ts"), path.join(ROOT, "shadow-exec/worker.server.ts"),
-    // Copiloto (05/11/2026): a geração usa o guard REAL e carrega o Dossiê do imóvel do turno validado. Lista nominal.
-    path.join(ROOT, "copilot/generate.server.ts"),
+    // IA (05/11/2026): a geração usa o guard REAL e carrega o Dossiê do imóvel do turno validado. Lista nominal.
+    path.join(ROOT, "turn/generate.server.ts"),
     // Memória do hóspede (06/11/2026): o processo pós-checkout passa todo texto (entrada e saída) pelo guard REAL. Lista nominal.
     path.join(SRC, "lib/guest-memory/contracts.ts"), path.join(SRC, "lib/guest-memory/prompt.ts"),
     // Aprendizado contínuo (Etapa 4, 08/11/2026): candidato com segredo é recusado pelo guard REAL. Lista nominal.
     path.join(ROOT, "learning/learning.ts"),
     // Bastidores (08/11/2026): o extrator dos sinais operacionais varre o texto do histórico com o guard REAL. Lista nominal.
-    path.join(ROOT, "copilot/ops-extractor.server.ts"),
+    path.join(ROOT, "turn/ops-extractor.server.ts"),
     // Extrator do aprendizado (10/11/2026): saneia a conversa com o guard REAL ANTES do modelo. Lista nominal.
     path.join(SRC, "lib/guest-ai-learning/extractor.ts"),
     // Aprendizado da equipe e divergências (10/11/2026): saneiam texto com o guard REAL. Lista nominal.
@@ -100,7 +100,7 @@ describe("B2.2 · nada de produção usa a capacidade multipropriedade ou o guar
     expect(importers).toEqual([]);
   });
   it("slot e loader de contexto seguem sem compositor e sem dossiê", () => {
-    // `orchestrator/orchestrator.server.ts` não faz parte da entrega isolada do Copiloto
+    // `orchestrator/orchestrator.server.ts` não faz parte da entrega isolada da IA
     for (const f of ["slot.server.ts", "context/conversation-context.server.ts"]) {
       expect(code(path.join(ROOT, f)), f).not.toMatch(/composer|secret-scrub|dossier\/|property-dossier|property-access/);
     }

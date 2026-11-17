@@ -1,4 +1,4 @@
--- Ambiente de TESTE para a migration do Copiloto: reproduz o MODELO DE ACESSO REAL do SaaS (nada de stub).
+-- Ambiente de TESTE para a migration da IA: reproduz o MODELO DE ACESSO REAL do SaaS (nada de stub).
 --  * `auth.uid()` lê a claim `sub` da sessão (igual ao Supabase/PostgREST);
 --  * `account_members` e `property_assignments` com as colunas que a autorização lê (migrations
 --    20260715201756, 20260804195811 e 20260905145215; enums simplificados para text com os mesmos valores);

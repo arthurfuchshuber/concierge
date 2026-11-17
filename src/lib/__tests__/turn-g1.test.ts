@@ -1,10 +1,8 @@
 /**
- * COPILOTO · GATE G1 (unidade e estáticos). Nada toca a produção.
- *  - D2: ações do atendente chamam `copilot_actor_*` pelo cliente do SERVIDOR com `p_actor` = usuário da sessão;
- *    o cliente da sessão nunca chama RPC do Copiloto; ator inválido ⇒ nenhuma chamada.
+ * IA · GATE G1 (unidade e estáticos). Nada toca a produção.
  *  - R2: `runInBackground` nunca solta promessa (com `waitUntil`, sem `waitUntil` dentro da requisição, fora
- *    de requisição); o disparo do Copiloto usa esse caminho; `src/server.ts` instala o ciclo de vida.
- *  - Estáticos: nenhuma RPC do Copiloto chamada fora do servidor; nomes legados fora do código; slot `null`.
+ *    de requisição); `src/server.ts` instala o ciclo de vida.
+ *  - Estáticos: nenhuma RPC da IA chamada fora do servidor; slot `null`.
  */
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
@@ -20,7 +18,6 @@ import {
 
 const SRC = path.resolve(__dirname, "..", "..");
 const REPO = path.resolve(SRC, "..");
-const ACTOR = "5d000000-0000-4000-8000-000000000004";
 const SID = "5a000000-0000-4000-8000-000000000001";
 const CONV = "5b000000-0000-4000-8000-000000000002";
 const MSG = "5c000000-0000-4000-8000-000000000003";
@@ -54,8 +51,6 @@ const deferred = () => {
   const promise = new Promise<void>((r) => (resolve = r));
   return { promise, resolve };
 };
-
-// G1 · D2 (RPCs de editar/descartar/enviar sugestão com ator) removido em 10/11/2026 junto com o cartão de sugestão.
 
 describe("G1 · R2: trabalho em segundo plano nunca fica solto", () => {
   it("resolveWaitUntil: Request do nitro, ctx.waitUntil, ctx.context.waitUntil; ausente ⇒ null", () => {
@@ -174,33 +169,16 @@ describe("G1 · estáticos", () => {
     return out;
   }
 
-  it("nenhuma RPC do Copiloto é chamada fora de módulos do servidor; nomes legados não são usados no código", () => {
-    const LEGACY =
-      /["'`](copilot_edit|copilot_discard|copilot_claim_send|copilot_finish_send|copilot_reconcile_send)["'`]/;
+  it("nenhuma RPC da IA é chamada fora de módulos do servidor", () => {
     for (const f of files(SRC)) {
       const src = readFileSync(f, "utf8");
       const rel = path.relative(REPO, f);
-      expect(LEGACY.test(src), rel).toBe(false);
-      if (/\.rpc\(\s*["'`]copilot/.test(src) || src.includes("COPILOT_ACTOR_RPC")) {
+      if (/\.rpc\(\s*["'`]guest_ai_(claim_turn|turn_state|store_turn|purge_turns|record_trace|release_unsent_turn)/.test(src)) {
         expect(rel, rel).toMatch(/\.server\.ts$/);
       }
     }
   });
 
-  it("G1b registrada em supabase/migrations com o conteúdo idêntico ao de ops/ (registro histórico)", () => {
-    const ops = read("ops/copilot-g1/g1b-revoke-legacy.sql");
-    const record = read("supabase/migrations/20261107000100_copilot_g1b_revoke_legacy.sql");
-    expect(record.startsWith("-- REGISTRO HISTÓRICO — GATE G1b")).toBe(true);
-    expect(record.endsWith(ops)).toBe(true);
-    expect(
-      record
-        .slice(0, record.length - ops.length)
-        .split("\n")
-        .filter((l) => l && !l.startsWith("--")),
-    ).toEqual([]);
-  });
-
-  // 10/11/2026: condução autônoma ligada pelo titular — o slot só responde com a chave exata ligada.
   it("slot da IA: sem GUEST_AI_AUTONOMOUS=on devolve null (fail-closed)", () => {
     const slot = read("src/lib/guest-ai/slot.server.ts");
     const body = slot.slice(slot.indexOf("export async function requestGuestAiReply"));

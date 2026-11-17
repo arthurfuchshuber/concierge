@@ -1,5 +1,5 @@
 /**
- * COPILOTO · VISÃO — LEITURA das fotos enviadas pelo hóspede (somente leitura, projeção própria).
+ * IA · VISÃO — LEITURA das fotos enviadas pelo hóspede (somente leitura, projeção própria).
  *
  * - Só depois de um `ValidatedTurn`: a consulta é filtrada pelo `conversation_id` DO TURNO, e só entram
  *   mensagens do HÓSPEDE (`role='user'` E `sender_type='guest'`), não notas internas, com

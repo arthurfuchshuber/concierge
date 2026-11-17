@@ -26,7 +26,7 @@ ETAPA 0 — fix/guest-ai-json-prompt-and-ops-resilience (bloqueante)
 2. Failover para o modelo reserva só em erros de provedor recuperáveis
    (5xx, timeout, 429, e o 400 específico de formato json). Outros 4xx = fail-closed, sem retry cego.
 3. Testes cobrindo o caso real: hóspede escreve "Check out feito" / "Saímos e deixamos
-   a chave" → Copiloto gera sugestão + ação departure_confirmation → checkout_done →
+   a chave" → a IA responde + ação departure_confirmation → checkout_done →
    applyOpsAction (em modo shadow/live conforme GUEST_AI_OPS_MODE), sem falha silenciosa.
 4. Erro de gateway deve aparecer em telemetria (código fixo), nunca sumir.
 

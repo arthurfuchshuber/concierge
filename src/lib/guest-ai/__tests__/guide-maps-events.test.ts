@@ -26,8 +26,8 @@ import {
 } from "@/lib/guest-ai/data/city-events.server";
 import { hasNewerGuestMessage } from "@/lib/guest-ai/data/newer-guest-message.server";
 import { googleMapsUrl } from "@/lib/guest-ai/dossier/normalize";
-import { formatForChannel, unstyleUnicode } from "@/lib/guest-ai/copilot/channel-format";
-import { COPILOT_BURST_QUIET_MS } from "@/lib/guest-ai/copilot/contracts";
+import { formatForChannel, unstyleUnicode } from "@/lib/guest-ai/turn/channel-format";
+import { TURN_BURST_QUIET_MS } from "@/lib/guest-ai/turn/contracts";
 import { DEBOUNCE_REFERENCE } from "@/lib/guest-ai/batch/message-batch";
 import { CREDENTIAL_MARKER } from "@/lib/guest-ai/orchestrator/contracts";
 import { issue } from "@/lib/guest-ai/trust";
@@ -455,9 +455,9 @@ describe("formatação por canal", () => {
     expect(formatForChannel("", "airbnb")).toBe("");
   });
 
-  it("a sugestão do Copiloto passa pela formatação do canal", () => {
+  it("a sugestão da IA passa pela formatação do canal", () => {
     const src = readFileSync(
-      path.resolve(__dirname, "..", "copilot", "generate.server.ts"),
+      path.resolve(__dirname, "..", "turn", "generate.server.ts"),
       "utf8",
     );
     expect(src).toMatch(/text: formatForChannel\(stripRoboticAck\(outcome\.text\), extra\.surface\)/);
@@ -515,7 +515,7 @@ describe("System Prompt e persona: Google Maps, distância, eventos, formataçã
   });
   it("o cabeçalho das fotos para o modelo também pede resposta natural", () => {
     const src = readFileSync(
-      path.resolve(__dirname, "..", "copilot", "generator.server.ts"),
+      path.resolve(__dirname, "..", "turn", "generator.server.ts"),
       "utf8",
     );
     expect(src).toMatch(/sem dizer que recebeu a imagem nem agradecer pelo envio/);
@@ -525,9 +525,9 @@ describe("System Prompt e persona: Google Maps, distância, eventos, formataçã
 // ─────────────────────────── rajadas (Pilar 4 do refinamento) ───────────────────────────
 
 describe("rajadas: respiro de 5–8 s e uma resposta só", () => {
-  it("janela do Copiloto dentro da faixa de referência", () => {
-    expect(COPILOT_BURST_QUIET_MS).toBeGreaterThanOrEqual(5_000);
-    expect(COPILOT_BURST_QUIET_MS).toBeLessThanOrEqual(8_000);
+  it("janela da IA dentro da faixa de referência", () => {
+    expect(TURN_BURST_QUIET_MS).toBeGreaterThanOrEqual(5_000);
+    expect(TURN_BURST_QUIET_MS).toBeLessThanOrEqual(8_000);
     expect(DEBOUNCE_REFERENCE).toEqual({
       quietWindowMs: 6_000,
       minQuietWindowMs: 5_000,

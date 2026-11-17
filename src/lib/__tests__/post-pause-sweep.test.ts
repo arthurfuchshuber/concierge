@@ -110,7 +110,7 @@ function fakeDb(data: Record<string, unknown>, opts: { rpcError?: boolean } = {}
   const rpc = (fn: string, args: Record<string, unknown>) => {
     rpcCalls.push({ fn, args });
     if (opts.rpcError) return Promise.resolve({ data: null, error: { message: "denied" } });
-    data["guest_ai_copilot_suggestions"] = [];
+    data["guest_ai_turns"] = [];
     return Promise.resolve({ data: 1, error: null });
   };
   return { db: { from, rpc }, calls, rpcCalls };
@@ -129,7 +129,7 @@ describe("varredura pós-pausa · executor", () => {
     const f = fakeDb({
       property_chat_conversations: [CONV],
       property_chat_messages: MSGS.map((m) => ({ ...m, content: "Tem disponibilidade 17/18/19?" })),
-      guest_ai_copilot_suggestions: [{ created_at: at(3.1) }],
+      guest_ai_turns: [{ created_at: at(3.1) }],
       properties: { name: "Casa X", owner_id: "o1" },
       property_listing_raw_data: [{ airbnb_ai_enabled: true }],
     });
@@ -140,7 +140,7 @@ describe("varredura pós-pausa · executor", () => {
     expect(turns[0]).toMatchObject({ convId: "c1", threadId: "thread-1", guestMessageId: "g2", ownerId: "o1", propertyName: "Casa X" });
     expect(f.rpcCalls).toHaveLength(1);
     expect(f.rpcCalls[0]).toMatchObject({
-      fn: "copilot_release_unsent_suggestion",
+      fn: "guest_ai_release_unsent_turn",
       args: { p_conversation_id: "c1", p_trigger_message_id: "g2", p_before: at(11) },
     });
   });
@@ -149,7 +149,7 @@ describe("varredura pós-pausa · executor", () => {
     const f = fakeDb({
       property_chat_conversations: [CONV],
       property_chat_messages: MSGS,
-      guest_ai_copilot_suggestions: [],
+      guest_ai_turns: [],
       properties: { name: "Casa X", owner_id: "o1" },
       property_listing_raw_data: [{ airbnb_ai_enabled: false }],
     });
@@ -176,7 +176,7 @@ describe("varredura pós-pausa · executor", () => {
       {
         property_chat_conversations: [CONV],
         property_chat_messages: MSGS,
-        guest_ai_copilot_suggestions: [{ created_at: at(3.1) }],
+        guest_ai_turns: [{ created_at: at(3.1) }],
         properties: { name: "Casa X", owner_id: "o1" },
         property_listing_raw_data: [{ airbnb_ai_enabled: true }],
       },
@@ -192,7 +192,7 @@ describe("varredura pós-pausa · executor", () => {
     const f = fakeDb({
       property_chat_conversations: [CONV],
       property_chat_messages: MSGS,
-      guest_ai_copilot_suggestions: [],
+      guest_ai_turns: [],
       properties: { name: "Casa X", owner_id: "o1" },
       property_listing_raw_data: [{ airbnb_ai_enabled: true }],
     });

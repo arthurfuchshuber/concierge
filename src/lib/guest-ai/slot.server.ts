@@ -61,7 +61,7 @@ export const NO_AI_HANDOFF_REASON = "Atendimento automático indisponível — r
  *  1. valida o turno no backend (`validateTurnScope`); escopo recusado ⇒ encaminha à equipe;
  *  2. equipe atendendo a conversa (posse/pausa humana) ⇒ `{ reply: "", handoff: false }` — a IA não fala por
  *     cima do atendente;
- *  3. roda a MESMA cadeia do Copiloto (`generateCopilotSuggestion` em modo autônomo): Gemini Flash, Dossiê,
+ *  3. roda a MESMA cadeia da IA (`generateGuestAiTurn` em modo autônomo): Gemini Flash, Dossiê,
  *     Documento Vivo, ferramentas (Maps, clima, voos), validadores e D9 — uma resposta por mensagem, teto diário
  *     de custo e telemetria em /admin/ia;
  *  4. resposta aprovada ⇒ texto + encaminhamento pedido pela decisão; silêncio legítimo ⇒ nada; falha, recusa
@@ -219,10 +219,10 @@ export async function requestGuestAiReply(req: GuestAiRequest, deps: SlotDeps = 
     const TIMED_OUT = Symbol("generation_timeout");
     const limitMs =
       deps.generationTimeoutMs ??
-      (req.longTurn ? (await import("@/lib/guest-ai/copilot/contracts")).LONG_TURN.fallbackMs : GENERATION_FALLBACK_MS);
+      (req.longTurn ? (await import("@/lib/guest-ai/turn/contracts")).LONG_TURN.fallbackMs : GENERATION_FALLBACK_MS);
     const run = deps.generate
       ? deps.generate(req)
-      : (await import("@/lib/guest-ai/copilot/generate.server")).generateCopilotSuggestion(
+      : (await import("@/lib/guest-ai/turn/generate.server")).generateGuestAiTurn(
           {
             surface: req.surface,
             conversationId: req.conversationId,

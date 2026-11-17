@@ -1,14 +1,14 @@
 /**
- * Tool calling ponta a ponta no gerador do Copiloto e no transporte do gateway (sem rede):
+ * Tool calling ponta a ponta no gerador da IA e no transporte do gateway (sem rede):
  * 1ª chamada pede consulta → executor (6 s, falha graciosa) → resultados como mensagens `tool` →
  * 2ª chamada só com a resposta final (ferramentas proibidas). Custo somado e conferido no teto do turno.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ComposedPrompt } from "@/lib/guest-ai/orchestrator/contracts";
 import {
-  createCopilotGenerator,
-  CopilotGeneratorStop,
-} from "@/lib/guest-ai/copilot/generator.server";
+  createTurnGenerator,
+  TurnGeneratorStop,
+} from "@/lib/guest-ai/turn/generator.server";
 import type {
   LlmProvider,
   ProviderOutcome,
@@ -71,9 +71,9 @@ function scripted(outcomes: ProviderOutcome[]) {
 
 const gen = (
   provider: LlmProvider,
-  over: Partial<Parameters<typeof createCopilotGenerator>[0]> = {},
+  over: Partial<Parameters<typeof createTurnGenerator>[0]> = {},
 ) =>
-  createCopilotGenerator({
+  createTurnGenerator({
     modelId: MODEL,
     maxOutputTokens: 4_096,
     minOutputTokens: 1_536,
@@ -92,7 +92,7 @@ const PLACES_CALL = {
   arguments: JSON.stringify({ query: "pizzaria", category: "gastronomia" }),
 };
 
-describe("gerador do Copiloto com ferramentas", () => {
+describe("gerador da IA com ferramentas", () => {
   // Voos só são oferecidos com a chave da AviationStack; o teste não pode depender do ambiente.
   beforeEach(() => vi.stubEnv("AVIATIONSTACK_API_KEY", ""));
   afterEach(() => vi.unstubAllEnvs());
@@ -234,7 +234,7 @@ describe("gerador do Copiloto com ferramentas", () => {
       toolHttp: fakeMaps({ places: PLACES_RESPONSE }).http,
     });
     await expect(g.generate(prompt(), new AbortController().signal)).rejects.toBeInstanceOf(
-      CopilotGeneratorStop,
+      TurnGeneratorStop,
     );
     expect(g.telemetry()).toMatchObject({
       status: "failed",

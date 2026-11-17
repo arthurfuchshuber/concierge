@@ -382,8 +382,8 @@ describe("F2-A · isolamento no repositório", () => {
       .filter((f) => !f.includes(`${path.sep}guest-ai${path.sep}llm${path.sep}`))
       .filter((f) => /guest-ai\/llm/.test(readFileSync(f, "utf8")));
     const allowed = [/guest-ai[\\/]orchestrator[\\/]/, /guest-ai[\\/]shadow[\\/]contracts\.ts$/, /routes[\\/]api[\\/]public[\\/]guest-ai\.llm-probe\.ts$/, /[\\/]routeTree\.gen\.ts$/, /generated[\\/]system-knowledge\.ts$/, /guest-ai[\\/]shadow-exec[\\/]/,
-      // Copiloto (05/11/2026): registro de modelos (contratos), tipos do transporte (geração) e o gerador — lista nominal
-      /guest-ai[\\/]copilot[\\/](contracts\.ts|generate\.server\.ts|generator\.server\.ts|ops-extractor\.server\.ts)$/,
+      // IA (05/11/2026): registro de modelos (contratos), tipos do transporte (geração) e o gerador — lista nominal
+      /guest-ai[\\/]turn[\\/](contracts\.ts|generate\.server\.ts|generator\.server\.ts|ops-extractor\.server\.ts)$/,
       // Memória do hóspede (06/11/2026): processo pós-checkout — prompt (registro de modelos/tipos) e worker (Gateway)
       /lib[\\/]guest-memory[\\/](prompt\.ts|worker\.server\.ts)$/,
       // Tool calling (07/11/2026): só os TIPOS do gateway (declaração de ferramenta e chamada) — lista nominal
@@ -470,14 +470,14 @@ describe("Visão · contrato multimodal do Gateway", () => {
   });
 });
 
-describe("Prazo de 30 s do Copiloto/slot (titular, 10/11/2026)", () => {
+describe("Prazo de 30 s da IA/slot (titular, 10/11/2026)", () => {
   it("cadeia do turno até 30 s, prazo total 40 s, bastidores mantêm 25 s, raciocínio segue elástico (auto)", async () => {
-    const c = await import("@/lib/guest-ai/copilot/contracts");
+    const c = await import("@/lib/guest-ai/turn/contracts");
     const chain = await import("@/lib/guest-ai/turn-chain");
-    expect(c.COPILOT_STAGE_MAX_MS).toBe(30_000);
-    expect(c.COPILOT_DEADLINE_MS).toBe(40_000);
-    expect(c.COPILOT_BACKSTAGE_DEADLINE_MS).toBe(25_000);
-    expect(chain.TURN_DEADLINE_CEILING_MS).toBe(45_000); // teto do turno longo (17/11/2026); o Copiloto segue em 30 s
-    expect(String(c.COPILOT_REASONING_EFFORT)).toBe("auto");
+    expect(c.TURN_STAGE_MAX_MS).toBe(30_000);
+    expect(c.TURN_DEADLINE_MS).toBe(40_000);
+    expect(c.TURN_BACKSTAGE_DEADLINE_MS).toBe(25_000);
+    expect(chain.TURN_DEADLINE_CEILING_MS).toBe(45_000); // teto do turno longo (17/11/2026); a IA segue em 30 s
+    expect(String(c.TURN_REASONING_EFFORT)).toBe("auto");
   });
 });

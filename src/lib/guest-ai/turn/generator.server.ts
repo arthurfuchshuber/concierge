@@ -1,16 +1,16 @@
 /**
- * COPILOTO — gerador que liga a cadeia (`runTurnChain`) ao Lovable AI Gateway (`generateGuestLlm`, F2-A).
+ * IA — gerador que liga a cadeia (`runTurnChain`) ao Lovable AI Gateway (`generateGuestLlm`, F2-A).
  *
  * Terceiro (e único novo) chamador do Gateway, ao lado do Orchestrator e do gerador Shadow (o teste
  * `data-boundary` fixa a lista). Reaproveita integralmente o Gateway existente: timeout (≤ 15 s), nova
  * tentativa, classificação dos 17 erros, JSON validado e bloqueio de valores proibidos. Aqui só se somam
- * as regras do Copiloto:
+ * as regras da IA:
  *  - UMA chamada por geração (a repetição interna é do Gateway e já está no orçamento);
  *  - custo POR TURNO limitado ANTES da rede (limite superior de tokens de entrada em bytes + teto de saída);
  *  - verificação `beforeNetwork` imediatamente antes da chamada (a sugestão ainda é a vigente? não foi
  *    substituída por mensagem mais nova do hóspede?) — se não, nada sai para a rede;
  *  - prazo = o que RESTA do prazo global (nenhuma etapa ganha relógio próprio).
- * Nunca devolve texto de erro do provedor: só códigos fechados (`CopilotGeneratorStop`).
+ * Nunca devolve texto de erro do provedor: só códigos fechados (`TurnGeneratorStop`).
  */
 import type { ComposedPrompt } from "@/lib/guest-ai/orchestrator/contracts";
 import { GUEST_AI_RESERVE_MODEL } from "@/lib/guest-ai/orchestrator/contracts";
@@ -27,7 +27,7 @@ import { generateGuestLlm } from "@/lib/guest-ai/llm/gateway.server";
 import type { LlmProvider } from "@/lib/guest-ai/llm/providers/types";
 import type { LlmLogger } from "@/lib/guest-ai/llm/telemetry";
 import { estimateCostUsd, guestFallbackModel, modelSpec } from "@/lib/guest-ai/llm/models";
-import { COPILOT_MAX_TURN_COST_USD, COPILOT_STAGE_MAX_MS } from "./contracts";
+import { TURN_MAX_COST_USD, TURN_STAGE_MAX_MS } from "./contracts";
 import type { ExternalHttp, GuestToolContext, MapsHttp, ToolAvailability } from "@/lib/guest-ai/tools/contracts";
 import { executeToolCalls, type ToolCallOutcome } from "@/lib/guest-ai/tools/executor";
 import { toolSpecsFor } from "@/lib/guest-ai/tools/registry";
@@ -46,7 +46,7 @@ function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
   ]).finally(() => clearTimeout(timer));
 }
 
-export type CopilotGeneratorStopCode =
+export type TurnGeneratorStopCode =
   | "generator_reused"
   | "deadline_expired"
   | "superseded"
@@ -54,16 +54,16 @@ export type CopilotGeneratorStopCode =
   | "model_unregistered"
   | "gateway_failed";
 
-export class CopilotGeneratorStop extends Error {
-  constructor(readonly code: CopilotGeneratorStopCode) {
+export class TurnGeneratorStop extends Error {
+  constructor(readonly code: TurnGeneratorStopCode) {
     super(code);
-    this.name = "CopilotGeneratorStop";
+    this.name = "TurnGeneratorStop";
   }
 }
 
-export interface CopilotGeneratorTelemetry {
+export interface TurnGeneratorTelemetry {
   readonly status: "idle" | "blocked" | "called" | "failed";
-  readonly blockCode: CopilotGeneratorStopCode | null;
+  readonly blockCode: TurnGeneratorStopCode | null;
   readonly estimatedInputTokens: number | null;
   readonly calls: number;
   readonly inputTokens: number;
@@ -75,7 +75,7 @@ export interface CopilotGeneratorTelemetry {
   readonly imagesSent: number;
   /** Fotos que não foram ao modelo (falha de leitura, formato, tamanho ou orçamento do turno). */
   readonly imagesNotLoaded: number;
-  /** Esforço de raciocínio enviado (`auto` no Copiloto); ausente antes da chamada. */
+  /** Esforço de raciocínio enviado (`auto` na IA); ausente antes da chamada. */
   readonly reasoningEffort?: ReasoningEffort;
   /** Teto de saída efetivo da chamada (cheio ou recuo, sempre dentro do teto de custo do turno). */
   readonly maxOutputTokens?: number;
@@ -93,19 +93,19 @@ export interface CopilotGeneratorTelemetry {
 }
 
 /** Foto do hóspede já preparada (Data URL) pela camada de dados, com o id citável do histórico. */
-export interface CopilotVisionImage {
+export interface TurnVisionImage {
   ref: string | null;
   at: string | null;
   dataUrl: string;
   tokenBound: number;
 }
-export interface CopilotVisionInput {
+export interface TurnVisionInput {
   /** Da mais recente para a mais antiga. */
-  images: readonly CopilotVisionImage[];
+  images: readonly TurnVisionImage[];
   /** Fotos que não puderam ser carregadas (viram o aviso `[imagem não carregada]`). */
   failed: ReadonlyArray<{ ref: string | null; at: string | null }>;
 }
-export const NO_VISION: CopilotVisionInput = Object.freeze({ images: [], failed: [] });
+export const NO_VISION: TurnVisionInput = Object.freeze({ images: [], failed: [] });
 
 /** Aviso literal quando uma foto não vai ao modelo. */
 export const IMAGE_NOT_LOADED = "[imagem não carregada]";
@@ -119,16 +119,16 @@ export const VISION_HEADER =
 const visionLabel = (i: { ref: string | null; at: string | null }) =>
   `mensagem ${i.ref ?? "sem referência"}${i.at ? ` (${i.at})` : ""}`;
 
-export interface CopilotGenerator {
+export interface TurnGenerator {
   readonly modelId: string;
   generate(prompt: ComposedPrompt, signal: AbortSignal): Promise<string>;
-  telemetry(): CopilotGeneratorTelemetry;
+  telemetry(): TurnGeneratorTelemetry;
 }
 
-export interface CopilotGeneratorDeps {
+export interface TurnGeneratorDeps {
   modelId: string;
   maxOutputTokens: number;
-  /** Esforço de raciocínio enviado ao Gateway (o Copiloto usa `auto`: o modelo dosa sozinho). */
+  /** Esforço de raciocínio enviado ao Gateway (a IA usa `auto`: o modelo dosa sozinho). */
   reasoningEffort: ReasoningEffort;
   /**
    * Recuo do teto de saída: se `maxOutputTokens` não couber no teto de custo do turno, a chamada segue com
@@ -137,7 +137,7 @@ export interface CopilotGeneratorDeps {
   minOutputTokens?: number;
   /** Tempo (ms) que resta do prazo global da geração. */
   remainingMs: () => number;
-  /** Teto de CADA chamada ao modelo nesta tentativa (ms); ausente ⇒ até `COPILOT_STAGE_MAX_MS`. */
+  /** Teto de CADA chamada ao modelo nesta tentativa (ms); ausente ⇒ até `TURN_STAGE_MAX_MS`. */
   callTimeoutMs?: number;
   /** Conferido IMEDIATAMENTE antes da rede: `false` ⇒ a sugestão deixou de ser a vigente (nada é chamado). */
   beforeNetwork: () => Promise<boolean>;
@@ -151,7 +151,7 @@ export interface CopilotGeneratorDeps {
    * Fotos do hóspede para o turno (carregadas sob demanda, dentro do prazo). Ausente ⇒ só texto.
    * Falha ao carregar nunca derruba a geração: segue só com texto e o aviso `[imagem não carregada]`.
    */
-  loadVision?: () => Promise<CopilotVisionInput>;
+  loadVision?: () => Promise<TurnVisionInput>;
   /**
    * Origem e localidade do imóvel do turno para as ferramentas de consulta (Google Places e rotas).
    * Ausente, `null` ou com falha ⇒ o turno segue sem ferramentas (exatamente como antes).
@@ -172,19 +172,19 @@ export interface CopilotGeneratorDeps {
  * PRÉVIA de oferecer ferramentas. Antes da 2ª chamada o custo é recalculado EXATO; se não couber, os
  * resultados viram `indisponivel` (a IA responde sem números) e o teto do turno nunca é ultrapassado.
  */
-export const COPILOT_TOOL_ROUND_RESERVE_TOKENS = 8_000;
+export const TURN_TOOL_ROUND_RESERVE_TOKENS = 8_000;
 /**
  * CORRIDA PROTEGIDA (08/11/2026). O Titular é o cérebro principal; se não responder em `hedgeDelayMs`, o Reserva
  * dispara EM PARALELO com o mesmo pedido e vale a primeira resposta válida (a outra é cancelada). Antes, o Reserva
  * só entrava depois que o Titular estourava o prazo — e aí já não sobrava tempo (5 de 5 turnos em estadia com
  * `stage_timeout` em 08/11). Custo: o Reserva é ~4× mais barato; só dispara quando o Titular demora.
  */
-export const COPILOT_HEDGE_MIN_DELAY_MS = 2_500;
-export const COPILOT_HEDGE_MAX_DELAY_MS = 4_500;
+export const TURN_HEDGE_MIN_DELAY_MS = 2_500;
+export const TURN_HEDGE_MAX_DELAY_MS = 4_500;
 /** Fração do tempo restante esperada pelo Titular antes de disparar o Reserva. */
-export const COPILOT_HEDGE_FRACTION = 0.35;
+export const TURN_HEDGE_FRACTION = 0.35;
 /** Tempo mínimo para valer a pena disparar o Reserva. */
-export const COPILOT_HEDGE_MIN_BUDGET_MS = 3_500;
+export const TURN_HEDGE_MIN_BUDGET_MS = 3_500;
 
 /**
  * Folga do teto SÓ para a corrida protegida (09/11/2026). O pior caso reservado é por BYTES (limite superior de
@@ -192,7 +192,7 @@ export const COPILOT_HEDGE_MIN_BUDGET_MS = 3_500;
  * disparava nos turnos grandes (stage_timeout de 09:41, 7 de 8 timeouts). A folga de 25% só vale para disparar o
  * Reserva; o custo REAL é medido depois e o Reserva só corre quando o Titular demora.
  */
-export const COPILOT_HEDGE_CEILING_FACTOR = 1.25;
+export const TURN_HEDGE_CEILING_FACTOR = 1.25;
 
 /** Falhas em que nada foi gerado: o custo é zero (não o pior caso reservado). */
 const NO_GENERATION_CODES: ReadonlySet<string> = new Set([
@@ -206,11 +206,11 @@ const FALLBACK_AFTER_CODES: ReadonlySet<string> = new Set([
 ]);
 
 export function hedgeDelayMs(remainingMs: number): number {
-  return Math.round(Math.min(COPILOT_HEDGE_MAX_DELAY_MS, Math.max(COPILOT_HEDGE_MIN_DELAY_MS, remainingMs * COPILOT_HEDGE_FRACTION)));
+  return Math.round(Math.min(TURN_HEDGE_MAX_DELAY_MS, Math.max(TURN_HEDGE_MIN_DELAY_MS, remainingMs * TURN_HEDGE_FRACTION)));
 }
 
 /** Tempo do prazo do turno guardado para a 2ª chamada (resposta final) enquanto as ferramentas rodam. */
-export const COPILOT_FINAL_CALL_RESERVE_MS = 6_000;
+export const TURN_FINAL_CALL_RESERVE_MS = 6_000;
 
 /** Limite SUPERIOR de tokens de entrada de mensagens já montadas (texto, chamadas e resultados de ferramenta). */
 export function messagesTokenBound(messages: readonly LlmMessage[]): number {
@@ -221,7 +221,7 @@ export function messagesTokenBound(messages: readonly LlmMessage[]): number {
     for (const c of m.toolCalls ?? []) bytes += enc.encode(c.name).length + enc.encode(c.arguments).length + enc.encode(c.id).length;
     if (m.toolCallId) bytes += enc.encode(m.toolCallId).length;
   }
-  return bytes + COPILOT_FRAME_TOKENS_BASE + COPILOT_FRAME_TOKENS_PER_MESSAGE * (messages.length + 1);
+  return bytes + TURN_FRAME_TOKENS_BASE + TURN_FRAME_TOKENS_PER_MESSAGE * (messages.length + 1);
 }
 
 /**
@@ -232,7 +232,7 @@ export function messagesTokenBound(messages: readonly LlmMessage[]): number {
  */
 export function attachVision(
   messages: readonly LlmMessage[],
-  vision: CopilotVisionInput,
+  vision: TurnVisionInput,
   baseBound: number,
   fits: (inputTokens: number) => boolean,
 ): { messages: LlmMessage[]; sent: number; notLoaded: number; bound: number } {
@@ -240,7 +240,7 @@ export function attachVision(
   if (vision.images.length === 0 && vision.failed.length === 0)
     return { messages: plain, sent: 0, notLoaded: 0, bound: baseBound };
   const enc = new TextEncoder();
-  const textCost = (t: string) => enc.encode(t).length + COPILOT_FRAME_TOKENS_PER_MESSAGE;
+  const textCost = (t: string) => enc.encode(t).length + TURN_FRAME_TOKENS_PER_MESSAGE;
   const notice = (i: { ref: string | null; at: string | null }) =>
     `${IMAGE_NOT_LOADED} — ${visionLabel(i)}`;
   const parts: LlmContentPart[] = [{ type: "text", text: VISION_HEADER }];
@@ -286,14 +286,14 @@ export function attachVision(
 }
 
 /** Moldura por mensagem e por requisição (papéis, separadores): margem SUPERIOR, não estimativa. */
-export const COPILOT_FRAME_TOKENS_PER_MESSAGE = 16;
-export const COPILOT_FRAME_TOKENS_BASE = 64;
+export const TURN_FRAME_TOKENS_PER_MESSAGE = 16;
+export const TURN_FRAME_TOKENS_BASE = 64;
 
 /**
  * Limite SUPERIOR de tokens de entrada: bytes UTF-8 de todo o conteúdo + moldura (em BPE por bytes cada
  * token cobre ≥ 1 byte, logo tokens ≤ bytes). Prompt ilegível ⇒ 0 (o orçamento então bloqueia).
  */
-export function copilotInputTokenBound(prompt: ComposedPrompt): number {
+export function turnInputTokenBound(prompt: ComposedPrompt): number {
   if (!prompt || typeof prompt.system !== "string" || !Array.isArray(prompt.messages)) return 0;
   const enc = new TextEncoder();
   let bytes = enc.encode(prompt.system).length;
@@ -303,16 +303,16 @@ export function copilotInputTokenBound(prompt: ComposedPrompt): number {
   }
   return (
     bytes +
-    COPILOT_FRAME_TOKENS_BASE +
-    COPILOT_FRAME_TOKENS_PER_MESSAGE * (prompt.messages.length + 1)
+    TURN_FRAME_TOKENS_BASE +
+    TURN_FRAME_TOKENS_PER_MESSAGE * (prompt.messages.length + 1)
   );
 }
 
-export function createCopilotGenerator(deps: CopilotGeneratorDeps): CopilotGenerator {
+export function createTurnGenerator(deps: TurnGeneratorDeps): TurnGenerator {
   const now = deps.now ?? (() => performance.now());
-  const ceiling = deps.maxTurnCostUsd ?? COPILOT_MAX_TURN_COST_USD;
+  const ceiling = deps.maxTurnCostUsd ?? TURN_MAX_COST_USD;
   let used = false;
-  let t: CopilotGeneratorTelemetry = Object.freeze({
+  let t: TurnGeneratorTelemetry = Object.freeze({
     status: "idle",
     blockCode: null,
     estimatedInputTokens: null,
@@ -325,9 +325,9 @@ export function createCopilotGenerator(deps: CopilotGeneratorDeps): CopilotGener
     imagesSent: 0,
     imagesNotLoaded: 0,
   });
-  const block = (code: CopilotGeneratorStopCode): never => {
+  const block = (code: TurnGeneratorStopCode): never => {
     t = Object.freeze({ ...t, status: "blocked", blockCode: code });
-    throw new CopilotGeneratorStop(code);
+    throw new TurnGeneratorStop(code);
   };
   return {
     modelId: deps.modelId,
@@ -337,7 +337,7 @@ export function createCopilotGenerator(deps: CopilotGeneratorDeps): CopilotGener
       const spec = modelSpec(deps.modelId);
       if (!spec) block("model_unregistered");
       if (signal.aborted || deps.remainingMs() <= 0) block("deadline_expired");
-      const textBound = copilotInputTokenBound(prompt);
+      const textBound = turnInputTokenBound(prompt);
       t = Object.freeze({ ...t, estimatedInputTokens: textBound });
       // pior caso do turno: toda a entrada (limite superior) + todo o teto de saída
       const minOut = Math.min(deps.minOutputTokens ?? deps.maxOutputTokens, deps.maxOutputTokens);
@@ -346,7 +346,7 @@ export function createCopilotGenerator(deps: CopilotGeneratorDeps): CopilotGener
       if (textBound <= 0 || !fits(textBound)) block("budget_turn_exceeded");
 
       // visão: fotos do hóspede (falha ao carregar ⇒ só texto + aviso; nunca derruba a geração)
-      let vision: CopilotVisionInput = NO_VISION;
+      let vision: TurnVisionInput = NO_VISION;
       if (deps.loadVision) {
         try {
           // leitura das fotos com prazo próprio (8 s): estourou ⇒ segue só com texto e o aviso
@@ -382,7 +382,7 @@ export function createCopilotGenerator(deps: CopilotGeneratorDeps): CopilotGener
       let tools: LlmToolSpec[] = toolSpecsFor(toolCtx, deps.toolAvailability ?? externalToolAvailability());
       if (tools.length > 0) {
         const twoCalls = (out: number) =>
-          estimateCostUsd(spec!, bound, out) + estimateCostUsd(spec!, bound + COPILOT_TOOL_ROUND_RESERVE_TOKENS, out) <= ceiling;
+          estimateCostUsd(spec!, bound, out) + estimateCostUsd(spec!, bound + TURN_TOOL_ROUND_RESERVE_TOKENS, out) <= ceiling;
         if (twoCalls(deps.maxOutputTokens)) outputTokens = deps.maxOutputTokens;
         else if (twoCalls(minOut)) outputTokens = minOut;
         else tools = []; // não cabe: segue sem ferramentas, como antes
@@ -446,7 +446,7 @@ export function createCopilotGenerator(deps: CopilotGeneratorDeps): CopilotGener
             maxOutputTokens: outputTokens,
             reasoningEffort: deps.reasoningEffort,
             responseFormat: "json",
-            timeoutMs: Math.max(1_000, Math.min(deps.callTimeoutMs ?? COPILOT_STAGE_MAX_MS, Math.floor(deps.remainingMs()))),
+            timeoutMs: Math.max(1_000, Math.min(deps.callTimeoutMs ?? TURN_STAGE_MAX_MS, Math.floor(deps.remainingMs()))),
             signal: sg,
             traceId: deps.traceId,
             ...(tools.length > 0 && toolChoice ? { tools, toolChoice } : {}),
@@ -463,14 +463,14 @@ export function createCopilotGenerator(deps: CopilotGeneratorDeps): CopilotGener
         // o Reserva só corre se o pior caso das DUAS chamadas couber no teto do turno
         const hedgeFits =
           !!hedgeSpec &&
-          cost + estimateCostUsd(spec!, inBound, outputTokens) + estimateCostUsd(hedgeSpec, inBound, outputTokens) <= ceiling * COPILOT_HEDGE_CEILING_FACTOR;
+          cost + estimateCostUsd(spec!, inBound, outputTokens) + estimateCostUsd(hedgeSpec, inBound, outputTokens) <= ceiling * TURN_HEDGE_CEILING_FACTOR;
         /** Titular falhou (sem corrida): tenta o Reserva UMA vez, se houver tempo e o custo REAL couber. */
         const fallbackAfterFailure = async (failed: GatewayResult): Promise<GatewayResult> => {
           if (failed.ok || !hedgeSpec || !hedgeId) return failed;
           if (tools.length > 0 && toolChoice) return failed; // rodada de ferramentas: falha continua sendo falha
           if (!FALLBACK_AFTER_CODES.has(failed.error.code)) return failed;
-          if (signal.aborted || deps.remainingMs() < COPILOT_HEDGE_MIN_BUDGET_MS) return failed;
-          if (cost + estimateCostUsd(hedgeSpec, inBound, outputTokens) > ceiling * COPILOT_HEDGE_CEILING_FACTOR) return failed;
+          if (signal.aborted || deps.remainingMs() < TURN_HEDGE_MIN_BUDGET_MS) return failed;
+          if (cost + estimateCostUsd(hedgeSpec, inBound, outputTokens) > ceiling * TURN_HEDGE_CEILING_FACTOR) return failed;
           hedged = true;
           const r2 = await single(hedgeId, messages, toolChoice, signal);
           account(r2, inBound);
@@ -499,7 +499,7 @@ export function createCopilotGenerator(deps: CopilotGeneratorDeps): CopilotGener
               timer = setTimeout(() => resolve(null), hedgeDelayMs(deps.remainingMs()));
             }),
           ]);
-          if (waited || deps.remainingMs() < COPILOT_HEDGE_MIN_BUDGET_MS || signal.aborted) {
+          if (waited || deps.remainingMs() < TURN_HEDGE_MIN_BUDGET_MS || signal.aborted) {
             const a = waited ?? (await pA);
             account(a.r, inBound);
             return fallbackAfterFailure(a.r);
@@ -530,7 +530,7 @@ export function createCopilotGenerator(deps: CopilotGeneratorDeps): CopilotGener
       const first = await call(attached.messages, "auto", bound);
       if (!first.ok) {
         settle("failed", first.error.code);
-        throw new CopilotGeneratorStop("gateway_failed");
+        throw new TurnGeneratorStop("gateway_failed");
       }
       if (first.finishReason !== "tool_calls" || !first.toolCalls || first.toolCalls.length === 0) {
         settle("called", null);
@@ -538,12 +538,12 @@ export function createCopilotGenerator(deps: CopilotGeneratorDeps): CopilotGener
       }
 
       // ferramentas: executadas com prazo de 6 s cada, falha nunca derruba o turno
-      // as ferramentas nunca comem o tempo da resposta final: sobra sempre `COPILOT_FINAL_CALL_RESERVE_MS`
+      // as ferramentas nunca comem o tempo da resposta final: sobra sempre `TURN_FINAL_CALL_RESERVE_MS`
       const outcomes: ToolCallOutcome[] = await executeToolCalls(first.toolCalls, toolCtx!, {
         http: deps.toolHttp ?? productionMapsHttp,
         external: deps.toolExternal ?? productionExternalHttp,
         signal,
-        remainingMs: () => deps.remainingMs() - COPILOT_FINAL_CALL_RESERVE_MS,
+        remainingMs: () => deps.remainingMs() - TURN_FINAL_CALL_RESERVE_MS,
       });
       t = Object.freeze({
         ...t,
@@ -579,7 +579,7 @@ export function createCopilotGenerator(deps: CopilotGeneratorDeps): CopilotGener
       const final = await call(second, "none", messagesTokenBound(second));
       if (!final.ok || final.finishReason !== "stop") {
         settle("failed", final.ok ? "invalid_response" : final.error.code);
-        throw new CopilotGeneratorStop("gateway_failed");
+        throw new TurnGeneratorStop("gateway_failed");
       }
       settle("called", null);
       return final.text;

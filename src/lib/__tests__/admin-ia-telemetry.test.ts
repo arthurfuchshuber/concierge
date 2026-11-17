@@ -51,7 +51,6 @@ function sug(p: Partial<SuggestionRow> = {}): SuggestionRow {
     gatewayError: null,
     attempts: 1,
     startedAt: "2026-11-07T15:00:00Z",
-    edited: false,
     hasSuggestion: true,
     stayPhase: "pre_stay",
     reservationLinked: true,
@@ -83,14 +82,11 @@ describe("desfecho de cada inferência", () => {
   it("erro vence tudo; depois card aplicado; depois D9; silêncio; estados", () => {
     expect(classifyOutcome(sug({ state: "generation_failed" }), [op()])).toBe("error");
     expect(classifyOutcome(sug({ outcomeKind: "technical_error" }), [])).toBe("error");
-    expect(classifyOutcome(sug({ state: "send_failed" }), [])).toBe("error");
     expect(classifyOutcome(sug({ warnings: ["credential_request_denied"] }), [op()])).toBe("card");
     expect(classifyOutcome(sug({ warnings: ["credential_request_denied"] }), [])).toBe("d9");
     expect(classifyOutcome(sug({ state: "no_suggestion" }), [])).toBe("silence");
     expect(classifyOutcome(sug({ strategy: "silence" }), [])).toBe("silence");
     expect(classifyOutcome(sug({ state: "sent" }), [])).toBe("sent");
-    expect(classifyOutcome(sug({ state: "edited" }), [])).toBe("available");
-    expect(classifyOutcome(sug({ state: "discarded" }), [])).toBe("discarded");
     expect(classifyOutcome(sug({ state: "superseded" }), [])).toBe("superseded");
     expect(classifyOutcome(sug({ state: "generating" }), [])).toBe("generating");
   });
@@ -161,7 +157,6 @@ describe("indicadores", () => {
     sug({
       id: "2",
       state: "sent",
-      edited: true,
       costUsd: 0.03,
       latencyMs: 4000,
       surface: "whatsapp",
@@ -194,7 +189,7 @@ describe("indicadores", () => {
   it("assertividade = enviadas sem alteração ÷ enviadas; adoção = enviadas ÷ geradas", () => {
     expect(k.sentCount).toBe(3);
     expect(k.generatedCount).toBe(4);
-    expect(k.assertivenessPct).toBe(66.7);
+    expect(k.assertivenessPct).toBe(100);
     expect(k.adoptionPct).toBe(75);
   });
 
@@ -229,7 +224,7 @@ describe("formatação", () => {
     expect(formatRowCost(0.0123)).toBe("$ 0.0123");
   });
   it("rótulos de modelo e intervalos do Ao vivo", () => {
-    // PR #60: o Flash é o titular do Copiloto; o Astra só aparece em contingência, como reserva
+    // PR #60: o Flash é o titular da IA; o Astra só aparece em contingência, como reserva
     expect(modelLabel(RESERVE_MODEL)).toBe("Flash (titular)");
     expect(modelLabel(TITULAR_MODEL)).toBe("Astra (reserva)");
     expect(modelLabel(null)).toBe("—");
@@ -297,7 +292,7 @@ describe("guardas estáticas da tela e do servidor", () => {
     const tables = [...fns.matchAll(/\.from\("([a-z_]+)"\)/g)].map((m) => m[1]);
     expect(new Set(tables)).toEqual(
       new Set([
-        "guest_ai_copilot_suggestions",
+        "guest_ai_turns",
         "guest_ai_ops_actions",
         "properties",
         "property_listing_raw_data",
