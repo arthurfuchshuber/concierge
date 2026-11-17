@@ -45,6 +45,7 @@ describe("mensagem escrita no ato da reserva", () => {
     expect(pre).toMatch(/mensagem escrita no ato da reserva \(ctx:reserva_feita_ha_minutos/);
     expect(pre).toMatch(/fique em silêncio/);
     const inq = buildSystemPrompt("airbnb", undefined, { phase: "inquiry" });
-    expect(inq).toMatch(/só se apresenta ou conta o motivo da viagem não é dúvida esclarecida/);
+    expect(inq).toMatch(/só se apresenta ou conta o motivo da viagem, sem sinal de dúvida ou pergunta, ainda não pede condução/);
+    expect(inq).toMatch(/entram quando ela trouxer uma dúvida, um interesse ou uma necessidade/);
   });
 });
