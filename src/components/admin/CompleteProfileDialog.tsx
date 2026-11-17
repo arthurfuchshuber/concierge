@@ -13,7 +13,6 @@ import { toast } from "sonner";
 import { getMyProfile, updateMyProfile, setMissingCpf, setMyPhone } from "@/lib/profile.functions";
 import { formatCPF, formatBRPhone } from "@/lib/masks";
 import { useHasSession } from "@/hooks/useHasSession";
-import { getMyCompany } from "@/lib/company-profile.functions";
 import { CompanySection } from "@/components/admin-pages/CompanySection";
 
 export function CompleteProfileDialog() {
@@ -21,7 +20,6 @@ export function CompleteProfileDialog() {
   const updateFn = useServerFn(updateMyProfile);
   const cpfFn = useServerFn(setMissingCpf);
   const phoneFn = useServerFn(setMyPhone);
-  const companyFn = useServerFn(getMyCompany);
   const qc = useQueryClient();
 
   const hasSession = useHasSession();
@@ -33,21 +31,8 @@ export function CompleteProfileDialog() {
     retry: false,
   });
 
-  // Cadastro da empresa (17/11/2026): responder "Somos uma Empresa (CNPJ)" é obrigatório; ligada, os dados da
-  // empresa (com a consulta na Receita) também. Vale só para o titular da conta.
-  const companyQ = useQuery({
-    queryKey: ["account-company", null],
-    queryFn: () => companyFn({ data: {} }),
-    enabled: hasSession === true,
-    staleTime: 60_000,
-    retry: false,
-  });
-  const companyMissing =
-    !!q.data?.isAccountOwner &&
-    !!companyQ.data &&
-    (companyQ.data.isCompany === null ||
-      (companyQ.data.isCompany === true && !companyQ.data.complete));
-
+  // Empresa (CNPJ) é OPCIONAL: nem todo cliente tem empresa constituída. A janela só abre por dado pessoal
+  // faltando (nome, nascimento, CPF, telefone); quando abre, o titular pode, se quiser, já informar a empresa.
   const missing = useMemo(() => {
     const p = q.data?.profile;
     if (!q.data) return { any: false, name: false, birth: false, cpf: false, phone: false };
@@ -74,7 +59,7 @@ export function CompleteProfileDialog() {
     setPhoneMasked(p?.phone ? formatBRPhone(p.phone) : "");
   }, [q.data]);
 
-  const open = !!q.data && (missing.any || companyMissing);
+  const open = !!q.data && missing.any;
 
   const cpfDigits = cpfMasked.replace(/\D+/g, "");
   const phoneDigits = phoneMasked.replace(/\D+/g, "");
@@ -118,7 +103,7 @@ export function CompleteProfileDialog() {
   return (
     <Dialog open={open}>
       <DialogContent
-        className={`${companyMissing ? "max-w-lg" : "max-w-sm"} max-h-[92vh] overflow-y-auto p-5 rounded-[var(--win-radius)] [&>button]:hidden`}
+        className={`${q.data?.isAccountOwner ? "max-w-lg" : "max-w-sm"} max-h-[92vh] overflow-y-auto p-5 rounded-[var(--win-radius)] [&>button]:hidden`}
         onEscapeKeyDown={(e) => e.preventDefault()}
         onPointerDownOutside={(e) => e.preventDefault()}
         onInteractOutside={(e) => e.preventDefault()}
@@ -190,24 +175,22 @@ export function CompleteProfileDialog() {
             </Field>
           )}
 
-          {companyMissing ? <CompanySection ownerId={null} /> : null}
+          {q.data?.isAccountOwner ? <CompanySection ownerId={null} /> : null}
 
           <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
             <ShieldCheck className="size-3" />
             Dados privados, usados só para conformidade.
           </div>
 
-          {missing.any ? (
-            <button
-              type="button"
-              onClick={onSave}
-              disabled={!canSave || saving}
-              className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-primary text-primary-foreground px-4 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50"
-            >
-              {saving && <Loader2 className="size-4 animate-spin" />}
-              Salvar e continuar
-            </button>
-          ) : null}
+          <button
+            type="button"
+            onClick={onSave}
+            disabled={!canSave || saving}
+            className="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-primary text-primary-foreground px-4 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50"
+          >
+            {saving && <Loader2 className="size-4 animate-spin" />}
+            Salvar e continuar
+          </button>
         </div>
 
         <style>{`

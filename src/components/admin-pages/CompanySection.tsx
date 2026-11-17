@@ -27,7 +27,7 @@ import {
 
 /**
  * Perfil · "Somos uma Empresa (CNPJ)" + quadrante Empresa (mockups aprovados em 17/11/2026, desktop e celular).
- *  · A chave é obrigatória no cadastro; ligada, abre o quadrante Empresa abaixo do quadrante Pessoa Física.
+ *  · A chave é OPCIONAL (nem todo cliente tem empresa); ligada, abre o quadrante Empresa abaixo do quadrante Pessoa Física.
  *  · O CNPJ SEMPRE passa pela consulta na Receita (ativo/inativo). Os dados que ela devolve entram bloqueados;
  *    só ficam abertos os que a Receita não informa (inscrição municipal e, quando faltarem, e-mail, telefone etc.).
  *  · Nada é preenchido à mão: se a Receita não responde, os campos ficam bloqueados e há "Tentar de novo".
@@ -352,7 +352,7 @@ export function CompanySection({ ownerId }: { ownerId: string | null }) {
 
   return (
     <>
-      {/* Chave obrigatória "Somos uma Empresa (CNPJ)". */}
+      {/* Chave opcional "Somos uma Empresa (CNPJ)". */}
       <section className={`${PANEL_SHELL} flex items-center justify-between gap-3 px-4 py-3.5`}>
         <div className="min-w-0">
           <div className="text-[13.5px] font-bold leading-tight">Somos uma Empresa (CNPJ)</div>

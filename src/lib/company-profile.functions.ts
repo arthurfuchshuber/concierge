@@ -115,7 +115,7 @@ export const getMyCompany = createServerFn({ method: "GET" })
     };
   });
 
-/** "Somos uma Empresa (CNPJ)": a resposta é obrigatória. Depois que o CNPJ foi gravado, só o suporte desliga. */
+/** "Somos uma Empresa (CNPJ)": opcional. Depois que o CNPJ foi gravado, só o suporte desliga. */
 export const setMyCompanyChoice = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
