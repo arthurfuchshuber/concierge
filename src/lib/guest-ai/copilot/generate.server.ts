@@ -78,8 +78,6 @@ import {
   COPILOT_MIN_OUTPUT_TOKENS,
   COPILOT_REASONING_EFFORT,
   copilotListingDailyCostUsd,
-  copilotFlagOn,
-  copilotPropertyAllowed,
   copilotModelId,
   type CopilotGenerationRequest,
   type CopilotWarning,
@@ -205,8 +203,6 @@ export type CopilotGenerateResult =
   | {
       status: "skipped";
       code:
-        | "generation_off"
-        | "property_not_allowlisted"
         | "superseded_by_newer_message"
         | "scope_refused"
         | "claim_invalid"
@@ -572,9 +568,6 @@ export async function generateCopilotSuggestion(
   deps: CopilotGenerateDeps = {},
 ): Promise<CopilotGenerateResult> {
   const env = deps.env ?? process.env;
-  // porta da GERAÇÃO: conferida aqui, no servidor, para QUALQUER chamador (canal ou tela). Sem desvio.
-  if (!deps.autonomous && !copilotFlagOn("generation", env))
-    return { status: "skipped", code: "generation_off", detail: null };
   // relógio de PAREDE (ms desde a época): a cadeia o usa para datas (fase da estadia, janela D9, pausa) e o
   // prazo global é medido pelo mesmo relógio. Nunca `performance.now` aqui (origem ≠ época).
   const now = deps.now ?? (() => Date.now());
@@ -613,11 +606,6 @@ export async function generateCopilotSuggestion(
         code: "scope_refused",
         detail: e instanceof GuestAiScopeError ? e.code : "lookup_failed",
       };
-    }
-
-    // 1b) escopo de imóveis (backend): sem lista ⇒ todos; com lista ⇒ só os listados (imóvel do turno VALIDADO)
-    if (!deps.autonomous && !copilotPropertyAllowed(turn.propertyId, env)) {
-      return { status: "skipped", code: "property_not_allowlisted", detail: null };
     }
 
     // 1c) rajada: o hóspede já mandou outra mensagem depois desta ⇒ quem responde é a geração da mais nova, que vê

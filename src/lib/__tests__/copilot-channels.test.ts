@@ -87,10 +87,7 @@ import { fakeProvider, okJson } from "../guest-ai/__tests__/helpers/copilot-prov
 const USER = "5e551000-0000-4000-8000-000000000001"; // atendente da SESSÃO (único autor aceito)
 const CONV = "c0000000-0000-4000-8000-0000000000aa";
 const SID = "50000000-0000-4000-8000-0000000000aa";
-const ENV = {
-  GUEST_AI_COPILOT_GENERATION: "on",
-  GUEST_AI_COPILOT_GENERATION_PROPERTY_IDS: "p1",
-};
+const ENV = {};
 const fetchMock = vi.fn(async (url: string) =>
   url.includes("/message_threads/")
     ? new Response(JSON.stringify({ data: { id: "cx-msg-1" } }), { status: 200 })

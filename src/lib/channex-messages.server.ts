@@ -661,31 +661,6 @@ export async function handleChannexMessage(payload: unknown): Promise<void> {
     console.error("[channex-messages] vínculo falhou", e);
   }
 
-  // ─── Copiloto (05/11/2026): sugestão para a EQUIPE aprovar, em segundo plano (não bloqueia, não responde
-  // ao hóspede, não altera o fluxo abaixo). Dono do anúncio resolvido com certeza por `resolveListing`.
-  // 17/11/2026 (caso Whyll, "Qual seria?"): com a IA autônoma assumindo este turno, a sugestão do painel NÃO é
-  // gerada. As duas disputavam a mesma mensagem (uma sugestão por mensagem): o Copiloto, com prazo curto de painel,
-  // pegou a mensagem primeiro, estourou o tempo, e a IA autônoma — que chegou depois — encontrou a vaga ocupada e só
-  // encaminhou. O turno autônomo já grava a própria sugestão (o painel continua vendo o que a IA decidiu).
-  {
-    const triggerId = (guestMsg as { id?: string } | null)?.id;
-    const { autonomousEnabled, autonomousPropertyAllowed } = await import("@/lib/guest-ai/slot.server");
-    const autonomousOwnsTurn = copilotYieldsToAutonomous({
-      aiEnabled: !!listing.airbnb_ai_enabled,
-      aiPaused,
-      autonomous: autonomousEnabled(),
-      propertyAllowed: autonomousPropertyAllowed(listing.property_id),
-    });
-    if (triggerId && !autonomousOwnsTurn) {
-      try {
-        const { triggerCopilotSuggestion } = await import("@/lib/guest-ai/copilot/trigger.server");
-        await triggerCopilotSuggestion({ surface: "airbnb", conversationId: convId, messageId: triggerId, expectedOwnerId: listing.owner_id });
-      } catch (e) {
-        console.error("[channex-messages] copiloto não disparado", e instanceof Error ? e.name : "");
-      }
-    }
-  }
-
   const { data: prop } = await admin.from("properties").select("*").eq("id", listing.property_id).maybeSingle();
   const propertyName = (prop as { name?: string } | null)?.name ?? "";
 
@@ -831,11 +806,6 @@ export interface AirbnbAiTurn {
  * use exatamente o mesmo caminho, a mesma barreira e as mesmas travas.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-/** Copiloto do painel cede a vez quando a IA autônoma vai responder este turno (pura; 17/11/2026, caso Whyll). */
-export function copilotYieldsToAutonomous(p: { aiEnabled: boolean; aiPaused: boolean; autonomous: boolean; propertyAllowed: boolean }): boolean {
-  return p.aiEnabled && !p.aiPaused && p.autonomous && p.propertyAllowed;
-}
-
 export const BOOKING_LINK_WAIT_MS = 45_000;
 
 /** Decisão pura: esperar a reserva? Só sem reserva ligada e sem consulta registrada para a conversa. */

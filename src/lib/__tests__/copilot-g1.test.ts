@@ -17,7 +17,6 @@ import {
   runInBackground,
   withRequestLifecycle,
 } from "@/lib/background.server";
-import { triggerCopilotSuggestion } from "@/lib/guest-ai/copilot/trigger.server";
 
 const SRC = path.resolve(__dirname, "..", "..");
 const REPO = path.resolve(SRC, "..");
@@ -160,48 +159,6 @@ describe("G1 · R2: trabalho em segundo plano nunca fica solto", () => {
     err.mockRestore();
   });
 
-  it("disparo do Copiloto: com waitUntil volta antes da geração; sem, a requisição a aguarda; chave desligada ⇒ nada", async () => {
-    const env = { GUEST_AI_COPILOT_GENERATION: "on" };
-    const req = { surface: "guide_chat" as const, conversationId: CONV, messageId: MSG };
-    const gate = deferred();
-    const generate = vi.fn(async () => {
-      await gate.promise;
-      return { status: "stored" } as never;
-    });
-    const handed: Promise<unknown>[] = [];
-    // rajada (06/11/2026): com waitUntil, espera a janela de respiro (6 s) antes de gerar, descontada do prazo
-    const sleep = vi.fn(async () => {});
-    await withRequestLifecycle(
-      createLifecycle((p) => handed.push(p)),
-      () => triggerCopilotSuggestion(req, env, { generate, sleep }),
-    );
-    expect(handed).toHaveLength(1);
-    gate.resolve();
-    await handed[0];
-    expect(generate).toHaveBeenCalledTimes(1);
-    expect(sleep).toHaveBeenCalledWith(6_000);
-    expect(generate).toHaveBeenCalledWith(expect.anything(), { env, deadlineMs: 19_000 });
-
-    // sem waitUntil: fica na lista da requisição até terminar
-    const store = createLifecycle(null);
-    const gen2 = vi.fn(async () => ({ status: "stored" }) as never);
-    const sleep2 = vi.fn(async () => {});
-    await withRequestLifecycle(store, () =>
-      triggerCopilotSuggestion(req, env, { generate: gen2, sleep: sleep2 }),
-    );
-    expect(store.pending).toHaveLength(1);
-    await drainLifecycle(store);
-    expect(gen2).toHaveBeenCalledTimes(1);
-    // sem waitUntil a resposta do canal nunca fica presa na janela de respiro
-    expect(sleep2).not.toHaveBeenCalled();
-    // sem respiro: o prazo dos bastidores continua 25 s (waitUntil ~30 s); só o slot ganhou 30 s de cadeia
-    expect(gen2).toHaveBeenCalledWith(expect.anything(), { env, deadlineMs: 25_000 });
-
-    const gen3 = vi.fn();
-    await triggerCopilotSuggestion(req, {}, { generate: gen3 as never });
-    await triggerCopilotSuggestion({ ...req, messageId: "x" }, env, { generate: gen3 as never });
-    expect(gen3).not.toHaveBeenCalled();
-  });
 });
 
 describe("G1 · estáticos", () => {
@@ -227,23 +184,6 @@ describe("G1 · estáticos", () => {
       if (/\.rpc\(\s*["'`]copilot/.test(src) || src.includes("COPILOT_ACTOR_RPC")) {
         expect(rel, rel).toMatch(/\.server\.ts$/);
       }
-    }
-  });
-
-  it("disparo do Copiloto sem promessa solta; servidor instala o ciclo de vida; canais aguardam o disparo", () => {
-    const trigger = read("src/lib/guest-ai/copilot/trigger.server.ts");
-    expect(trigger).not.toMatch(/void \(async/);
-    expect(trigger).toMatch(/runInBackground\(/);
-    const server = read("src/server.ts");
-    expect(server).toMatch(/withRequestLifecycle\(lifecycle/);
-    expect(server).toMatch(/await drainLifecycle\(lifecycle\)/);
-    for (const f of [
-      "src/routes/api/public/guide-chat.ts",
-      "src/lib/channex-messages.server.ts",
-    ]) {
-      const src = read(f);
-      expect(src, f).toMatch(/await triggerCopilotSuggestion\(/);
-      expect(src, f).not.toMatch(/[^t] triggerCopilotSuggestion\(\{/);
     }
   });
 

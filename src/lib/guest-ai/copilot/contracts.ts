@@ -122,66 +122,6 @@ export const COPILOT_MAX_OUTPUT_TOKENS = 4_096;
 export const COPILOT_MIN_OUTPUT_TOKENS = 1_536;
 
 /**
- * Chave da GERAÇÃO (motor da IA: slot autônomo, bastidores e telemetria). Desde 10/11/2026 o cartão de sugestão e
- * o envio pela equipe foram removidos; as antigas chaves de interface e de envio não existem mais.
- */
-export const COPILOT_FLAG_ENV = {
-  generation: "GUEST_AI_COPILOT_GENERATION",
-} as const;
-export type CopilotFlag = keyof typeof COPILOT_FLAG_ENV;
-export interface CopilotFlags {
-  generation: boolean;
-}
-
-export function copilotFlags(env: Record<string, string | undefined> = process.env): CopilotFlags {
-  return { generation: env[COPILOT_FLAG_ENV.generation] === "on" };
-}
-
-export const copilotFlagOn = (
-  flag: CopilotFlag,
-  env: Record<string, string | undefined> = process.env,
-): boolean => copilotFlags(env)[flag];
-
-/**
- * ESCOPO DE IMÓVEIS da geração (decisão do titular, 06/11/2026): com `GUEST_AI_COPILOT_GENERATION=on` o
- * Copiloto gera para TODOS os imóveis da conta, atuais e futuros. `GUEST_AI_COPILOT_GENERATION_PROPERTY_IDS`
- * ausente, vazia ou `*` ⇒ todos (`null`). Uma lista de ids (separados por vírgula) só serve para RESTRINGIR.
- * O imóvel conferido é sempre o RE-DERIVADO do banco para o turno validado — nunca um id do navegador.
- */
-export const COPILOT_GENERATION_PROPERTIES_ENV = "GUEST_AI_COPILOT_GENERATION_PROPERTY_IDS";
-const PROPERTY_TOKEN = /^[A-Za-z0-9-]{1,64}$/;
-export function copilotGenerationProperties(
-  env: Record<string, string | undefined> = process.env,
-): ReadonlySet<string> | null {
-  const raw = (env[COPILOT_GENERATION_PROPERTIES_ENV] ?? "").trim();
-  if (raw === "" || raw === "*") return null;
-  const ids = new Set(
-    raw
-      .split(",")
-      .map((t) => t.trim())
-      .filter((t) => PROPERTY_TOKEN.test(t)),
-  );
-  return ids.size > 0 ? ids : null;
-}
-
-/** O imóvel pode gerar? `null` (sem restrição) ⇒ todos. */
-export const copilotPropertyAllowed = (
-  propertyId: string,
-  env: Record<string, string | undefined> = process.env,
-): boolean => {
-  const only = copilotGenerationProperties(env);
-  return only === null || only.has(propertyId);
-};
-
-/** Erro fechado de porta desligada (a server function devolve sem efeito; nada é lido, reivindicado ou enviado). */
-export class CopilotFlagOffError extends Error {
-  constructor(readonly flag: CopilotFlag) {
-    super(`copilot_${flag}_off`);
-    this.name = "CopilotFlagOffError";
-  }
-}
-
-/**
  * Modelo do Copiloto: `GUEST_AI_COPILOT_MODEL` se estiver no registro; senão o Gemini Flash (10/11/2026).
  *
  * Auditoria de custo: com o Dossiê completo (~20-25 mil tokens de entrada), o GPT-6 Astra levava 11-16 s,

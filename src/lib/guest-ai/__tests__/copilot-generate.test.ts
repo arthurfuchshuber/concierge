@@ -21,13 +21,9 @@ import {
   copilotInputTokenBound,
   CopilotGeneratorStop,
 } from "@/lib/guest-ai/copilot/generator.server";
-import { triggerCopilotSuggestion } from "@/lib/guest-ai/copilot/trigger.server";
 import {
   copilotListingDailyCostUsd,
   COPILOT_DEFAULT_LISTING_DAILY_COST_USD,
-  copilotGenerationProperties,
-  copilotPropertyAllowed,
-  copilotFlags,
   copilotModelId,
   COPILOT_STATES,
   COPILOT_WARNINGS,
@@ -47,7 +43,7 @@ import type { OwnershipLoad } from "@/lib/guest-ai/data/conversation-ownership.s
 import { CONV, ctx, currentRef, history, turn, v6, silence } from "./helpers/b23-chain";
 import { fakeProvider, okJson } from "./helpers/copilot-provider";
 
-const ON = { GUEST_AI_COPILOT_GENERATION: "on", GUEST_AI_COPILOT_GENERATION_PROPERTY_IDS: "p1" };
+const ON = {};
 const REQ = {
   surface: "guide_chat" as const,
   conversationId: "c1",
@@ -385,22 +381,10 @@ describe("Copiloto · geração com a cadeia real e o Gateway real (transporte f
 
   it("modo autônomo (slot, 10/11/2026): não depende da chave nem da lista do Copiloto e devolve o resultado gravado", async () => {
     const p = fakeProvider(okJson(v6()));
-    const d = deps(p, { env: { GUEST_AI_COPILOT_GENERATION_PROPERTY_IDS: "outro-imovel" }, autonomous: true });
+    const d = deps(p, { env: {}, autonomous: true });
     const r = await generateCopilotSuggestion(REQ, d);
     expect(r).toMatchObject({ status: "stored", state: "available", result: { text: "O check-in começa às 15h, no horário do imóvel.", handoffNeeded: false } });
     expect(p.calls).toBe(1);
-  });
-
-  it("chave mestra desligada ⇒ nada é lido, reivindicado ou chamado", async () => {
-    const p = fakeProvider(okJson(v6()));
-    const d = deps(p, { env: {} });
-    expect(await generateCopilotSuggestion(REQ, d)).toEqual({
-      status: "skipped",
-      code: "generation_off",
-      detail: null,
-    });
-    expect(d.store.claims).toHaveLength(0);
-    expect(p.calls).toBe(0);
   });
 
   it("idempotência: a mesma mensagem pedida duas vezes (canal + tela) e em paralelo ⇒ UMA geração", async () => {
@@ -438,42 +422,6 @@ describe("Copiloto · geração com a cadeia real e o Gateway real (transporte f
     }
   });
 
-  it("escopo de imóveis: sem lista (ausente, vazia ou *) ⇒ TODOS os imóveis geram; lista ⇒ só os listados", async () => {
-    for (const list of [undefined, "", " ", "*", " * ", " , "]) {
-      const p = fakeProvider(okJson(v6()));
-      const env: Record<string, string> = { GUEST_AI_COPILOT_GENERATION: "on" };
-      if (list !== undefined) env.GUEST_AI_COPILOT_GENERATION_PROPERTY_IDS = list;
-      const d = deps(p, { env });
-      expect((await generateCopilotSuggestion(REQ, d)).status, String(list)).toBe("stored");
-      expect(d.store.claims[0]).toMatchObject({ propertyId: "p1" });
-    }
-    for (const list of ["p2", "p2,p3", "P1"]) {
-      const p = fakeProvider(okJson(v6()));
-      const d = deps(p, {
-        env: { GUEST_AI_COPILOT_GENERATION: "on", GUEST_AI_COPILOT_GENERATION_PROPERTY_IDS: list },
-      });
-      expect(await generateCopilotSuggestion(REQ, d)).toEqual({
-        status: "skipped",
-        code: "property_not_allowlisted",
-        detail: null,
-      });
-      expect(d.store.claims).toHaveLength(0);
-      expect(p.calls).toBe(0);
-    }
-    // o id vem do turno re-derivado do banco, não do pedido
-    const p = fakeProvider(okJson(v6()));
-    const d = deps(p, {
-      env: {
-        GUEST_AI_COPILOT_GENERATION: "on",
-        GUEST_AI_COPILOT_GENERATION_PROPERTY_IDS: "p2, p1",
-      },
-    });
-    expect((await generateCopilotSuggestion(REQ, d)).status).toBe("stored");
-    expect(d.store.claims[0]).toMatchObject({ propertyId: "p1" });
-    expect(copilotGenerationProperties({})).toBeNull();
-    expect(copilotPropertyAllowed("qualquer-imovel-novo", {})).toBe(true);
-  });
-
   it("teto diário POR ANÚNCIO (15/11/2026): sem variável ou inválida ⇒ US$ 1,00; válida ⇒ respeitada até US$ 50", async () => {
     expect(COPILOT_DEFAULT_LISTING_DAILY_COST_USD).toBe(1);
     expect(copilotListingDailyCostUsd({})).toBe(1);
@@ -491,7 +439,7 @@ describe("Copiloto · geração com a cadeia real e o Gateway real (transporte f
       const p = fakeProvider(okJson(v6()));
       const store = new MemoryCopilotStore();
       store.spentUsd = 50;
-      const d = deps(p, { store, env: { GUEST_AI_COPILOT_GENERATION: "on" } });
+      const d = deps(p, { store, env: {} });
       expect((await generateCopilotSuggestion(REQ, d)).status).toBe("daily_budget_exceeded");
       expect(store.claims[0]).toMatchObject({ dailyCostLimitUsd: 1 });
       expect(p.calls).toBe(0);
@@ -501,7 +449,7 @@ describe("Copiloto · geração com a cadeia real e o Gateway real (transporte f
       const p = fakeProvider(okJson(v6()));
       const store = new MemoryCopilotStore();
       store.spentUsd = 0;
-      const d = deps(p, { store, env: { GUEST_AI_COPILOT_GENERATION: "on" } });
+      const d = deps(p, { store, env: {} });
       expect((await generateCopilotSuggestion(REQ, d)).status).toBe("stored");
       expect(store.claims[0]).toMatchObject({ dailyCostLimitUsd: 1 });
     }
@@ -512,7 +460,7 @@ describe("Copiloto · geração com a cadeia real e o Gateway real (transporte f
       store.spentUsd = 0.9;
       const d = deps(p, {
         store,
-        env: { GUEST_AI_COPILOT_GENERATION: "on", GUEST_AI_COPILOT_LISTING_DAILY_COST_USD: "1" },
+        env: { GUEST_AI_COPILOT_LISTING_DAILY_COST_USD: "1" },
       });
       expect((await generateCopilotSuggestion(REQ, d)).status).toBe("daily_budget_exceeded");
       expect(p.calls).toBe(0);
@@ -842,7 +790,6 @@ describe("Copiloto · gerador (limites próprios sobre o Gateway)", () => {
     // modelo aposentado/desconhecido ⇒ volta ao Flash
     expect(copilotModelId({ GUEST_AI_COPILOT_MODEL: "google/gemini-3.1-flash-lite" })).toBe(GUEST_AI_RESERVE_MODEL);
     expect(copilotModelId({ GUEST_AI_COPILOT_MODEL: "x/y" })).toBe(GUEST_AI_RESERVE_MODEL);
-    expect(copilotFlags({ GUEST_AI_COPILOT_GENERATION: "1" }).generation).toBe(false);
   });
 });
 
@@ -935,14 +882,6 @@ describe("Copiloto · porta fechada, adaptador e disparo", () => {
     expect(await st({ result: "stored" }).store(resIn)).toEqual({ kind: "stored" });
     expect(await st({ result: "nope" }).store(resIn)).toEqual({ kind: "error" });
   });
-  it("disparo dos canais: chave desligada ou ids inválidos ⇒ não faz nada e nunca lança", () => {
-    expect(() =>
-      triggerCopilotSuggestion({ surface: "airbnb", conversationId: "x", messageId: "y" }, {}),
-    ).not.toThrow();
-    expect(() =>
-      triggerCopilotSuggestion({ surface: "airbnb", conversationId: "x", messageId: "y" }, ON),
-    ).not.toThrow();
-  });
   it("projeção do desfecho: só vocabulários fechados; urgência/alerta e pergunta interna", () => {
     const audit = {
       decision: null,
@@ -1028,23 +967,6 @@ describe("Copiloto · isolamento estático (a IA nunca envia)", () => {
     await expect(
       requestGuestAiReply({ surface: "airbnb", conversationId: "c", messageId: "m" }, { env: {} }),
     ).resolves.toBeNull();
-  });
-  it("os canais só importam o DISPARO (trigger), nunca o serviço de geração direto, e o disparo vem antes do fallback inalterado", () => {
-    const SRC = pathMod.resolve(__dirname, "..", "..", "..");
-    for (const f of [
-      "routes/api/public/guide-chat.ts",
-      "lib/channex-messages.server.ts",
-    ]) {
-      const c = readFileSync(pathMod.join(SRC, f), "utf8");
-      expect(c, f).toMatch(/guest-ai\/copilot\/trigger\.server/);
-      expect(c, f).not.toMatch(
-        /copilot\/generate\.server|copilot\/generator\.server|copilot\/store\.server/,
-      );
-      expect(c.indexOf("triggerCopilotSuggestion("), f).toBeLessThan(
-        c.indexOf("requestGuestAiReply("),
-      );
-      expect(c, f).toMatch(/NO_AI_HANDOFF_REASON/);
-    }
   });
 });
 
