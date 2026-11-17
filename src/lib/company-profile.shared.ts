@@ -56,8 +56,11 @@ export type CompanyData = {
   municipalRegistration: string;
 };
 
+/** Dados fiscais da Receita guardados junto da empresa (alimentam a ativação das Notas Fiscais). */
+export type ReceitaExtra = { neighborhood: string; ibgeCityCode: string; cnaeCode: string; cnaeDescription: string; simples: "nao_optante" | "mei" | "me_epp" };
+
 export type CompanyLookupResult =
-  | { ok: true; data: CompanyData; locked: CompanyFieldKey[]; checkedAt: string }
+  | { ok: true; data: CompanyData; locked: CompanyFieldKey[]; checkedAt: string; receita?: ReceitaExtra }
   | { ok: false; code: "invalid" | "not_found" | "inactive" | "unavailable" | "in_use"; situation?: string };
 
 /** Campos obrigatórios que ainda estão vazios (todos são obrigatórios no quadrante Empresa). */

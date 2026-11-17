@@ -222,12 +222,15 @@ export const fiscalCompanyPrefill = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((i: unknown) => z.object({ taxId: z.string().max(18).nullish() }).nullish().parse(i))
   .handler(async ({ data: input, context }) => {
-    const { lookupCompanyByCnpj, onlyDigits } = await import("./company-prefill");
-    // CNPJ informado pelo titular na janela (titular pessoa física) tem prioridade; senão, o do perfil.
+    const { lookupCompanyByCnpj, onlyDigits, prefillFromAccountCompany } = await import("./company-prefill");
+    // CNPJ informado pelo titular na janela tem prioridade; depois a empresa do Perfil (account_companies); por fim profiles.cpf.
     const typed = onlyDigits(input?.taxId);
     if (typed) return lookupCompanyByCnpj(typed);
     const s = await svc();
     const db = await s.adminDb();
+    const { data: ac } = await db.from("account_companies").select("*").eq("owner_id", context.userId).maybeSingle();
+    const fromProfile = await prefillFromAccountCompany(ac);
+    if (fromProfile) return fromProfile;
     const { data } = await db.from("profiles").select("cpf").eq("id", context.userId).maybeSingle();
     return lookupCompanyByCnpj(data?.cpf);
   });

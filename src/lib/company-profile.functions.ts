@@ -7,6 +7,7 @@ import {
   type CompanyData,
   type CompanyFieldKey,
   type CompanyLookupResult,
+  type ReceitaExtra,
   type TaxRegime,
 } from "@/lib/company-profile.shared";
 
@@ -60,7 +61,8 @@ async function lookupForOwner(admin: any, ownerId: string, cnpjRaw: string): Pro
     municipalRegistration: "",
   };
   const locked = RECEITA_FIELDS.filter((k) => String(data[k] ?? "").trim() !== "");
-  return { ok: true, data, locked, checkedAt: new Date().toISOString() };
+  const receita: ReceitaExtra = { neighborhood: r.address.neighborhood, ibgeCityCode: r.ibgeCityCode, cnaeCode: r.cnae.code, cnaeDescription: r.cnae.description, simples: r.simples };
+  return { ok: true, data, locked, checkedAt: new Date().toISOString(), receita };
 }
 
 export const lookupMyCompany = createServerFn({ method: "POST" })
@@ -210,6 +212,11 @@ export const saveMyCompany = createServerFn({ method: "POST" })
         cep: merged.cep,
         street: merged.street,
         number: merged.number,
+        neighborhood: look.receita?.neighborhood ?? "",
+        ibge_city_code: look.receita?.ibgeCityCode ?? "",
+        cnae_code: look.receita?.cnaeCode ?? "",
+        cnae_description: look.receita?.cnaeDescription ?? "",
+        simples: look.receita?.simples ?? "",
         city: merged.city,
         state: merged.state,
         tax_regime: merged.taxRegime || null,

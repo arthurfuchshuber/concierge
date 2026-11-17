@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { assertTaxIdIsAccountCnpj, lookupCompanyByCnpj } from "../company-prefill";
+import { assertTaxIdIsAccountCnpj, lookupCompanyByCnpj, prefillFromAccountCompany } from "../company-prefill";
 
 const ok = (body: unknown, status = 200) => async () => ({ ok: status < 300, status, json: async () => body });
 
@@ -30,5 +30,23 @@ describe("company-prefill", () => {
     expect(await assertTaxIdIsAccountCnpj(db, "u", "12345678901")).toBe(false); // CPF
     expect(await assertTaxIdIsAccountCnpj(db, "u", "11222333000182")).toBe(false); // dígito verificador errado
     expect(await assertTaxIdIsAccountCnpj(db, "u", "00000000000000")).toBe(false);
+  });
+  describe("empresa do Perfil (account_companies)", () => {
+    const ac = { cnpj: "11.222.333/0001-81".replace(/\D/g, ""), legal_name: "ACME SALVA", trade_name: "Acme Perfil", email: "Perfil@Acme.com", phone: "45999990000", municipal_registration: "12345", cep: "85851000", street: "RUA A", number: "10", neighborhood: "CENTRO", city: "FOZ", state: "pr", tax_regime: "simples_nacional", cnae_code: "6821801", cnae_description: "Corretagem", ibge_city_code: "4108304", simples: "me_epp", situation: "ATIVA" };
+    it("sem cadastro ou sem CNPJ válido no Perfil: devolve null (cai no fallback)", async () => {
+      expect(await prefillFromAccountCompany(null)).toBeNull();
+      expect(await prefillFromAccountCompany({ cnpj: "123" })).toBeNull();
+    });
+    it("Receita responde: dados da Receita + o que o titular salvou (fantasia, e-mail, telefone, inscrição municipal)", async () => {
+      const r = await prefillFromAccountCompany(ac, ok({ razao_social: "ACME LTDA", nome_fantasia: "Acme Receita", email: "r@acme.com", ddd_telefone_1: "4535230000", cep: "85851000", uf: "PR" }));
+      expect(r).toMatchObject({ ok: true, legalName: "ACME LTDA", tradeName: "Acme Perfil", email: "perfil@acme.com", phone: "45999990000", municipalRegistration: "12345" });
+    });
+    it("Receita instável: usa o cadastro salvo no Perfil", async () => {
+      const r = await prefillFromAccountCompany(ac, ok({}, 503));
+      expect(r).toMatchObject({ ok: true, taxId: "11222333000181", legalName: "ACME SALVA", simples: "me_epp", municipalRegistration: "12345", cnae: { code: "6821801", description: "Corretagem" }, ibgeCityCode: "4108304", address: { neighborhood: "CENTRO", state: "PR", number: "10" } });
+    });
+    it("CNPJ não encontrado na Receita: não usa o cadastro (devolve null)", async () => {
+      expect(await prefillFromAccountCompany(ac, ok({}, 404))).toBeNull();
+    });
   });
 });

@@ -49,6 +49,15 @@ describe("janela Notas Fiscais (NFS-e)", () => {
     expect(fns.fiscalCompanyPrefill).toHaveBeenLastCalledWith({ data: { taxId: "11222333000181" } });
   });
 
+  it("inscrição municipal cadastrada no Perfil já vem preenchida", async () => {
+    fns.fiscalStatus.mockResolvedValue({ companies: [] });
+    fns.fiscalCompanyPrefill.mockResolvedValue({ ...prefill, municipalRegistration: "998877" });
+    render(<Host />);
+    await screen.findByDisplayValue("ACME LTDA");
+    expect(await screen.findByDisplayValue("998877")).toBeTruthy();
+    expect((screen.getByRole("button", { name: "Continuar" }) as HTMLButtonElement).disabled).toBe(false); // IM já preenchida
+  });
+
   it("Conectar: 3 abas, dados da Receita bloqueados, Continuar → Continuar → Ativar (desabilitado sem certificado)", async () => {
     fns.fiscalStatus.mockResolvedValue({ companies: [] });
     render(<Host />);
