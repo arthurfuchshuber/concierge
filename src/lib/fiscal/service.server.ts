@@ -10,6 +10,8 @@ import { buildCompanyBody, CertificateInputError, formatCertificateLabel, parseC
 import { certificateAlert, contentType, FILE_URL_TTL_SECONDS, FISCAL_BUCKET, FiscalFileError, MAX_FILE_BYTES, filePath, sha256Bytes, validateFiscalFile, type CertificateAlert, type FileKind } from "./files";
 import { requireFiscalAccess, type FiscalAction, type FiscalGuardPorts } from "./guard";
 import { buildSetupCompanyFields, SetupInputError, type CompanySetupFields } from "./setup";
+import { classifyProviderRejection, CompanyEditInput, PreferencesInput, ServiceInput } from "./window-data";
+import { suggestServiceForCnae } from "./national-codes";
 import { redactBody, hashBody } from "./redact";
 import { reconcileOne, type ReconcileCandidate } from "./reconcile";
 import { runSendSequence, type SendOutcome } from "./send-sequence";
@@ -17,6 +19,7 @@ import { sha256Hex } from "./webhook";
 import type { FocusHttpResult } from "./types";
 
 type Db = SupabaseClient;
+const onlyDigitsStr = (v: string) => v.replace(/\D+/g, "");
 export const ADAPTER_VERSION = "focus-adapter-0.1";
 const DOC_KINDS = ["nfe", "nfse", "nfsen", "cte"] as const;
 export type DocKind = (typeof DOC_KINDS)[number];
@@ -232,6 +235,15 @@ export type FiscalStatusPublic = {
     legalName: string;
     tradeName: string | null;
     taxId: string;
+    municipalRegistration: string | null;
+    email: string | null;
+    phone: string | null;
+    simples: "nao_optante" | "mei" | "me_epp" | null;
+    cnae: { code: string; description: string } | null;
+    specialRegime: number;
+    dpsSeries: string;
+    dpsNextNumber: number;
+    preferences: { approximateTaxes: "none" | "included"; invoiceNote: string | null; withholdingTextIr: string | null; withholdingTextCsrf: string | null; withholdingTextInss: string | null };
     certificateValidUntil: string | null;
     certificateLabel: string | null;
     certificateAlert: CertificateAlert;
@@ -239,17 +251,28 @@ export type FiscalStatusPublic = {
   }>;
 };
 
+const COMPANY_PUBLIC_COLS = "id, tax_id, legal_name, trade_name, status, connection_id, certificate_valid_until, municipal_registration, contact_email, contact_phone, simples_option, cnae_code, cnae_description, special_regime, dps_series, dps_next_number, approximate_taxes, invoice_note, withholding_text_ir, withholding_text_csrf, withholding_text_inss";
+
 export async function getFiscalStatusPublic(db: Db, ownerId: string): Promise<FiscalStatusPublic> {
-  const { data: comps } = await db.from("fiscal_companies").select("id, tax_id, legal_name, trade_name, status, connection_id, certificate_valid_until").eq("owner_id", ownerId).is("soft_deleted_at", null).order("created_at");
+  const { data: comps } = await db.from("fiscal_companies").select(COMPANY_PUBLIC_COLS).eq("owner_id", ownerId).is("soft_deleted_at", null).order("created_at");
   const { data: conns } = await db.from("fiscal_provider_connections").select("id, environment, status, owner_id").or(`owner_id.eq.${ownerId},owner_id.is.null`);
   const byId = new Map((conns ?? []).map((c) => [c.id as string, c]));
+  const str = (v: unknown) => (typeof v === "string" && v ? v : null);
   return {
-    companies: (comps ?? []).map((c) => {
+    companies: (comps ?? []).filter((c) => c.status !== "deactivated").map((c) => {
       const conn = byId.get(c.connection_id as string);
       const live = c.status === "active" && conn?.status === "active";
       const status = !live ? "Pendente" : conn?.environment === "production" ? "Ativa" : "Homologação";
       const until = (c.certificate_valid_until as string | null) ?? null;
-      return { companyId: c.id as string, status, legalName: c.legal_name as string, tradeName: (c.trade_name as string | null) ?? null, taxId: c.tax_id as string, certificateValidUntil: until, certificateLabel: formatCertificateLabel(until), certificateAlert: certificateAlert(until), canReplaceCertificate: true as const };
+      return {
+        companyId: c.id as string, status, legalName: c.legal_name as string, tradeName: (c.trade_name as string | null) ?? null, taxId: c.tax_id as string,
+        municipalRegistration: str(c.municipal_registration), email: str(c.contact_email), phone: str(c.contact_phone),
+        simples: (str(c.simples_option) as "nao_optante" | "mei" | "me_epp" | null),
+        cnae: str(c.cnae_code) ? { code: c.cnae_code as string, description: str(c.cnae_description) ?? "" } : null,
+        specialRegime: Number(c.special_regime ?? 0), dpsSeries: (str(c.dps_series) ?? "1"), dpsNextNumber: Number(c.dps_next_number ?? 1),
+        preferences: { approximateTaxes: c.approximate_taxes === "included" ? "included" : "none", invoiceNote: str(c.invoice_note), withholdingTextIr: str(c.withholding_text_ir), withholdingTextCsrf: str(c.withholding_text_csrf), withholdingTextInss: str(c.withholding_text_inss) },
+        certificateValidUntil: until, certificateLabel: formatCertificateLabel(until), certificateAlert: certificateAlert(until), canReplaceCertificate: true as const,
+      };
     }),
   };
 }
@@ -330,14 +353,20 @@ export async function setupCompanyWithCertificate(
     }
     const ok = res.status >= 200 && res.status < 300;
     await audit(db, ownerId, userId, dryRun ? "company_setup_dry_run" : "company_setup", "company", dup.data?.id ?? null, { dryRun, httpStatus: res.status });
-    if (!ok) return { ok: false, code: `http_${res.status}` };
+    // Focus recusou ⇒ nada é registrado (o código estável alimenta a faixa de erro da janela).
+    if (!ok) return { ok: false, code: classifyProviderRejection(res.status, res.body) };
     const until = parseCertificateExpiry(res.body);
     if (dryRun) return { ok: true, certificateValidUntil: until, legalName: f.legalName, dryRun: true };
 
     // Aprovada pela Focus: habilita o módulo para esta conta (incluído no plano) e registra a empresa.
     const now = new Date().toISOString();
     must(await db.from("fiscal_tenant_enablement").upsert({ owner_id: ownerId, enabled: true, enabled_by: userId, enabled_at: now, note: "ativado pelo titular (incluído no plano)", updated_at: now }, { onConflict: "owner_id" }), "habilitar módulo");
-    const row = { connection_id: conn.id, legal_name: f.legalName, trade_name: f.tradeName, status: "active", certificate_valid_until: until, certificate_updated_at: now, updated_at: now };
+    const meta = {
+      municipal_registration: args.municipalRegistration.trim(), contact_email: f.contact.email, contact_phone: f.contact.phone,
+      simples_option: args.simples ?? null, cnae_code: args.cnaeCode ? onlyDigitsStr(args.cnaeCode) : null, cnae_description: args.cnaeDescription?.trim() || null,
+      ibge_city_code: args.ibgeCityCode ? onlyDigitsStr(args.ibgeCityCode) : null,
+    };
+    const row = { connection_id: conn.id, legal_name: f.legalName, trade_name: f.tradeName, status: "active", certificate_valid_until: until, certificate_updated_at: now, updated_at: now, ...meta };
     let companyId: string;
     if (dup.data?.id) { companyId = dup.data.id as string; must(await db.from("fiscal_companies").update(row).eq("id", companyId).eq("owner_id", ownerId), "atualizar empresa"); }
     else {
@@ -634,4 +663,115 @@ export async function listAudit(db: Db, ownerId: string) {
 
 async function audit(db: Db, ownerId: string, actor: string | null, action: string, entity: string, entityId: string | null, detail: Record<string, unknown>) {
   await db.from("fiscal_audit").insert({ owner_id: ownerId, actor, action, entity, entity_id: entityId, detail });
+}
+
+
+/* ----------------------------------------------- janelas: dados, serviços, preferências */
+
+async function ownCompany(db: Db, ownerId: string, companyId: string) {
+  const { data } = await db.from("fiscal_companies").select("id, tax_id, connection_id, status, cnae_code").eq("id", companyId).eq("owner_id", ownerId).is("soft_deleted_at", null).maybeSingle();
+  if (!data) throw new Error("not_found");
+  return data as { id: string; tax_id: string; connection_id: string; status: string; cnae_code: string | null };
+}
+
+/** "Editar dados" (Empresa/Fiscal/Avançado). Dados cadastrais vão ao provedor primeiro; só grava local se ele aceitar. */
+export async function updateCompanyData(db: Db, ownerId: string, userId: string, companyId: string, input: unknown, fetchImpl?: FetchLike): Promise<{ ok: true } | { ok: false; code: string }> {
+  const d = CompanyEditInput.parse(input);
+  const co = await ownCompany(db, ownerId, companyId);
+  const providerBody: Record<string, unknown> = { inscricao_municipal: d.municipalRegistration, ...(d.tradeName ? { nome_fantasia: d.tradeName } : {}), ...(d.email ? { email: d.email } : {}), ...(d.phone ? { telefone: d.phone } : {}) };
+  try {
+    const client = await focusFor(db, ownerId, co.connection_id, fetchImpl);
+    const res = await client.updateCompany(co.tax_id, providerBody);
+    if (res.status < 200 || res.status >= 300) { await audit(db, ownerId, userId, "company_update_rejected", "company", companyId, { httpStatus: res.status }); return { ok: false, code: classifyProviderRejection(res.status, res.body) }; }
+  } catch (e) {
+    return { ok: false, code: e instanceof FocusTransportError ? e.reason : "unreachable" };
+  }
+  must(await db.from("fiscal_companies").update({
+    trade_name: d.tradeName || null, municipal_registration: d.municipalRegistration, contact_email: d.email ?? null, contact_phone: d.phone ?? null,
+    special_regime: d.specialRegime, dps_series: d.dpsSeries, dps_next_number: d.dpsNextNumber, updated_at: new Date().toISOString(),
+  }).eq("id", companyId).eq("owner_id", ownerId), "editar empresa");
+  await audit(db, ownerId, userId, "company_update", "company", companyId, {});
+  return { ok: true };
+}
+
+export async function savePreferences(db: Db, ownerId: string, userId: string, companyId: string, input: unknown): Promise<{ ok: true }> {
+  const p = PreferencesInput.parse(input);
+  await ownCompany(db, ownerId, companyId);
+  must(await db.from("fiscal_companies").update({
+    approximate_taxes: p.approximateTaxes, invoice_note: p.invoiceNote || null, withholding_text_ir: p.withholdingTextIr || null,
+    withholding_text_csrf: p.withholdingTextCsrf || null, withholding_text_inss: p.withholdingTextInss || null, updated_at: new Date().toISOString(),
+  }).eq("id", companyId).eq("owner_id", ownerId), "salvar preferências");
+  await audit(db, ownerId, userId, "company_preferences", "company", companyId, {});
+  return { ok: true };
+}
+
+const SERVICE_COLS = "id, national_code, service_code, nbs_code, description, is_default, inss_pct, ir_pct, cst, cclass_trib, operation_indicator";
+export type FiscalServicePublic = { id: string; nationalCode: string; serviceCode: string | null; nbsCode: string | null; description: string; isDefault: boolean; inssPct: number | null; irPct: number | null; cst: string | null; cclassTrib: string | null; operationIndicator: string | null };
+const toService = (r: Record<string, unknown>): FiscalServicePublic => ({
+  id: r.id as string, nationalCode: r.national_code as string, serviceCode: (r.service_code as string | null) ?? null, nbsCode: (r.nbs_code as string | null) ?? null,
+  description: r.description as string, isDefault: r.is_default === true, inssPct: r.inss_pct == null ? null : Number(r.inss_pct), irPct: r.ir_pct == null ? null : Number(r.ir_pct),
+  cst: (r.cst as string | null) ?? null, cclassTrib: (r.cclass_trib as string | null) ?? null, operationIndicator: (r.operation_indicator as string | null) ?? null,
+});
+
+export async function listServices(db: Db, ownerId: string, companyId: string): Promise<{ items: FiscalServicePublic[]; suggestion: ReturnType<typeof suggestServiceForCnae> }> {
+  const co = await ownCompany(db, ownerId, companyId);
+  const { data } = await db.from("fiscal_services").select(SERVICE_COLS).eq("company_id", companyId).eq("owner_id", ownerId).is("soft_deleted_at", null).order("is_default", { ascending: false }).order("created_at");
+  const items = (data ?? []).map(toService);
+  return { items, suggestion: items.length ? null : suggestServiceForCnae(co.cnae_code) };
+}
+
+const serviceRow = (i: ServiceInput) => ({
+  national_code: i.nationalCode, service_code: i.serviceCode, nbs_code: i.nbsCode, description: i.description, is_default: i.isDefault,
+  inss_pct: i.inssPct ?? null, ir_pct: i.irPct ?? null, cst: i.cst, cclass_trib: i.cclassTrib, operation_indicator: i.operationIndicator, updated_at: new Date().toISOString(),
+});
+
+/** Só um serviço padrão por empresa; o primeiro serviço vira padrão automaticamente. */
+async function clearOtherDefaults(db: Db, ownerId: string, companyId: string, exceptId: string | null) {
+  let q = db.from("fiscal_services").update({ is_default: false, updated_at: new Date().toISOString() }).eq("company_id", companyId).eq("owner_id", ownerId).eq("is_default", true).is("soft_deleted_at", null);
+  if (exceptId) q = q.neq("id", exceptId);
+  must(await q, "limpar padrão");
+}
+
+export async function createService(db: Db, ownerId: string, userId: string, companyId: string, input: unknown): Promise<FiscalServicePublic> {
+  const i = ServiceInput.parse(input);
+  await ownCompany(db, ownerId, companyId);
+  const { count } = await db.from("fiscal_services").select("id", { count: "exact", head: true }).eq("company_id", companyId).eq("owner_id", ownerId).is("soft_deleted_at", null);
+  const makeDefault = i.isDefault || !count;
+  if (makeDefault) await clearOtherDefaults(db, ownerId, companyId, null);
+  const ins = await db.from("fiscal_services").insert({ owner_id: ownerId, company_id: companyId, ...serviceRow({ ...i, isDefault: makeDefault }) }).select(SERVICE_COLS).single();
+  if (ins.error) throw new Error(`criar serviço: ${ins.error.message}`);
+  await audit(db, ownerId, userId, "service_create", "service", ins.data.id as string, {});
+  return toService(ins.data as Record<string, unknown>);
+}
+
+export async function updateService(db: Db, ownerId: string, userId: string, companyId: string, serviceId: string, input: unknown): Promise<FiscalServicePublic> {
+  const i = ServiceInput.parse(input);
+  await ownCompany(db, ownerId, companyId);
+  if (i.isDefault) await clearOtherDefaults(db, ownerId, companyId, serviceId);
+  const up = await db.from("fiscal_services").update(serviceRow(i)).eq("id", serviceId).eq("company_id", companyId).eq("owner_id", ownerId).is("soft_deleted_at", null).select(SERVICE_COLS).maybeSingle();
+  if (up.error) throw new Error(`editar serviço: ${up.error.message}`);
+  if (!up.data) throw new Error("not_found");
+  await audit(db, ownerId, userId, "service_update", "service", serviceId, {});
+  return toService(up.data as Record<string, unknown>);
+}
+
+/** Exclusão lógica: as notas já emitidas não são afetadas. Se era o padrão, o mais antigo restante assume. */
+export async function deleteService(db: Db, ownerId: string, userId: string, companyId: string, serviceId: string): Promise<{ ok: true }> {
+  await ownCompany(db, ownerId, companyId);
+  const now = new Date().toISOString();
+  const del = await db.from("fiscal_services").update({ soft_deleted_at: now, is_default: false, updated_at: now }).eq("id", serviceId).eq("company_id", companyId).eq("owner_id", ownerId).is("soft_deleted_at", null).select("id").maybeSingle();
+  if (del.error) throw new Error(`excluir serviço: ${del.error.message}`);
+  if (!del.data) throw new Error("not_found");
+  const { data: rest } = await db.from("fiscal_services").select("id, is_default").eq("company_id", companyId).eq("owner_id", ownerId).is("soft_deleted_at", null).order("created_at");
+  if (rest?.length && !rest.some((r) => r.is_default === true)) must(await db.from("fiscal_services").update({ is_default: true, updated_at: now }).eq("id", rest[0].id as string).eq("owner_id", ownerId), "novo padrão");
+  await audit(db, ownerId, userId, "service_delete", "service", serviceId, {});
+  return { ok: true };
+}
+
+/** "Desativar": só local (status `deactivated`); nenhum ato no provedor e nenhum dado fiscal é apagado. Reativável pelo fluxo de ativação. */
+export async function deactivateCompany(db: Db, ownerId: string, userId: string, companyId: string): Promise<{ ok: true }> {
+  await ownCompany(db, ownerId, companyId);
+  must(await db.from("fiscal_companies").update({ status: "deactivated", updated_at: new Date().toISOString() }).eq("id", companyId).eq("owner_id", ownerId), "desativar");
+  await audit(db, ownerId, userId, "company_deactivate", "company", companyId, {});
+  return { ok: true };
 }

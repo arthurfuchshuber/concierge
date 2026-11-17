@@ -118,13 +118,15 @@ describe("projeção segura do status", () => {
     },
   }) as never;
   const co = (status: string) => ({ id: CO, tax_id: "12345678000195", legal_name: "ACME LTDA", trade_name: "Acme", status, connection_id: "c1", certificate_valid_until: "2027-08-15T00:00:00.000Z",
+    municipal_registration: "123456", contact_email: "a@acme.com.br", contact_phone: "4535230000", simples_option: "me_epp", cnae_code: "6821801", cnae_description: "Corretagem",
+    special_regime: 0, dps_series: "1", dps_next_number: 1, approximate_taxes: "none",
     // campos que NUNCA devem sair, mesmo se a linha os trouxesse:
     provider_company_ref: "SEGREDO-REF", capabilities: { municipal_registration: "123" } });
   it("expõe somente metadados públicos e nada de segredo", async () => {
     const out = await getFiscalStatusPublic(dbWith([co("active")], [{ id: "c1", environment: "production", status: "active", secret_ref: { ct: "CIFRADO" } }]), OWNER);
-    expect(out.companies[0]).toEqual({ companyId: CO, status: "Ativa", legalName: "ACME LTDA", tradeName: "Acme", taxId: "12345678000195", certificateValidUntil: "2027-08-15T00:00:00.000Z", certificateLabel: "Certificado A1 válido até 15/08/2027", certificateAlert: { level: expect.stringMatching(/^(ok|expiring|expired)$/), daysLeft: expect.any(Number) }, canReplaceCertificate: true });
+    expect(out.companies[0]).toEqual({ companyId: CO, status: "Ativa", legalName: "ACME LTDA", tradeName: "Acme", taxId: "12345678000195", municipalRegistration: "123456", email: "a@acme.com.br", phone: "4535230000", simples: "me_epp", cnae: { code: "6821801", description: "Corretagem" }, specialRegime: 0, dpsSeries: "1", dpsNextNumber: 1, preferences: { approximateTaxes: "none", invoiceNote: null, withholdingTextIr: null, withholdingTextCsrf: null, withholdingTextInss: null }, certificateValidUntil: "2027-08-15T00:00:00.000Z", certificateLabel: "Certificado A1 válido até 15/08/2027", certificateAlert: { level: expect.stringMatching(/^(ok|expiring|expired)$/), daysLeft: expect.any(Number) }, canReplaceCertificate: true });
     const dump = JSON.stringify(out);
-    for (const s of ["SEGREDO-REF", "CIFRADO", "municipal", "secret_ref", "token"]) expect(dump).not.toContain(s);
+    for (const s of ["SEGREDO-REF", "CIFRADO", "secret_ref", "token", "provider_company_ref", "capabilities"]) expect(dump).not.toContain(s);
   });
   it("mapeia Homologação e Pendente", async () => {
     const h = await getFiscalStatusPublic(dbWith([co("active")], [{ id: "c1", environment: "homologation", status: "active" }]), OWNER);

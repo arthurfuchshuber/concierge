@@ -52,8 +52,12 @@ export function StatusTag({ tone, children }: { tone: StatusTone; children: Reac
   );
 }
 
-/** Botões suaves de alternância (regra de janelas: nada de barra de abas dentro de janela). */
-export function SoftToggles<K extends string>({
+/**
+ * Alternância segmentada das janelas (padrão aprovado em 16/11/2026, vale para TODA janela com visões):
+ * trilho de 3px com fundo suave, segmentos de 24px sem bordas e o ativo "elevado" (superfície do cartão + sombra leve).
+ * Não é a barra de abas das páginas e não leva legenda abaixo.
+ */
+export function SegmentedToggle<K extends string>({
   items,
   value,
   onChange,
@@ -65,26 +69,32 @@ export function SoftToggles<K extends string>({
   className?: string;
 }) {
   return (
-    <div className={cn("flex shrink-0 gap-2", className)}>
-      {items.map((it) => (
-        <button
-          key={it.key}
-          type="button"
-          aria-pressed={value === it.key}
-          onClick={() => onChange(it.key)}
-          className={cn(
-            "h-9 min-w-0 flex-1 truncate rounded-[10px] border px-2 text-xs transition-colors",
-            value === it.key
-              ? "border-foreground/[0.12] bg-foreground/10 font-bold text-foreground"
-              : "border-foreground/5 bg-foreground/[0.04] font-semibold text-muted-foreground hover:text-foreground",
-          )}
-        >
-          {it.label}
-        </button>
-      ))}
+    <div className={cn("flex shrink-0 gap-0.5 rounded-[11px] bg-foreground/[0.07] p-[3px]", className)}>
+      {items.map((it) => {
+        const on = value === it.key;
+        return (
+          <button
+            key={it.key}
+            type="button"
+            aria-pressed={on}
+            onClick={() => onChange(it.key)}
+            className={cn(
+              "h-6 min-w-0 flex-1 truncate whitespace-nowrap rounded-[8px] px-2 text-[11.5px] transition-colors",
+              on
+                ? "bg-[var(--card)] font-bold text-foreground shadow-[0_1px_3px_rgba(0,0,0,0.14)]"
+                : "bg-transparent font-semibold text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {it.label}
+          </button>
+        );
+      })}
     </div>
   );
 }
+
+/** Nome histórico: as janelas que já usam `SoftToggles` passam a ter o padrão segmentado. */
+export const SoftToggles = SegmentedToggle;
 
 /** Botão principal verde da fileira de ações (28px). */
 export function PrimaryAction({

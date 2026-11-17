@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { AirbnbAiPanel } from "@/components/admin-pages/AirbnbAiPanel";
-import { FiscalPanel, FISCAL_STATUS_KEY } from "@/components/admin-pages/FiscalPanel";
+import { FiscalPanel, FISCAL_STATUS_KEY, type FiscalView } from "@/components/admin-pages/FiscalPanel";
 import { fiscalStatus } from "@/lib/fiscal/fiscal.functions";
 import { ClicksignPanel } from "@/components/admin-pages/ClicksignPanel";
 import { GoogleCalendarPanel } from "@/components/admin-pages/GoogleCalendarPanel";
@@ -161,12 +161,13 @@ export function useIntegrationStatusQueries() {
     gcTime: QUERY_GC_MS,
   });
   // Notas fiscais: só o titular. Contas sem o módulo respondem com erro, tratado como "não conectado" (nunca estoura).
+  // A conta ativa pode ser a PRÓPRIA (o seletor grava o próprio id em "sg-impersonate"): isso continua sendo o titular.
   const { isOwner } = useMyPermissions();
   const fiscalFn = useServerFn(fiscalStatus);
   const fiscal = useQuery({
     queryKey: FISCAL_STATUS_KEY,
     queryFn: () => fiscalFn({ data: {} }),
-    enabled: isOwner && !accountOwnerId,
+    enabled: isOwner,
     retry: false,
     staleTime: QUERY_STALE_MS,
     gcTime: QUERY_GC_MS,
@@ -181,7 +182,7 @@ export function IntegracoesPage() {
 
   const { cs, gcal, banks, channex, fiscal } = useIntegrationStatusQueries();
   // Todos veem os cards e as informações; só titular/administrador conecta, edita ou desconecta.
-  const { isOwner } = useMyPermissions();
+  const { isOwner, myUserId } = useMyPermissions();
   const { isAdmin } = useIsAdmin();
   const canManage = isOwner || isAdmin;
   const csActive = !!cs.data?.hasToken;
@@ -191,8 +192,9 @@ export function IntegracoesPage() {
   const asaasRow = asaasItem(banks.data?.items ?? []);
   const asaasActive = !!asaasRow;
   const fiscalActive = !!fiscal.data?.companies.some((c) => c.status !== "Pendente");
-  const [fiscalView, setFiscalView] = useState<"main" | "replace">("main");
-  const showFiscal = isOwner && !accountOwnerId;
+  const [fiscalView, setFiscalView] = useState<FiscalView>("main");
+  // Titular da própria conta (inclui o admin que está na sua conta). Os demais VEEM o card, em modo informativo.
+  const fiscalTitular = isOwner && (!accountOwnerId || accountOwnerId === myUserId);
   const bankRows = bankSummaryRows(banks.data?.items ?? [], banks.data?.accounts ?? []);
   // Todos os cards abrem recolhidos (pedido 10/11/2026): a lista de bancos só aparece ao tocar na seta.
   const [bancosOpen, setBancosOpen] = useState(false);
@@ -228,7 +230,6 @@ export function IntegracoesPage() {
   const mobileItems = items
         // Ativas primeiro; dentro de cada grupo, na ordem dos mockups: ClickSign, Google Agenda, Bancos, Asaas PJ.
     .sort((a, b) => STATUS_ORDER[a.statusKey] - STATUS_ORDER[b.statusKey] || INTEGRATIONS.indexOf(a.cfg) - INTEGRATIONS.indexOf(b.cfg))
-    .filter(({ cfg }) => cfg.key !== "fiscal" || showFiscal)
     .filter(({ cfg }) => {
     const term = q.trim().toLowerCase();
     return !term || `${cfg.nome} ${cfg.descricao} ${cfg.categoria}`.toLowerCase().includes(term);
@@ -319,7 +320,7 @@ export function IntegracoesPage() {
         <DialogContent
           aria-describedby={undefined}
           className={INTEGRATION_WINDOW_CLASS}
-          onBack={panelCfg?.key === "fiscal" && fiscalView === "replace" ? () => setFiscalView("main") : undefined}
+          onBack={panelCfg?.key === "fiscal" && fiscalView !== "main" ? () => setFiscalView("main") : undefined}
         >
           {panelCfg?.key === "gcal" ? (
             <GoogleCalendarPanel accountOwnerId={accountOwnerId} readOnly={!!accountOwnerId || !canManage} inWindow />
@@ -330,7 +331,7 @@ export function IntegracoesPage() {
           ) : panelCfg?.key === "airbnb_ai" ? (
             <AirbnbAiPanel readOnly={!!accountOwnerId || !canManage} />
           ) : panelCfg?.key === "fiscal" ? (
-            <FiscalPanel view={fiscalView} setView={setFiscalView} />
+            <FiscalPanel view={fiscalView} setView={setFiscalView} readOnly={!fiscalTitular} />
           ) : panelCfg?.key === "asaas" ? (
             <AsaasPanel inWindow readOnly={!canManage} ownerId={accountOwnerId} />
           ) : null}
