@@ -455,13 +455,16 @@ export function OwnerPropertiesList({
 
   return (
     <div className="ds-stack">
-      {/* Hierarquia (31/10/2026): faixa informativa → busca/filtros → conteúdo filtrado. */}
-      <ConnectedAccountsBar />
       <SearchActionRow
         value={q}
         onChange={setQ}
         placeholder="Buscar imóvel, proprietário, cidade…"
-        actions={<>{filterButton}</>}
+        actions={
+          <>
+            <ConnectedAccountsBar />
+            {filterButton}
+          </>
+        }
       />
 
       {items.length === 0 ? (

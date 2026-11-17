@@ -11,7 +11,7 @@ import { useImpersonation } from "@/hooks/useImpersonation";
 import { PANEL_SHELL } from "@/components/dashboard/panel-chrome";
 import { AirbnbAccountFlow, type AirbnbFlowRequest } from "./AirbnbAccountFlow";
 
-/** Faixa da página Proprietários/Imóveis: botão "Contas Conectadas" → janela com Contas e Anúncios. */
+/** Botão "Conectar Anúncios" na barra de busca de Proprietários/Imóveis → janela com Contas e Anúncios. */
 export function ConnectedAccountsBar() {
   const { impersonation } = useImpersonation();
   const accountOwnerId = impersonation?.userId ?? null;
@@ -35,7 +35,6 @@ export function ConnectedAccountsBar() {
     retry: false,
   });
   const accounts = (accountsQ.data ?? []).filter((a) => a.status !== "disconnected");
-  const totalListings = accounts.reduce((s, a) => s + (a.listings ?? 0), 0);
   const titleOf = (id: string) => accounts.find((a) => a.channelId === id)?.title ?? "";
 
   const tabBtn = (v: "accounts" | "listings", label: string) => (
@@ -50,22 +49,17 @@ export function ConnectedAccountsBar() {
 
   return (
     <>
-      <div className={`${PANEL_SHELL} flex min-w-0 items-center justify-between gap-3 px-3.5 py-2.5`}>
-        <span className="grid min-w-0 gap-0.5">
-          <span className="ds-eyebrow text-[10px] tracking-[0.2em]">Airbnb</span>
-          <span className="text-[12px] text-muted-foreground">
-            {accounts.length} {accounts.length === 1 ? "conta" : "contas"} · {totalListings}{" "}
-            {totalListings === 1 ? "anúncio" : "anúncios"}
-          </span>
-        </span>
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-[10px] bg-foreground/[0.05] px-3.5 text-[12px] font-bold text-foreground shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_14%,transparent)]"
-        >
-          <Link2 className="size-3.5" /> Contas Conectadas
-        </button>
-      </div>
+      {/* Mockup aprovado (17/11/2026): a faixa "Airbnb · N contas · N anúncios" virou ESTE botão, dentro da
+          barra de busca, à esquerda do "+" (peça larga: ícone + texto, fio à esquerda como as demais). */}
+      <button
+        type="button"
+        data-action-wide
+        onClick={() => setOpen(true)}
+        className="relative flex items-center justify-center gap-2 text-[12px] font-bold leading-none text-foreground transition-colors hover:bg-foreground/[0.04]"
+      >
+        <Link2 className="size-[15px] shrink-0 text-muted-foreground" />
+        <span className="whitespace-nowrap">Conectar Anúncios</span>
+      </button>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="w-[min(94vw,560px)] max-h-[90dvh] overflow-y-auto gap-3 p-4 sm:max-w-[560px]">
