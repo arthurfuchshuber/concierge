@@ -175,6 +175,20 @@ export const getAccountBilling = createServerFn({ method: "POST" })
         /** Próxima cobrança real (dia 25 do ciclo; null com a cobrança pausada por zero anúncios). */
         nextChargeAt,
         anchorDay: L.BILLING_ANCHOR_DAY,
+        /**
+         * Histórico para as faturas isentas passadas: cada mês usa a quantidade de anúncios que já
+         * estavam conectados naquela data (e as condições do contrato), nunca o valor ATUAL do plano.
+         */
+        history: {
+          connectedAt: listings.map((l) => l.connectedAt).filter((d): d is string => !!d),
+          unconnectedCount: listings.filter((l) => !l.connectedAt).length,
+          terms: {
+            unitCents: terms.unitCents,
+            minUnits: terms.minUnits,
+            courtesy: terms.courtesy,
+            billingStartsAt: terms.billingStartsAt,
+          },
+        },
       },
     };
   });

@@ -10,20 +10,22 @@ export type ConnectedListing = {
   name: string;
   kind: "primary" | "twin";
   propertyName: string;
+  /** Quando o anúncio foi conectado (base do histórico de quantidade por mês). */
+  connectedAt: string | null;
 };
 
 export async function loadConnectedListings(admin: any, ownerId: string): Promise<ConnectedListing[]> {
   const [prim, twins] = await Promise.all([
     admin
       .from("property_listing_raw_data")
-      .select("property_id, airbnb_listing_id, properties!inner(name, owner_id, archived_at)")
+      .select("property_id, airbnb_listing_id, created_at, properties!inner(name, owner_id, archived_at)")
       .eq("properties.owner_id", ownerId)
       .is("properties.archived_at", null)
       .is("sync_paused_at", null)
       .not("airbnb_listing_id", "is", null),
     admin
       .from("channex_twin_links")
-      .select("property_id, twin_listing_id, twin_title")
+      .select("property_id, twin_listing_id, twin_title, created_at")
       .eq("owner_id", ownerId)
       .eq("status", "active"),
   ]);
@@ -36,7 +38,7 @@ export async function loadConnectedListings(admin: any, ownerId: string): Promis
   for (const r of (prim.data ?? []) as any[]) {
     const n = r.properties?.name ?? "Imóvel";
     nameByProp.set(r.property_id, n);
-    items.push({ listingId: String(r.airbnb_listing_id ?? r.property_id), name: n, kind: "primary", propertyName: n });
+    items.push({ listingId: String(r.airbnb_listing_id ?? r.property_id), name: n, kind: "primary", propertyName: n, connectedAt: r.created_at ?? null });
   }
   const seen = new Set(items.map((i) => i.listingId));
   for (const t of (twins.data ?? []) as any[]) {
@@ -45,7 +47,7 @@ export async function loadConnectedListings(admin: any, ownerId: string): Promis
     if (seen.has(id) || !nameByProp.has(t.property_id)) continue;
     seen.add(id);
     const pn = nameByProp.get(t.property_id) ?? "Imóvel";
-    items.push({ listingId: id, name: t.twin_title ?? `Anúncio ${id}`, kind: "twin", propertyName: pn });
+    items.push({ listingId: id, name: t.twin_title ?? `Anúncio ${id}`, kind: "twin", propertyName: pn, connectedAt: t.created_at ?? null });
   }
   items.sort((a, b) => a.propertyName.localeCompare(b.propertyName, "pt-BR") || (a.kind === "primary" ? -1 : 1));
   return items;

@@ -1,5 +1,6 @@
 import type { PaymentRow } from "@/lib/billing/billing.functions";
 import type { SubscriptionInfo } from "@/hooks/useSubscription";
+import { monthlyTotalCents } from "@/lib/billing/listing-billing";
 import { PRICE_BANDS } from "@/components/pricing/ListingPricing";
 import { SAGE, AMBER, ROSE } from "@/components/admin-pages/admin-mobile-ui";
 
@@ -93,7 +94,7 @@ export function buildAssinatura(info: SubscriptionInfo, payments: PaymentRow[]) 
     });
   }
   if (exempt && qtd > 0 && info.subscriptionSince) {
-    // Meses já vencidos desde a isenção: o valor segue visível, riscado (estimado pelo valor atual).
+    // Meses já vencidos desde a isenção: o valor segue visível, riscado (calculado com os anúncios daquela data).
     const since = Date.parse(info.subscriptionSince);
     const cursor = nextAnchor(anchorDay);
     const past: Date[] = [];
@@ -103,12 +104,21 @@ export function buildAssinatura(info: SubscriptionInfo, payments: PaymentRow[]) 
       if (d.getTime() <= since || d.getTime() > Date.now()) continue;
       past.push(d);
     }
+    // Valor de cada mês = anúncios já conectados NAQUELA data x condições do contrato; nunca o valor
+    // atual do plano repetido em todos os meses (pedido 17/11/2026).
+    const hist = b?.history;
+    const valorEm = (d: Date) => {
+      if (!hist) return monthly;
+      const count = hist.connectedAt.filter((c) => Date.parse(c) <= d.getTime()).length + hist.unconnectedCount;
+      return monthlyTotalCents(count, hist.terms);
+    };
     for (const d of past) {
+      const cents = courtesy ? 0 : valorEm(d);
       faturas.push({
         id: `isenta-${d.toISOString()}`,
         titulo: `Fatura ${monthLabel(d)}`,
         sub: `Isenta em ${fmtDate(d)}`, // mockups adm-d-assinatura-isento-a/b: sem a contagem de anúncios
-        valor: courtesy ? "Cortesia" : brl(monthly),
+        valor: courtesy ? "Cortesia" : cents > 0 ? brl(cents) : "—",
         cor: MUTED,
         url: null,
         riscada: true,
