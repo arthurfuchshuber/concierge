@@ -21,7 +21,7 @@ Escopo pedido pelo titular, aplicado aos cards de `guest_arrival_status`:
 | Previsão informada pelo hóspede (`arrival_time_source = 'guest'`), dentro dos limites do imóvel (`checkin_time`…`checkin_time_max`, `checkout_time_min`…`checkout_time`), sem sobrescrever a previsão da equipe (`'staff'`) | gravação do formulário do guia                                                                                                                         | `src/lib/guide-access.functions.ts` (`withinTimeBounds`) |
 | Fuso do imóvel e relógio local, com o lado conservador no horário de verão                                                                                                                                                  | `propertyTimeZoneOrNull`, `policy/wall-clock.ts`                                                                                                       | Guest AI                                                 |
 | Escopo validado no backend (conversa, imóvel, conta, reserva)                                                                                                                                                               | `validateTurnScope`                                                                                                                                    | Guest AI (F0)                                            |
-| Uma chamada ao modelo por mensagem, com teto diário obrigatório (G1)                                                                                                                                                        | cadeia do Copiloto (`runTurnChain` + `copilot_claim_generation`)                                                                                       | Guest AI                                                 |
+| Uma chamada ao modelo por mensagem, com teto diário obrigatório (G1)                                                                                                                                                        | cadeia da IA (`runTurnChain` + `guest_ai_claim_turn`)                                                                                       | Guest AI                                                 |
 | Previsão não autoriza nada (credenciais, early check-in ou late checkout)                                                                                                                                                   | `policy/credential-policy.ts` e `stay-authorizations.ts` já ignoram `arrival_time_source`                                                              | Guest AI                                                 |
 
 A ação da IA é **o mesmo avanço** que a equipe e o hóspede já fazem, com uma nova origem (`origin: "ai"`). Não há caminho paralelo de escrita nos cards.
@@ -29,7 +29,7 @@ A ação da IA é **o mesmo avanço** que a equipe e o hóspede já fazem, com u
 ## 2. Arquitetura proposta
 
 ```
-mensagem do hóspede → canal → Copiloto (mesma chamada ao modelo, já existente)
+mensagem do hóspede → canal → IA (mesma chamada ao modelo, já existente)
    └─ saída do modelo: sugestão (como hoje) + bloco `operational` (novo, opcional)
         └─ ops/policy (puro, determinístico) ── recusa ⇒ nada acontece (registro em auditoria)
              └─ ops/executor.server (service_role)
@@ -57,7 +57,7 @@ Contrato de decisão **v5**, aditivo: v1 a v4 continuam válidos e o parse conti
   - negação ("ainda não entramos");
   - problema ("não conseguimos entrar", "a chave não funciona");
   - relato de terceiros, ou dúvida.
-- **Uma única chamada ao modelo:** o sinal vem na mesma resposta que já gera a sugestão do Copiloto, então não há custo novo por mensagem. Se a sugestão for recusada (por exemplo, pelo filtro de segredos), o sinal também é descartado (fail-closed).
+- **Uma única chamada ao modelo:** o sinal vem na mesma resposta que já gera a sugestão da IA, então não há custo novo por mensagem. Se a sugestão for recusada (por exemplo, pelo filtro de segredos), o sinal também é descartado (fail-closed).
 
 ### 2.2 Trava determinística (`src/lib/guest-ai/ops/policy.ts`, pura e testável)
 
@@ -114,9 +114,9 @@ Ambas só para `service_role`, `SECURITY DEFINER` e com `search_path` fixo, no p
 
 ### 2.4 Resposta ao hóspede (b, c): ponto que depende do titular
 
-Hoje a IA **não envia** mensagens: `slot.server.ts` devolve `null` e o envio é sempre humano, pelo Copiloto. Uma resposta automática ao hóspede seria a primeira mensagem autônoma da IA, que a sequência de gates aprovada deixava para depois da homologação do Copiloto (G4 e G5).
+Hoje a IA **não envia** mensagens: `slot.server.ts` devolve `null` e o envio é sempre humano, pela IA. Uma resposta automática ao hóspede seria a primeira mensagem autônoma da IA, que a sequência de gates aprovada deixava para depois da homologação da IA (G4 e G5).
 
-**Proposta:** no G2, a resposta de acolhimento (check-in) ou de agradecimento (check-out) vem como **sugestão do Copiloto**, escrita pelo modelo a partir do contexto e sem frase roteirizada. A equipe aprova e envia com um clique. O card já fica atualizado automaticamente. Ver decisão D-G2-1.
+**Proposta:** no G2, a resposta de acolhimento (check-in) ou de agradecimento (check-out) vem como **sugestão da IA**, escrita pelo modelo a partir do contexto e sem frase roteirizada. A equipe aprova e envia com um clique. O card já fica atualizado automaticamente. Ver decisão D-G2-1.
 
 ### 2.5 Interação com o auto-checkout (risco encontrado)
 
@@ -159,10 +159,10 @@ Nenhuma mudança de layout neste gate. O histórico da reserva já mostra a nota
 
 | #          | Decisão                                                                                                                                                                    | Recomendação                                                                                                                                                                                        |
 | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **D-G2-1** | Resposta de acolhimento ou agradecimento: sugestão do Copiloto (equipe envia) **ou** envio automático pela IA (ativa o slot pela primeira vez, fora da sequência de gates) | **Sugestão do Copiloto** no G2; envio automático só depois do G4 e G5                                                                                                                               |
+| **D-G2-1** | Resposta de acolhimento ou agradecimento: sugestão da IA (equipe envia) **ou** envio automático pela IA (ativa o slot pela primeira vez, fora da sequência de gates) | **Sugestão da IA** no G2; envio automático só depois do G4 e G5                                                                                                                               |
 | **D-G2-2** | Previsão de saída gravada pela IA deve disparar o auto-checkout no horário previsto, como o formulário do guia já faz hoje?                                                | **Não.** Gravar com origem `'guest_ai'`, que o auto-checkout ignora; a saída real vem da conclusão (c) ou do horário padrão do imóvel. A alternativa é manter `'guest'`, com o comportamento atual. |
 | **D-G2-3** | Critério para sair do `shadow`                                                                                                                                             | Pelo menos 30 casos por ação, precisão ≥ 99% e zero conclusão indevida                                                                                                                              |
-| **D-G2-4** | O G2 depende da geração do Copiloto ligada (mesma chamada ao modelo)                                                                                                       | **Sim.** Sem custo novo; se a geração for desligada, a IA operacional também para.                                                                                                                  |
+| **D-G2-4** | O G2 depende da geração da IA ligada (mesma chamada ao modelo)                                                                                                       | **Sim.** Sem custo novo; se a geração for desligada, a IA operacional também para.                                                                                                                  |
 | **D-G2-5** | Previsão de chegada fora dos limites do imóvel (por exemplo, 13h com check-in às 15h)                                                                                      | **Não gravar**, como o formulário do guia; a informação fica só na sugestão para a equipe                                                                                                           |
 
 ## 6. Fora do escopo do G2

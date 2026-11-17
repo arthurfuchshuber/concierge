@@ -11,7 +11,6 @@ const TONE: Record<OutcomeKey, string> = {
   silence: "bg-foreground/[0.05] text-muted-foreground",
   sent: "bg-foreground/[0.08] text-foreground",
   available: "bg-foreground/[0.08] text-foreground",
-  discarded: "bg-foreground/[0.05] text-muted-foreground",
   superseded: "bg-foreground/[0.05] text-muted-foreground",
   generating: "bg-foreground/[0.05] text-muted-foreground",
 };

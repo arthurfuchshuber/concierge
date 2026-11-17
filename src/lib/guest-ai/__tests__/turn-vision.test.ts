@@ -1,5 +1,5 @@
 /**
- * COPILOTO · VISÃO — fotos do hóspede como partes multimodais.
+ * IA · VISÃO — fotos do hóspede como partes multimodais.
  *  - `image.ts`: formato pelos bytes, dimensões pelo cabeçalho, base64, limite superior de tokens;
  *  - `data/guest-images.server.ts`: só fotos do hóspede desta conversa até a mensagem atual, as 3 mais
  *    recentes, isolamento do caminho no storage, tetos e falha transparente;
@@ -32,16 +32,16 @@ import {
   IMAGE_NOT_LOADED,
   VISION_HEADER,
   attachVision,
-  copilotInputTokenBound,
-  createCopilotGenerator,
-  type CopilotVisionInput,
-} from "@/lib/guest-ai/copilot/generator.server";
+  turnInputTokenBound,
+  createTurnGenerator,
+  type TurnVisionInput,
+} from "@/lib/guest-ai/turn/generator.server";
 import { estimateCostUsd, modelSpec } from "@/lib/guest-ai/llm/models";
 import type { LlmContentPart, LlmMessage } from "@/lib/guest-ai/llm/contracts";
 import type { ProviderRequest } from "@/lib/guest-ai/llm/providers/types";
 import type { ComposedPrompt } from "@/lib/guest-ai/orchestrator/contracts";
 import { REAL_COLUMNS } from "./helpers/real-columns";
-import { okJson } from "./helpers/copilot-provider";
+import { okJson } from "./helpers/turn-provider";
 
 // ───────────────────────── imagens sintéticas (só cabeçalho) ─────────────────────────
 
@@ -565,9 +565,9 @@ function capturing() {
     },
   };
 }
-const gen = (over: Partial<Parameters<typeof createCopilotGenerator>[0]> = {}) => {
+const gen = (over: Partial<Parameters<typeof createTurnGenerator>[0]> = {}) => {
   const cap = capturing();
-  const g = createCopilotGenerator({
+  const g = createTurnGenerator({
     modelId: MODEL,
     maxOutputTokens: 1_536,
     reasoningEffort: "low",
@@ -587,7 +587,7 @@ const lastUserParts = (req: ProviderRequest): LlmContentPart[] => {
     : [...last.content];
 };
 
-describe("Visão · gerador do Copiloto", () => {
+describe("Visão · gerador da IA", () => {
   it("sem fotos: mensagens em texto puro, idênticas às de antes", async () => {
     const { g, cap } = gen({ loadVision: async () => ({ images: [], failed: [] }) });
     await g.generate(prompt(), new AbortController().signal);
@@ -617,7 +617,7 @@ describe("Visão · gerador do Copiloto", () => {
     ]);
     expect(g.telemetry()).toMatchObject({ imagesSent: 2, imagesNotLoaded: 0, status: "called" });
     expect(g.telemetry().estimatedInputTokens!).toBeGreaterThan(
-      copilotInputTokenBound(prompt()) + IMG_A.tokenBound + IMG_B.tokenBound,
+      turnInputTokenBound(prompt()) + IMG_A.tokenBound + IMG_B.tokenBound,
     );
   });
 
@@ -652,7 +652,7 @@ describe("Visão · gerador do Copiloto", () => {
   });
 
   it("teto de custo do turno: foto que não cabe fica fora (aviso), a chamada segue e o pior caso cabe no teto", async () => {
-    const textBound = copilotInputTokenBound(prompt());
+    const textBound = turnInputTokenBound(prompt());
     // teto que cabe o texto + a foto pequena (1.120), mas não a grande (6.192)
     const ceiling = estimateCostUsd(SPEC, textBound + 2_500, 1_536);
     const { g, cap } = gen({
@@ -690,7 +690,7 @@ describe("Visão · gerador do Copiloto", () => {
   });
 
   it("attachVision: sem mensagem de usuário, as fotos vão numa mensagem nova do usuário", () => {
-    const vision: CopilotVisionInput = { images: [IMG_A], failed: [] };
+    const vision: TurnVisionInput = { images: [IMG_A], failed: [] };
     const out = attachVision(
       [{ role: "system", content: "s" }] as LlmMessage[],
       vision,

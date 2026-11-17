@@ -13,7 +13,7 @@ import type { CapabilityId } from "./capabilities";
 // ─────────────────────────── Configuração vinculante ───────────────────────────
 
 /**
- * Catálogo único (Diretiva Global, 07/11/2026): Titular `openai/gpt-6-astra` (atendimento e copiloto) e
+ * Catálogo único (Diretiva Global, 07/11/2026): Titular `openai/gpt-6-astra` (atendimento e IA) e
  * Reserva `google/gemini-3.8-flash` (reserva automática do Titular e rotinas de fundo de baixo custo, como a
  * extração de memória do hóspede). Nenhum outro modelo de texto é registrado (`llm/models.ts`).
  */

@@ -1,7 +1,7 @@
 /**
  * RAJADA DE MENSAGENS — o hóspede mandou outra mensagem depois desta? (somente leitura, projeção mínima)
  *
- * Usado pelo Copiloto depois da janela de respiro (Pilar 4 do refinamento de hospitalidade, 06/11/2026): se já
+ * Usado pela IA depois da janela de respiro (Pilar 4 do refinamento de hospitalidade, 06/11/2026): se já
  * existe mensagem do hóspede mais nova na MESMA conversa, a geração desta mensagem é dispensada — a da mais nova
  * vê o conjunto inteiro (as mensagens em sequência viram um único turno no prompt) e produz UMA resposta.
  * Falha de leitura ⇒ `unknown` (o chamador segue gerando: nunca perder a resposta por um erro de leitura).

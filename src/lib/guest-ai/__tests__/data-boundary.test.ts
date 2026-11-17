@@ -28,20 +28,20 @@ describe("F0 · fronteira de dados (varredura estática do módulo guest-ai/)", 
   it("D13/R6 · o módulo guest-ai é somente leitura: nenhuma escrita, RPC ou função interna de autorização", () => {
     const write = /\.(insert|update|upsert|delete|rpc)\s*\(/;
     const internal = /internal_set_checkin_credentials_release|internal_set_late_checkout|conciergeia\.internal_actor/;
-    // COPILOTO (diretriz de 05/11/2026): a ÚNICA escrita é o RPC de GERAÇÃO de sugestões, só em
-    // client.server.ts e só pela lista FECHADA COPILOT_RPC_FUNCTIONS (EXECUTE só service_role). Nenhum
+    // IA (diretriz de 05/11/2026): a ÚNICA escrita é o RPC de GERAÇÃO de sugestões, só em
+    // client.server.ts e só pela lista FECHADA TURN_RPC_FUNCTIONS (EXECUTE só service_role). Nenhum
     // insert/update/upsert/delete. As ações do atendente correm com o cliente da sessão, fora do módulo.
     expect(files.filter((f) => write.test(code(f))).map(rel)).toEqual(["data/client.server.ts"]);
     const client = code(path.join(ROOT, "data/client.server.ts"));
     expect(client).not.toMatch(/\.(insert|update|upsert|delete)\s*\(/);
     expect(client.match(/\.rpc\s*\(/g)).toHaveLength(1);
-    expect(client).toMatch(/if \(!\(COPILOT_RPC_FUNCTIONS as readonly string\[\]\)\.includes\(fn\)\) return/);
-    // 16/11/2026: + copilot_record_trace (rastro da geração: só números e códigos fechados, EXECUTE só service_role)
-    expect(client).toMatch(/COPILOT_RPC_FUNCTIONS = \["copilot_claim_generation", "copilot_generation_state", "copilot_store_result", "copilot_purge_expired", "copilot_record_trace"\] as const/);
+    expect(client).toMatch(/if \(!\(TURN_RPC_FUNCTIONS as readonly string\[\]\)\.includes\(fn\)\) return/);
+    // 16/11/2026: + guest_ai_record_trace (rastro da geração: só números e códigos fechados, EXECUTE só service_role)
+    expect(client).toMatch(/TURN_RPC_FUNCTIONS = \["guest_ai_claim_turn", "guest_ai_turn_state", "guest_ai_store_turn", "guest_ai_purge_turns", "guest_ai_record_trace"\] as const/);
     // nenhuma porta de lease ou Shadow existe nesta entrega
     expect(files.filter((f) => /LEASE_RPC_FUNCTIONS|SHADOW_RPC_FUNCTIONS|LeaseRpc|ShadowRpc/.test(code(f))).map(rel)).toEqual([]);
-    // porta do Copiloto: só o adaptador e o serviço de geração
-    expect(files.filter((f) => /getGuestAiCopilotRpc|copilotRpcFrom|GuestAiCopilotRpc/.test(code(f))).map(rel).sort()).toEqual(["copilot/generate.server.ts", "copilot/store.server.ts", "data/client.server.ts"]);
+    // porta da IA: só o adaptador e o serviço de geração
+    expect(files.filter((f) => /getGuestAiTurnRpc|turnRpcFrom|GuestAiTurnRpc/.test(code(f))).map(rel).sort()).toEqual(["data/client.server.ts", "turn/generate.server.ts", "turn/store.server.ts"]);
     expect(files.filter((f) => internal.test(code(f))).map(rel)).toEqual([]);
   });
 
@@ -80,17 +80,17 @@ describe("F0 · fronteira de dados (varredura estática do módulo guest-ai/)", 
 
   it("F0/F1 (data, context, policy, slot, trust, types) não têm LLM, embeddings, rede nem gateway", () => {
     const re = /lib\/llm|guest-ai\/llm|ai\.gateway|openai|anthropic|generativelanguage|embedTexts|embedOne|runAgent|chatText|chatJson|\bfetch\(/i;
-    // B3.3: shadow-exec usa o Gateway (gerador emitido). Copiloto (05/11): gerador ligado ao Gateway + registro de modelos.
+    // B3.3: shadow-exec usa o Gateway (gerador emitido). IA (05/11): gerador ligado ao Gateway + registro de modelos.
     // Tool calling (07/11/2026): ferramentas de consulta (Google Places / rotas) em tools/.
-    const f2b = /^(llm|orchestrator|validation|shadow|shadow-exec|copilot|tools)\//;
+    const f2b = /^(llm|orchestrator|validation|shadow|shadow-exec|turn|tools)\//;
     expect(files.filter((f) => !f2b.test(rel(f)) && re.test(code(f))).map(rel)).toEqual([]);
   });
 
-  it("F2-B · B1: só o gerador do Copiloto chama o Gateway; demais módulos novos usam apenas tipos/registro de llm/", () => {
+  it("F2-B · B1: só o gerador da IA chama o Gateway; demais módulos novos usam apenas tipos/registro de llm/", () => {
     const runtime = files.filter((f) => /guest-ai\/llm\/gateway\.server|generateGuestLlm/.test(code(f)) && !rel(f).startsWith("llm/"));
-    // Copiloto (05/11/2026): o gerador do Copiloto é o ÚNICO chamador do Gateway (uma chamada por sugestão, custo por turno limitado).
+    // IA (05/11/2026): o gerador da IA é o ÚNICO chamador do Gateway (uma chamada por sugestão, custo por turno limitado).
     // Bastidores (08/11/2026): o extrator dos sinais operacionais é o 2º chamador (Reserva, contexto mínimo, custo ≤ US$ 0,01).
-    expect(runtime.map(rel).sort()).toEqual(["copilot/generator.server.ts", "copilot/ops-extractor.server.ts"]);
+    expect(runtime.map(rel).sort()).toEqual(["turn/generator.server.ts", "turn/ops-extractor.server.ts"]);
     // fora de llm/, nada de rede direta nem de outro provedor — exceto os transportes das ferramentas
     // (Google Maps; clima/voos desde a Etapa 3, 08/11/2026)
     expect(files.filter((f) => !rel(f).startsWith("llm/") && /\bfetch\(|ai\.gateway|openai\.com|anthropic\.com/.test(code(f))).map(rel).sort()).toEqual([

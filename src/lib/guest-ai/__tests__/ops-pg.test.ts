@@ -12,7 +12,7 @@ import { PG_AVAILABLE, startCluster, type PgCluster } from "./pg/pg-cluster";
 import { OPS_ACTIONS, OPS_REFUSAL_CODES } from "@/lib/guest-ai/ops/contracts";
 
 const REPO = path.resolve(__dirname, "..", "..", "..", "..");
-const SETUP = path.join(__dirname, "pg", "copilot-setup.sql");
+const SETUP = path.join(__dirname, "pg", "turn-setup.sql");
 const MIGRATION = path.join(REPO, "supabase/migrations/20261107010000_guest_ai_ops_actions.sql");
 
 const T1 = "a1000000-0000-4000-8000-000000000001";

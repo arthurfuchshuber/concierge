@@ -514,7 +514,7 @@ export async function expirePendingDecisions(conversationId: string, deps: { db?
 
 
 /**
- * A equipe respondeu o hóspede por conta própria (painel, Copiloto ou direto no Airbnb): as decisões pendentes da
+ * A equipe respondeu o hóspede por conta própria (painel, IA ou direto no Airbnb): as decisões pendentes da
  * conversa viram "assumidas pela equipe" (sem resposta da IA) e o cartão sai do painel. `actorUserId` é quem
  * respondeu; sem ele (mensagem sincronizada do Airbnb) vale o titular da decisão. Usa só as RPCs da decisão
  * (a tabela é somente leitura). Melhor esforço: nunca lança.

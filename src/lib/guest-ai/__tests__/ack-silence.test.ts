@@ -94,13 +94,13 @@ describe("Roteiro e raciocínio", () => {
     expect(p).toMatch(/Sem contexto, não presuma/);
   });
   it("saída truncada pelo raciocínio ⇒ UMA nova tentativa com raciocínio low (padrão segue auto)", () => {
-    const g = readFileSync(path.join(SRC, "lib/guest-ai/copilot/generate.server.ts"), "utf8");
+    const g = readFileSync(path.join(SRC, "lib/guest-ai/turn/generate.server.ts"), "utf8");
     expect(g).toMatch(/error === "truncated_response" \|\| generator\.telemetry\(\)\.error === "timeout"/);
-    expect(g).toMatch(/COPILOT_AUTO_CALL_MAX_MS = 20_000/); // 12/11/2026 (caso Gilmar): era 12 s
+    expect(g).toMatch(/TURN_AUTO_CALL_MAX_MS = 20_000/); // 12/11/2026 (caso Gilmar): era 12 s
     expect(g).toMatch(/effort \? \{\} : \{ callTimeoutMs: timings\.callMaxMs \}/);
     // turno curto: nova tentativa em low; turno longo (17/11/2026): segue em auto
     expect(g).toMatch(/timings\.timeoutRetryEffort === "auto" \? makeGenerator\(\) : makeGenerator\("low"\)/);
-    expect(g).toMatch(/reasoningEffort: effort \?\? COPILOT_REASONING_EFFORT/);
+    expect(g).toMatch(/reasoningEffort: effort \?\? TURN_REASONING_EFFORT/);
   });
 });
 

@@ -76,7 +76,7 @@ export const TURN_CHAIN_VERSION = "chain.2026-11-03.3";
 export const STRUCTURAL_VALIDATOR_VERSION = "structural.2026-11-03.3";
 /** Prazo padrão de cada etapa assíncrona (leitura e modelo). O turno inteiro respeita o teto de 15 s (`TURN_MAX_DEADLINE_MS`). */
 export const CHAIN_STAGE_TIMEOUT_MS = 5_000;
-/** Teto absoluto que um chamador pode pedir para o turno inteiro (Copiloto/slot, 10/11/2026). */
+/** Teto absoluto que um chamador pode pedir para o turno inteiro (IA/slot, 10/11/2026). */
 export const TURN_DEADLINE_CEILING_MS = 45_000;
 
 // Conferência de tipos em compilação: o espelho do validador semântico = o estado do dossiê.
@@ -367,7 +367,7 @@ export interface ChainDeps {
   loadConversationOwnership?: (turn: ValidatedTurn, signal: AbortSignal) => Promise<ConversationOwnershipRow | null>;
   budget?: BudgetConfig;
   stageTimeoutMs?: number;
-  /** Teto TOTAL do turno (padrão `TURN_MAX_DEADLINE_MS`, 15 s; o Copiloto pede até 30 s). */
+  /** Teto TOTAL do turno (padrão `TURN_MAX_DEADLINE_MS`, 15 s; a IA pede até 30 s). */
   turnDeadlineMs?: number;
   /** B2.5 — cancelamento externo: aborta a etapa em curso e encerra em `stage_aborted` (sem texto). */
   signal?: AbortSignal;
@@ -386,7 +386,7 @@ export interface ChainInput {
   traceId: string;
   /** B2.5 — lote fechado de mensagens consecutivas do hóspede (emitido por `buildGuestMessageBatch`). */
   batch?: GuestMessageBatch | null;
-  /** Copiloto (09/11/2026): sugestão obrigatória; `retryNote` = códigos do que barrou a tentativa anterior. */
+  /** IA (09/11/2026): sugestão obrigatória; `retryNote` = códigos do que barrou a tentativa anterior. */
   suggest?: { alwaysSuggest?: boolean; retryNote?: string } | null;
 }
 

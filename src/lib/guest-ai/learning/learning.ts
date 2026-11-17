@@ -6,7 +6,7 @@
  *
  * Este módulo define o contrato e as travas. Persistência (aplicada pelo titular em 08/11/2026):
  * `guest_ai_learning_entries`/`_events` + RPCs `guest_ai_learning_propose` (só service_role) e
- * `guest_ai_learning_review` (dono, admin ou `ai_train`). O Copiloto lê SÓ as entradas aprovadas do imóvel
+ * `guest_ai_learning_review` (dono, admin ou `ai_train`). A IA lê SÓ as entradas aprovadas do imóvel
  * do turno (`data/living-document.server.ts`) e as leva ao prompt no bloco `<documento_vivo>`; propor e
  * revisar ficam FORA deste módulo (somente leitura): `src/lib/guest-ai-learning.{server,functions}.ts`.
  *

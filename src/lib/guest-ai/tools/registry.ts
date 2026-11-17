@@ -1,7 +1,7 @@
 /**
  * Registro central das ferramentas de consulta da IA Guest (lugares, trajetos, clima, voos). Para plugar uma
  * ferramenta nova: implementar `GuestTool` (spec + parse + execute) e acrescentá-la a `GUEST_TOOLS`. Nada mais
- * muda: o executor, o gerador do Copiloto e o gateway tratam qualquer ferramenta pelo mesmo contrato.
+ * muda: o executor, o gerador da IA e o gateway tratam qualquer ferramenta pelo mesmo contrato.
  */
 import type { LlmToolSpec } from "@/lib/guest-ai/llm/contracts";
 import type { GuestTool, GuestToolContext, ToolAvailability } from "./contracts";

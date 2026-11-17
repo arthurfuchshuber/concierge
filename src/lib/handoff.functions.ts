@@ -1287,18 +1287,9 @@ export const sendHandoffMessage = createServerFn({ method: "POST" })
   .inputValidator(parseHandoffSendInput)
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    // núcleo único de envio humano (servidor; também usado pelo Copiloto para a sugestão APROVADA)
+    // núcleo único de envio humano (servidor)
     const { sendHumanMessageToConversation } = await import("@/lib/handoff-send.server");
     const sent = await sendHumanMessageToConversation(supabase, userId, data);
-    // Registro de envio da sugestão do Copiloto (segundo plano; nunca atrasa nem derruba o envio).
-    if (!data.internalNote && sent?.messageId) {
-      const { runInBackground } = await import("@/lib/background.server");
-      const rec = { userId, conversationId: data.conversationId, messageId: sent.messageId, channel: sent.channel, content: data.content };
-      await runInBackground(async () => {
-        const { recordCopilotSuggestionSentLive } = await import("@/lib/copilot-sent-record.server");
-        await recordCopilotSuggestionSentLive(rec);
-      });
-    }
     // Chamado de ocorrência: a fala da equipe pode mostrar que o assunto foi resolvido (segundo plano).
     if (!data.internalNote) {
       const { triggerIncidentDetector } = await import("@/lib/guest-ai-incidents/detector.server");

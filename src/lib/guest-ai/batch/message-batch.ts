@@ -193,7 +193,7 @@ export function buildGuestMessageBatch(input: BuildBatchInput): BuildBatchResult
 
 /**
  * Política de agrupamento. Referência (refinamento de hospitalidade, 06/11/2026): respiro de ~6 s dentro de
- * 5–8 s — o Copiloto já a aplica no disparo (`COPILOT_BURST_QUIET_MS`, `copilot/trigger.server.ts`).
+ * 5–8 s — o turno no webhook já aplica uma janela de rajada antes de gerar.
  */
 export interface DebounceConfig {
   /** Silêncio que encerra o lote (ms). Nova mensagem válida reinicia a contagem. */

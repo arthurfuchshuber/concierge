@@ -1,10 +1,8 @@
 /**
- * COPILOTO · GATE G1 (unidade e estáticos). Nada toca a produção.
- *  - D2: ações do atendente chamam `copilot_actor_*` pelo cliente do SERVIDOR com `p_actor` = usuário da sessão;
- *    o cliente da sessão nunca chama RPC do Copiloto; ator inválido ⇒ nenhuma chamada.
+ * IA · GATE G1 (unidade e estáticos). Nada toca a produção.
  *  - R2: `runInBackground` nunca solta promessa (com `waitUntil`, sem `waitUntil` dentro da requisição, fora
- *    de requisição); o disparo do Copiloto usa esse caminho; `src/server.ts` instala o ciclo de vida.
- *  - Estáticos: nenhuma RPC do Copiloto chamada fora do servidor; nomes legados fora do código; slot `null`.
+ *    de requisição); `src/server.ts` instala o ciclo de vida.
+ *  - Estáticos: nenhuma RPC da IA chamada fora do servidor; slot `null`.
  */
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
@@ -17,11 +15,9 @@ import {
   runInBackground,
   withRequestLifecycle,
 } from "@/lib/background.server";
-import { triggerCopilotSuggestion } from "@/lib/guest-ai/copilot/trigger.server";
 
 const SRC = path.resolve(__dirname, "..", "..");
 const REPO = path.resolve(SRC, "..");
-const ACTOR = "5d000000-0000-4000-8000-000000000004";
 const SID = "5a000000-0000-4000-8000-000000000001";
 const CONV = "5b000000-0000-4000-8000-000000000002";
 const MSG = "5c000000-0000-4000-8000-000000000003";
@@ -55,8 +51,6 @@ const deferred = () => {
   const promise = new Promise<void>((r) => (resolve = r));
   return { promise, resolve };
 };
-
-// G1 · D2 (RPCs de editar/descartar/enviar sugestão com ator) removido em 10/11/2026 junto com o cartão de sugestão.
 
 describe("G1 · R2: trabalho em segundo plano nunca fica solto", () => {
   it("resolveWaitUntil: Request do nitro, ctx.waitUntil, ctx.context.waitUntil; ausente ⇒ null", () => {
@@ -160,48 +154,6 @@ describe("G1 · R2: trabalho em segundo plano nunca fica solto", () => {
     err.mockRestore();
   });
 
-  it("disparo do Copiloto: com waitUntil volta antes da geração; sem, a requisição a aguarda; chave desligada ⇒ nada", async () => {
-    const env = { GUEST_AI_COPILOT_GENERATION: "on" };
-    const req = { surface: "guide_chat" as const, conversationId: CONV, messageId: MSG };
-    const gate = deferred();
-    const generate = vi.fn(async () => {
-      await gate.promise;
-      return { status: "stored" } as never;
-    });
-    const handed: Promise<unknown>[] = [];
-    // rajada (06/11/2026): com waitUntil, espera a janela de respiro (6 s) antes de gerar, descontada do prazo
-    const sleep = vi.fn(async () => {});
-    await withRequestLifecycle(
-      createLifecycle((p) => handed.push(p)),
-      () => triggerCopilotSuggestion(req, env, { generate, sleep }),
-    );
-    expect(handed).toHaveLength(1);
-    gate.resolve();
-    await handed[0];
-    expect(generate).toHaveBeenCalledTimes(1);
-    expect(sleep).toHaveBeenCalledWith(6_000);
-    expect(generate).toHaveBeenCalledWith(expect.anything(), { env, deadlineMs: 19_000 });
-
-    // sem waitUntil: fica na lista da requisição até terminar
-    const store = createLifecycle(null);
-    const gen2 = vi.fn(async () => ({ status: "stored" }) as never);
-    const sleep2 = vi.fn(async () => {});
-    await withRequestLifecycle(store, () =>
-      triggerCopilotSuggestion(req, env, { generate: gen2, sleep: sleep2 }),
-    );
-    expect(store.pending).toHaveLength(1);
-    await drainLifecycle(store);
-    expect(gen2).toHaveBeenCalledTimes(1);
-    // sem waitUntil a resposta do canal nunca fica presa na janela de respiro
-    expect(sleep2).not.toHaveBeenCalled();
-    // sem respiro: o prazo dos bastidores continua 25 s (waitUntil ~30 s); só o slot ganhou 30 s de cadeia
-    expect(gen2).toHaveBeenCalledWith(expect.anything(), { env, deadlineMs: 25_000 });
-
-    const gen3 = vi.fn();
-    await triggerCopilotSuggestion(req, {}, { generate: gen3 as never });
-    await triggerCopilotSuggestion({ ...req, messageId: "x" }, env, { generate: gen3 as never });
-    expect(gen3).not.toHaveBeenCalled();
-  });
 });
 
 describe("G1 · estáticos", () => {
@@ -217,50 +169,16 @@ describe("G1 · estáticos", () => {
     return out;
   }
 
-  it("nenhuma RPC do Copiloto é chamada fora de módulos do servidor; nomes legados não são usados no código", () => {
-    const LEGACY =
-      /["'`](copilot_edit|copilot_discard|copilot_claim_send|copilot_finish_send|copilot_reconcile_send)["'`]/;
+  it("nenhuma RPC da IA é chamada fora de módulos do servidor", () => {
     for (const f of files(SRC)) {
       const src = readFileSync(f, "utf8");
       const rel = path.relative(REPO, f);
-      expect(LEGACY.test(src), rel).toBe(false);
-      if (/\.rpc\(\s*["'`]copilot/.test(src) || src.includes("COPILOT_ACTOR_RPC")) {
+      if (/\.rpc\(\s*["'`]guest_ai_(claim_turn|turn_state|store_turn|purge_turns|record_trace|release_unsent_turn)/.test(src)) {
         expect(rel, rel).toMatch(/\.server\.ts$/);
       }
     }
   });
 
-  it("disparo do Copiloto sem promessa solta; servidor instala o ciclo de vida; canais aguardam o disparo", () => {
-    const trigger = read("src/lib/guest-ai/copilot/trigger.server.ts");
-    expect(trigger).not.toMatch(/void \(async/);
-    expect(trigger).toMatch(/runInBackground\(/);
-    const server = read("src/server.ts");
-    expect(server).toMatch(/withRequestLifecycle\(lifecycle/);
-    expect(server).toMatch(/await drainLifecycle\(lifecycle\)/);
-    for (const f of [
-      "src/routes/api/public/guide-chat.ts",
-      "src/lib/channex-messages.server.ts",
-    ]) {
-      const src = read(f);
-      expect(src, f).toMatch(/await triggerCopilotSuggestion\(/);
-      expect(src, f).not.toMatch(/[^t] triggerCopilotSuggestion\(\{/);
-    }
-  });
-
-  it("G1b registrada em supabase/migrations com o conteúdo idêntico ao de ops/ (registro histórico)", () => {
-    const ops = read("ops/copilot-g1/g1b-revoke-legacy.sql");
-    const record = read("supabase/migrations/20261107000100_copilot_g1b_revoke_legacy.sql");
-    expect(record.startsWith("-- REGISTRO HISTÓRICO — GATE G1b")).toBe(true);
-    expect(record.endsWith(ops)).toBe(true);
-    expect(
-      record
-        .slice(0, record.length - ops.length)
-        .split("\n")
-        .filter((l) => l && !l.startsWith("--")),
-    ).toEqual([]);
-  });
-
-  // 10/11/2026: condução autônoma ligada pelo titular — o slot só responde com a chave exata ligada.
   it("slot da IA: sem GUEST_AI_AUTONOMOUS=on devolve null (fail-closed)", () => {
     const slot = read("src/lib/guest-ai/slot.server.ts");
     const body = slot.slice(slot.indexOf("export async function requestGuestAiReply"));

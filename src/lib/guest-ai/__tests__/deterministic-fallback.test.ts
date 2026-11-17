@@ -5,7 +5,7 @@
  */
 import { describe, expect, it, vi } from "vitest";
 import { CONTINGENCY_REASON, GENERATION_FALLBACK_MS, requestGuestAiReply } from "@/lib/guest-ai/slot.server";
-import { COPILOT_AUTO_CALL_MAX_MS } from "@/lib/guest-ai/copilot/generate.server";
+import { TURN_AUTO_CALL_MAX_MS } from "@/lib/guest-ai/turn/generate.server";
 import { buildSystemPrompt } from "@/lib/guest-ai/system-prompt";
 
 const REQ = { surface: "airbnb" as const, conversationId: "c1", messageId: "m1" };
@@ -21,7 +21,7 @@ const hang = () => new Promise(() => {});
 
 describe("tempos", () => {
   it("chamada elástica com 20 s e corrida do slot com 30 s (teto da resposta ao hóspede)", () => {
-    expect(COPILOT_AUTO_CALL_MAX_MS).toBe(20_000);
+    expect(TURN_AUTO_CALL_MAX_MS).toBe(20_000);
     expect(GENERATION_FALLBACK_MS).toBe(30_000);
   });
 });

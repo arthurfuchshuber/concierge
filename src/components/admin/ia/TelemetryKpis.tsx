@@ -13,7 +13,7 @@ import {
   type TelemetrySurface,
 } from "@/lib/admin-ia-telemetry";
 
-const RETENTION_TIP = `As sugestões do Copiloto ficam guardadas por ${TELEMETRY_WINDOW_DAYS} dias (expires_at) e depois são apagadas; este custo cobre só esse período.`;
+const RETENTION_TIP = `As sugestões da IA ficam guardadas por ${TELEMETRY_WINDOW_DAYS} dias (expires_at) e depois são apagadas; este custo cobre só esse período.`;
 
 /** Barra de indicadores da Telemetria IA — cartões de número padrão (Limpeza). */
 export function TelemetryKpis({ kpis, loading }: { kpis: Kpis | null; loading: boolean }) {

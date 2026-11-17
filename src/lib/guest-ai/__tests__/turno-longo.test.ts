@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { LONG_TURN } from "@/lib/guest-ai/copilot/contracts";
-import { AUTONOMOUS_DEADLINE_MS, turnTimings } from "@/lib/guest-ai/copilot/generate.server";
+import { LONG_TURN } from "@/lib/guest-ai/turn/contracts";
+import { AUTONOMOUS_DEADLINE_MS, turnTimings } from "@/lib/guest-ai/turn/generate.server";
 import { LIMITS } from "@/lib/guest-ai/llm/contracts";
 import { TURN_DEADLINE_CEILING_MS } from "@/lib/guest-ai/turn-chain";
 import { airbnbTurnPayload, parseAirbnbTurnPayload } from "@/lib/channex-messages.server";
@@ -20,7 +20,7 @@ describe("turno longo", () => {
   });
   it("sem a requisição própria (disparo falhou) segue o prazo curto de antes", () => {
     expect(turnTimings({ autonomous: true, longTurn: false })).toMatchObject({ deadlineMs: AUTONOMOUS_DEADLINE_MS, timeoutRetryEffort: "low" });
-    // o painel (Copiloto) não muda
+    // o painel (IA) não muda
     expect(turnTimings({ autonomous: false, longTurn: true })).toMatchObject({ deadlineMs: 40_000, stageMaxMs: 30_000 });
   });
   it("os tetos de baixo comportam o turno longo e a contingência só entra depois da geração", () => {
@@ -79,26 +79,5 @@ describe("alteração da reserva vira registro na conversa (caso Larissa)", () =
   it("nada mudou (reenvio da mesma revisão) ou ocupação desconhecida ⇒ nenhum registro", () => {
     expect(reservationChangeNote(antes, { ...antes })).toBeNull();
     expect(reservationChangeNote(antes, { ...antes, occupancy: null })).toBeNull();
-  });
-});
-
-import { copilotYieldsToAutonomous } from "@/lib/channex-messages.server";
-
-// Caso Whyll (17/11/2026, "Qual seria?"): o Copiloto do painel (prazo de 20 s) pegou a mensagem antes da IA autônoma,
-// estourou o tempo, e a IA autônoma encontrou a vaga ocupada — ninguém respondeu.
-describe("Copiloto do painel cede a vez à IA autônoma", () => {
-  const on = { aiEnabled: true, aiPaused: false, autonomous: true, propertyAllowed: true };
-  it("IA autônoma vai responder ⇒ sem sugestão do painel disputando a mensagem", () => {
-    expect(copilotYieldsToAutonomous(on)).toBe(true);
-  });
-  it("IA desligada, pausada pela equipe, fora da lista ou modo autônomo desligado ⇒ o painel segue gerando a sugestão", () => {
-    expect(copilotYieldsToAutonomous({ ...on, aiEnabled: false })).toBe(false);
-    expect(copilotYieldsToAutonomous({ ...on, aiPaused: true })).toBe(false);
-    expect(copilotYieldsToAutonomous({ ...on, autonomous: false })).toBe(false);
-    expect(copilotYieldsToAutonomous({ ...on, propertyAllowed: false })).toBe(false);
-  });
-  it("o webhook só dispara o Copiloto quando a IA autônoma não assume o turno", () => {
-    const src = readFileSync("src/lib/channex-messages.server.ts", "utf8");
-    expect(src).toMatch(/if \(triggerId && !autonomousOwnsTurn\) \{/);
   });
 });

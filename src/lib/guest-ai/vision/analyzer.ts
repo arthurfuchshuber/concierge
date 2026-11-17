@@ -2,7 +2,7 @@
  * VISÃO DE INCIDENTES — diagnóstico visual estruturado (Etapa 2 da IA Guest, 07/11/2026). Puro.
  *
  * Arquitetura (decisão do titular, 07/11/2026): as fotos do hóspede já vão ANEXADAS à mesma chamada
- * multimodal do Copiloto (`copilot/generator.server.ts`, `attachVision`). O diagnóstico é preenchido pelo
+ * multimodal da IA (`turn/generator.server.ts`, `attachVision`). O diagnóstico é preenchido pelo
  * próprio modelo nessa chamada, no campo `visualDiagnosis` da decisão (contrato v6): nenhuma chamada
  * extra, nenhum custo ou espera a mais. Este módulo define o schema, o parse estrito e as redes de
  * segurança de comportamento:

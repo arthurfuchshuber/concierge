@@ -1,7 +1,7 @@
 /**
- * Provedor de LLM falso para os testes do Copiloto (sem rede). Cópia literal de `fakeProvider` e `okJson`
+ * Provedor de LLM falso para os testes da IA (sem rede). Cópia literal de `fakeProvider` e `okJson`
  * do helper de testes do Shadow (`b33-shadow.ts`, branch `guest-ai/f2b-orchestrator`), separados aqui
- * para que os testes do Copiloto não dependam de nenhum código de Shadow ou lease.
+ * para que os testes da IA não dependam de nenhum código de Shadow ou lease.
  */
 import type { LlmProvider, ProviderOutcome } from "@/lib/guest-ai/llm/providers/types";
 

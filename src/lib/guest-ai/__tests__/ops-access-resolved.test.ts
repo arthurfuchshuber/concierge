@@ -16,7 +16,7 @@ import {
   parseOpsSignals,
   readOpsSignals,
   readerReasonFor,
-} from "@/lib/guest-ai/copilot/ops-extractor.server";
+} from "@/lib/guest-ai/turn/ops-extractor.server";
 import type { HistoryResult } from "@/lib/guest-ai/history";
 import { LIMITS } from "@/lib/guest-ai/llm/contracts";
 import type { ProviderOutcome } from "@/lib/guest-ai/llm/providers/types";
@@ -27,7 +27,7 @@ import { accessResolvedMarker, accessSupportContext, lexicalGuard } from "@/lib/
 import { evaluateOpsSignals, type OpsHistoryEntry, type OpsPolicyInput } from "@/lib/guest-ai/ops/policy";
 import type { ModelDecision } from "@/lib/guest-ai/orchestrator/contracts";
 import type { ValidatedTurn } from "@/lib/guest-ai/types";
-import { fakeProvider, okJson } from "./helpers/copilot-provider";
+import { fakeProvider, okJson } from "./helpers/turn-provider";
 import { v5 } from "./helpers/b23-chain";
 
 const TZ = "America/Sao_Paulo";

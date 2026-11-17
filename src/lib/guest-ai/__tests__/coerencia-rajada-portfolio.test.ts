@@ -9,7 +9,7 @@
 import { describe, expect, it } from "vitest";
 import { isDuplicateRecentReply } from "@/lib/chat/burst-guard";
 import { toAirbnbPlainText } from "@/lib/channex-messages.server";
-import { formatForChannel } from "@/lib/guest-ai/copilot/channel-format";
+import { formatForChannel } from "@/lib/guest-ai/turn/channel-format";
 import { isCheckoutDoneNotice, isFarewell, isPureGreeting, shouldSilenceBareAck } from "@/lib/guest-ai/ack-silence";
 import type { HistoryEntry } from "@/lib/guest-ai/history";
 import {

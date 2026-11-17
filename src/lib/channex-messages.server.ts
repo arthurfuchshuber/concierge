@@ -370,7 +370,7 @@ function stripForAirbnb(text: string): string {
 }
 
 /**
- * Remetente ESTRITO (Copiloto, 05/11/2026): `expectedChannelId` é a conta resolvida e validada pela política
+ * Remetente ESTRITO (IA, 05/11/2026): `expectedChannelId` é a conta resolvida e validada pela política
  * de identidade de envio (`airbnb_sender_pref` do próprio tenant, anúncio do imóvel da conversa). Em modo
  * estrito NÃO existe fallback silencioso: se a preferida falhar, ou se a conta que de fato enviaria (preferida
  * ou canal da thread) não for a esperada, a função LANÇA e nada é enviado.
@@ -419,7 +419,7 @@ export async function deliverToAirbnbThread(
     senderType: "ai" | "human";
     senderUserId?: string | null;
     skipInsert?: boolean;
-    /** Copiloto: remetente estrito (sem fallback silencioso de conta). Ausente = fluxo humano inalterado. */
+    /** IA: remetente estrito (sem fallback silencioso de conta). Ausente = fluxo humano inalterado. */
     strictSender?: StrictSenderOptions;
   },
 ): Promise<{ ok: boolean; messageId?: string; externalId: string | null; text: string; failure?: string }> {
@@ -643,7 +643,7 @@ export async function handleChannexMessage(payload: unknown): Promise<void> {
     .update({ last_message_at: new Date().toISOString() })
     .eq("id", convId);
 
-  // Código da reserva liga a conversa à reserva oficial, mesmo com a IA pausada. ANTES do Copiloto (07/11/2026):
+  // Código da reserva liga a conversa à reserva oficial, mesmo com a IA pausada. ANTES da IA (07/11/2026):
   // o vínculo concluído e gravado evita que a sugestão rode com a conversa ainda sem reserva.
   try {
     const link = await import("@/lib/chat/conversation-link.server");
@@ -659,31 +659,6 @@ export async function handleChannexMessage(payload: unknown): Promise<void> {
     if (code) await link.linkConversationByCode(admin, { conversationId: convId, propertyId: listing.property_id, code });
   } catch (e) {
     console.error("[channex-messages] vínculo falhou", e);
-  }
-
-  // ─── Copiloto (05/11/2026): sugestão para a EQUIPE aprovar, em segundo plano (não bloqueia, não responde
-  // ao hóspede, não altera o fluxo abaixo). Dono do anúncio resolvido com certeza por `resolveListing`.
-  // 17/11/2026 (caso Whyll, "Qual seria?"): com a IA autônoma assumindo este turno, a sugestão do painel NÃO é
-  // gerada. As duas disputavam a mesma mensagem (uma sugestão por mensagem): o Copiloto, com prazo curto de painel,
-  // pegou a mensagem primeiro, estourou o tempo, e a IA autônoma — que chegou depois — encontrou a vaga ocupada e só
-  // encaminhou. O turno autônomo já grava a própria sugestão (o painel continua vendo o que a IA decidiu).
-  {
-    const triggerId = (guestMsg as { id?: string } | null)?.id;
-    const { autonomousEnabled, autonomousPropertyAllowed } = await import("@/lib/guest-ai/slot.server");
-    const autonomousOwnsTurn = copilotYieldsToAutonomous({
-      aiEnabled: !!listing.airbnb_ai_enabled,
-      aiPaused,
-      autonomous: autonomousEnabled(),
-      propertyAllowed: autonomousPropertyAllowed(listing.property_id),
-    });
-    if (triggerId && !autonomousOwnsTurn) {
-      try {
-        const { triggerCopilotSuggestion } = await import("@/lib/guest-ai/copilot/trigger.server");
-        await triggerCopilotSuggestion({ surface: "airbnb", conversationId: convId, messageId: triggerId, expectedOwnerId: listing.owner_id });
-      } catch (e) {
-        console.error("[channex-messages] copiloto não disparado", e instanceof Error ? e.name : "");
-      }
-    }
   }
 
   const { data: prop } = await admin.from("properties").select("*").eq("id", listing.property_id).maybeSingle();
@@ -831,11 +806,6 @@ export interface AirbnbAiTurn {
  * use exatamente o mesmo caminho, a mesma barreira e as mesmas travas.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-/** Copiloto do painel cede a vez quando a IA autônoma vai responder este turno (pura; 17/11/2026, caso Whyll). */
-export function copilotYieldsToAutonomous(p: { aiEnabled: boolean; aiPaused: boolean; autonomous: boolean; propertyAllowed: boolean }): boolean {
-  return p.aiEnabled && !p.aiPaused && p.autonomous && p.propertyAllowed;
-}
-
 export const BOOKING_LINK_WAIT_MS = 45_000;
 
 /** Decisão pura: esperar a reserva? Só sem reserva ligada e sem consulta registrada para a conversa. */

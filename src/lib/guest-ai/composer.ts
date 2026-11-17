@@ -84,7 +84,7 @@ export interface ComposeInput {
    * Ausente ⇒ o prompt declara `nao_informado`, como antes.
    */
   operational?: { stayAuthorizations?: StayAuthorizations | null; humanOwnership?: HumanOwnershipSnapshot | null; aiPausedByTeam?: boolean } | null;
-  /** Copiloto (09/11/2026): sugestão obrigatória em toda mensagem; `retryNote` = códigos do que barrou a tentativa anterior. */
+  /** IA (09/11/2026): sugestão obrigatória em toda mensagem; `retryNote` = códigos do que barrou a tentativa anterior. */
   suggest?: { alwaysSuggest?: boolean; retryNote?: string } | null;
   /**
    * B2.5: lote fechado de mensagens consecutivas do hóspede (um turno lógico). As mensagens do lote
@@ -557,7 +557,7 @@ function dossierItem(d: PropertyDossier, ref: string, guarded: Guarded, ids: Set
 
 /**
  * Seções OPCIONAIS (eventos): um item cujo texto o guard não consegue sanear com segurança é
- * OMITIDO, nunca derruba a composição (07/11/2026: o Copiloto não pode emudecer por causa de um card de
+ * OMITIDO, nunca derruba a composição (07/11/2026: a IA não pode emudecer por causa de um card de
  * restaurante ou de uma notícia). Nada do texto recusado entra; a falha técnica do próprio guard continua
  * recusando (é sinal de guard quebrado, não de conteúdo).
  */
@@ -758,7 +758,7 @@ export function composeTurnPrompt(input: ComposeInput, options: ComposeOptions =
   })());
   const batchRefs = history.entries.filter((e) => lotIds.has(e.messageId)).map((e) => e.ref);
   // A palavra "JSON" na mensagem do usuário é exigida pela OpenAI quando o formato de resposta é
-  // json_object (incidente de 08/11/2026: erro 400 "must contain the word 'json'" travou o Copiloto).
+  // json_object (incidente de 08/11/2026: erro 400 "must contain the word 'json'" travou a IA).
   const closing =
     batchRefs.length > 1
       ? `As mensagens ${batchRefs.join(", ")} (lote_atual: true) foram enviadas em sequência pelo mesmo hóspede e formam um único turno. Considere-as em conjunto e produza uma única decisão para todas, estritamente no formato JSON exigido pelas instruções de sistema.`

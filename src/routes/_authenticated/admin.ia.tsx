@@ -78,7 +78,7 @@ function AiTelemetryPage() {
     <div className="ds-page w-full max-w-none px-3.5 py-5 sm:px-5 lg:px-8 lg:pl-4 lg:py-8">
       <PageShell
         title="Telemetria IA"
-        subtitle="Cada sugestão do Copiloto e cada ação nos cards, à medida que acontecem. Resposta automática desligada."
+        subtitle="Cada resposta da IA e cada ação nos cards, à medida que acontecem."
       />
 
       <div className="flex min-w-0 items-center gap-3">

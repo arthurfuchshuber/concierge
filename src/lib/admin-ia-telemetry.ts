@@ -1,8 +1,8 @@
 /**
- * TELEMETRIA IA (Admin SaaS, /admin/ia) — regras puras de leitura.
+ * TELEMETRIA (Admin SaaS, /admin/ia) — regras puras de leitura.
  *
- * Fonte: tabelas já existentes `guest_ai_copilot_suggestions` (uma linha por mensagem do hóspede que o
- * Copiloto avaliou; retenção de 14 dias por `expires_at`) e `guest_ai_ops_actions` (ações nos cards).
+ * Fonte: tabelas já existentes `guest_ai_turns` (uma linha por mensagem do hóspede que o
+ * IA avaliou; retenção de 14 dias por `expires_at`) e `guest_ai_ops_actions` (ações nos cards).
  * Nada aqui escreve, nada aqui chama modelo. Sem migrations: o que o banco não grava não é inventado
  * (fatos do Dossiê = só a contagem `context_dossier_entries`; D9 = só `allow`/`deny`).
  */
@@ -44,7 +44,6 @@ export interface SuggestionRow {
   gatewayError: string | null;
   attempts: number;
   startedAt: string;
-  edited: boolean;
   hasSuggestion: boolean;
   stayPhase: string | null;
   reservationLinked: boolean | null;
@@ -75,7 +74,6 @@ export type OutcomeKey =
   | "silence"
   | "sent"
   | "available"
-  | "discarded"
   | "superseded"
   | "generating";
 
@@ -86,26 +84,19 @@ export const OUTCOME_LABEL: Record<OutcomeKey, string> = {
   silence: "Silêncio",
   sent: "Enviada",
   available: "Disponível",
-  discarded: "Descartada",
   superseded: "Substituída",
   generating: "Gerando",
 };
 
 /** Desfecho de UMA inferência: a primeira regra que bate vence (erro e card falam mais alto). */
 export function classifyOutcome(s: SuggestionRow, ops: readonly OpsRow[]): OutcomeKey {
-  if (
-    s.state === "generation_failed" ||
-    s.state === "send_failed" ||
-    s.outcomeKind === "technical_error"
-  )
-    return "error";
+  if (s.state === "generation_failed" || s.outcomeKind === "technical_error") return "error";
   if (ops.some((o) => o.outcome === "applied")) return "card";
   if (s.warnings.includes("credential_request_denied")) return "d9";
   if (s.state === "no_suggestion" || s.outcomeKind === "silence" || s.strategy === "silence")
     return "silence";
   if (s.state === "sent") return "sent";
-  if (s.state === "available" || s.state === "edited" || s.state === "sending") return "available";
-  if (s.state === "discarded") return "discarded";
+  if (s.state === "available") return "available";
   if (s.state === "superseded") return "superseded";
   return "generating";
 }
@@ -148,8 +139,8 @@ export const SURFACE_LABEL: Record<TelemetrySurface, string> = {
 };
 
 /**
- * Rótulo do modelo no feed e no inspetor. Desde a PR #60 (10/11/2026) o Gemini Flash é o TITULAR do Copiloto;
- * o GPT-6 Astra só aparece numa sugestão em contingência (ex.: variável `GUEST_AI_COPILOT_MODEL`), como reserva.
+ * Rótulo do modelo no feed e no inspetor. Desde a PR #60 (10/11/2026) o Gemini Flash é o TITULAR da IA;
+ * o GPT-6 Astra só aparece numa sugestão em contingência (ex.: variável `GUEST_AI_MODEL`), como reserva.
  */
 export function modelLabel(id: string | null): string {
   if (!id) return "—";
@@ -184,7 +175,7 @@ export interface TelemetryKpis {
   todayTotal: number;
 }
 
-/** Início do dia em UTC: o mesmo corte do teto diário (`copilot_claim_generation`). */
+/** Início do dia em UTC: o mesmo corte do teto diário (`guest_ai_claim_turn`). */
 export function utcDayStart(nowMs: number): number {
   const d = new Date(nowMs);
   return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
@@ -217,7 +208,7 @@ export function computeKpis(
     maxLatencyMs: lat.length ? Math.max(...lat) : null,
     activeModel: latest?.modelId ?? null,
     reserveUsesToday: today.filter((r) => r.modelId === RESERVE_MODEL).length,
-    assertivenessPct: pct(sent.filter((r) => !r.edited).length, sent.length),
+    assertivenessPct: pct(sent.length, sent.length),
     adoptionPct: pct(sent.length, generated.length),
     sentCount: sent.length,
     generatedCount: generated.length,
@@ -398,10 +389,10 @@ export const LEARNING_SOURCE_LABEL: Record<LearningSourceKey, string> = {
 };
 
 /**
- * Nota do cartão "Modelo" (10/11/2026): o Copiloto roda no Gemini Flash como TITULAR; contar "reserva usada"
+ * Nota do cartão "Modelo" (10/11/2026): a IA roda no Gemini Flash como TITULAR; contar "reserva usada"
  * para ele enganava. Só quando o titular é outro (ex.: Astra pela variável) o Flash é contado como reserva.
  */
 export function modelNote(k: Pick<TelemetryKpis, "activeModel" | "reserveUsesToday">): string {
-  if (k.activeModel === RESERVE_MODEL) return "titular do Copiloto";
+  if (k.activeModel === RESERVE_MODEL) return "titular da IA";
   return k.reserveUsesToday ? `reserva usada ${k.reserveUsesToday}× hoje` : "sem reserva hoje";
 }

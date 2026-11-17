@@ -1,5 +1,5 @@
 /**
- * COPILOTO · preparação dos testes dos TRÊS CANAIS (Guia, WhatsApp, Airbnb) — fluxo de ponta a ponta com as
+ * IA · preparação dos testes dos TRÊS CANAIS (Guia, WhatsApp, Airbnb) — fluxo de ponta a ponta com as
  * ROTINAS OFICIAIS REAIS de envio (`handoff-send.server` / `whatsapp-send.server` / `deliverToAirbnbThread`).
  * Só a rede (Channex, Airbnb) e o banco são falsos: nenhuma mensagem real sai, nenhum hóspede real.
  *
@@ -78,19 +78,16 @@ vi.mock("@/lib/airbnb-direct-sender.server", () => ({
   },
 }));
 
-import { generateCopilotSuggestion } from "@/lib/guest-ai/copilot/generate.server";
-import type { CopilotStore, CopilotResultInput } from "@/lib/guest-ai/copilot/store.server";
+import { generateGuestAiTurn } from "@/lib/guest-ai/turn/generate.server";
+import type { TurnStore, TurnResultInput } from "@/lib/guest-ai/turn/store.server";
 import type { GuestSurface } from "@/lib/guest-ai/types";
 import { ctx, history, turn, v6 } from "../guest-ai/__tests__/helpers/b23-chain";
-import { fakeProvider, okJson } from "../guest-ai/__tests__/helpers/copilot-provider";
+import { fakeProvider, okJson } from "../guest-ai/__tests__/helpers/turn-provider";
 
 const USER = "5e551000-0000-4000-8000-000000000001"; // atendente da SESSÃO (único autor aceito)
 const CONV = "c0000000-0000-4000-8000-0000000000aa";
 const SID = "50000000-0000-4000-8000-0000000000aa";
-const ENV = {
-  GUEST_AI_COPILOT_GENERATION: "on",
-  GUEST_AI_COPILOT_GENERATION_PROPERTY_IDS: "p1",
-};
+const ENV = {};
 const fetchMock = vi.fn(async (url: string) =>
   url.includes("/message_threads/")
     ? new Response(JSON.stringify({ data: { id: "cx-msg-1" } }), { status: 200 })
@@ -123,55 +120,18 @@ const CHANNELS: ReadonlyArray<{
   },
 ];
 
-class MemStore implements CopilotStore {
-  result: CopilotResultInput | null = null;
+class MemStore implements TurnStore {
+  result: TurnResultInput | null = null;
   async claim() {
     return { kind: "claimed" as const, suggestionId: SID, attempt: 1, reclaimed: false };
   }
   async state() {
     return { state: "generating" as const, attempt: 1 };
   }
-  async store(i: CopilotResultInput) {
+  async store(i: TurnResultInput) {
     this.result = i;
     return { kind: "stored" as const };
   }
-}
-
-/** RPCs do envio (Gate G1: `copilot_actor_*` como service_role) com a semântica do banco: um claimed; depois send_in_progress. */
-function sessionRpc(text: string, surface: GuestSurface) {
-  const calls: Array<{ fn: string; args: Record<string, unknown> }> = [];
-  let claimed = false;
-  const client = {
-    ...fakeClient("session"),
-    rpc: async (fn: string, args: Record<string, unknown>) => {
-      calls.push({ fn, args });
-      if (fn === "copilot_actor_claim_send") {
-        if (claimed) return { data: { result: "send_in_progress" }, error: null };
-        claimed = true;
-        return {
-          data: {
-            result: "claimed",
-            send_token: "70000000-0000-4000-8000-000000000001",
-            text,
-            conversation_id: CONV,
-            property_id: "p1",
-            tenant_id: "t1",
-            surface,
-            trigger_message_id: "m1",
-          },
-          error: null,
-        };
-      }
-      if (fn === "copilot_actor_finish_send") return { data: { result: "finished" }, error: null };
-      if (fn === "copilot_actor_reconcile_send")
-        return {
-          data: { result: args.p_attempt_finished ? "reconciled_failed" : "send_in_progress" },
-          error: null,
-        };
-      return { data: null, error: null };
-    },
-  };
-  return { client, calls };
 }
 
 beforeEach(() => {
@@ -186,7 +146,7 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 
-describe.each(CHANNELS)("Copiloto · canal $label", ({ surface, session, channel }) => {
+describe.each(CHANNELS)("IA · canal $label", ({ surface, session, channel }) => {
   const setConv = () => {
     db.conv = {
       id: CONV,
@@ -208,7 +168,7 @@ describe.each(CHANNELS)("Copiloto · canal $label", ({ surface, session, channel
   it("recebimento → contexto D9 → geração pelo Gateway (transporte falso) → sugestão disponível do canal", async () => {
     const store = new MemStore();
     const p = fakeProvider(okJson(v6()));
-    const r = await generateCopilotSuggestion(
+    const r = await generateGuestAiTurn(
       { surface, conversationId: CONV, messageId: "m1", expectedOwnerId: "t1" },
       {
         env: ENV,

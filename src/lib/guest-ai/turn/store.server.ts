@@ -1,12 +1,12 @@
 /**
- * COPILOTO — adaptador das RPCs de GERAÇÃO (porta fechada `COPILOT_RPC_FUNCTIONS` de `data/client.server.ts`;
+ * IA — adaptador das RPCs de GERAÇÃO (porta fechada `TURN_RPC_FUNCTIONS` de `data/client.server.ts`;
  * EXECUTE só service_role). Nenhuma escrita direta em tabela. Resultados são lidos pelo vocabulário fechado
  * da migration; qualquer resposta fora do esperado vira `error` (fail-closed).
  */
-import type { GuestAiCopilotRpc } from "@/lib/guest-ai/data/client.server";
-import type { CopilotOutcomeKind, CopilotState, CopilotWarning } from "./contracts";
+import type { GuestAiTurnRpc } from "@/lib/guest-ai/data/client.server";
+import type { TurnOutcomeKind, TurnState, TurnWarning } from "./contracts";
 
-export interface CopilotClaimInput {
+export interface TurnClaimInput {
   tenantId: string;
   propertyId: string;
   conversationId: string;
@@ -17,14 +17,14 @@ export interface CopilotClaimInput {
   turnCostCeilingUsd: number;
 }
 
-export type CopilotClaimResult =
+export type TurnClaimResult =
   | { kind: "claimed"; suggestionId: string; attempt: number; reclaimed: boolean }
-  | { kind: "exists"; suggestionId: string; state: CopilotState }
+  | { kind: "exists"; suggestionId: string; state: TurnState }
   | { kind: "daily_budget_exceeded"; suggestionId: string }
   | { kind: "invalid"; reason: string }
   | { kind: "error" };
 
-export interface CopilotResultInput {
+export interface TurnResultInput {
   suggestionId: string;
   attempt: number;
   state: "available" | "no_suggestion" | "generation_failed";
@@ -34,9 +34,9 @@ export interface CopilotResultInput {
   strategy: string | null;
   handoffNeeded: boolean;
   handoffUrgency: string | null;
-  outcomeKind: CopilotOutcomeKind | null;
+  outcomeKind: TurnOutcomeKind | null;
   outcomeCode: string | null;
-  warnings: readonly CopilotWarning[];
+  warnings: readonly TurnWarning[];
   context: {
     stayPhase: string | null;
     reservationLinked: boolean | null;
@@ -56,18 +56,18 @@ export interface CopilotResultInput {
   };
 }
 
-export type CopilotStoreResult =
+export type TurnStoreResult =
   | { kind: "stored" }
   | { kind: "stale" }
   | { kind: "missing" }
   | { kind: "invalid"; reason: string }
   | { kind: "error" };
 
-export interface CopilotStore {
-  claim(input: CopilotClaimInput): Promise<CopilotClaimResult>;
+export interface TurnStore {
+  claim(input: TurnClaimInput): Promise<TurnClaimResult>;
   /** Estado atual (conferido imediatamente antes de chamar o Gateway). `missing` quando a linha sumiu. */
-  state(suggestionId: string): Promise<{ state: CopilotState | "missing"; attempt: number } | null>;
-  store(input: CopilotResultInput): Promise<CopilotStoreResult>;
+  state(suggestionId: string): Promise<{ state: TurnState | "missing"; attempt: number } | null>;
+  store(input: TurnResultInput): Promise<TurnStoreResult>;
 }
 
 type J = Record<string, unknown>;
@@ -81,10 +81,10 @@ const int = (v: unknown): number | null =>
       ? Number(v)
       : null;
 
-export function createCopilotStore(rpc: GuestAiCopilotRpc): CopilotStore {
+export function createTurnStore(rpc: GuestAiTurnRpc): TurnStore {
   return {
     async claim(i) {
-      const res = await rpc.call("copilot_claim_generation", {
+      const res = await rpc.call("guest_ai_claim_turn", {
         p_tenant_id: i.tenantId,
         p_property_id: i.propertyId,
         p_conversation_id: i.conversationId,
@@ -108,7 +108,7 @@ export function createCopilotStore(rpc: GuestAiCopilotRpc): CopilotStore {
             : { kind: "error" };
         case "exists":
           return id && str(d["state"])
-            ? { kind: "exists", suggestionId: id, state: str(d["state"]) as CopilotState }
+            ? { kind: "exists", suggestionId: id, state: str(d["state"]) as TurnState }
             : { kind: "error" };
         case "daily_budget_exceeded":
           return id ? { kind: "daily_budget_exceeded", suggestionId: id } : { kind: "error" };
@@ -119,15 +119,15 @@ export function createCopilotStore(rpc: GuestAiCopilotRpc): CopilotStore {
       }
     },
     async state(suggestionId) {
-      const res = await rpc.call("copilot_generation_state", { p_suggestion_id: suggestionId });
+      const res = await rpc.call("guest_ai_turn_state", { p_suggestion_id: suggestionId });
       const d = obj(res.data);
       if (res.error || !d) return null;
       const s = str(d["state"]);
       const a = int(d["generation_attempts"]);
-      return s && a !== null ? { state: s as CopilotState | "missing", attempt: a } : null;
+      return s && a !== null ? { state: s as TurnState | "missing", attempt: a } : null;
     },
     async store(i) {
-      const res = await rpc.call("copilot_store_result", {
+      const res = await rpc.call("guest_ai_store_turn", {
         p_suggestion_id: i.suggestionId,
         p_attempt: i.attempt,
         p_state: i.state,

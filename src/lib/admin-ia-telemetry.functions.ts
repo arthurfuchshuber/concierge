@@ -23,7 +23,7 @@ import {
  *
  * Só administradores do SaaS (`has_role(admin)`); a leitura cruza contas, então usa o cliente
  * administrativo depois da verificação. Nenhuma escrita, nenhuma migration: lê
- * `guest_ai_copilot_suggestions` (janela de 14 dias = retenção), `guest_ai_ops_actions` e, desde 10/11/2026,
+ * `guest_ai_turns` (janela de 14 dias = retenção), `guest_ai_ops_actions` e, desde 10/11/2026,
  * só status/origem/data de `guest_ai_learning_entries` (nunca o texto do fato).
  */
 
@@ -33,7 +33,7 @@ const FEED_ROW_CAP = 200;
 const PREVIEW_CHARS = 120;
 
 const SUMMARY_COLUMNS =
-  "id, property_id, conversation_id, trigger_message_id, surface, state, outcome_kind, outcome_code, strategy, warnings, model_id, gateway_input_tokens, gateway_output_tokens, gateway_cost_usd, gateway_latency_ms, gateway_error, generation_attempts, generation_started_at, edited_text, suggested_text, context_stay_phase, context_reservation_linked, context_history_messages, context_dossier_entries, context_credential_policy, context_sender_identity, context_human_in_command";
+  "id, property_id, conversation_id, trigger_message_id, surface, state, outcome_kind, outcome_code, strategy, warnings, model_id, gateway_input_tokens, gateway_output_tokens, gateway_cost_usd, gateway_latency_ms, gateway_error, generation_attempts, generation_started_at, suggested_text, context_stay_phase, context_reservation_linked, context_history_messages, context_dossier_entries, context_credential_policy, context_sender_identity, context_human_in_command";
 
 const OPS_COLUMNS =
   "id, trigger_message_id, action, mode, outcome, code, created_at, applied_at, card_before, card_after";
@@ -70,7 +70,6 @@ function toSuggestion(r: Record<string, unknown>): SuggestionRow {
     gatewayError: (r.gateway_error as string | null) ?? null,
     attempts: Number(r.generation_attempts ?? 1) || 1,
     startedAt: String(r.generation_started_at),
-    edited: typeof r.edited_text === "string" && r.edited_text !== r.suggested_text,
     hasSuggestion: typeof r.suggested_text === "string" && r.suggested_text.length > 0,
     stayPhase: (r.context_stay_phase as string | null) ?? null,
     reservationLinked: (r.context_reservation_linked as boolean | null) ?? null,
@@ -196,7 +195,7 @@ export const getAiTelemetry = createServerFn({ method: "GET" })
     const since = new Date(nowMs - TELEMETRY_WINDOW_DAYS * 86_400_000).toISOString();
 
     const { data: sRaw, error: sErr } = await admin
-      .from("guest_ai_copilot_suggestions")
+      .from("guest_ai_turns")
       .select(SUMMARY_COLUMNS)
       .gte("generation_started_at", since)
       .order("generation_started_at", { ascending: false })
@@ -252,8 +251,8 @@ export const getAiTelemetry = createServerFn({ method: "GET" })
 
     // Teto diário (15/11/2026): não há mais teto global entre contas; o total da plataforma é a soma dos tetos das
     // contas = teto padrão por anúncio × anúncios com a IA ligada (exceções por anúncio, se houver, entram na soma).
-    const { copilotListingDailyCostUsd } = await import("@/lib/guest-ai/copilot/contracts");
-    let dailyLimitUsd = copilotListingDailyCostUsd();
+    const { turnListingDailyCostUsd } = await import("@/lib/guest-ai/turn/contracts");
+    let dailyLimitUsd = turnListingDailyCostUsd();
     try {
       const { data: lim } = await admin
         .from("property_listing_raw_data")
@@ -261,7 +260,7 @@ export const getAiTelemetry = createServerFn({ method: "GET" })
         .eq("airbnb_ai_enabled", true)
         .limit(5000);
       if (lim) {
-        const unit = copilotListingDailyCostUsd();
+        const unit = turnListingDailyCostUsd();
         const byProp = new Map<string, number>();
         for (const r of lim as Array<Record<string, unknown>>) {
           const v = Number(r["ai_daily_cost_limit_usd"]);
@@ -333,7 +332,6 @@ export interface TelemetryDetail {
   guestName: string | null;
   guestText: string | null;
   suggestedText: string | null;
-  editedText: string | null;
   ops: TelemetryOpsView[];
 }
 
@@ -358,7 +356,7 @@ export const getAiTelemetryDetail = createServerFn({ method: "GET" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const admin = supabaseAdmin as Db;
     const { data: raw, error } = await admin
-      .from("guest_ai_copilot_suggestions")
+      .from("guest_ai_turns")
       .select(SUMMARY_COLUMNS)
       .eq("id", data.id)
       .maybeSingle();
@@ -395,7 +393,6 @@ export const getAiTelemetryDetail = createServerFn({ method: "GET" })
       guestName: ((conv as { guest_name?: string | null } | null)?.guest_name ?? null) || null,
       guestText: ((msg as { content?: string | null } | null)?.content ?? null) || null,
       suggestedText: (r.suggested_text as string | null) ?? null,
-      editedText: (r.edited_text as string | null) ?? null,
       ops: ops.map((o) => ({
         id: o.id,
         action: o.action,

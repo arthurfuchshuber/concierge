@@ -122,7 +122,7 @@ export function TelemetryInspector({ id, onClose }: { id: string | null; onClose
             {d?.propertyName ?? "Carregando…"}
           </SheetTitle>
           <SheetDescription className="sr-only">
-            Detalhes técnicos de uma resposta do Copiloto
+            Detalhes técnicos de uma resposta da IA
           </SheetDescription>
           {d ? (
             <>
@@ -165,30 +165,12 @@ export function TelemetryInspector({ id, onClose }: { id: string | null; onClose
               </Section>
 
               {d.suggestedText ? (
-                <Section
-                  title={
-                    d.row.state === "sent"
-                      ? d.editedText
-                        ? "Resposta sugerida · enviada com edição"
-                        : "Resposta sugerida · enviada sem edição"
-                      : "Resposta sugerida"
-                  }
-                >
+                <Section title="Resposta da IA">
                   <div
                     className={`${WELL} whitespace-pre-wrap break-words text-[13.5px] leading-relaxed`}
                   >
                     {d.suggestedText}
                   </div>
-                  {d.editedText ? (
-                    <div
-                      className={`${WELL} whitespace-pre-wrap break-words text-[13.5px] leading-relaxed`}
-                    >
-                      <span className="mb-1 block text-[11px] font-bold text-muted-foreground">
-                        Texto editado pela equipe
-                      </span>
-                      {d.editedText}
-                    </div>
-                  ) : null}
                 </Section>
               ) : null}
 

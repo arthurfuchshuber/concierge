@@ -205,7 +205,7 @@ describe("auto-resolução quando a equipe responde", () => {
     expect(f.calls.map((c) => c.fn)).toEqual(["guest_ai_decision_claim"]);
     expect(await resolvePendingDecisionsOnHumanMessage("c1", {}, { db: fakeDb({}).db })).toBe(0);
   });
-  it("ligada ao envio pelo painel/Copiloto e à mensagem do anfitrião vinda do Airbnb", () => {
+  it("ligada ao envio pelo painel/IA e à mensagem do anfitrião vinda do Airbnb", () => {
     const send = readFileSync(path.join(SRC, "lib/handoff-send.server.ts"), "utf8");
     expect(send).toMatch(/resolvePendingDecisionsOnHumanMessage\(data\.conversationId, \{ actorUserId: userId \}\)/);
     const channex = readFileSync(path.join(SRC, "lib/channex-messages.server.ts"), "utf8");

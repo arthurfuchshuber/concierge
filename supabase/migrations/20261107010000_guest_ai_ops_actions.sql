@@ -6,7 +6,7 @@
 -- ou por que recusou. A tabela aceita apenas `mode = 'shadow'` e desfechos `would_apply`/`refused`; a
 -- escrita nos cards (G2c/G2d) exigirá nova migration e nova homologação.
 --
--- Acesso: RLS ligada; leitura pelos membros do imóvel (mesma regra das sugestões do Copiloto); nenhuma
+-- Acesso: RLS ligada; leitura pelos membros do imóvel (mesma regra dos turnos da IA); nenhuma
 -- escrita direta para anon/authenticated/service_role. Gravação só pela RPC `guest_ai_ops_record`
 -- (SECURITY DEFINER, search_path fixo, EXECUTE só service_role), idempotente por mensagem + ação.
 -- Sem texto do hóspede: só o id da mensagem com a evidência. Sem cron, sem pg_net, sem chamada externa.

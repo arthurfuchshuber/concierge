@@ -1,5 +1,5 @@
 /**
- * FORMATAÇÃO POR CANAL do texto sugerido pelo Copiloto (Pilar 3, 06/11/2026) — puro e determinístico.
+ * FORMATAÇÃO POR CANAL do texto sugerido pela IA (Pilar 3, 06/11/2026) — puro e determinístico.
  *
  * O System Prompt já pede o formato certo; isto é a rede de segurança de FORMA (não de conteúdo): nada é
  * acrescentado, nenhuma palavra é trocada, só marcação e caracteres que quebram o canal são normalizados.

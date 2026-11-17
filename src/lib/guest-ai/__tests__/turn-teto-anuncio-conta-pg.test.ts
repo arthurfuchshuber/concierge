@@ -10,9 +10,9 @@ import { PG_AVAILABLE, startCluster, type PgCluster } from "./pg/pg-cluster";
 
 const REPO = path.resolve(__dirname, "..", "..", "..", "..");
 const STUB = path.join(__dirname, "pg", "budget-listing-stub.sql");
-const MIG = path.join(REPO, "supabase/migrations/20261115190000_copilot_teto_por_anuncio_e_conta.sql");
+const MIG = path.join(REPO, "supabase/migrations/20261117200000_guest_ai_turns.sql");
 
-describe.skipIf(!PG_AVAILABLE)("Copiloto · teto por anúncio e conta (PostgreSQL real)", () => {
+describe.skipIf(!PG_AVAILABLE)("IA · teto por anúncio e conta (PostgreSQL real)", () => {
   let pg: PgCluster;
   beforeAll(() => {
     pg = startCluster([STUB, MIG], { bin: process.env.GUEST_AI_PG_BIN });
@@ -21,7 +21,7 @@ describe.skipIf(!PG_AVAILABLE)("Copiloto · teto por anúncio e conta (PostgreSQ
     await pg?.stop();
   });
   beforeEach(async () => {
-    await pg.sql("truncate public.guest_ai_copilot_suggestions, public.property_chat_messages, public.property_chat_conversations, public.property_listing_raw_data, public.properties");
+    await pg.sql("truncate public.guest_ai_turns, public.property_chat_messages, public.property_chat_conversations, public.property_listing_raw_data, public.properties");
   });
 
   const T1 = "a1000000-0000-4000-8000-000000000001";
@@ -41,7 +41,7 @@ describe.skipIf(!PG_AVAILABLE)("Copiloto · teto por anúncio e conta (PostgreSQ
     await pg.sql(`insert into public.property_chat_conversations values ('${c}','${property}')`);
     await pg.sql(`insert into public.property_chat_messages (id, conversation_id, sender_type, role) values ('${m}','${c}','guest','user')`);
     await pg.sql(
-      `insert into public.guest_ai_copilot_suggestions (tenant_id, property_id, conversation_id, trigger_message_id, surface, state, outcome_kind, gateway_cost_usd) values ('${tenant}','${property}','${c}','${m}','airbnb','available','reply',${usd})`,
+      `insert into public.guest_ai_turns (tenant_id, property_id, conversation_id, trigger_message_id, surface, state, outcome_kind, gateway_cost_usd) values ('${tenant}','${property}','${c}','${m}','airbnb','no_suggestion','reply',${usd})`,
     );
   }
   async function claim(tenant: string, property: string, unit = 1): Promise<string> {
@@ -50,7 +50,7 @@ describe.skipIf(!PG_AVAILABLE)("Copiloto · teto por anúncio e conta (PostgreSQ
     await pg.sql(`insert into public.property_chat_conversations values ('${c}','${property}')`);
     await pg.sql(`insert into public.property_chat_messages (id, conversation_id, sender_type, role) values ('${m}','${c}','guest','user')`);
     const out = await pg.sql(
-      `select (public.copilot_claim_generation('${tenant}','${property}','${c}','${m}','airbnb',${unit},1))->>'result'`,
+      `select (public.guest_ai_claim_turn('${tenant}','${property}','${c}','${m}','airbnb',${unit},1))->>'result'`,
     );
     return out.trim();
   }
@@ -59,7 +59,7 @@ describe.skipIf(!PG_AVAILABLE)("Copiloto · teto por anúncio e conta (PostgreSQ
     const a = await listing(T1);
     await spend(T1, a, 0.85);
     expect(await claim(T1, a)).toBe("claimed");
-    await pg.sql("truncate public.guest_ai_copilot_suggestions");
+    await pg.sql("truncate public.guest_ai_turns");
     await spend(T1, a, 0.9);
     expect(await claim(T1, a)).toBe("daily_budget_exceeded");
   });
@@ -74,7 +74,7 @@ describe.skipIf(!PG_AVAILABLE)("Copiloto · teto por anúncio e conta (PostgreSQ
     const [a] = [await listing(T1), await listing(T1), await listing(T1), await listing(T1)];
     await spend(T1, a, 2.9);
     expect(await claim(T1, a)).toBe("daily_budget_exceeded");
-    await pg.sql("truncate public.guest_ai_copilot_suggestions");
+    await pg.sql("truncate public.guest_ai_turns");
     await spend(T1, a, 2.8);
     expect(await claim(T1, a)).toBe("claimed");
   });
@@ -100,7 +100,7 @@ describe.skipIf(!PG_AVAILABLE)("Copiloto · teto por anúncio e conta (PostgreSQ
     const a = await listing(T1, { limit: 5 });
     await spend(T1, a, 4);
     expect(await claim(T1, a)).toBe("claimed"); // teto 5 (e 3× = 15)
-    await pg.sql("truncate public.guest_ai_copilot_suggestions");
+    await pg.sql("truncate public.guest_ai_turns");
     await spend(T1, a, 4.9);
     expect(await claim(T1, a)).toBe("daily_budget_exceeded");
   });
@@ -109,7 +109,7 @@ describe.skipIf(!PG_AVAILABLE)("Copiloto · teto por anúncio e conta (PostgreSQ
     const a = await listing(T1, { enabled: false });
     await spend(T1, a, 0.8);
     expect(await claim(T1, a)).toBe("claimed");
-    await pg.sql("truncate public.guest_ai_copilot_suggestions");
+    await pg.sql("truncate public.guest_ai_turns");
     await spend(T1, a, 0.95);
     expect(await claim(T1, a)).toBe("daily_budget_exceeded");
   });
@@ -122,7 +122,7 @@ describe.skipIf(!PG_AVAILABLE)("Copiloto · teto por anúncio e conta (PostgreSQ
     await pg.sql(`insert into public.property_chat_conversations values ('${c}','${a}')`);
     await pg.sql(`insert into public.property_chat_messages (id, conversation_id, sender_type, role) values ('${m}','${c}','guest','user')`);
     await pg.sql(
-      `insert into public.guest_ai_copilot_suggestions (tenant_id, property_id, conversation_id, trigger_message_id, surface) values ('${T1}','${a}','${c}','${m}','airbnb')`,
+      `insert into public.guest_ai_turns (tenant_id, property_id, conversation_id, trigger_message_id, surface) values ('${T1}','${a}','${c}','${m}','airbnb')`,
     );
     // 0,7 + 0,15 (em curso) + 0,15 (nova) = 1,0 → cabe; com 0,75 já não caberia
     expect(await claim(T1, a)).toBe("claimed");

@@ -15,7 +15,7 @@ export interface HumanSendInput {
 }
 
 export interface HumanSendOptions {
-  /** Copiloto (05/11/2026): remetente estrito no Airbnb (sem fallback silencioso de conta). */
+  /** IA (05/11/2026): remetente estrito no Airbnb (sem fallback silencioso de conta). */
   strictSender?: { expectedChannelId: string };
 }
 
@@ -30,7 +30,7 @@ export interface HumanSendResult {
 
 /**
  * ROTINA ÚNICA de envio humano (chat do guia e Airbnb). É o corpo de `sendHandoffMessage`, extraído para que
- * (historicamente) o envio da sugestão do Copiloto usasse a mesma rotina — permissão, bloqueio por
+ * (historicamente) o envio da sugestão da IA usasse a mesma rotina — permissão, bloqueio por
  * responsável, expansão de tags, entrega, pausa da IA e push — sem nenhum mecanismo paralelo de envio.
  * Autoria: `userId` vem SEMPRE da sessão autenticada do chamador.
  */
@@ -111,7 +111,7 @@ export async function sendHumanMessageToConversation(
     sentExternalId = r.externalId;
     sentChannel = "airbnb";
   } else {
-    // gravação idêntica à original (sem ler a linha de volta); o Copiloto reconcilia o id pelo autor e instante
+    // gravação idêntica à original (sem ler a linha de volta); a IA reconcilia o id pelo autor e instante
     const { error } = await supabase.from("property_chat_messages").insert({
       conversation_id: data.conversationId,
       role: "assistant",

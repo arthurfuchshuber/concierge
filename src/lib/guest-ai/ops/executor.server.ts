@@ -1,7 +1,7 @@
 /**
  * GATE G2 · EXECUTOR das ações operacionais (servidor; nunca lança).
  *
- * Roda depois da geração do Copiloto (D-G2-4: mesma chamada ao modelo, custo novo zero), com a decisão JÁ
+ * Roda depois da geração da IA (D-G2-4: mesma chamada ao modelo, custo novo zero), com a decisão JÁ
  * validada pela cadeia. Lê o estado (somente leitura, `data/ops-state.server.ts`), aplica a política
  * determinística (`ops/policy.ts`) e, conforme `GUEST_AI_OPS_MODE`:
  *  - `live` (ou `on`) — G2c: recusa ⇒ `guest_ai_ops_record` (`refused`); ação aprovada ⇒ `guest_ai_ops_claim`
@@ -12,7 +12,7 @@
  *    a escrita feita por `internal_set_late_checkout` em nome do atendente (o banco confere a permissão);
  *  - `shadow` — só registra (`would_apply`/`refused`), sem escrever em card;
  *  - qualquer outro valor — nada.
- * A resposta ao hóspede continua sendo só a sugestão do Copiloto (D-G2-1); `slot.server.ts` devolve `null`.
+ * A resposta ao hóspede continua sendo só a sugestão da IA (D-G2-1); `slot.server.ts` devolve `null`.
  * Logs só com códigos fechados — nunca texto do hóspede ou do modelo.
  */
 import type { HistoryResult } from "@/lib/guest-ai/history";
@@ -97,7 +97,7 @@ export function opsPropertyAllowed(propertyId: string, env: Env = process.env): 
 
 export interface OpsRunInput {
   turn: ValidatedTurn;
-  /** Só os sinais operacionais (decisão do Copiloto ou extrator dos bastidores). */
+  /** Só os sinais operacionais (decisão da IA ou extrator dos bastidores). */
   decision: Pick<ModelDecision, "hospitalityMilestone" | "milestoneQuote" | "guestEtas"> & Partial<ModelDecision>;
   history: HistoryResult | null;
   phase: StayPhase;
