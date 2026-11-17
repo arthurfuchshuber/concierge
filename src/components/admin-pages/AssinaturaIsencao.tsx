@@ -17,7 +17,27 @@ type View = ReturnType<typeof buildAssinatura>;
 export function IsencaoBanner({ view, busy, onUpdateCard }: { view: View; busy: boolean; onUpdateCard: () => void }) {
   const status = view.cardCheck.status;
   const ok = status === "ok";
-  const accent = ok ? OK : FAIL;
+  /* Mockup "faixa em uma linha" (17/11/2026): com o cartão em dia a faixa é UMA linha só — ícone, título e o
+     aviso ao lado, sem selo "ISENTA" (as faturas já mostram o selo). Só o alerta de cartão segue em bloco. */
+  if (ok) {
+    return (
+      <div
+        role="status"
+        className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 rounded-[10px] px-3 py-2.5"
+        style={{
+          background: `color-mix(in oklab, ${OK} 12%, var(--surface-elevated))`,
+          boxShadow: `inset 0 0 0 1px color-mix(in oklab, ${OK} 70%, transparent)`,
+        }}
+      >
+        <Gift className="size-[15px] shrink-0" strokeWidth={2.2} style={{ color: "#b8921c" }} aria-hidden="true" />
+        <span className="text-[13px] font-bold leading-tight">Conta isenta pelo ConciergeIA</span>
+        <span className="min-w-0 text-[11.5px] font-medium leading-tight text-muted-foreground">
+          · Mantenha um cartão válido: conferimos todo dia 20 (próxima em {fmtDayMonth(view.nextCardCheckAt)})
+        </span>
+      </div>
+    );
+  }
+  const accent = FAIL;
   const title = ok
     ? "Conta isenta de pagamento pelo ConciergeIA"
     : status === "failed"
