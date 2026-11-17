@@ -820,8 +820,43 @@ export interface AirbnbAiTurn {
  * use exatamente o mesmo caminho, a mesma barreira e as mesmas travas.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const BOOKING_LINK_WAIT_MS = 45_000;
+
+/** Decisão pura: esperar a reserva? Só sem reserva ligada e sem consulta registrada para a conversa. */
+export function shouldAwaitBooking(state: { reservationLinked: boolean; hasInquiry: boolean }): boolean {
+  return !state.reservationLinked && !state.hasInquiry;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function waitForBookingLink(admin: any, convId: string, threadId: string, maxMs = BOOKING_LINK_WAIT_MS, stepMs = 3_000): Promise<"linked" | "not_needed" | "timeout"> {
+  try {
+    const readLinked = async () => {
+      const { data } = await admin.from("property_chat_conversations").select("reservation_id").eq("id", convId).maybeSingle();
+      return !!(data as { reservation_id?: string | null } | null)?.reservation_id;
+    };
+    const { loadInquiryDetails } = await import("@/lib/guest-ai-inquiry/store.server");
+    const hasInquiry = (await loadInquiryDetails(admin, `airbnb:${threadId}`)) !== null;
+    if (!shouldAwaitBooking({ reservationLinked: await readLinked(), hasInquiry })) return "not_needed";
+    const until = Date.now() + maxMs;
+    while (Date.now() < until) {
+      await new Promise((r) => setTimeout(r, stepMs));
+      if (await readLinked()) return "linked";
+    }
+    console.log("[channex-messages] reserva não chegou a tempo; seguindo sem vínculo", convId);
+    return "timeout";
+  } catch (e) {
+    console.error("[channex-messages] espera da reserva falhou; seguindo", e);
+    return "timeout";
+  }
+}
+
 export async function runAirbnbAiTurn(admin: any, p: AirbnbAiTurn, opts: { longTurn?: boolean } = {}): Promise<void> {
   const guestRow = { id: p.guestMessageId, created_at: p.guestCreatedAt };
+  // ─── MENSAGEM QUE CHEGA ANTES DA RESERVA (17/11/2026, caso Simone; antes, Karen): na reserva instantânea a
+  // mensagem do hóspede chega 20–35 s antes do booking. Sem consulta (inquiry) e sem reserva ligada, a conversa só
+  // pode ser de uma reserva a caminho: no turno longo, espera o vínculo (até `BOOKING_LINK_WAIT_MS`) antes de gerar,
+  // para a IA não tratar um hóspede confirmado como consulta.
+  if (opts.longTurn) await waitForBookingLink(admin, p.convId, p.threadId);
   // ─── IA de atendimento: ponto de extensão (sem implementação instalada).
   // Sem IA, a conversa vai para a fila humana e a equipe é avisada por push.
   const { requestGuestAiReply, NO_AI_HANDOFF_REASON } = await import("@/lib/guest-ai/slot.server");
