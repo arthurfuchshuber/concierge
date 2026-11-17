@@ -381,7 +381,7 @@ describe("IA · geração com a cadeia real e o Gateway real (transporte falso)"
 
   it("modo autônomo (slot, 10/11/2026): não depende da chave nem da lista da IA e devolve o resultado gravado", async () => {
     const p = fakeProvider(okJson(v6()));
-    const d = deps(p, { env: {}, autonomous: true });
+    const d = deps(p, { env: {} });
     const r = await generateGuestAiTurn(REQ, d);
     expect(r).toMatchObject({ status: "stored", state: "available", result: { text: "O check-in começa às 15h, no horário do imóvel.", handoffNeeded: false } });
     expect(p.calls).toBe(1);
@@ -622,19 +622,7 @@ describe("IA · geração com a cadeia real e o Gateway real (transporte falso)"
     expect(seen).not.toMatch(/lock_code|gate_code|wifi_password|pin_code/);
   });
 
-  it("D9 · texto do modelo com marca de expansão do guia ([[info:…]]) ⇒ nunca vira sugestão (a rotina humana expandiria senhas)", async () => {
-    for (const reply of [
-      "A senha é [[info:lock-code]].",
-      "Veja [[ tag:checkin ]] aqui",
-      "Wi-Fi: [[INFO:wifi]]",
-    ]) {
-      const d = deps(fakeProvider(okJson(v6({ reply }))));
-      await generateGuestAiTurn(REQ, d);
-      const res = d.store.only().result!;
-      expect(res.text).toBeNull();
-      expect(res.state).toBe("generation_failed");
-    }
-    // mesmo que a cadeia aprovasse o texto, a projeção da IA o bloqueia (defesa própria, determinística)
+  it("marca do guia ([[info:…]]/[[tag:…]]) segue gravada até o slot, que a resolve com a D9 (outbound-text.ts)", async () => {
     const audit = {
       decision: null,
       checks: {
@@ -651,28 +639,12 @@ describe("IA · geração com a cadeia real e o Gateway real (transporte falso)"
       emergency: false,
       intents: ["informational_query"],
     };
-    const blocked = projectOutcome(
-      {
-        kind: "reply",
-        text: "As regras estão em [[info:house-rules]].",
-        strategy: "answer",
-        situation,
-        audit,
-      } as never,
+    const tagged = projectOutcome(
+      { kind: "reply", text: "As regras estão em [[info:house-rules]].", strategy: "answer", situation, audit } as never,
       { surface: "guide_chat", humanInCommand: false, reservationLinked: true },
     );
-    expect(blocked).toMatchObject({
-      state: "generation_failed",
-      text: null,
-      outcomeCode: "template_tag_in_output",
-    });
-    // condução autônoma: a tag segue até o slot, que a resolve com a D9 (outbound-text.ts)
-    const autonomous = projectOutcome(
-      { kind: "reply", text: "As regras estão em [[info:house-rules]].", strategy: "answer", situation, audit } as never,
-      { surface: "guide_chat", humanInCommand: false, reservationLinked: true, allowGuideTags: true },
-    );
-    expect(autonomous).toMatchObject({ state: "available", outcomeKind: "reply" });
-    expect(autonomous.text).toContain("[[info:house-rules]]");
+    expect(tagged).toMatchObject({ state: "available", outcomeKind: "reply" });
+    expect(tagged.text).toContain("[[info:house-rules]]");
     const ok = projectOutcome(
       {
         kind: "reply",
@@ -958,10 +930,9 @@ describe("IA · isolamento estático (a IA nunca envia)", () => {
       expect(c, f).not.toMatch(/supabaseAdmin|integrations\/supabase/);
     }
   });
-  it("slot.server.ts: desligado devolve null; ligado usa a cadeia da IA em MODO AUTÔNOMO (import dinâmico)", async () => {
+  it("slot.server.ts: desligado devolve null; ligado usa a cadeia da IA (import dinâmico)", async () => {
     const slot = readFileSync(pathMod.resolve(__dirname, "..", "slot.server.ts"), "utf8");
     expect(slot).toMatch(/import\("@\/lib\/guest-ai\/turn\/generate\.server"\)/);
-    expect(slot).toMatch(/autonomous: true/);
     const { requestGuestAiReply } = await import("@/lib/guest-ai/slot.server");
     await expect(
       requestGuestAiReply({ surface: "airbnb", conversationId: "c", messageId: "m" }, { env: {} }),
@@ -1190,19 +1161,12 @@ describe("prazo do turno autônomo (16/11/2026, casos Matheus e Larissa: geraç�
   it("autônomo: com menos de ~14 s restantes NÃO faz a 2ª chamada; grava a falha dentro do prazo", async () => {
     const clock = { t: 1_000_000 };
     const p = slowWrong(clock);
-    const d = deps(p, { autonomous: true, now: () => clock.t, schedule: () => () => {} });
+    const d = deps(p, { now: () => clock.t, schedule: () => () => {} });
     const r = await generateGuestAiTurn(REQ, d);
     expect(p.calls).toBe(1);
     expect(r).toMatchObject({ status: "stored", state: "generation_failed" });
   });
 
-  it("IA (sem corrida com a contingência de 30 s): ainda tem tempo e faz a 2ª tentativa", async () => {
-    const clock = { t: 1_000_000 };
-    const p = slowWrong(clock);
-    const d = deps(p, { now: () => clock.t, schedule: () => () => {} });
-    await generateGuestAiTurn(REQ, d);
-    expect(p.calls).toBe(2);
-  });
 });
 
 import type { GenerationTrace } from "@/lib/guest-ai/turn/generate.server";
@@ -1221,7 +1185,7 @@ describe("rastro da geração (16/11/2026, auditoria)", () => {
     expect(t.attempts).toBe(2);
     expect(t.retry_reason).toMatch(/^[a-z0-9_ ,]+$/);
     expect(t.total_ms).toBe(10_000);
-    expect(t.autonomous).toBe(false);
+    expect(t.autonomous).toBe(true);
     expect(t.final_kind).toBe("refused");
   });
   it("falha ao gravar o rastro não derruba a geração", async () => {

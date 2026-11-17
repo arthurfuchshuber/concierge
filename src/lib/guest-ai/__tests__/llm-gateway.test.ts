@@ -471,13 +471,11 @@ describe("Visão · contrato multimodal do Gateway", () => {
 });
 
 describe("Prazo de 30 s da IA/slot (titular, 10/11/2026)", () => {
-  it("cadeia do turno até 30 s, prazo total 40 s, bastidores mantêm 25 s, raciocínio segue elástico (auto)", async () => {
+  it("cadeia do turno até 30 s, raciocínio segue elástico (auto)", async () => {
     const c = await import("@/lib/guest-ai/turn/contracts");
     const chain = await import("@/lib/guest-ai/turn-chain");
     expect(c.TURN_STAGE_MAX_MS).toBe(30_000);
-    expect(c.TURN_DEADLINE_MS).toBe(40_000);
-    expect(c.TURN_BACKSTAGE_DEADLINE_MS).toBe(25_000);
-    expect(chain.TURN_DEADLINE_CEILING_MS).toBe(45_000); // teto do turno longo (17/11/2026); a IA segue em 30 s
+    expect(chain.TURN_DEADLINE_CEILING_MS).toBe(45_000); // teto do turno longo (17/11/2026)
     expect(String(c.TURN_REASONING_EFFORT)).toBe("auto");
   });
 });

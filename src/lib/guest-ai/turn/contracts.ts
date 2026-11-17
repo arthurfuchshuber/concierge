@@ -83,12 +83,6 @@ export const LONG_TURN = {
   retryMinMs: 20_000,
   fallbackMs: 95_000,
 } as const;
-export const TURN_DEADLINE_MS = 40_000;
-/**
- * Bastidores (disparo da IA em segundo plano, `waitUntil` do Worker: ~30 s depois da resposta) seguem com
- * o prazo antigo, para nunca serem cortados pela plataforma no meio de uma gravação.
- */
-export const TURN_BACKSTAGE_DEADLINE_MS = 25_000;
 /**
  * Respiro antes de gerar (Pilar 4 do refinamento de hospitalidade, 06/11/2026): mensagens em rajada ("Oi" /
  * "Tudo bem?" / "Qual a senha do wifi?") viram UMA resposta. Cada mensagem espera esta janela em segundo plano;

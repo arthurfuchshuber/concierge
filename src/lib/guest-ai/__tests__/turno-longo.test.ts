@@ -10,7 +10,7 @@ import { reservationChangeNote } from "@/lib/channex-webhook.server";
 // 17/11/2026 (casos Larissa, Pamela): o turno no webhook morria em ~30 s; o titular quer mais tempo e raciocínio livre.
 describe("turno longo", () => {
   it("autônomo em requisição própria: 80 s, chamadas de 45 s, nova tentativa com ≥ 20 s e sempre em auto", () => {
-    expect(turnTimings({ autonomous: true, longTurn: true })).toEqual({
+    expect(turnTimings({ longTurn: true })).toEqual({
       deadlineMs: 80_000,
       stageMaxMs: 45_000,
       callMaxMs: 45_000,
@@ -19,9 +19,7 @@ describe("turno longo", () => {
     });
   });
   it("sem a requisição própria (disparo falhou) segue o prazo curto de antes", () => {
-    expect(turnTimings({ autonomous: true, longTurn: false })).toMatchObject({ deadlineMs: AUTONOMOUS_DEADLINE_MS, timeoutRetryEffort: "low" });
-    // o painel (IA) não muda
-    expect(turnTimings({ autonomous: false, longTurn: true })).toMatchObject({ deadlineMs: 40_000, stageMaxMs: 30_000 });
+    expect(turnTimings({ longTurn: false })).toMatchObject({ deadlineMs: AUTONOMOUS_DEADLINE_MS, timeoutRetryEffort: "low" });
   });
   it("os tetos de baixo comportam o turno longo e a contingência só entra depois da geração", () => {
     expect(LIMITS.maxTimeoutMs).toBeGreaterThanOrEqual(LONG_TURN.callMaxMs);

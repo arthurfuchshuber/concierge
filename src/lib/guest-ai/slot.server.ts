@@ -229,7 +229,7 @@ export async function requestGuestAiReply(req: GuestAiRequest, deps: SlotDeps = 
             messageId: req.messageId,
             expectedOwnerId: req.expectedOwnerId ?? null,
           },
-          { autonomous: true, longTurn: req.longTurn === true },
+          { longTurn: req.longTurn === true },
         );
     let timer: ReturnType<typeof setTimeout> | undefined;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
