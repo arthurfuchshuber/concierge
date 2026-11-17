@@ -4784,7 +4784,7 @@ function KpiCard({
               label={label}
               title={label}
               iconClassName={dotClass.replace("bg-", "text-")}
-              className={deskTile === "stacked" ? "lg:px-5" : ""}
+              className={deskTile === "stacked" ? "lg:pl-5 lg:pr-0" : ""}
               labelClassName={
                 deskTile === "stacked"
                   ? "lg:font-extrabold lg:tracking-[0.11em]"

@@ -4,8 +4,9 @@ import type { ElementType, ReactNode } from "react";
  * CABEÇALHO DO CARTÃO DE NÚMERO (pedido do cliente, 09/11/2026, "para todo o
  * sistema"): o TÍTULO fica centralizado no cartão sem contar o ícone; o ícone
  * é puro (sem caixinha de fundo) e fica colado à esquerda do título, fora do
- * cálculo do centro. As laterais reservam o espaço do ícone dos dois lados
- * (px-5), então o título longo reticencia sem invadir o ícone.
+ * cálculo do centro. O espaço do ícone é reservado
+ * só à esquerda (pl-5): o título longo reticencia exatamente na margem direita do cartão, à mesma distância que o ícone
+ * começa da margem esquerda (17/11/2026); o conjunto ícone+título continua centralizado.
  */
 export function StatHead({
   icon: Icon,
@@ -28,7 +29,7 @@ export function StatHead({
   inlineLg?: boolean;
 }) {
   return (
-    <div className={`flex w-full min-w-0 justify-center px-5 ${inlineLg ? "lg:flex-1 lg:justify-start lg:px-0" : ""} ${className}`}>
+    <div className={`flex w-full min-w-0 justify-center pl-5 pr-0 ${inlineLg ? "lg:flex-1 lg:justify-start lg:px-0" : ""} ${className}`}>
       <span className={`relative min-w-0 max-w-full ${inlineLg ? "lg:flex lg:flex-1 lg:items-center lg:gap-2.5" : ""}`}>
         <Icon
           aria-hidden="true"
