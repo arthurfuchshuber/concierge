@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Check, Link2, Plug, Power, PowerOff, RotateCw, Search, TriangleAlert, X } from "lucide-react";
+import { Check, ChevronDown, Link2, Plug, Power, PowerOff, RotateCw, Search, TriangleAlert, X } from "lucide-react";
 import { toast } from "sonner";
-import { PhoneActionButton } from "@/components/PhoneActionButton";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { SELECTED_ITEM_BG_CLASS, SelectionBar } from "@/components/ui/selection-bar";
 import { Switch } from "@/components/ui/switch";
@@ -125,7 +124,7 @@ function SenderPicker({
   const current = sender.options.find((o) => o.channelId === sender.currentChannelId) ?? sender.options[0];
   const single = sender.options.length <= 1;
   const box =
-    "flex h-8 min-w-0 flex-1 items-center gap-2 rounded-[9px] border border-border/70 bg-[color-mix(in_oklab,var(--card),var(--background)_55%)] pl-2.5 pr-2.5 text-left text-xs text-foreground";
+    "flex h-6 min-w-0 flex-1 items-center gap-1.5 rounded-[7px] border border-border/70 bg-transparent px-2 text-left text-[11.5px] text-foreground";
   const shown = useMemo(() => {
     const nq = norm(q.trim());
     if (!nq) return sender.options;
@@ -149,6 +148,7 @@ function SenderPicker({
       <PopoverTrigger asChild>
         <button type="button" aria-haspopup="listbox" aria-expanded={open} className={box}>
           <AccountLabel title={current?.title ?? "—"} email={current?.email} />
+          <ChevronDown className="size-3 shrink-0 text-muted-foreground" />
         </button>
       </PopoverTrigger>
       {/* Sempre para BAIXO (regra do seletor): sem inverter para cima por falta de espaço. */}
@@ -247,7 +247,7 @@ function ListingCard({
         if (selecting) onToggleSelect();
       }}
       className={cn(
-        "relative min-w-0 select-none rounded-[12px] py-3 pl-[17px] pr-3.5 shadow-sm [-webkit-touch-callout:none]",
+        "relative min-w-0 select-none rounded-[12px] pt-3 pb-2 pl-[17px] pr-3.5 shadow-sm [-webkit-touch-callout:none]",
         selected ? SELECTED_ITEM_BG_CLASS : "bg-card",
         selecting && !readOnly && "cursor-pointer",
       )}
@@ -269,25 +269,18 @@ function ListingCard({
             )}
           >
             {g.primary.name}
+            {twin ? (
+              <Link2
+                aria-label={`Gêmeo: ${twin.name}`}
+                className="ml-1.5 inline size-3 shrink-0 align-[-1px] text-muted-foreground opacity-80"
+              />
+            ) : null}
           </p>
           {g.primary.ownerName ? (
             <div className="mt-1 flex min-w-0 items-center gap-1 text-[11px] leading-[15px]">
               <span className="min-w-0 truncate font-semibold text-foreground" title={g.primary.ownerName}>
                 {g.primary.ownerName}
               </span>
-              <PhoneActionButton
-                phone={g.primary.ownerPhone}
-                country={g.primary.ownerPhoneCountry}
-                size={11}
-                alwaysShow
-                className="-my-1 shrink-0"
-              />
-            </div>
-          ) : null}
-          {twin ? (
-            <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[11px] leading-[15px] text-muted-foreground">
-              <Link2 className="size-3 shrink-0" />
-              <span className="min-w-0 truncate">Gêmeo: {twin.name}</span>
             </div>
           ) : null}
         </div>
@@ -303,14 +296,14 @@ function ListingCard({
         // O menu "Assina como" fica num portal, mas os eventos dele sobem pela árvore do React até o
         // card: sem barrar aqui, o toque longo/seleção do card disputava o clique da opção.
         <div
-          className="relative mt-1 flex min-w-0 items-center gap-2 border-t border-border/60 pt-2"
+          className="relative mt-1 flex min-w-0 items-center gap-2 "
           onClick={(e) => e.stopPropagation()}
           onPointerDown={(e) => e.stopPropagation()}
           onPointerMove={(e) => e.stopPropagation()}
           onPointerUp={(e) => e.stopPropagation()}
           onContextMenu={(e) => e.stopPropagation()}
         >
-          <span className="shrink-0 text-[11px] text-muted-foreground">Assina como</span>
+          <span className="shrink-0 text-[11px] text-muted-foreground">Assina como:</span>
           <SenderPicker sender={sender} disabled={readOnly} onPick={onPickSender} />
         </div>
       ) : null}
@@ -496,13 +489,13 @@ export function AirbnbAiPanel({ readOnly }: { readOnly?: boolean }) {
       search={
         showList ? (
           <div className="relative h-10 shrink-0 border-b border-[var(--panel-div)]">
-            <Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground opacity-60" />
+            <Search className="pointer-events-none absolute left-0 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground opacity-60" />
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="Buscar imóvel, proprietário, cidade…"
               aria-label="Buscar imóvel, proprietário, cidade"
-              className="h-full w-full bg-transparent pl-9 pr-9 text-[12.5px] text-foreground placeholder:text-muted-foreground focus:outline-none"
+              className="h-full w-full bg-transparent pl-[22px] pr-9 text-[12.5px] text-foreground placeholder:text-muted-foreground focus:outline-none"
             />
             {q ? (
               <button
