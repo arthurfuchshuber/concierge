@@ -60,10 +60,6 @@ type Phase =
   | "in_use"
   | "unavailable";
 
-const fmtDate = (iso: string | null | undefined) => {
-  const d = iso ? new Date(iso) : new Date();
-  return d.toLocaleDateString("pt-BR");
-};
 const fmtCep = (v: string) => {
   const d = v.replace(/\D+/g, "").slice(0, 8);
   return d.length > 5 ? `${d.slice(0, 5)}-${d.slice(5)}` : d;
@@ -320,21 +316,10 @@ export function CompanySection({ ownerId }: { ownerId: string | null }) {
 
   const frozen = !!savedCnpj; // CNPJ já gravado: só o suporte muda
 
-  const openOnlyMunicipal = phase === "ok" && missing.every((m) => m === "municipalRegistration");
+  // Ajuste manual do usuário (17/11/2026): sem texto explicativo nos estados "consultando" e "ativo"; só as
+  // mensagens de erro (CNPJ inativo, inválido, não encontrado, em uso) e o aviso de Receita fora do ar.
   const note: React.ReactNode =
-    phase === "loading" ? (
-      "Conferindo se o CNPJ está ativo e buscando os dados na Receita Federal."
-    ) : phase === "ok" ? (
-      <>
-        Dados da Receita Federal (consulta de {fmtDate(checkedAt)}) ficam bloqueados. Alteração
-        apenas via suporte.{" "}
-        {missing.length === 0
-          ? ""
-          : openOnlyMunicipal
-            ? "Preencha só a inscrição municipal."
-            : "Preencha os campos abertos."}
-      </>
-    ) : phase === "inactive" ? (
+    phase === "inactive" ? (
       <span className="text-[#c0392b]">
         Este CNPJ está <b>{situationWord(situation)}</b> na Receita Federal. Informe um CNPJ ativo.
       </span>
@@ -346,8 +331,6 @@ export function CompanySection({ ownerId }: { ownerId: string | null }) {
       <span className="text-[#c0392b]">CNPJ inválido. Confira os números.</span>
     ) : phase === "in_use" ? (
       <span className="text-[#c0392b]">Este CNPJ já está em uso em outra conta.</span>
-    ) : phase === "idle" ? (
-      "Digite o CNPJ: consultamos a Receita Federal e preenchemos os dados."
     ) : null;
 
   return (

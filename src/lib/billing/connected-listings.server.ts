@@ -10,7 +10,7 @@ export type ConnectedListing = {
   name: string;
   kind: "primary" | "twin";
   propertyName: string;
-  /** Quando o anúncio foi conectado (base do histórico de quantidade por mês). */
+  /** Desde quando o anúncio conta (cadastro do imóvel; gêmeo: criação do vínculo) — base do histórico por mês. */
   connectedAt: string | null;
 };
 
@@ -18,7 +18,7 @@ export async function loadConnectedListings(admin: any, ownerId: string): Promis
   const [prim, twins] = await Promise.all([
     admin
       .from("property_listing_raw_data")
-      .select("property_id, airbnb_listing_id, created_at, properties!inner(name, owner_id, archived_at)")
+      .select("property_id, airbnb_listing_id, created_at, properties!inner(name, owner_id, archived_at, created_at)")
       .eq("properties.owner_id", ownerId)
       .is("properties.archived_at", null)
       .is("sync_paused_at", null)
@@ -38,7 +38,7 @@ export async function loadConnectedListings(admin: any, ownerId: string): Promis
   for (const r of (prim.data ?? []) as any[]) {
     const n = r.properties?.name ?? "Imóvel";
     nameByProp.set(r.property_id, n);
-    items.push({ listingId: String(r.airbnb_listing_id ?? r.property_id), name: n, kind: "primary", propertyName: n, connectedAt: r.created_at ?? null });
+    items.push({ listingId: String(r.airbnb_listing_id ?? r.property_id), name: n, kind: "primary", propertyName: n, connectedAt: r.properties?.created_at ?? r.created_at ?? null });
   }
   const seen = new Set(items.map((i) => i.listingId));
   for (const t of (twins.data ?? []) as any[]) {

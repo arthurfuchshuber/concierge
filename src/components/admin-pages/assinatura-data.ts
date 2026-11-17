@@ -93,35 +93,37 @@ export function buildAssinatura(info: SubscriptionInfo, payments: PaymentRow[]) 
       url: null,
     });
   }
-  if (exempt && qtd > 0 && info.subscriptionSince) {
-    // Meses já vencidos desde a isenção: o valor segue visível, riscado (calculado com os anúncios daquela data).
-    const since = Date.parse(info.subscriptionSince);
+  // Extrato: UMA fatura por mês, com o valor exato daquele mês.
+  //  · Mês com cobrança (pagamento na Stripe): fica como está, mais abaixo (valor realmente cobrado).
+  //  · Mês sem cobrança (conta isenta ou lacuna): valor pelo plano e pela quantidade de anúncios ativos no corte
+  //    (dia 25) daquele mês, nunca pelo plano/quantidade de hoje (17/11/2026: "sem mudanças retroativas jamais").
+  const hist = b?.history;
+  const since = info.subscriptionSince
+    ? Date.parse(info.subscriptionSince)
+    : hist && hist.connectedAt.length
+      ? Math.min(...hist.connectedAt.map((c) => Date.parse(c)))
+      : null;
+  if (since != null && !Number.isNaN(since) && hist) {
+    const valorEm = (d: Date) => {
+      const count = hist.connectedAt.filter((c) => Date.parse(c) <= d.getTime()).length + hist.unconnectedCount;
+      return monthlyTotalCents(count, hist.terms);
+    };
     const cursor = nextAnchor(anchorDay);
-    const past: Date[] = [];
+    const paidMonths = new Set(payments.map((p) => monthLabel(p.createdAt)));
     for (let i = 0; i < 6; i++) {
       const b0 = brt(cursor);
       const d = new Date(Date.UTC(b0.getUTCFullYear(), b0.getUTCMonth() - 1 - i, anchorDay, 3, 0, 0));
       if (d.getTime() <= since || d.getTime() > Date.now()) continue;
-      past.push(d);
-    }
-    // Valor de cada mês = anúncios já conectados NAQUELA data x condições do contrato; nunca o valor
-    // atual do plano repetido em todos os meses (pedido 17/11/2026).
-    const hist = b?.history;
-    const valorEm = (d: Date) => {
-      if (!hist) return monthly;
-      const count = hist.connectedAt.filter((c) => Date.parse(c) <= d.getTime()).length + hist.unconnectedCount;
-      return monthlyTotalCents(count, hist.terms);
-    };
-    for (const d of past) {
+      if (paidMonths.has(monthLabel(d))) continue; // já tem cobrança real neste mês
       const cents = courtesy ? 0 : valorEm(d);
       faturas.push({
-        id: `isenta-${d.toISOString()}`,
+        id: `hist-${d.toISOString()}`,
         titulo: `Fatura ${monthLabel(d)}`,
-        sub: `Isenta em ${fmtDate(d)}`, // mockups adm-d-assinatura-isento-a/b: sem a contagem de anúncios
+        sub: exempt ? `Isenta em ${fmtDate(d)}` : `Sem cobrança em ${fmtDate(d)}`,
         valor: courtesy ? "Cortesia" : cents > 0 ? brl(cents) : "—",
         cor: MUTED,
         url: null,
-        riscada: true,
+        riscada: exempt,
       });
     }
   }
