@@ -8630,14 +8630,14 @@ function OccupancyPanel({
                     return (
                       <div className="relative text-xs" style={{ width: totalW, minWidth: totalW }}>
                         {/* CABEÇALHO fixo no topo: coluna "Imóvel" + régua (mês e dias). */}
-                        <div className={`sticky top-0 z-30 flex h-[70px] ${hdrBg}`}>
+                        <div className={`sticky top-0 z-30 flex h-[70px] [clip-path:inset(0_1px)] ${hdrBg}`}>
                           <div
                             className={`sticky left-0 z-10 flex shrink-0 items-center pb-2 pr-3 ${hdrBg}`}
                             style={{ width: nameColW, minWidth: nameColW }}
                           >
                             <span className="ds-eyebrow block min-w-0 flex-1 truncate pl-[10px]">Imóvel</span>
                             {/* Fio da coluna fixa: estica 4 px além do rodapé para encostar na linha de baixo. */}
-                            <span aria-hidden className="pointer-events-none absolute -bottom-1 right-0 top-0 w-px bg-[var(--grid-line-v)]" />
+                            <span aria-hidden className="pointer-events-none absolute bottom-0 right-0 top-0 w-px bg-[var(--grid-line-v)]" />
                           </div>
                           <div className="relative shrink-0" style={{ width: trackW }}>
                             {/* LINHA DO MÊS (16/10/2026, mockup aprovado): rótulo à ESQUERDA do trecho visível
@@ -8679,7 +8679,7 @@ function OccupancyPanel({
                                   {i < dayList.length - 1 && (
                                     <span
                                       aria-hidden
-                                      className="pointer-events-none absolute -bottom-1 right-0 top-0 w-px bg-[var(--grid-line-v)]"
+                                      className="pointer-events-none absolute bottom-0 right-0 top-0 w-px bg-[var(--grid-line-v)]"
                                     />
                                   )}
                                   <div
@@ -8803,7 +8803,7 @@ function OccupancyPanel({
                             return (
                               <div key={p.id} data-whole-card className={`group flex ${pIdx > 0 ? "mt-1" : ""}`} style={{ width: totalW }}>
                                 <div
-                                  className={`sticky left-0 z-10 flex shrink-0 flex-col justify-center py-1 pr-3 ${hdrBg} ${rowDivider}`}
+                                  className={`sticky left-0 z-10 flex shrink-0 flex-col justify-center py-1 pr-3 shadow-[0_4px_0_0_color-mix(in_oklab,var(--foreground)_1.5%,var(--card)),0_-4px_0_0_color-mix(in_oklab,var(--foreground)_1.5%,var(--card))] ${hdrBg} ${rowDivider}`}
                                   style={{ width: nameColW, minWidth: nameColW }}
                                 >
                                   <span
