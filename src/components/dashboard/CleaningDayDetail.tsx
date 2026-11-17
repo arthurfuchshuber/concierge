@@ -688,7 +688,6 @@ export function CleaningDayDetailContent({
       {/* CABEÇALHO UNIVERSAL DE JANELA AMPLA (07/11/2026, referência: "Check-ins
           amanhã"): sem ícone, título 14px negrito em 1 linha e subtítulo 12px;
           o `pr-14` deixa o "X" oficial (canto superior direito) livre. */}
-      {/* Mockup det-lanc-a (12/11/2026, fonte da verdade): título 16px extranegrito, subtítulo 13px. */}
       <DialogHeader className={WINDOW_HEADER_CLASS}>
         <DialogTitle className={WINDOW_TITLE_CLASS} title={heading}>
           {windowTitle(heading)}

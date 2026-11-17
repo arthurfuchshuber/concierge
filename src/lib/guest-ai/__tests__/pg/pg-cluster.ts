@@ -15,13 +15,31 @@ import path from "node:path";
 const PG_ROOT = "/usr/lib/postgresql";
 /** `GUEST_AI_PG_BIN` aponta para outro diretório de binários (ex.: PostgreSQL 17.6). */
 const binOk = (bin: string | null | undefined): bin is string => !!bin && existsSync(path.join(bin, "postgres")) && existsSync(path.join(bin, "initdb"));
+/**
+ * As migrations do Copiloto verificam uma impressão digital do catálogo (pg_get_expr, pg_get_constraintdef, ACLs…) cuja
+ * saída muda entre versões MAIORES do Postgres. O valor esperado foi certificado no PostgreSQL 17 (Supabase): num cluster de
+ * outra versão maior (ex.: 16 do Ubuntu) a migration recusa corretamente ("impressão digital ≠ esperada"). Por isso só
+ * usamos binários da versão certificada; sem eles a suíte é PULADA (como já ocorre sem Postgres), em vez de falhar por ambiente.
+ * Para rodar localmente: `GUEST_AI_PG_BIN=/caminho/do/postgres17/bin`.
+ */
+export const CERTIFIED_PG_MAJOR = 17;
+function pgMajor(bin: string): number | null {
+  try {
+    const out = execFileSync(path.join(bin, "postgres"), ["--version"], { stdio: ["ignore", "pipe", "ignore"] }).toString();
+    const m = /\)\s+(\d+)/.exec(out);
+    return m ? Number(m[1]) : null;
+  } catch {
+    return null;
+  }
+}
+const certified = (bin: string) => binOk(bin) && pgMajor(bin) === CERTIFIED_PG_MAJOR;
 function findBin(): string | null {
   const env = process.env.GUEST_AI_PG_BIN;
-  if (env) return binOk(env) ? env : null;
+  if (env) return certified(env) ? env : null;
   if (!existsSync(PG_ROOT)) return null;
   for (const v of readdirSync(PG_ROOT).sort().reverse()) {
     const bin = path.join(PG_ROOT, v, "bin");
-    if (existsSync(path.join(bin, "postgres")) && existsSync(path.join(bin, "initdb"))) return bin;
+    if (certified(bin)) return bin;
   }
   return null;
 }
