@@ -51,6 +51,8 @@ export interface TextContext {
   calendar?: (Pick<PropertyCalendarOccupancy, "occupiedRanges" | "today" | "windowStart" | "windowEnd"> & Partial<Pick<PropertyCalendarOccupancy, "alternatives" | "stayEdges">>) | null;
   /** Fase inquiry (15/11/2026): o hóspede só escreve depois de escolher período e hóspedes; pedir as datas é erro. */
   inquiry?: boolean;
+  /** Há reserva feita (17/11/2026): convidar a concluir/garantir reserva é erro de fase. */
+  hasStay?: boolean;
 }
 
 /**
@@ -68,6 +70,22 @@ const ASKS_KNOWN_DATES = new RegExp(
 );
 export function asksForKnownDates(reply: string): boolean {
   return ASKS_KNOWN_DATES.test(strip(String(reply ?? "")));
+}
+
+/**
+ * Convite a fechar reserva (17/11/2026, caso Simone): com reserva já feita, chamar para "concluir/finalizar/efetivar a
+ * reserva", "garantir as datas" ou "reservar pela plataforma" é erro de fase. Só o convite; "sua reserva está
+ * confirmada" ou falar da reserva existente não casam.
+ */
+const BOOKING_INVITE = new RegExp(
+  [
+    "\\b(concluir|concluam|conclua|finalizar|finalize|efetivar|efetive|formalizar|formalize|fazer|faca|faça)\\s+(a\\s+|sua\\s+)?reserva\\b",
+    "\\bgarantir\\s+(as\\s+)?(suas\\s+)?datas\\b",
+    "\\breserv(ar|e|em)\\s+(diretamente\\s+)?(por\\s+aqui\\s+)?(pela|na)\\s+(propria\\s+)?plataforma\\b",
+  ].join("|"),
+);
+export function invitesToBook(reply: string): boolean {
+  return BOOKING_INVITE.test(strip(String(reply ?? "")));
 }
 
 /**
@@ -113,7 +131,7 @@ export interface TextEvidence {
   calendarAvailability?: boolean;
 }
 
-export const TEXT_BLOCKS = ["text_commitment_undeclared", "text_completion_without_evidence", "text_commitment_unclassifiable", "text_time_mismatch", "text_calendar_collision", "text_asks_known_dates", "text_sac_jargon", "text_missing_accents"] as const;
+export const TEXT_BLOCKS = ["text_commitment_undeclared", "text_completion_without_evidence", "text_commitment_unclassifiable", "text_time_mismatch", "text_calendar_collision", "text_asks_known_dates", "text_sac_jargon", "text_missing_accents", "text_booking_invite_with_stay"] as const;
 export type TextBlock = (typeof TEXT_BLOCKS)[number];
 
 export interface TextCheck {
@@ -344,6 +362,7 @@ export function checkReplyAgainstDecision(d: ModelDecision, ctx: TextContext, ev
   if (findCalendarCollisions(reply, ctx.calendar).length) blocks.add("text_calendar_collision");
   // Consulta: nunca mandar o hóspede selecionar/informar as datas que ele já escolheu (caso Lauriete, 15/11/2026).
   if (ctx.inquiry === true && asksForKnownDates(reply)) blocks.add("text_asks_known_dates");
+  if (ctx.hasStay === true && invitesToBook(reply)) blocks.add("text_booking_invite_with_stay");
   // Jargão de SAC (15/11/2026): a regra de estilo do prompt ganha rede de segurança em código (uma nova tentativa).
   if (hasSacJargon(reply)) blocks.add("text_sac_jargon");
   // Acentuação (16/11/2026): resposta longa em português sem nenhum acento ⇒ uma nova tentativa.
