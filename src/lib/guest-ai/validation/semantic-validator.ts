@@ -330,7 +330,7 @@ export function validateSemantics(input: SemanticInput): SemanticReport {
   }
 
   // 6c) B2.5 — o TEXTO confrontado com a estrutura e com a evidência do sistema (fail-closed).
-  const text = checkReplyAgainstDecision(d, { ...(input.officialTimes ?? { officialCheckin: null, officialCheckout: null }), inquiry: ctx.guest.phase === "inquiry" }, {
+  const text = checkReplyAgainstDecision(d, { ...(input.officialTimes ?? { officialCheckin: null, officialCheckout: null }), inquiry: ctx.guest.phase === "inquiry", hasStay: !!ctx.guest.stay }, {
     credentialReleaseAllowed: auth.credentialRelease === "allow",
     lateCheckoutAuthorizedTime: auth.lateCheckout.status === "authorized" ? auth.lateCheckout.time : null,
     humanOwnershipActive: !!own?.active || ctx.humanOwnership.openCaseCount > 0,

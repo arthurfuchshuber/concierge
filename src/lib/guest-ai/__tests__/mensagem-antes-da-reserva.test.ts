@@ -49,3 +49,27 @@ describe("mensagem escrita no ato da reserva", () => {
     expect(inq).toMatch(/entram quando ela trouxer uma dúvida, um interesse ou uma necessidade/);
   });
 });
+
+import { checkReplyAgainstDecision, invitesToBook } from "@/lib/guest-ai/validation/commitment-text";
+
+describe("trava: convite a reservar quando a reserva já existe (caso Simone)", () => {
+  it("detecta o convite a fechar a reserva", () => {
+    for (const s of [
+      "Você pode concluir a reserva diretamente por aqui pela plataforma para garantir as datas da viagem.",
+      "É só finalizar a reserva no aplicativo.",
+      "Pode reservar pela plataforma quando quiser.",
+    ])
+      expect(invitesToBook(s), s).toBe(true);
+  });
+  it("falar da reserva existente não é convite", () => {
+    for (const s of ["Sua reserva está confirmada para 24 de novembro.", "Na sua reserva constam 4 hóspedes.", "Como vocês já fizeram a reserva, está tudo certo."])
+      expect(invitesToBook(s), s).toBe(false);
+  });
+  it("só barra quando há reserva; em consulta o convite segue permitido", () => {
+    const d = { reply: "Você pode concluir a reserva pela plataforma.", commitmentKinds: [], handoff: { needed: false }, promisedTimes: [] } as never;
+    const ev = { credentialReleaseAllowed: false, lateCheckoutAuthorizedTime: null, humanOwnershipActive: false };
+    const base = { officialCheckin: "15:00", officialCheckout: "11:00" };
+    expect(checkReplyAgainstDecision(d, { ...base, hasStay: true }, ev).blocks).toContain("text_booking_invite_with_stay");
+    expect(checkReplyAgainstDecision(d, { ...base, inquiry: true, hasStay: false }, ev).blocks).not.toContain("text_booking_invite_with_stay");
+  });
+});
