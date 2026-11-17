@@ -25,7 +25,7 @@
 import type { CommitmentKind, ModelDecision, PromisedTime } from "@/lib/guest-ai/orchestrator/contracts";
 import { findCalendarCollisions, type PropertyCalendarOccupancy } from "@/lib/guest-ai/calendar-occupancy";
 
-export const TEXT_COMMITMENT_VERSION = "text-commitment.2026-11-03.1";
+export const TEXT_COMMITMENT_VERSION = "text-commitment.2026-11-17.1";
 
 export type TextClaimModality = "promise" | "completed";
 export interface TextClaim {
@@ -279,7 +279,10 @@ export function analyzeReplyCommitments(reply: string, ctx: TextContext): TextAn
       const strong = kind === "early_checkin" || kind === "late_checkout" || kind === "service_or_benefit";
       if (done && (action || strong || kind === "credential_release" || kind === "resolution" || kind === "reservation_change")) found.add(kind);
       else if (promise && (action || strong || kind === "reservation_change")) found.add(kind);
-      else if (action && (strong || kind === "reservation_change" || kind === "credential_release")) unclassifiable += 1;
+      // Credencial (17/11/2026, caso Marcela "tem porteiro?"): descrever como funciona a entrada ("o código do cofre é
+      // liberado no dia da entrada") é informação; só promessa ou entrega em 1ª pessoa conta (acima). Mostrar o
+      // código em si é barrado pelo guard de saída, que não muda.
+      else if (action && (strong || kind === "reservation_change")) unclassifiable += 1;
     }
     // 4) Execução concluída em 1ª pessoa sem objeto reconhecido ("já providenciei", "i've sent it").
     if (!objectHit && firstDone && action) found.add("action_completed");

@@ -282,13 +282,45 @@ export interface UrgentInternalAlert {
   effectsExecuted: false;
 }
 
+/** Rascunho barrado para a auditoria (puro): o texto só vai se o guard disser que é seguro. */
+export function blockedDraft(
+  reply: string,
+  blocks: readonly string[],
+  kinds: readonly string[],
+  guard: { scan(t: string): { status: string; text: string; findings: readonly unknown[] } } | null,
+): { reply: string | null; blocks: string[]; kinds: string[] } {
+  let safe: string | null = null;
+  const text = (reply ?? "").trim();
+  if (text && guard) {
+    try {
+      const r = guard.scan(text);
+      if (r && r.status === "safe" && r.text === text && r.findings.length === 0) safe = text.slice(0, 2_000);
+    } catch {
+      safe = null;
+    }
+  }
+  return { reply: safe, blocks: [...new Set(blocks)].slice(0, 12), kinds: [...new Set(kinds)].slice(0, 12) };
+}
+
 export type ChainOutcome =
   | ({ kind: "reply"; text: string; strategy: Strategy; decision: ModelDecision; situation: ChainSituation; dispatch: DispatchPreparation; audit: ChainAudit } & NotSent)
   | ({ kind: "paused"; situation: ChainSituation; audit: ChainAudit } & NotSent)
   | ({ kind: "urgent_internal_alert"; alert: UrgentInternalAlert; situation: ChainSituation; audit: ChainAudit } & NotSent)
   | ({ kind: "silence"; decision: ModelDecision; situation: ChainSituation; audit: ChainAudit } & NotSent)
   | ({ kind: "human_action"; question: string; decision: ModelDecision; situation: ChainSituation; audit: ChainAudit } & NotSent)
-  | ({ kind: "refused"; stage: ChainStageId; code: ChainRefusalCode; situation: ChainSituation | null; audit: ChainAudit } & NotSent)
+  | ({
+      kind: "refused";
+      stage: ChainStageId;
+      code: ChainRefusalCode;
+      situation: ChainSituation | null;
+      audit: ChainAudit;
+      /**
+       * Resposta barrada pelos validadores (17/11/2026, auditoria): texto que o modelo escreveu e os bloqueios, para
+       * a auditoria ver POR QUE foi barrada. Só existe quando o guard de saída diz que o texto é seguro (sem
+       * credencial); caso contrário fica `null`.
+       */
+      blocked?: { reply: string | null; blocks: string[]; kinds: string[] };
+    } & NotSent)
   | ({ kind: "technical_error"; stage: ChainStageId; code: ChainTechnicalCode; audit: ChainAudit } & NotSent);
 
 // ─────────────────────────── Dependências (todas injetadas) ───────────────────────────
@@ -933,7 +965,8 @@ export async function runTurnChain(input: ChainInput, deps: ChainDeps): Promise<
     }
     if (!isReport(structural)) return refuse("structural_validation", "structural_validator_invalid", situation);
     structuralBlocks = [...structural.blocks];
-    if (structural.verdict !== "pass") return refuse("structural_validation", "structural_block", situation);
+    if (structural.verdict !== "pass")
+      return { ...refuse("structural_validation", "structural_block", situation), blocked: blockedDraft(decision.reply, structural.blocks, [], timedGuard) };
     completed.push("structural_validation");
 
     // 10) Validador semântico
@@ -976,7 +1009,11 @@ export async function runTurnChain(input: ChainInput, deps: ChainDeps): Promise<
         }).status === "within_authorized";
       return { kind: pt.kind, result: ok ? "valid" : "invalid_commitment_time", authorizationSource: a && a.status === "authorized" ? a.source : null };
     });
-    if (semantic.verdict !== "pass") return refuse("semantic_validation", "semantic_block", situation);
+    if (semantic.verdict !== "pass")
+      return {
+        ...refuse("semantic_validation", "semantic_block", situation),
+        blocked: blockedDraft(decision.reply, semantic.blocks, [...(semantic.text?.detectedKinds ?? []), ...semantic.unauthorizedKinds], timedGuard),
+      };
     completed.push("semantic_validation");
 
     // 11) Decisão final — silêncio é resultado legítimo e NUNCA vira texto.

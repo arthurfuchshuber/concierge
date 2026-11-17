@@ -128,6 +128,15 @@ describe("B2.3 · semântico — alteração contratual, alternativas e contexto
     expect(sem(dec({ ...base, strategy: "clarify" })).blocks).toEqual([]);
     expect(sem(dec({ ...base, strategy: "answer_and_handoff", handoff: { needed: true, question: "Hóspede pede mudar datas", urgency: "normal" } })).blocks).toEqual([]);
   });
+  it("caso Apê (17/11/2026): com o calendário consultado pelo sistema, responder se há noite livre é informação, não a alteração", () => {
+    const base = { intents: ["formal_change_request"], formalChangeRequests: ["dates"] };
+    const c = ctx();
+    const withCal = { ...c, guest: { ...c.guest, calendar: { status: "available", occupiedRanges: [], today: "2026-11-17", windowStart: "2026-11-17", windowEnd: "2026-12-17" } } };
+    expect(sem(dec(base), { context: withCal as never }).blocks).not.toContain("formal_change_without_route");
+    // calendário indisponível: segue exigindo rota
+    const noCal = { ...c, guest: { ...c.guest, calendar: { status: "unavailable" } } };
+    expect(sem(dec(base), { context: noCal as never }).blocks).toContain("formal_change_without_route");
+  });
   it("sugerir alternativas sem candidatos autorizados, ou sem citá-los ⇒ recusa", () => {
     const d = dec({ strategy: "suggest_alternatives", groundedOn: ["dos:principal:a"] });
     expect(sem(d).blocks).toContain("alternatives_without_candidates");
