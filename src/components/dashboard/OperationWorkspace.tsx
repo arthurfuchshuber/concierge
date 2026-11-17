@@ -8590,7 +8590,7 @@ function OccupancyPanel({
         )}
       </div>
       {/* Quadro de ponta a ponta no card (mockup 31/10/2026): sem recuo lateral, barra de rolagem colada na lateral. */}
-      <div className="overflow-hidden rounded-b-[14px] border-t-0 px-0 pt-0 pb-4">
+      <div className="mx-[2px] overflow-hidden rounded-b-[14px] border-t-0 px-0 pt-0 pb-4">
           {loading ? (
             <OccupancySkeleton />
           ) : properties.length === 0 ? (
@@ -8613,6 +8613,11 @@ function OccupancyPanel({
                     width: "100%",
                     transform: "translateZ(0)",
                     WebkitOverflowScrolling: "touch",
+                    // A faixa do cabeçalho (70 px) segue até a lateral, cobrindo a calha da barra de rolagem.
+                    backgroundImage:
+                      "linear-gradient(color-mix(in oklab, var(--foreground) 1.5%, var(--card)), color-mix(in oklab, var(--foreground) 1.5%, var(--card)))",
+                    backgroundSize: "100% 70px",
+                    backgroundRepeat: "no-repeat",
                     ...(list.maxHeight !== undefined ? { maxHeight: list.maxHeight } : {}),
                   }}
                   onScroll={(e) => {
