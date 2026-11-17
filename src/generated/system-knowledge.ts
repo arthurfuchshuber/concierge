@@ -11,7 +11,7 @@ export type GeneratedSystemDoc = {
   content_hash: string;
 };
 
-export const GENERATED_AT = "2026-11-17T22:40:55.210Z";
+export const GENERATED_AT = "2026-11-17T22:56:31.213Z";
 
 export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
   {
@@ -7782,7 +7782,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "ae038d029ddc1b2e9f63f90f7647f93b"
   },
   {
-    "doc_key": "rule:src/lib/guest-ai/slot.server.ts:19002",
+    "doc_key": "rule:src/lib/guest-ai/slot.server.ts:19238",
     "kind": "rule",
     "title": "Regra em slot.server.ts",
     "content": "Fallback sem modelo (timeout, erro ou resultado inválido): lê a rajada do hóspede por regex e, se houver pedido\nde saída tardia/entrada antecipada, abre a decisão com botões e responde com os horários oficiais. Sem pedido\nreconhecido, mantém o encaminhamento de sempre (fila humana + push), sem texto.",
@@ -7962,7 +7962,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "ec01f331734a9ac8f8120ce619c8e50b"
   },
   {
-    "doc_key": "rule:src/lib/guest-ai/turn/generate.server.ts:7534",
+    "doc_key": "rule:src/lib/guest-ai/turn/generate.server.ts:7670",
     "kind": "rule",
     "title": "Regra em generate.server.ts",
     "content": "G2 · ações operacionais (padrão: `runOps`, modo por `GUEST_AI_OPS_MODE`). Roda depois da gravação da\nsugestão, só com decisão validada; nunca altera a sugestão, e falha nunca derruba a geração.",
@@ -7971,7 +7971,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "f2125800eea3a703820456980343d9bb"
   },
   {
-    "doc_key": "rule:src/lib/guest-ai/turn/generate.server.ts:7800",
+    "doc_key": "rule:src/lib/guest-ai/turn/generate.server.ts:7936",
     "kind": "rule",
     "title": "Regra em generate.server.ts",
     "content": "Bastidores (08/11/2026): extrator próprio dos sinais operacionais (padrão: `extractOpsSignals`, Reserva).\nRoda em paralelo com a resposta assim que contexto e histórico estão lidos e NÃO depende dela dar certo.",
@@ -7980,7 +7980,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "c9bcd7316c996149fc3fd28a41ff9f43"
   },
   {
-    "doc_key": "rule:src/lib/guest-ai/turn/generate.server.ts:8106",
+    "doc_key": "rule:src/lib/guest-ai/turn/generate.server.ts:8242",
     "kind": "rule",
     "title": "Regra em generate.server.ts",
     "content": "Observabilidade (14/11/2026): grava o motivo quando o turno terminou SEM avançar card (padrão:\n`recordOpsNoAdvance`, só quando `ops` não é substituído). Prazo próprio de 2,5 s; nunca derruba a geração.",

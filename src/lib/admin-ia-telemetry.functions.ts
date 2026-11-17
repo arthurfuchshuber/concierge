@@ -33,7 +33,7 @@ const FEED_ROW_CAP = 200;
 const PREVIEW_CHARS = 120;
 
 const SUMMARY_COLUMNS =
-  "id, property_id, conversation_id, trigger_message_id, surface, state, outcome_kind, outcome_code, strategy, warnings, model_id, gateway_input_tokens, gateway_output_tokens, gateway_cost_usd, gateway_latency_ms, gateway_error, generation_attempts, generation_started_at, suggested_text, context_stay_phase, context_reservation_linked, context_history_messages, context_dossier_entries, context_credential_policy, context_sender_identity, context_human_in_command";
+  "id, property_id, conversation_id, trigger_message_id, surface, state, outcome_kind, outcome_code, strategy, warnings, model_id, gateway_input_tokens, gateway_output_tokens, gateway_cost_usd, gateway_latency_ms, gateway_error, generation_attempts, generation_started_at, suggested_text, handoff_needed, context_stay_phase, context_reservation_linked, context_history_messages, context_dossier_entries, context_credential_policy, context_sender_identity, context_human_in_command";
 
 const OPS_COLUMNS =
   "id, trigger_message_id, action, mode, outcome, code, created_at, applied_at, card_before, card_after";
@@ -71,6 +71,7 @@ function toSuggestion(r: Record<string, unknown>): SuggestionRow {
     attempts: Number(r.generation_attempts ?? 1) || 1,
     startedAt: String(r.generation_started_at),
     hasSuggestion: typeof r.suggested_text === "string" && r.suggested_text.length > 0,
+    handoffNeeded: r.handoff_needed === true,
     stayPhase: (r.context_stay_phase as string | null) ?? null,
     reservationLinked: (r.context_reservation_linked as boolean | null) ?? null,
     historyMessages: num(r.context_history_messages),

@@ -45,6 +45,8 @@ export interface SuggestionRow {
   attempts: number;
   startedAt: string;
   hasSuggestion: boolean;
+  /** A IA encaminhou a conversa à equipe neste turno. */
+  handoffNeeded?: boolean;
   stayPhase: string | null;
   reservationLinked: boolean | null;
   historyMessages: number | null;
@@ -72,7 +74,7 @@ export type OutcomeKey =
   | "d9"
   | "error"
   | "silence"
-  | "sent"
+  | "forwarded"
   | "available"
   | "superseded"
   | "generating";
@@ -82,8 +84,8 @@ export const OUTCOME_LABEL: Record<OutcomeKey, string> = {
   d9: "Recusou D9",
   error: "Erro",
   silence: "Silêncio",
-  sent: "Enviada",
-  available: "Disponível",
+  forwarded: "Encaminhou",
+  available: "Respondeu",
   superseded: "Substituída",
   generating: "Gerando",
 };
@@ -95,7 +97,7 @@ export function classifyOutcome(s: SuggestionRow, ops: readonly OpsRow[]): Outco
   if (s.warnings.includes("credential_request_denied")) return "d9";
   if (s.state === "no_suggestion" || s.outcomeKind === "silence" || s.strategy === "silence")
     return "silence";
-  if (s.state === "sent") return "sent";
+  if (s.handoffNeeded === true) return "forwarded";
   if (s.state === "available") return "available";
   if (s.state === "superseded") return "superseded";
   return "generating";
@@ -106,19 +108,19 @@ export function isOscillation(s: SuggestionRow): boolean {
   return (s.modelId !== null && s.modelId !== TITULAR_MODEL) || s.attempts > 1;
 }
 
-export type FeedFilter = "all" | "cards" | "errors" | "approved";
+export type FeedFilter = "all" | "cards" | "errors" | "replied";
 export const FEED_FILTERS: ReadonlyArray<{ key: FeedFilter; label: string }> = [
   { key: "all", label: "Todos" },
   { key: "cards", label: "Ações de cartão" },
   { key: "errors", label: "Erros e oscilações" },
-  { key: "approved", label: "Aprovados" },
+  { key: "replied", label: "Respondidas" },
 ];
 
 export function matchesFilter(f: FeedFilter, s: SuggestionRow, ops: readonly OpsRow[]): boolean {
   const o = classifyOutcome(s, ops);
   if (f === "cards") return ops.length > 0;
   if (f === "errors") return o === "error" || isOscillation(s);
-  if (f === "approved") return o === "sent" || o === "card";
+  if (f === "replied") return o === "available" || o === "card";
   return true;
 }
 
@@ -128,7 +130,7 @@ export function filterFeedRows<
 >(rows: readonly T[], f: FeedFilter): T[] {
   if (f === "cards") return rows.filter((r) => r.hasOps);
   if (f === "errors") return rows.filter((r) => r.outcome === "error" || r.oscillation);
-  if (f === "approved") return rows.filter((r) => r.outcome === "sent" || r.outcome === "card");
+  if (f === "replied") return rows.filter((r) => r.outcome === "available" || r.outcome === "card");
   return [...rows];
 }
 
@@ -163,12 +165,11 @@ export interface TelemetryKpis {
   maxLatencyMs: number | null;
   activeModel: string | null;
   reserveUsesToday: number;
-  /** enviadas sem alteração ÷ enviadas (null sem envios). */
-  assertivenessPct: number | null;
-  /** enviadas ÷ geradas (null sem geradas). */
-  adoptionPct: number | null;
-  sentCount: number;
-  generatedCount: number;
+  /** Turnos concluídos que a IA resolveu sozinha (respondeu ou silenciou sem encaminhar) ÷ concluídos (null sem turnos). */
+  resolvedPct: number | null;
+  repliedCount: number;
+  silentCount: number;
+  forwardedCount: number;
   cardsApplied: number;
   cardsRefused: number;
   todayBySurface: Record<TelemetrySurface, number>;
@@ -194,8 +195,11 @@ export function computeKpis(
   const costWindow = rows.reduce((a, r) => a + r.costUsd, 0);
   const lat = rows.map((r) => r.latencyMs).filter((v): v is number => typeof v === "number");
   const latest = rows.find((r) => r.modelId) ?? null;
-  const sent = rows.filter((r) => r.state === "sent");
-  const generated = rows.filter((r) => r.hasSuggestion);
+  // turnos concluídos (gerando ou substituídos por mensagem mais nova não contam)
+  const done = rows.filter((r) => r.state === "available" || r.state === "no_suggestion" || r.state === "generation_failed");
+  const forwarded = done.filter((r) => r.state === "generation_failed" || r.handoffNeeded === true);
+  const replied = done.filter((r) => r.state === "available" && r.handoffNeeded !== true);
+  const silent = done.filter((r) => r.state === "no_suggestion" && r.handoffNeeded !== true);
   const bySurface: Record<TelemetrySurface, number> = { airbnb: 0, whatsapp: 0, guide_chat: 0 };
   for (const r of today) bySurface[r.surface] = (bySurface[r.surface] ?? 0) + 1;
   const live = ops.filter((o) => o.mode === "live");
@@ -208,10 +212,10 @@ export function computeKpis(
     maxLatencyMs: lat.length ? Math.max(...lat) : null,
     activeModel: latest?.modelId ?? null,
     reserveUsesToday: today.filter((r) => r.modelId === RESERVE_MODEL).length,
-    assertivenessPct: pct(sent.length, sent.length),
-    adoptionPct: pct(sent.length, generated.length),
-    sentCount: sent.length,
-    generatedCount: generated.length,
+    resolvedPct: pct(replied.length + silent.length, done.length),
+    repliedCount: replied.length,
+    silentCount: silent.length,
+    forwardedCount: forwarded.length,
     cardsApplied: live.filter((o) => o.outcome === "applied").length,
     cardsRefused: live.filter((o) => o.outcome === "refused").length,
     todayBySurface: bySurface,

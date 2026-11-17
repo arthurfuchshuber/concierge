@@ -85,6 +85,12 @@ describe("slot autônomo · projeção da cadeia para o canal", () => {
     const d = deps({ generate: vi.fn(async () => ({ status: "skipped", code: "superseded_by_newer_message", detail: null })) });
     expect(await requestGuestAiReply(REQ, d)).toEqual({ reply: "", handoff: false });
   });
+  it("mesma mensagem já gerada por outra execução: silêncio aqui (a outra entrega); falhou ⇒ contingência", async () => {
+    const ok = deps({ generate: vi.fn(async () => ({ status: "exists", suggestionId: "s", state: "available" })) });
+    expect(await requestGuestAiReply(REQ, ok)).toEqual({ reply: "", handoff: false });
+    const failed = deps({ generate: vi.fn(async () => ({ status: "exists", suggestionId: "s", state: "generation_failed" })), loadBurst: async () => ["Qual a senha do wifi?"] });
+    expect(await requestGuestAiReply(REQ, failed)).toMatchObject({ handoff: true });
+  });
   it("erro inesperado nunca lança: encaminha à equipe", async () => {
     const d = deps({ generate: vi.fn(async () => { throw new Error("x"); }) });
     expect(await requestGuestAiReply(REQ, d)).toMatchObject({ handoff: true });

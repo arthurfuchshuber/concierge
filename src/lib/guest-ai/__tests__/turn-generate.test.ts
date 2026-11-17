@@ -403,6 +403,17 @@ describe("IA · geração com a cadeia real e o Gateway real (transporte falso)"
     expect(p.calls).toBe(1);
   });
 
+  it("execução repetida acompanha a que já gera e devolve o estado final (17/11/2026)", async () => {
+    const p = fakeProvider(okJson(v6()));
+    const store = new MemoryTurnStore();
+    const [a, b] = await Promise.all([
+      generateGuestAiTurn(REQ, deps(p, { store })),
+      generateGuestAiTurn(REQ, deps(p, { store, existsPollMs: 5 })),
+    ]);
+    const dup = [a, b].find((x) => x.status === "exists") as { status: "exists"; state: string };
+    expect(dup.state).toBe("available");
+  });
+
   it("rajada: com mensagem mais nova do hóspede, esta é dispensada (a mais nova responde ao conjunto); incerto ⇒ gera", async () => {
     const p = fakeProvider(okJson(v6()));
     const d = deps(p, { checkNewerGuestMessage: async () => "newer" });
