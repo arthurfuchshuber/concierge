@@ -37,6 +37,7 @@ import { fetchReservationState, type ReservationLookup } from "@/lib/guest-ai/da
 import { fetchCancellationTerms } from "@/lib/guest-ai/data/cancellation-terms.server";
 import { fetchPropertyOccupancy } from "@/lib/guest-ai/data/property-calendar.server";
 import { localDate, type CalendarFact } from "@/lib/guest-ai/calendar-occupancy";
+import { timeAnchor } from "@/lib/guest-ai/time-anchor";
 import { freeCancellationStatus } from "@/lib/guest-ai/playbooks/airbnb-cancellation";
 import { emptyReservationState, type ReservationState } from "@/lib/guest-ai/data/reservation-facts";
 import { fetchSensitiveCredentials, fetchAccessMethod, type AccessMethod } from "@/lib/guest-ai/data/credentials.server";
@@ -329,6 +330,7 @@ export async function buildGuestContext(input: TurnInput, deps: BuilderDeps = {}
       dossierKnowledge: dossier,
     },
     phase,
+    now: timeAnchor(nowIso, timezone),
     inquiry: state.exists ? null : inquiry,
     stay: state.exists
       ? {

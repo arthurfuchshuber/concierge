@@ -325,14 +325,15 @@ describe("nome, gênero, fim do SAC, aviso de chegada e acolhimento breve em pre
   const sys = buildSystemPrompt("airbnb");
 
   it("usa o primeiro nome com naturalidade e concorda gênero, número e tempo verbal (16/11/2026, sem frase pronta)", () => {
-    const rule = sys.slice(sys.indexOf("Nome e concordância:"), sys.indexOf("Tempo verbal:") + 300);
+    const rule = sys.slice(sys.indexOf("Nome e concordância:"), sys.indexOf("Tempo verbal, em toda e qualquer situação:") + 700);
     expect(rule).toMatch(/ctx:hospede_nome/);
     expect(rule).toMatch(/primeiro_nome/);
     expect(rule).toMatch(/A concordância é rigorosa em gênero, número e tempo verbal/);
     expect(rule).toMatch(/genero_sugerido em adjetivos, particípios e saudações/);
     expect(rule).toMatch(/indeterminado pede construção neutra/);
     expect(rule).toMatch(/Número: plural quando a reserva ou a consulta for de mais de uma pessoa \(ctx:hospedes_da_reserva, ctx:consulta_hospedes\)/);
-    expect(rule).toMatch(/Tempo verbal: acompanhe a fase \(ctx:fase\)/);
+    expect(rule).toMatch(/situe cada fato no tempo pelo ctx:agora/);
+    expect(rule).toMatch(/pela fase \(ctx:fase\)/);
     // nenhuma frase pronta na regra (titular, 16/11/2026)
     expect(rule).not.toMatch(/bem-vind|prazer receber|boa tarde/i);
   });
@@ -363,7 +364,7 @@ describe("aviso de chegada coerente com canal e dossiê (system.2026-11-11.3)", 
   const arrival = sys.slice(sys.indexOf("Aviso de deslocamento"), sys.indexOf("Continue declarando guestEtas"));
 
   it("versão do roteiro", () => {
-    expect(SYSTEM_PROMPT_VERSION).toBe("system.2026-11-17.5");
+    expect(SYSTEM_PROMPT_VERSION).toBe("system.2026-11-17.6");
   });
 
   it("corrobora o histórico em vez de vetar a palavra guia", () => {

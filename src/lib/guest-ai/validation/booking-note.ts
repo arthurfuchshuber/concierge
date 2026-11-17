@@ -7,7 +7,7 @@
  * dentro da janela da reserva recém-feita (`stay.bookedMinutesAgo`, só preenchido nas primeiras 3 h), uma resposta
  * cuja própria decisão diz que o hóspede não perguntou, não pediu e não alterou nada vira silêncio.
  *
- * Nunca silencia: pergunta (`?` na mensagem atual, fora a cortesia "tudo bem?"), mídia, pedido, problema, emergência, alteração formal
+ * Nunca silencia: pergunta (qualquer `?` na mensagem atual, inclusive "tudo bem?"), mídia, pedido, problema, emergência, alteração formal
  * (inclui anunciar algo que muda as condições, como pet ou mais pessoas), encaminhamento, compromisso,
  * credencial ou marco de hospitalidade. Função pura.
  */
@@ -16,12 +16,6 @@ import type { HistoryResult } from "@/lib/guest-ai/history";
 
 const NOTE_ONLY_INTENTS = new Set(["acknowledgment", "other"]);
 
-/** Pergunta de cortesia ("tudo bem?", "como vai?") não é pergunta: não pede resposta. */
-const COURTESY_QUESTION = /(tudo\s+(bem|bom|certo|tranquilo|ok)|como\s+(vai|vão|está|estão|vai\s+você|vão\s+vocês))\s*\?/giu;
-
-function asksSomething(text: string): boolean {
-  return text.replace(COURTESY_QUESTION, "").includes("?");
-}
 
 /** Mensagens do hóspede que formam o turno atual (as últimas, depois da última fala de outra pessoa). */
 function currentGuestEntries(history: HistoryResult) {
@@ -48,7 +42,7 @@ export function bookingNoteSilence(
   if (sig.formalChangeRequests.length > 0 || sig.hospitalityMilestone !== null) return d;
   const current = currentGuestEntries(p.history);
   if (current.length === 0) return d;
-  if (current.some((e) => e.media !== null || asksSomething(e.text))) return d;
+  if (current.some((e) => e.media !== null || e.text.includes("?"))) return d;
   return {
     ...d,
     strategy: "silence",

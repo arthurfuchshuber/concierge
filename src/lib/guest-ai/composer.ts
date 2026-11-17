@@ -32,6 +32,7 @@
  *
  * Não é instalado em lugar nenhum: o padrão de produção do Orchestrator continua `NO_COMPOSER`.
  */
+import { timeAnchorFact } from "@/lib/guest-ai/time-anchor";
 import { calendarFactValue } from "@/lib/guest-ai/calendar-occupancy";
 import type { ComposedPrompt, ConversationContext } from "@/lib/guest-ai/orchestrator/contracts";
 import type { HistoryEntry, HistoryResult, HistoryUnavailableReason } from "./history";
@@ -314,6 +315,19 @@ function buildContextData(ctx: ConversationContext, guarded: Guarded, unavailabl
     { id: "ctx:imovel_nome", valor: g.property.name ? guarded(g.property.name, "context.property_name") : null, origem: "cadastro_do_imovel" },
     { id: "ctx:fuso", valor: g.property.timezone, origem: "backend" },
     { id: "ctx:fase", valor: g.phase, origem: "backend" },
+    ...(g.now
+      ? [{
+          id: "ctx:agora",
+          valor: timeAnchorFact(g.now, {
+            timeZone: g.property.timezone,
+            checkInAt: g.stay?.checkInAt,
+            checkOutAt: g.stay?.checkOutAt,
+            inquiryCheckin: g.stay ? null : g.inquiry?.checkinDate,
+            inquiryCheckout: g.stay ? null : g.inquiry?.checkoutDate,
+          }),
+          origem: "backend",
+        }]
+      : []),
   ];
   if (op?.aiPausedByTeam) {
     facts.push({ id: "ctx:ia_pausada", valor: { status: "pausada_pela_equipe", resposta_ao_hospede: "proibida", permitido: "apenas_classificar_emergencia_para_alerta_interno" }, origem: "equipe" });
