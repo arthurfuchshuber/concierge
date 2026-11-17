@@ -198,11 +198,15 @@ export async function buildGuestContext(input: TurnInput, deps: BuilderDeps = {}
     policyLabel: null,
   };
   let guests: { adults: number; children: number; infants: number } | null = null;
+  let bookedMinutesAgo: number | null = null;
   if (state.exists) {
     try {
       const terms = await (deps.fetchCancellationTerms ?? fetchCancellationTerms)(turn, { db });
       if (terms) {
         guests = terms.guests ?? null;
+        const bt = terms.bookedAt ? Date.parse(terms.bookedAt) : NaN;
+        const mins = Number.isFinite(bt) ? Math.round((clock().getTime() - bt) / 60_000) : NaN;
+        bookedMinutesAgo = Number.isFinite(mins) && mins >= 0 && mins <= 180 ? mins : null;
         const fc = freeCancellationStatus({
           category: terms.category,
           isNonRefundable: terms.isNonRefundable,
@@ -336,6 +340,7 @@ export async function buildGuestContext(input: TurnInput, deps: BuilderDeps = {}
           timezone,
           freeCancellation,
           guests,
+          bookedMinutesAgo,
         }
       : null,
     calendar,

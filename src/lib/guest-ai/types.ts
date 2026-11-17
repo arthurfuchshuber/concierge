@@ -252,6 +252,11 @@ export interface GuestContext {
     freeCancellation?: { status: "open" | "closed" | "unknown"; until: string | null; policyLabel: string | null };
     /** Ocupação da reserva (adultos, crianças, bebês). Ausente/`null` = não informada (não presumir). */
     guests?: { adults: number; children: number; infants: number } | null;
+    /**
+     * Minutos desde que a reserva foi gravada, pelo relógio do turno, só nas primeiras 3 h (17/11/2026, caso Simone:
+     * mensagem escrita no ato da reserva). Ausente/`null` = reserva antiga ou momento desconhecido.
+     */
+    bookedMinutesAgo?: number | null;
   } | null;
   /**
    * Ocupação do calendário do imóvel (reservas confirmadas de outros hóspedes e bloqueios manuais), só datas,

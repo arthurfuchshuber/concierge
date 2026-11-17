@@ -333,6 +333,8 @@ function buildContextData(ctx: ConversationContext, guarded: Guarded, unavailabl
   if (g.stay) {
     facts.push(
       { id: "ctx:reserva_status", valor: g.stay.status, origem: "reserva" },
+      // mensagem escrita no ato da reserva (17/11/2026, caso Simone): minutos desde a gravação, só nas primeiras 3 h
+      ...(typeof g.stay.bookedMinutesAgo === "number" ? [{ id: "ctx:reserva_feita_ha_minutos", valor: g.stay.bookedMinutesAgo, origem: "reserva" }] : []),
       { id: "ctx:checkin_oficial", valor: g.stay.checkInAt, origem: "reserva_e_cadastro" },
       { id: "ctx:checkout_oficial", valor: g.stay.checkOutAt, origem: "reserva_e_cadastro" },
       {
