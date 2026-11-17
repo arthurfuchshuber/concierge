@@ -41,13 +41,12 @@ describe("card Notas Fiscais (NFS-e) na aba Integrações", () => {
     expect(await screen.findByText("Notas Fiscais (NFS-e)")).toBeTruthy();
     await waitFor(() => expect(h.fiscalStatus).toHaveBeenCalled());
   });
-  it("conta de terceiro: o card aparece, mas só informativo e sem consultar o fiscal", async () => {
+  it("conta de terceiro: o card aparece, mas só informativo", async () => {
     h.impersonation = { userId: "outra-conta" };
     page();
     const card = (await screen.findByText("Notas Fiscais (NFS-e)")).closest("div.relative") as HTMLElement;
     fireEvent.click(within(card).getByRole("button", { name: /Conectar/ }));
     expect(await screen.findByText(INFO)).toBeTruthy();
-    expect(h.fiscalStatus).not.toHaveBeenCalled();
   });
   it("não titular (membro): card visível e informativo", async () => {
     h.isOwner = false;

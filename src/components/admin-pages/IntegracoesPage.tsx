@@ -162,13 +162,12 @@ export function useIntegrationStatusQueries() {
   });
   // Notas fiscais: só o titular. Contas sem o módulo respondem com erro, tratado como "não conectado" (nunca estoura).
   // A conta ativa pode ser a PRÓPRIA (o seletor grava o próprio id em "sg-impersonate"): isso continua sendo o titular.
-  const { isOwner, myUserId } = useMyPermissions();
-  const ownAccount = !accountOwnerId || accountOwnerId === myUserId;
+  const { isOwner } = useMyPermissions();
   const fiscalFn = useServerFn(fiscalStatus);
   const fiscal = useQuery({
     queryKey: FISCAL_STATUS_KEY,
     queryFn: () => fiscalFn({ data: {} }),
-    enabled: isOwner && ownAccount,
+    enabled: isOwner,
     retry: false,
     staleTime: QUERY_STALE_MS,
     gcTime: QUERY_GC_MS,
