@@ -3326,10 +3326,9 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
     // Alinhado à esquerda (sem mx-auto): com o menu recolhido a área fica mais
     // larga e o centramento aumentava a margem esquerda.
     /* PADRÃO "A · NOITE" (mockup aprovado, 17/09/2026): respiro lateral de
-       14px no celular, um pouco mais de ar entre os blocos (10px) e o halo
-       roxo bem fraco no topo — o mesmo efeito da landing. */
+       14px no celular e um pouco mais de ar entre os blocos (10px). Sem halo/degradê no
+       fundo da página (pedido 17/11/2026: degradê só dentro de cartão específico). */
     <div ref={pageRef} className="ds-page relative w-full max-w-none px-3.5 py-5 sm:px-5 lg:px-8 lg:pl-4 lg:py-8">
-      <div aria-hidden className="ds-page-halo" />
       <OperationShell
         view={view}
         /* O Operacional NÃO tem ações no título (pedido explícito,

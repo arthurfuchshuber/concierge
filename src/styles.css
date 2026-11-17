@@ -1547,19 +1547,6 @@ dd {
 }
 
 
-/* Halo roxo do topo da página — o mesmo efeito da landing, bem fraco. */
-@utility ds-page-halo {
-  position: absolute;
-  left: -80px;
-  right: -80px;
-  top: -140px;
-  height: 360px;
-  pointer-events: none;
-  /* 0.16 → 0.10 (padrão "Presença"): o facho fica, mas ninguém mais consegue
-     apontar "a cor" — só a sensação de profundidade. */
-  background: radial-gradient(50% 50% at 50% 50%, rgba(124, 26, 216, 0.1), transparent 70%);
-}
-
 /* Padrão "Janelas flutuantes" (26/09/2026): casca do painel de Filtros da
    Limpeza aplicada a toda janela suspensa, menu, seletor e dica. */
 @utility ds-overlay {
