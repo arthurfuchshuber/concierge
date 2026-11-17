@@ -114,7 +114,7 @@ export const getAccountBilling = createServerFn({ method: "POST" })
     const { loadBillingTerms } = await import("@/lib/billing/billing-terms.server");
     const { loadConnectedListings } = await import("@/lib/billing/connected-listings.server");
     const L = await import("@/lib/billing/listing-billing");
-    const [terms, listings, cardRow] = await Promise.all([
+    const [terms, listings, cardRow, snaps] = await Promise.all([
       loadBillingTerms(supabaseAdmin, ownerId),
       loadConnectedListings(supabaseAdmin, ownerId),
       (supabaseAdmin as any)
@@ -130,6 +130,14 @@ export const getAccountBilling = createServerFn({ method: "POST" })
               failure_message: string | null;
             } | null,
         ),
+      // Registro do corte de cada mês (dia 25): o extrato usa o valor exato gravado naquele mês.
+      (supabaseAdmin as any)
+        .from("billing_period_snapshots")
+        .select("period_date, active_listings, monthly_cents")
+        .eq("owner_id", ownerId)
+        .order("period_date", { ascending: false })
+        .limit(24)
+        .then((r: any) => (r?.data ?? []) as Array<{ period_date: string; active_listings: number; monthly_cents: number }>),
     ]);
     const count = listings.length;
     const sub = match ? toBillingSubscription(match) : null;
@@ -182,6 +190,7 @@ export const getAccountBilling = createServerFn({ method: "POST" })
         history: {
           connectedAt: listings.map((l) => l.connectedAt).filter((d): d is string => !!d),
           unconnectedCount: listings.filter((l) => !l.connectedAt).length,
+          snapshots: snaps.map((x: { period_date: string; active_listings: number; monthly_cents: number }) => ({ periodDate: x.period_date, activeListings: x.active_listings, monthlyCents: x.monthly_cents })),
           terms: {
             unitCents: terms.unitCents,
             minUnits: terms.minUnits,

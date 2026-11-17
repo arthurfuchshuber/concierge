@@ -75,6 +75,7 @@ import { Route as AuthenticatedAdminRecomendacoesSigmaCityKeyRouteImport } from 
 import { Route as ApiPublicCronAutoCheckoutRouteImport } from './routes/api/public/cron.auto-checkout'
 import { Route as ApiPublicCronBillingSyncRouteImport } from './routes/api/public/cron.billing-sync'
 import { Route as ApiPublicCronCardCheckRouteImport } from './routes/api/public/cron.card-check'
+import { Route as ApiPublicCronBillingSnapshotRouteImport } from './routes/api/public/cron.billing-snapshot'
 import { Route as ApiPublicCronChannexAriRetryRouteImport } from './routes/api/public/cron.channex-ari-retry'
 import { Route as ApiPublicCronConversationRemindersRouteImport } from './routes/api/public/cron.conversation-reminders'
 import { Route as ApiPublicCronFiscalReconcileRouteImport } from './routes/api/public/cron.fiscal-reconcile'
@@ -461,6 +462,11 @@ const ApiPublicCronCardCheckRoute = ApiPublicCronCardCheckRouteImport.update({
   path: '/api/public/cron/card-check',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicCronBillingSnapshotRoute = ApiPublicCronBillingSnapshotRouteImport.update({
+  id: '/api/public/cron/billing-snapshot',
+  path: '/api/public/cron/billing-snapshot',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicCronChannexAriRetryRoute =
   ApiPublicCronChannexAriRetryRouteImport.update({
     id: '/api/public/cron/channex-ari-retry',
@@ -650,6 +656,7 @@ export interface FileRoutesByFullPath {
   '/api/public/cron/auto-checkout': typeof ApiPublicCronAutoCheckoutRoute
   '/api/public/cron/billing-sync': typeof ApiPublicCronBillingSyncRoute
   '/api/public/cron/card-check': typeof ApiPublicCronCardCheckRoute
+  '/api/public/cron/billing-snapshot': typeof ApiPublicCronBillingSnapshotRoute
   '/api/public/cron/channex-ari-retry': typeof ApiPublicCronChannexAriRetryRoute
   '/api/public/cron/conversation-reminders': typeof ApiPublicCronConversationRemindersRoute
   '/api/public/cron/fiscal-reconcile': typeof ApiPublicCronFiscalReconcileRoute
@@ -736,6 +743,7 @@ export interface FileRoutesByTo {
   '/api/public/cron/auto-checkout': typeof ApiPublicCronAutoCheckoutRoute
   '/api/public/cron/billing-sync': typeof ApiPublicCronBillingSyncRoute
   '/api/public/cron/card-check': typeof ApiPublicCronCardCheckRoute
+  '/api/public/cron/billing-snapshot': typeof ApiPublicCronBillingSnapshotRoute
   '/api/public/cron/channex-ari-retry': typeof ApiPublicCronChannexAriRetryRoute
   '/api/public/cron/conversation-reminders': typeof ApiPublicCronConversationRemindersRoute
   '/api/public/cron/fiscal-reconcile': typeof ApiPublicCronFiscalReconcileRoute
@@ -827,6 +835,7 @@ export interface FileRoutesById {
   '/api/public/cron/auto-checkout': typeof ApiPublicCronAutoCheckoutRoute
   '/api/public/cron/billing-sync': typeof ApiPublicCronBillingSyncRoute
   '/api/public/cron/card-check': typeof ApiPublicCronCardCheckRoute
+  '/api/public/cron/billing-snapshot': typeof ApiPublicCronBillingSnapshotRoute
   '/api/public/cron/channex-ari-retry': typeof ApiPublicCronChannexAriRetryRoute
   '/api/public/cron/conversation-reminders': typeof ApiPublicCronConversationRemindersRoute
   '/api/public/cron/fiscal-reconcile': typeof ApiPublicCronFiscalReconcileRoute
@@ -918,6 +927,7 @@ export interface FileRouteTypes {
     | '/api/public/cron/auto-checkout'
     | '/api/public/cron/billing-sync'
     | '/api/public/cron/card-check'
+    | '/api/public/cron/billing-snapshot'
     | '/api/public/cron/channex-ari-retry'
     | '/api/public/cron/conversation-reminders'
     | '/api/public/cron/fiscal-reconcile'
@@ -1004,6 +1014,7 @@ export interface FileRouteTypes {
     | '/api/public/cron/auto-checkout'
     | '/api/public/cron/billing-sync'
     | '/api/public/cron/card-check'
+    | '/api/public/cron/billing-snapshot'
     | '/api/public/cron/channex-ari-retry'
     | '/api/public/cron/conversation-reminders'
     | '/api/public/cron/fiscal-reconcile'
@@ -1094,6 +1105,7 @@ export interface FileRouteTypes {
     | '/api/public/cron/auto-checkout'
     | '/api/public/cron/billing-sync'
     | '/api/public/cron/card-check'
+    | '/api/public/cron/billing-snapshot'
     | '/api/public/cron/channex-ari-retry'
     | '/api/public/cron/conversation-reminders'
     | '/api/public/cron/fiscal-reconcile'
@@ -1157,6 +1169,7 @@ export interface RootRouteChildren {
   ApiPublicCronAutoCheckoutRoute: typeof ApiPublicCronAutoCheckoutRoute
   ApiPublicCronBillingSyncRoute: typeof ApiPublicCronBillingSyncRoute
   ApiPublicCronCardCheckRoute: typeof ApiPublicCronCardCheckRoute
+  ApiPublicCronBillingSnapshotRoute: typeof ApiPublicCronBillingSnapshotRoute
   ApiPublicCronChannexAriRetryRoute: typeof ApiPublicCronChannexAriRetryRoute
   ApiPublicCronConversationRemindersRoute: typeof ApiPublicCronConversationRemindersRoute
   ApiPublicCronFiscalReconcileRoute: typeof ApiPublicCronFiscalReconcileRoute
@@ -1645,6 +1658,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicCronCardCheckRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/cron/billing-snapshot': {
+      id: '/api/public/cron/billing-snapshot'
+      path: '/api/public/cron/billing-snapshot'
+      fullPath: '/api/public/cron/billing-snapshot'
+      preLoaderRoute: typeof ApiPublicCronBillingSnapshotRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/cron/channex-ari-retry': {
       id: '/api/public/cron/channex-ari-retry'
       path: '/api/public/cron/channex-ari-retry'
@@ -1948,6 +1968,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicCronAutoCheckoutRoute: ApiPublicCronAutoCheckoutRoute,
   ApiPublicCronBillingSyncRoute: ApiPublicCronBillingSyncRoute,
   ApiPublicCronCardCheckRoute: ApiPublicCronCardCheckRoute,
+  ApiPublicCronBillingSnapshotRoute: ApiPublicCronBillingSnapshotRoute,
   ApiPublicCronChannexAriRetryRoute: ApiPublicCronChannexAriRetryRoute,
   ApiPublicCronConversationRemindersRoute:
     ApiPublicCronConversationRemindersRoute,

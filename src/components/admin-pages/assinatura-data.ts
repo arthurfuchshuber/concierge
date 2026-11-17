@@ -105,6 +105,10 @@ export function buildAssinatura(info: SubscriptionInfo, payments: PaymentRow[]) 
       : null;
   if (since != null && !Number.isNaN(since) && hist) {
     const valorEm = (d: Date) => {
+      // Mês com registro do corte (dia 25): usa exatamente o que foi gravado naquele mês.
+      const ym = new Date(d.getTime() - 3 * 3600_000).toISOString().slice(0, 7);
+      const snap = hist.snapshots?.find((x: { periodDate: string }) => x.periodDate.slice(0, 7) === ym);
+      if (snap) return snap.monthlyCents;
       const count = hist.connectedAt.filter((c) => Date.parse(c) <= d.getTime()).length + hist.unconnectedCount;
       return monthlyTotalCents(count, hist.terms);
     };
