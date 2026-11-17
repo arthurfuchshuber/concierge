@@ -91,7 +91,7 @@ function AdministrativoPage() {
                   onClick={() =>
                     navigate({ to: "/admin/administrativo", search: { tab: t.value, checkout: undefined } })
                   }
-                  className={`relative flex h-10 min-w-0 flex-1 items-center justify-center px-2 text-center text-[12px] lg:h-[var(--ds-action-h-lg)] leading-none transition-colors ${
+                  className={`relative flex h-10 min-w-0 flex-1 items-center justify-center px-2 text-center text-sm lg:h-[var(--ds-action-h-lg)] leading-none transition-colors ${
                     active ? "ds-tab-active font-bold" : "font-semibold text-muted-foreground hover:text-foreground"
                   }`}
                 >

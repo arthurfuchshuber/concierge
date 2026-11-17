@@ -69,7 +69,7 @@ export function Stepper({
                 : undefined
             }
             className={`relative flex h-10 items-center justify-center whitespace-nowrap lg:h-[var(--ds-action-h-lg)] text-center leading-none transition-colors ${
-              compact ? "gap-[5px] text-[11.5px]" : "gap-1.5 text-[12px]"
+              compact ? "gap-[5px] text-sm" : "gap-1.5 text-sm"
             } ${
               active
                 ? "ds-tab-active font-bold"
