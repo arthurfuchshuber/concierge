@@ -4713,7 +4713,7 @@ function KpiCard({
                  direita, numa pílula neutra. */
               className={`relative flex w-full items-center gap-3 overflow-hidden rounded-[14px] border-0 bg-card px-3.5 py-3 text-left transition hover:bg-secondary/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${shadowClass}${
                 deskTile === "stacked"
-                  ? " lg:grid lg:h-full lg:grid-cols-[auto_auto] lg:grid-rows-[auto_1fr] lg:content-start lg:justify-center lg:items-center lg:gap-x-[7px] lg:gap-y-0 lg:pb-0 lg:pl-[13px] lg:pr-[14px] lg:pt-[10px] lg:border lg:border-[rgba(255,185,0,0.38)] lg:[background-image:linear-gradient(180deg,rgba(255,185,0,0.07),rgba(255,185,0,0)_70%)]"
+                  ? " lg:grid lg:h-full lg:grid-cols-[auto_auto] lg:grid-rows-[auto_1fr] lg:content-start lg:justify-center lg:items-center lg:gap-x-[7px] lg:gap-y-0 lg:pb-0 lg:pl-[13px] lg:pr-[14px] lg:pt-[10px] lg:border lg:border-[rgba(255,185,0,0.38)]"
                   : ""
               }`}
             >

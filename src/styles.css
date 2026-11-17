@@ -108,7 +108,7 @@
      só uma sombra mínima — card plano e definido, como no escuro. As três peças
      (ds-3d, ds-tabs, barras de busca) leem estas variáveis; o escuro mantém
      exatamente os valores de sempre. */
-  --ds3d-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0) 55%);
+  --ds3d-bg: none;
   /* 16/11/2026 (mockup "Proposta A" aprovado): no claro o contorno de 10% sumia
      contra o fundo quase branco. Contorno de 20% + sombra de elevação. */
   --ds3d-shadow:
