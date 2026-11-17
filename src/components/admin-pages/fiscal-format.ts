@@ -13,7 +13,8 @@ export const simplesLabel = (s: SimplesOption | null | undefined) =>
 
 export const fiscalErrorText = (code?: string) =>
   ({
-    cnpj_mismatch: "O CNPJ da janela precisa ser o da sua conta.",
+    cnpj_mismatch: "O CNPJ informado difere do cadastrado.",
+    cnpj_invalid: "CNPJ inválido. Confira os números.",
     cnpj_in_use: "Este CNPJ já está ativo em outra conta.",
     certificate_invalid: "Certificado inválido. Confira o arquivo e a senha.",
     pfx_invalid: "Certificado inválido. Confira o arquivo e a senha.",

@@ -24,10 +24,11 @@ describe("company-prefill", () => {
     expect(await lookupCompanyByCnpj("12345678000195", ok({}, 404))).toEqual({ ok: false, code: "not_found" });
     expect(await lookupCompanyByCnpj("12345678000195", async () => { throw new Error("x"); })).toEqual({ ok: false, code: "unavailable" });
   });
-  it("só aceita o CNPJ cadastrado na própria conta", async () => {
-    const db = (cpf: string | null) => ({ from: () => ({ select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: { cpf } }) }) }) }) });
-    expect(await assertTaxIdIsAccountCnpj(db("12345678000195"), "u", "12.345.678/0001-95")).toBe(true);
-    expect(await assertTaxIdIsAccountCnpj(db("12345678000195"), "u", "11222333000181")).toBe(false);
-    expect(await assertTaxIdIsAccountCnpj(db("12345678901"), "u", "12345678901")).toBe(false);
+  it("aceita qualquer CNPJ válido informado pelo titular (mesmo com CPF no perfil) e recusa inválidos", async () => {
+    const db = { from: () => ({}) };
+    expect(await assertTaxIdIsAccountCnpj(db, "u", "11.222.333/0001-81")).toBe(true);
+    expect(await assertTaxIdIsAccountCnpj(db, "u", "12345678901")).toBe(false); // CPF
+    expect(await assertTaxIdIsAccountCnpj(db, "u", "11222333000182")).toBe(false); // dígito verificador errado
+    expect(await assertTaxIdIsAccountCnpj(db, "u", "00000000000000")).toBe(false);
   });
 });
