@@ -37,6 +37,18 @@ function Host({ initial = "main" as FiscalView }) {
 describe("janela Notas Fiscais (NFS-e)", () => {
   beforeEach(() => { cleanup(); vi.clearAllMocks(); fns.fiscalCompanyPrefill.mockResolvedValue(prefill); });
 
+  it("titular com CPF no perfil (sem CNPJ): pede o CNPJ da empresa, busca na Receita e libera o fluxo", async () => {
+    fns.fiscalStatus.mockResolvedValue({ companies: [] });
+    fns.fiscalCompanyPrefill.mockImplementation(async (a?: { data?: { taxId?: string | null } }) => (a?.data?.taxId ? prefill : { ok: false, code: "no_cnpj" }));
+    render(<Host />);
+    const input = (await screen.findByPlaceholderText("00.000.000/0000-00")) as HTMLInputElement;
+    expect(screen.queryByText(/no seu perfil/)).toBeNull();
+    expect((screen.getByRole("button", { name: /Buscar dados/ }) as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.change(input, { target: { value: "11222333000181" } });
+    await screen.findByDisplayValue("ACME LTDA");
+    expect(fns.fiscalCompanyPrefill).toHaveBeenLastCalledWith({ data: { taxId: "11222333000181" } });
+  });
+
   it("Conectar: 3 abas, dados da Receita bloqueados, Continuar → Continuar → Ativar (desabilitado sem certificado)", async () => {
     fns.fiscalStatus.mockResolvedValue({ companies: [] });
     render(<Host />);

@@ -151,8 +151,8 @@ export const fiscalSetupCompanyWithCertificate = createServerFn({ method: "POST"
     const s = await svc();
     const db = await s.adminDb();
     const { assertTaxIdIsAccountCnpj } = await import("./company-prefill");
-    // O CNPJ é o da conta (janela bloqueada): qualquer outro valor é recusado antes de falar com o provedor.
-    if (!(await assertTaxIdIsAccountCnpj(db, context.userId, data.taxId))) return { ok: false as const, code: "cnpj_mismatch" };
+    // CNPJ da empresa (do perfil ou informado pelo titular): precisa ser válido; o certificado e a Focus validam o resto.
+    if (!(await assertTaxIdIsAccountCnpj(db, context.userId, data.taxId))) return { ok: false as const, code: "cnpj_invalid" };
     return s.setupCompanyWithCertificate(db, context.userId, data);
   });
 
@@ -220,11 +220,15 @@ export const fiscalSearchServiceCodes = createServerFn({ method: "GET" })
 /** Dados da empresa (CNPJ da conta + Receita Federal) para a janela de ativação. Só o titular; nada sensível. */
 export const fiscalCompanyPrefill = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .inputValidator((i: unknown) => z.object({ taxId: z.string().max(18).nullish() }).nullish().parse(i))
+  .handler(async ({ data: input, context }) => {
+    const { lookupCompanyByCnpj, onlyDigits } = await import("./company-prefill");
+    // CNPJ informado pelo titular na janela (titular pessoa física) tem prioridade; senão, o do perfil.
+    const typed = onlyDigits(input?.taxId);
+    if (typed) return lookupCompanyByCnpj(typed);
     const s = await svc();
     const db = await s.adminDb();
     const { data } = await db.from("profiles").select("cpf").eq("id", context.userId).maybeSingle();
-    const { lookupCompanyByCnpj } = await import("./company-prefill");
     return lookupCompanyByCnpj(data?.cpf);
   });
 

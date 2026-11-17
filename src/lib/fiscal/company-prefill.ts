@@ -55,13 +55,16 @@ export async function lookupCompanyByCnpj(cnpjRaw: unknown, fetchImpl: FetchLike
   }
 }
 
-/** O CNPJ enviado na ativação precisa ser o do cadastro da própria conta (a janela o mostra bloqueado). */
+/**
+ * O CNPJ da empresa emissora pode vir do perfil OU ser informado pelo titular na janela (titular pessoa física, com CPF em
+ * `profiles.cpf`, também ativa a empresa dele). A trava real é o certificado A1: a Focus recusa certificado de outro CNPJ,
+ * e um CNPJ já ativo em outra conta é recusado (`cnpj_in_use`). Aqui só exigimos um CNPJ válido (14 dígitos, dígitos verificadores).
+ */
 export async function assertTaxIdIsAccountCnpj(
-  db: { from: (t: string) => any },
-  userId: string,
+  _db: { from: (t: string) => any },
+  _userId: string,
   taxId: string,
 ): Promise<boolean> {
-  const { data } = await db.from("profiles").select("cpf").eq("id", userId).maybeSingle();
-  const mine = onlyDigits(data?.cpf);
-  return mine.length === 14 && mine === onlyDigits(taxId);
+  const { isValidCnpj } = await import("./setup");
+  return isValidCnpj(onlyDigits(taxId));
 }
