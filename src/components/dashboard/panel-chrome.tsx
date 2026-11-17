@@ -82,7 +82,7 @@ export function PanelHeading({
         aria-hidden
         className={`h-px flex-1 bg-gradient-to-r from-[color-mix(in_oklab,var(--foreground)_9%,transparent)] to-transparent ${lgCentered ? "hidden" : ""}`}
       />
-      {right ? <span className={`shrink-0 ${lgCentered ? "absolute right-0 top-1/2 -translate-y-1/2 lg:right-[18px] lg:top-[13px] lg:translate-y-0" : ""}`}>{right}</span> : null}
+      {right ? <span className={`shrink-0 ${lgCentered ? "absolute right-0 top-1/2 -translate-y-1/2 lg:right-[18px] lg:top-[8px] lg:translate-y-0" : ""}`}>{right}</span> : null}
     </div>
   );
 }
