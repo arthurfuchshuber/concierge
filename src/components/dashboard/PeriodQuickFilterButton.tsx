@@ -120,10 +120,6 @@ export function PeriodQuickFilterButton({
         aria-pressed={shortcut.active}
         className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE} max-lg:hidden lg:w-auto lg:gap-1.5 lg:px-3`}
       >
-        <span
-          aria-hidden="true"
-          className={`size-[7px] shrink-0 rounded-full ${shortcut.active ? "bg-current" : "border border-current"}`}
-        />
         <span className={ACTION_LABEL}>{shortcut.label}</span>
       </button>
     ) : null}
