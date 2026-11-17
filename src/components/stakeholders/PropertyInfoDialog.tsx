@@ -5,7 +5,6 @@ import { toast } from "sonner";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { PropertyPhotoHeader } from "./PropertyPhotoHeader";
-import { PhoneActionButton } from "@/components/PhoneActionButton";
 import type { PropertyListItem } from "./property-actions";
 import {
   accessItemsOf,
@@ -164,13 +163,6 @@ export function PropertyInfoDialog({
                 {ownerName ? (
                   <div className="mt-0.5 flex min-w-0 items-center text-[11.5px]">
                     <span className="ml-1.5 min-w-0 truncate font-semibold">{ownerName}</span>
-                    <PhoneActionButton
-                      phone={ownerPhone}
-                      country={ownerPhoneCountry}
-                      size={13}
-                      alwaysShow
-                      className="shrink-0"
-                    />
                   </div>
                 ) : null}
               </div>

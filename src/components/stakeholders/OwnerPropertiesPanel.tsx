@@ -34,7 +34,6 @@ import {
   ACTION_BUTTON_TONE,
   PANEL_SHELL,
 } from "@/components/dashboard/panel-chrome";
-import { PhoneActionButton } from "@/components/PhoneActionButton";
 import { CoverImage } from "@/components/ui/cover-image";
 import { EmptyState } from "@/components/ds/EmptyState";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -488,16 +487,6 @@ export function OwnerPropertiesPanel({
                       <span className="min-w-0 truncate font-bold text-foreground">
                         {(p.owner_contact_id && ownersById[p.owner_contact_id]?.name) || owner.name}
                       </span>
-                      <PhoneActionButton
-                        phone={ownersById[p.owner_contact_id ?? ownerId]?.phone ?? owner.phone}
-                        country={
-                          ownersById[p.owner_contact_id ?? ownerId]?.phone_country ??
-                          owner.phone_country
-                        }
-                        size={13}
-                        alwaysShow
-                        className="shrink-0 !p-0"
-                      />
                     </span>
                     {/* Chavinha de ativar anúncio (mockup `.sw`: 36×20, igual ao Switch do sistema). */}
                     <Switch
@@ -846,13 +835,6 @@ function ReimportWindow({
                     <b className="truncate text-[11px] font-semibold text-foreground">
                       {own?.name ?? "—"}
                     </b>
-                    <PhoneActionButton
-                      phone={own?.phone}
-                      country={own?.phone_country}
-                      size={11}
-                      alwaysShow
-                      className="shrink-0 !p-0"
-                    />
                   </small>
                 </span>
                 {locked ? (

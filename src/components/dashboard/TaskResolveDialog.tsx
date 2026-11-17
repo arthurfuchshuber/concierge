@@ -65,7 +65,6 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { MoneyInput } from "@/components/ui/money-input";
-import { PhoneActionButton } from "@/components/PhoneActionButton";
 import { AudioRecorderButton } from "@/components/handoff/AudioRecorderButton";
 import { AttachmentsSending, type PendingAttachment } from "@/components/dashboard/TaskAttachments";
 import { CoverImage } from "@/components/ui/cover-image";
@@ -711,9 +710,6 @@ export function TaskResolveDialog({
                 {task?.ownerName && (
                   <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[13px] text-white">
                     <span className="truncate">{task.ownerName}</span>
-                    <span className="-my-1.5 shrink-0">
-                      <PhoneActionButton phone={task.ownerPhone} country={task.ownerPhoneCountry} size={13} alwaysShow />
-                    </span>
                   </div>
                 )}
               </div>
@@ -735,13 +731,6 @@ export function TaskResolveDialog({
               <div className="flex min-w-0 items-center gap-[5px] text-xs leading-4">
                 <User className="size-3 shrink-0 text-muted-foreground" />
                 <span className="min-w-0 truncate font-semibold text-foreground">{task.ownerName}</span>
-                <PhoneActionButton
-                  phone={task.ownerPhone}
-                  country={task.ownerPhoneCountry}
-                  size={13}
-                  alwaysShow
-                  className="!p-0"
-                />
               </div>
             )}
           </DialogHeader>

@@ -3,7 +3,6 @@ import { CalendarDays, Check, MapPin, Search, User, type LucideIcon } from "luci
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { ClampName } from "@/components/ui/clamp-name";
 import { CoverImage } from "@/components/ui/cover-image";
-import { PhoneActionButton } from "@/components/PhoneActionButton";
 import { PropertyMapsButton } from "@/components/dashboard/PropertyMapsButton";
 import { SELECTED_ITEM_BG_CLASS } from "@/components/ui/selection-bar";
 import { cn } from "@/lib/utils";
@@ -570,11 +569,6 @@ function OwnerLine({
       ) : (
         <span className="min-w-0 truncate font-semibold ds-atencao">sem proprietário</span>
       )}
-      {name ? (
-        <span className="-my-1.5 shrink-0" onClick={onStop} onKeyDown={onStop}>
-          <PhoneActionButton phone={phone} country={country} size={13} alwaysShow />
-        </span>
-      ) : null}
     </span>
   );
 }

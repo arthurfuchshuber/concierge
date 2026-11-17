@@ -2,7 +2,6 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { ArrowRight, Camera, Check, Clock, Repeat, TriangleAlert } from "lucide-react";
-import { PhoneActionButton } from "@/components/PhoneActionButton";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { CoverImage } from "@/components/ui/cover-image";
@@ -243,9 +242,6 @@ function CleaningPendenciesWindow({
   const guestLine = (
     <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[13px] text-white">
       <span className="truncate">{row.ownerName ?? row.guestName}</span>
-      <span className="-my-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
-        <PhoneActionButton phone={row.ownerPhone} country={row.ownerPhoneCountry} size={14} alwaysShow />
-      </span>
     </div>
   );
 

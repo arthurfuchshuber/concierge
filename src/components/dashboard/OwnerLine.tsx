@@ -1,5 +1,3 @@
-import { PhoneActionButton } from "@/components/PhoneActionButton";
-
 /**
  * PADRÃO ÚNICO DO PROPRIETÁRIO (01/11/2026): SEM rótulo,
  * só o NOME INTEIRO em destaque (cor de texto cheia) e ícone verde de chat colado
@@ -38,13 +36,6 @@ export function OwnerLine({
       >
         {full}
       </span>
-      <PhoneActionButton
-        phone={phone ?? null}
-        country={country ?? null}
-        size={size}
-        alwaysShow
-        className={`-my-1 ${phonePosition === "end" ? "ml-auto" : ""}`}
-      />
     </div>
   );
 }

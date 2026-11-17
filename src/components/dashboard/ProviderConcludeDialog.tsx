@@ -4,7 +4,6 @@ import { toast } from "sonner";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { CoverImage } from "@/components/ui/cover-image";
 import { MoneyInput } from "@/components/ui/money-input";
-import { PhoneActionButton } from "@/components/PhoneActionButton";
 import { AttachmentPicker, type PendingAttachment } from "@/components/dashboard/TaskAttachments";
 import type { TaskRow } from "@/lib/tasks-types";
 import { cn } from "@/lib/utils";
@@ -107,9 +106,6 @@ export function ProviderConcludeDialog({
             {task?.ownerName && (
               <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[13px] text-white">
                 <span className="truncate">{task.ownerName}</span>
-                <span className="-my-1.5 shrink-0">
-                  <PhoneActionButton phone={task.ownerPhone} country={task.ownerPhoneCountry} size={13} alwaysShow />
-                </span>
               </div>
             )}
           </div>

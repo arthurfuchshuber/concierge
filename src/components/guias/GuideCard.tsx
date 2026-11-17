@@ -3,7 +3,6 @@ import type { ReactNode } from "react";
 import { MapPin } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { OwnerLine } from "@/components/dashboard/OwnerLine";
-import { PhoneActionButton } from "@/components/PhoneActionButton";
 import { PANEL_SHELL } from "@/components/dashboard/panel-chrome";
 import { SELECTED_ITEM_IMPORTANT_CLASS } from "@/components/ui/selection-bar";
 import { useLongPress } from "@/hooks/useLongPress";
@@ -227,13 +226,6 @@ export function GuideCard({
               <span className="min-w-0 truncate font-semibold text-foreground" title={p.ownerName}>
                 {p.ownerName}
               </span>
-              <PhoneActionButton
-                phone={p.ownerPhone}
-                country={p.ownerPhoneCountry}
-                size={13}
-                alwaysShow
-                className="shrink-0 p-0.5"
-              />
             </span>
           ) : (
             <span />

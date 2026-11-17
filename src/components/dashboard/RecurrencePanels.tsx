@@ -15,7 +15,6 @@ import {
 } from "@/lib/recurrences.functions";
 import { describeFrequency, fmtBR, fmtBRShort, type RecurrenceUnit } from "@/lib/recurrence-dates";
 import { cn } from "@/lib/utils";
-import { PhoneActionButton } from "@/components/PhoneActionButton";
 
 /**
  * RECORRÊNCIAS NA PÁGINA REGISTROS (mockups b, d, m, c, j — 13/11/2026).
@@ -149,9 +148,6 @@ export function PropertyPendingWindow({
               /* Mesmo cabeçalho das janelas com capa (mockups b/c/d/j): proprietário + ícone de mensagem. */
               <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[13px] text-white">
                 <span className="truncate">{owner.name}</span>
-                <span className="-my-1.5 shrink-0">
-                  <PhoneActionButton phone={owner.phone} country={owner.country} size={13} alwaysShow />
-                </span>
               </div>
             ) : null}
           </div>

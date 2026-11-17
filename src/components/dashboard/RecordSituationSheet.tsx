@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { PhoneActionButton } from "@/components/PhoneActionButton";
 import { OwnerLine } from "@/components/dashboard/OwnerLine";
 import { useServerFn } from "@tanstack/react-start";
 import { useQueryClient } from "@tanstack/react-query";
@@ -915,9 +914,6 @@ export function RecordSituationSheet({
               ownersText ? (
                 <span className="mt-0.5 flex min-w-0 items-center gap-[5px] text-[12px] text-white">
                   <span className="min-w-0 truncate">{ownersText}</span>
-                  <span className="-my-1.5 shrink-0">
-                    <PhoneActionButton phone={owner?.phone} country={owner?.country} size={13} alwaysShow />
-                  </span>
                 </span>
               ) : null
             ) : owner?.name ? (

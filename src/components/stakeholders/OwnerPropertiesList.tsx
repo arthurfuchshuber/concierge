@@ -61,7 +61,6 @@ import {
 } from "@/lib/airbnb-account.functions";
 import { useImpersonation } from "@/hooks/useImpersonation";
 import { Button } from "@/components/ui/button";
-import { PhoneActionButton } from "@/components/PhoneActionButton";
 import { EmptyState } from "@/components/ds/EmptyState";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ClampName } from "@/components/ui/clamp-name";
@@ -559,13 +558,6 @@ export function OwnerPropertiesList({
                         <span className="min-w-0 truncate font-semibold text-foreground">
                           {ownerName}
                         </span>
-                        <PhoneActionButton
-                          phone={p.owner?.phone}
-                          country={p.owner?.phone_country}
-                          size={13}
-                          alwaysShow
-                          className="shrink-0"
-                        />
                       </span>
                     ) : (
                       <span className="flex min-w-0 items-center gap-1.5 text-xs">

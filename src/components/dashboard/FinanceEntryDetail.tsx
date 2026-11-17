@@ -1,6 +1,7 @@
 // Detalhe de UM lançamento, na MESMA janela da lista (mockup de 11/11/2026):
 // o canto superior direito vira "‹ Voltar" (DialogContent `onBack`), nunca uma
 // segunda janela. Serve a Financeiro, Serviços e Limpeza.
+import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
@@ -45,11 +46,11 @@ function fmtWhenFull(iso: string | null | undefined): string | null {
 const CAP = "text-[10.5px] font-bold uppercase tracking-[0.08em] text-[var(--faint)]";
 
 /** Linha do mockup: rótulo pequeno em cima, valor embaixo; divisor de ponta a ponta. */
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, children }: { label?: string; children: React.ReactNode }) {
   return (
     <div className="border-t border-foreground/[0.08] px-[18px] py-2.5 first:border-t-0">
-      <div className={CAP}>{label}</div>
-      <div className="mt-0.5 min-w-0 break-words text-[13.5px] font-semibold leading-[1.35] text-foreground">{children}</div>
+      {label ? <div className={CAP}>{label}</div> : null}
+      <div className={cn(label && "mt-0.5", "min-w-0 break-words text-[13.5px] font-semibold leading-[1.35] text-foreground")}>{children}</div>
     </div>
   );
 }
@@ -101,7 +102,7 @@ export function FinanceEntryDetail({
       <div className="sg-elegant-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain sm:mx-6 [scrollbar-gutter:stable]">
         <Field label="Imóvel">{it.propertyName}</Field>
         {it.ownerName ? (
-          <Field label="Proprietário(a)">
+          <Field>
             <OwnerLine name={it.ownerName} phone={it.ownerPhone ?? null} country={it.ownerPhoneCountry ?? null} phonePosition="adjacent" size={15} className="!text-[13.5px]" />
           </Field>
         ) : null}

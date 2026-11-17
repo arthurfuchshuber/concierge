@@ -41,7 +41,6 @@ import {
   ACTION_ICON,
 } from "@/components/dashboard/panel-chrome";
 import { CARD_OWNER, ownerLabel } from "@/components/dashboard/card-colors";
-import { PhoneActionButton } from "@/components/PhoneActionButton";
 import { GroupList, GroupRow, GroupTitle, StatusTrail, CHIP_BTN } from "./owner-ui";
 
 /**
@@ -446,12 +445,6 @@ export function OwnerPropertyWindow({
                     {ownerText && (
                       <div className="mt-1.5 flex min-w-0 items-center gap-1.5">
                         <span className={`truncate text-xs ${CARD_OWNER}`}>{ownerText}</span>
-                        <PhoneActionButton
-                          phone={owner?.phone}
-                          country={owner?.country}
-                          size={13}
-                          alwaysShow
-                        />
                       </div>
                     )}
                   </div>

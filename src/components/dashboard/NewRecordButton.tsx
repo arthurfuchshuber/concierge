@@ -3,7 +3,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { CalendarCheck, Home, Plus } from "lucide-react";
 import { CoverImage } from "@/components/ui/cover-image";
-import { PhoneActionButton } from "@/components/PhoneActionButton";
 import { ACTION_ICON, ACTION_SEGMENT } from "@/components/dashboard/panel-chrome";
 import {
   Choice,
@@ -174,9 +173,6 @@ export function NewRecordButton() {
         {ownersLabel ? (
           <span className="flex min-w-0 items-center gap-[5px] text-[11.5px] leading-[1.35] text-muted-foreground">
             <span className="min-w-0 truncate">{ownersLabel}</span>
-            <span className="-my-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
-              <PhoneActionButton phone={firstOwner?.ownerPhone} country={firstOwner?.ownerPhoneCountry} size={13} alwaysShow />
-            </span>
           </span>
         ) : null}
       </span>
