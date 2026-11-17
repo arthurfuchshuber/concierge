@@ -183,8 +183,12 @@ export const INTENT_CATEGORIES = [
 ] as const;
 export type IntentCategory = (typeof INTENT_CATEGORIES)[number];
 
-/** Intenções que, sozinhas, admitem silêncio (afirmação, cortesia, confirmação de chegada/saída já reconhecida). */
-export const SILENCE_COMPATIBLE_INTENTS: readonly IntentCategory[] = ["acknowledgment", "arrival_confirmation", "departure_confirmation"];
+/**
+ * Intenções que, sozinhas, admitem silêncio (cortesia, comentário ou informação sem pedido, confirmação de
+ * chegada/saída já reconhecida). 17/11/2026 (caso Felipe): "other" (o hóspede só conta algo da viagem) entrou; antes
+ * o silêncio escolhido no ato da reserva era barrado e a nova tentativa respondia à força.
+ */
+export const SILENCE_COMPATIBLE_INTENTS: readonly IntentCategory[] = ["acknowledgment", "arrival_confirmation", "departure_confirmation", "other"];
 
 export const FORMAL_CHANGE_KINDS = ["dates", "guest_count", "price", "cancellation", "early_checkin", "late_checkout", "other_conditions"] as const;
 export type FormalChangeKind = (typeof FORMAL_CHANGE_KINDS)[number];

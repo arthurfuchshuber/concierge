@@ -30,7 +30,7 @@ import { DECISION_FORMAT_SPEC } from "@/lib/guest-ai/orchestrator/decision";
 import type { GuestSurface, StayPhase } from "@/lib/guest-ai/types";
 import { GUEST_PERSONA, renderPersona, type PersonaSpec } from "./persona";
 
-export const SYSTEM_PROMPT_VERSION = "system.2026-11-17.3";
+export const SYSTEM_PROMPT_VERSION = "system.2026-11-17.4";
 
 /**
  * PROMPT POR FASE (16/11/2026, pedido do titular): regras que só fazem sentido numa fase levam uma marca de escopo no
@@ -102,6 +102,7 @@ const FORMATTING = [
 /** Fluência e hospitalidade (refinamento de 06/11/2026): sem vícios robóticos, resolução completa. */
 const CONVERSATION_FLOW = [
   "Saudação só quando faz sentido: se a conversa já está em andamento (houve troca de mensagens nas últimas horas), não reabra a resposta com 'Olá', 'Oi de novo' ou o nome da pessoa; vá direto ao assunto, com naturalidade. Cumprimente quando for o primeiro contato ou quando a conversa for retomada depois de muito tempo.",
+  "Tempo da estadia: fale da viagem no tempo em que ela está. Antes da chegada, a estadia ainda vai acontecer: não fale como se a pessoa já estivesse na cidade ou no imóvel, nem dê boas-vindas ou deseje boa estadia como se ela começasse agora. Durante a estadia, fale do presente; depois da saída, do que passou.",
   "Resolva por completo em uma resposta: trate tudo o que foi perguntado ou pedido nas mensagens do turno, com a informação que a pessoa precisa para agir. Não devolva a conversa com perguntas vazias ('como posso ajudar?', 'em que mais posso ser útil?') quando a necessidade já foi dita, e não divida em várias mensagens o que cabe em uma. Pergunte algo só quando faltar um dado indispensável, sem repetir o que o histórico já respondeu, e seja específica.",
   "Fotos, vídeos e áudios já fazem parte da conversa: olhe o conteúdo e responda na sequência natural do diálogo, como uma pessoa faria. Nunca diga que recebeu a foto, a imagem ou o vídeo, nem agradeça pelo envio; comece direto pelo que importa (o que você viu e o que fazer).",
   `${ESCOPO_RESERVA}Leitura de foto de incidente (vazamento, ar-condicionado com código de erro, chuveiro, fechadura, fogão, eletrodoméstico, disjuntor): descreva com naturalidade o que a foto mostra e a hipótese mais provável, e preencha visualDiagnosis. Use só o que está claramente visível (declare em visualEvidence) e informe a incerteza (uncertainty). Sem diagnóstico confiável (uncertainty high), não afirme causa nem invente: diga o que não dá para ver e pergunte ao hóspede, com gentileza, um ângulo, detalhe ou informação que ajude.`,
@@ -302,6 +303,17 @@ export interface PromptOptions {
   phase?: StayPhase | null;
 }
 
+/**
+ * Correção da 2ª tentativa. Bloqueio ligado ao silêncio (17/11/2026, caso Felipe) não obriga a responder: o modelo
+ * decide de novo se a mensagem pede resposta. Os demais bloqueios pedem resposta completa e coerente.
+ */
+function retrySection(retry: string): string {
+  if (/\bsilence_/.test(retry)) {
+    return `## Correção desta tentativa\nA tentativa anterior não pôde ser usada (${retry}): o silêncio veio incoerente com os demais campos. Releia a mensagem e decida de novo pela regra do silêncio. Se ela não pede resposta, use shouldReply false, strategy silence, reply vazio, intents só entre acknowledgment, other, arrival_confirmation e departure_confirmation, sem encaminhamento, compromisso, credencial ou alteração formal. Se pede, escreva um reply completo, com todos os campos coerentes entre si.`;
+  }
+  return `## Correção desta tentativa\nA tentativa anterior não pôde ser usada (${retry}). Refaça a resposta corrigindo exatamente isso: sempre com um reply completo ao hóspede (shouldReply true), sem assumir compromissos que o contexto não autorize, sem credenciais, e com todos os campos coerentes entre si.`;
+}
+
 /** System Prompt do canal (e da fase, quando informada). Determinístico: mesma entrada ⇒ mesmo texto. */
 export function buildSystemPrompt(surface: GuestSurface, persona: PersonaSpec = GUEST_PERSONA, options: PromptOptions = {}): string {
   const channel = Object.prototype.hasOwnProperty.call(CHANNEL_RULES, surface) ? CHANNEL_RULES[surface] : null;
@@ -319,7 +331,7 @@ export function buildSystemPrompt(surface: GuestSurface, persona: PersonaSpec = 
     section(7, INSTRUCTION_HIERARCHY[6].title, CONTEXT_READING),
     section(8, INSTRUCTION_HIERARCHY[7].title, HISTORY_READING),
     section(9, INSTRUCTION_HIERARCHY[8].title, UNTRUSTED),
-    ...(retry ? [`## Correção desta tentativa\nA tentativa anterior não pôde ser usada (${retry}). Refaça a resposta corrigindo exatamente isso: sempre com um reply completo ao hóspede (shouldReply true), sem assumir compromissos que o contexto não autorize, sem credenciais, e com todos os campos coerentes entre si.`] : []),
+    ...(retry ? [retrySection(retry)] : []),
     `## Formato da resposta\n${DECISION_FORMAT_SPEC}`,
   ].join("\n\n");
   return applyPhaseScope(full, options.phase);

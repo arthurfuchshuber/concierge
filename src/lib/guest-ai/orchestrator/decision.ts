@@ -424,7 +424,7 @@ export const DECISION_FORMAT_SPEC = `Responda APENAS com um objeto JSON com exat
  "credentialIntent": "none"|"would_deliver" (com "would_deliver", escreva ${CREDENTIAL_MARKER} uma única vez no ponto da resposta; nunca escreva códigos ou senhas),
  "commitments": [string] (todo compromisso, promessa de ação ou exceção que a resposta assumir; um por item),
  "shouldReply": boolean (false = não responder; só quando não houver pergunta, pedido, problema, emergência, alteração ou ação necessária; com false, use "strategy": "silence" e "reply": ""),
- "intents": [${q(INTENT_CATEGORIES)}] (de 1 a ${DECISION_LIMITS.intentsMaxItems}, sem repetir: o que o hóspede faz na mensagem atual),
+ "intents": [${q(INTENT_CATEGORIES)}] (de 1 a ${DECISION_LIMITS.intentsMaxItems}, sem repetir: o que o hóspede faz na mensagem atual; informational_query = pede uma informação; acknowledgment = agradece, confirma ou concorda sem pedir nada; other = conta algo sobre si ou a viagem sem pedir nada),
  "formalChangeRequests": [${q(FORMAL_CHANGE_KINDS)}] (alterações pedidas que dependem da reserva ou de autorização formal; vazio se nenhuma),
  "hospitalityMilestone": null | {"kind": ${q(HOSPITALITY_MILESTONES)}, "evidence": [ids das mensagens do hóspede que confirmam o marco, incluindo a mensagem atual]},
  "speakerName": string|null (nome que o interlocutor declarou nesta conversa, até ${DECISION_LIMITS.speakerNameMaxChars} caracteres; não é prova de identidade),

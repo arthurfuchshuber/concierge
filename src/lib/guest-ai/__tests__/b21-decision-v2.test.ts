@@ -95,13 +95,15 @@ describe("B2.1 · validador — silêncio (§6)", () => {
     ["emergência", { intents: ["emergency"] }],
     ["pedido operacional", { intents: ["operational_request"] }],
     ["alteração formal", { intents: ["formal_change_request"], formalChangeRequests: ["dates"] }],
-    ["outro (incerteza)", { intents: ["other"] }],
     ["encaminhamento", { handoff: { needed: true, question: "?", urgency: "normal" } }],
     ["compromisso", { commitments: ["x"] }],
     ["intenção de credencial", { credentialIntent: "would_deliver" }],
     ["marco de hospitalidade", { intents: ["arrival_confirmation"], hospitalityMilestone: { kind: "checkin_confirmed", evidence: ["hist:guest:h3"] } }],
   ])("silêncio com %s ⇒ silence_not_allowed", (_n, over) => {
     expect(blocks(silent(over))).toContain("silence_not_allowed");
+  });
+  it("silêncio com other (o hóspede só conta algo, sem pedir nada) é aceito — caso Felipe, 17/11/2026", () => {
+    expect(blocks(silent({ intents: ["other"] }))).not.toContain("silence_not_allowed");
   });
   it("resposta normal não precisa de texto só quando é encaminhamento puro ou silêncio", () => {
     expect(blocks(v2({ reply: "" }))).toContain("reply_missing");

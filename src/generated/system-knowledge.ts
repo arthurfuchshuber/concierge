@@ -11,7 +11,7 @@ export type GeneratedSystemDoc = {
   content_hash: string;
 };
 
-export const GENERATED_AT = "2026-11-17T21:34:19.641Z";
+export const GENERATED_AT = "2026-11-17T21:52:44.922Z";
 
 export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
   {
@@ -4893,6 +4893,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "8b2e622ad35c0bb26d74f7015abb08ff"
   },
   {
+    "doc_key": "rule:retrySection",
+    "kind": "rule",
+    "title": "Regra — retrySection",
+    "content": "Correção da 2ª tentativa. Bloqueio ligado ao silêncio (17/11/2026, caso Felipe) não obriga a responder: o modelo\ndecide de novo se a mensagem pede resposta. Os demais bloqueios pedem resposta completa e coerente.",
+    "source_path": "src/lib/guest-ai/system-prompt.ts",
+    "audience": [],
+    "content_hash": "8e45c2f54b512a6c60cede8d36d830e8"
+  },
+  {
     "doc_key": "rule:revalidateSenderIdentity",
     "kind": "rule",
     "title": "Regra — revalidateSenderIdentity",
@@ -5422,6 +5431,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/guest-access.server.ts",
     "audience": [],
     "content_hash": "53ba2dc8340279039612cb12e676a3be"
+  },
+  {
+    "doc_key": "rule:SILENCE_COMPATIBLE_INTENTS",
+    "kind": "rule",
+    "title": "Regra — SILENCE_COMPATIBLE_INTENTS",
+    "content": "Intenções que, sozinhas, admitem silêncio (cortesia, comentário ou informação sem pedido, confirmação de\nchegada/saída já reconhecida). 17/11/2026 (caso Felipe): \"other\" (o hóspede só conta algo da viagem) entrou; antes\no silêncio escolhido no ato da reserva era barrado e a nova tentativa respondia à força.",
+    "source_path": "src/lib/guest-ai/orchestrator/contracts.ts",
+    "audience": [],
+    "content_hash": "494136e8043ed2e0a3b23b6c95e98b48"
   },
   {
     "doc_key": "rule:SimplesOption",
@@ -7647,7 +7665,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "aea58bee5de7b6a796dacc14849396ee"
   },
   {
-    "doc_key": "rule:src/lib/guest-ai/orchestrator/contracts.ts:12450",
+    "doc_key": "rule:src/lib/guest-ai/orchestrator/contracts.ts:12668",
     "kind": "rule",
     "title": "Regra em contracts.ts",
     "content": "TODOS os chamados abertos da conversa (não só o primeiro). Hoje a fonte é o status da conversa,\nentão há no máximo 1; o contrato já suporta N. Motivo/horário do encaminhamento chegam na B2.",

@@ -894,7 +894,8 @@ export async function generateGuestAiTurn(
         { turn, traceId: claimed.suggestionId, batch: null, suggest: { alwaysSuggest, retryNote: reason } },
         fresh(),
       );
-      if (second.kind === "reply" || retryReason(second) === null) outcome = second;
+      // no autônomo, o silêncio decidido na nova tentativa vale (caso Felipe, 17/11/2026)
+      if (second.kind === "reply" || (deps.autonomous && second.kind === "silence") || retryReason(second) === null) outcome = second;
     }
     const g = generator.telemetry();
     const projected = projectOutcome(outcome, {
