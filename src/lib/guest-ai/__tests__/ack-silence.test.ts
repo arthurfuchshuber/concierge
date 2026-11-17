@@ -97,8 +97,9 @@ describe("Roteiro e raciocínio", () => {
     const g = readFileSync(path.join(SRC, "lib/guest-ai/copilot/generate.server.ts"), "utf8");
     expect(g).toMatch(/error === "truncated_response" \|\| generator\.telemetry\(\)\.error === "timeout"/);
     expect(g).toMatch(/COPILOT_AUTO_CALL_MAX_MS = 20_000/); // 12/11/2026 (caso Gilmar): era 12 s
-    expect(g).toMatch(/effort \? \{\} : \{ callTimeoutMs: COPILOT_AUTO_CALL_MAX_MS \}/);
-    expect(g).toMatch(/generator = makeGenerator\("low"\)/);
+    expect(g).toMatch(/effort \? \{\} : \{ callTimeoutMs: timings\.callMaxMs \}/);
+    // turno curto: nova tentativa em low; turno longo (17/11/2026): segue em auto
+    expect(g).toMatch(/timings\.timeoutRetryEffort === "auto" \? makeGenerator\(\) : makeGenerator\("low"\)/);
     expect(g).toMatch(/reasoningEffort: effort \?\? COPILOT_REASONING_EFFORT/);
   });
 });

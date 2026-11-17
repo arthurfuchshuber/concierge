@@ -72,6 +72,7 @@ import {
 import {
   COPILOT_DEADLINE_MS,
   COPILOT_STAGE_MAX_MS,
+  LONG_TURN,
   COPILOT_MAX_OUTPUT_TOKENS,
   COPILOT_MAX_TURN_COST_USD,
   COPILOT_MIN_OUTPUT_TOKENS,
@@ -152,6 +153,11 @@ export interface CopilotGenerateDeps {
   schedule?: (fn: () => void, ms: number) => () => void;
   env?: Record<string, string | undefined>;
   deadlineMs?: number;
+  /**
+   * Turno longo (17/11/2026): a geração roda numa requisição própria (`/api/public/ia/turno`) e usa `LONG_TURN`
+   * (até 80 s, chamadas de até 45 s, raciocínio sempre `auto`, nova tentativa também `auto`). Só com `autonomous`.
+   */
+  longTurn?: boolean;
   /** Teste: substitui a gravação do rastro da geração. */
   recordTrace?: (row: GenerationTrace) => Promise<void>;
   /**
@@ -363,6 +369,25 @@ export const AUTONOMOUS_DEADLINE_MS = 26_000;
 /** Tempo mínimo restante para uma 2ª chamada ao modelo no autônomo (uma chamada leva ~10–13 s). */
 export const AUTONOMOUS_RETRY_MIN_MS = 14_000;
 
+/** Prazos de uma geração (pura). Turno longo só vale no autônomo; a nova tentativa após timeout segue `auto` nele. */
+export function turnTimings(p: { autonomous: boolean; longTurn: boolean }): {
+  deadlineMs: number;
+  stageMaxMs: number;
+  callMaxMs: number;
+  retryMinMs: number;
+  timeoutRetryEffort: "auto" | "low";
+} {
+  if (p.autonomous && p.longTurn)
+    return { deadlineMs: LONG_TURN.deadlineMs, stageMaxMs: LONG_TURN.stageMaxMs, callMaxMs: LONG_TURN.callMaxMs, retryMinMs: LONG_TURN.retryMinMs, timeoutRetryEffort: "auto" };
+  return {
+    deadlineMs: p.autonomous ? AUTONOMOUS_DEADLINE_MS : COPILOT_DEADLINE_MS,
+    stageMaxMs: COPILOT_STAGE_MAX_MS,
+    callMaxMs: COPILOT_AUTO_CALL_MAX_MS,
+    retryMinMs: p.autonomous ? AUTONOMOUS_RETRY_MIN_MS : 6_000,
+    timeoutRetryEffort: "low",
+  };
+}
+
 export function retryReason(o: ChainOutcome): string | null {
   if (o.kind === "silence") return "silence_not_allowed_in_suggestion_mode";
   if (o.kind === "refused") {
@@ -555,7 +580,9 @@ export async function generateCopilotSuggestion(
   const now = deps.now ?? (() => Date.now());
   const schedule = deps.schedule ?? defaultSchedule;
   const started = now();
-  const deadlineMs = deps.deadlineMs ?? (deps.autonomous ? AUTONOMOUS_DEADLINE_MS : COPILOT_DEADLINE_MS);
+  const timings = turnTimings({ autonomous: !!deps.autonomous, longTurn: deps.longTurn === true });
+  const stageMaxMs = timings.stageMaxMs;
+  const deadlineMs = deps.deadlineMs ?? timings.deadlineMs;
   const remainingMs = () => Math.max(0, deadlineMs - (now() - started));
   const controller = new AbortController();
   const cancelTimer = schedule(() => controller.abort(), deadlineMs);
@@ -788,7 +815,7 @@ export async function generateCopilotSuggestion(
             // elasticidade nativa: sem tabela por assunto; o modelo dosa o raciocínio, o custo é contido por fora
             reasoningEffort: effort ?? COPILOT_REASONING_EFFORT,
             // a tentativa elástica (`auto`) tem teto próprio por chamada; a de raciocínio curto usa o que resta
-            ...(effort ? {} : { callTimeoutMs: COPILOT_AUTO_CALL_MAX_MS }),
+            ...(effort ? {} : { callTimeoutMs: timings.callMaxMs }),
             remainingMs,
             beforeNetwork,
             traceId: claimed!.suggestionId,
@@ -823,8 +850,8 @@ export async function generateCopilotSuggestion(
       loadLivingDocument: ports.loadLivingDocument,
       generate: (prompt, sg) => generator.generate(prompt, sg), // `generator` é trocado na nova tentativa (cada um serve a 1 chamada)
       guard: SECRET_SCRUBBER,
-      stageTimeoutMs: Math.max(1_000, Math.min(COPILOT_STAGE_MAX_MS, Math.floor(remainingMs()))),
-      turnDeadlineMs: Math.max(1_000, Math.min(COPILOT_STAGE_MAX_MS, Math.floor(remainingMs()))),
+      stageTimeoutMs: Math.max(1_000, Math.min(stageMaxMs, Math.floor(remainingMs()))),
+      turnDeadlineMs: Math.max(1_000, Math.min(stageMaxMs, Math.floor(remainingMs()))),
       signal: controller.signal,
       now,
       schedule,
@@ -837,10 +864,10 @@ export async function generateCopilotSuggestion(
     const alwaysSuggest = !deps.autonomous;
     // cada tentativa usa o prazo que REALMENTE resta (antes: o calculado no início, e a 2ª passava do teto)
     const fresh = (): ChainDeps => {
-      const left = Math.max(1_000, Math.min(COPILOT_STAGE_MAX_MS, Math.floor(remainingMs())));
+      const left = Math.max(1_000, Math.min(stageMaxMs, Math.floor(remainingMs())));
       return { ...chainDeps, stageTimeoutMs: left, turnDeadlineMs: left };
     };
-    const retryMinMs = deps.autonomous ? AUTONOMOUS_RETRY_MIN_MS : 6_000;
+    const retryMinMs = timings.retryMinMs;
     let chainRuns = 1;
     let retryUsed: string | null = null;
     let outcome = await runTurnChain(
@@ -860,7 +887,8 @@ export async function generateCopilotSuggestion(
       (generator.telemetry().error === "truncated_response" || generator.telemetry().error === "timeout") &&
       remainingMs() > Math.max(TRUNCATED_RETRY_MIN_MS, retryMinMs)
     ) {
-      generator = makeGenerator("low");
+      // turno longo: a nova tentativa segue em `auto` (o titular não quer raciocínio limitado); no curto, `low`
+      generator = timings.timeoutRetryEffort === "auto" ? makeGenerator() : makeGenerator("low");
       chainRuns += 1;
       retryUsed = "model_truncated_or_timeout";
       outcome = await runTurnChain(

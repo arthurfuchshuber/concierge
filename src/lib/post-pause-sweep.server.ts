@@ -214,7 +214,12 @@ export async function runPostPauseSweep(deps: SweepDeps = {}): Promise<SweepResu
           guestMessageId: plan.triggerId,
           guestCreatedAt: plan.triggerCreatedAt,
         };
-        const run = deps.runTurn ?? (async (d, t) => (await import("@/lib/channex-messages.server")).runAirbnbAiTurn(d, t));
+        // mesmo disparo do webhook (17/11/2026): turno em requisição própria, com o prazo longo; falhou ⇒ roda aqui
+        const run =
+          deps.runTurn ??
+          (async (d, t) => {
+            await (await import("@/lib/channex-messages.server")).dispatchAirbnbAiTurn(d, t);
+          });
         await run(db, turn);
         res.answered++;
       } catch (e) {

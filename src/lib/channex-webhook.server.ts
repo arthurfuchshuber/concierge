@@ -101,6 +101,53 @@ export async function imovelDoQuarto(admin: SupabaseAdmin, roomTypeId: string | 
   return null;
 }
 
+type ReservaEstado = { checkin_date: string | null; checkout_date: string | null; occupancy: unknown };
+
+function totalHospedes(o: unknown): number | null {
+  if (!o || typeof o !== "object") return null;
+  const r = o as Record<string, unknown>;
+  const n = (k: string) => (typeof r[k] === "number" && Number.isFinite(r[k]) ? (r[k] as number) : 0);
+  const total = n("adults") + n("children") + n("infants");
+  return total > 0 ? total : null;
+}
+
+const dataBr = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
+
+/**
+ * Texto do registro de alteração feita pela plataforma (pura): só fatos (datas e número de hóspedes, antes → agora).
+ * Nada mudou nesses campos ⇒ null.
+ */
+export function reservationChangeNote(antes: ReservaEstado, agora: ReservaEstado): string | null {
+  const partes: string[] = [];
+  if (antes.checkin_date && agora.checkin_date && (antes.checkin_date !== agora.checkin_date || antes.checkout_date !== agora.checkout_date) && antes.checkout_date && agora.checkout_date) {
+    partes.push(`datas de ${dataBr(antes.checkin_date)}–${dataBr(antes.checkout_date)} para ${dataBr(agora.checkin_date)}–${dataBr(agora.checkout_date)}`);
+  }
+  const h0 = totalHospedes(antes.occupancy);
+  const h1 = totalHospedes(agora.occupancy);
+  if (h0 !== null && h1 !== null && h0 !== h1) partes.push(`hóspedes de ${h0} para ${h1}`);
+  return partes.length ? `Reserva alterada na plataforma: ${partes.join("; ")}.` : null;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function registrarAlteracaoNaConversa(admin: any, reservationId: string, nota: string): Promise<void> {
+  const { data: convs } = await admin
+    .from("property_chat_conversations")
+    .select("id")
+    .eq("reservation_id", reservationId)
+    .like("guest_session_id", "airbnb:%")
+    .limit(3);
+  for (const c of (convs ?? []) as Array<{ id: string }>) {
+    await admin.from("property_chat_messages").insert({
+      conversation_id: c.id,
+      role: "assistant",
+      content: nota,
+      sender_type: "system",
+      channel: "airbnb" as never,
+      delivery_status: "delivered",
+    });
+  }
+}
+
 async function gravarReservaOficial(admin: SupabaseAdmin, booking: ResolvedBooking, roomTypeId: string | null) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const a = booking as any;
@@ -128,6 +175,16 @@ async function gravarReservaOficial(admin: SupabaseAdmin, booking: ResolvedBooki
     // Porta 1 da memória do hóspede: conta do hóspede na OTA (repete entre reservas)
     ota_guest_id: otaGuestAccountId(a),
   };
+  // Estado anterior da mesma reserva (17/11/2026): se a plataforma alterou datas ou hóspedes, a conversa ganha um
+  // registro do sistema para que a IA e a equipe vejam o que mudou (os cartões "Alteração solicitada/Pedido aceito"
+  // do Airbnb não chegam como mensagem).
+  const { data: anterior } = await admin
+    .from("property_reservations")
+    .select("id, checkin_date, checkout_date, occupancy, status")
+    .eq("property_id", propertyId)
+    .eq("source", "channex")
+    .eq("external_uid", String(bookingId))
+    .maybeSingle();
   const { error } = await admin.from("property_reservations").upsert(
     {
       property_id: propertyId,
@@ -155,6 +212,14 @@ async function gravarReservaOficial(admin: SupabaseAdmin, booking: ResolvedBooki
     { onConflict: "property_id,source,external_uid" },
   );
   if (error) throw new Error(error.message);
+  if (anterior && a.status !== "cancelled") {
+    const nota = reservationChangeNote(anterior as never, {
+      checkin_date: a.arrival_date,
+      checkout_date: a.departure_date,
+      occupancy: a.occupancy ?? rooms[0]?.["occupancy"] ?? null,
+    });
+    if (nota) await registrarAlteracaoNaConversa(admin, (anterior as { id: string }).id, nota).catch((e) => console.error("[channex] registro da alteração", e));
+  }
   // a mensagem do hóspede pode ter chegado ANTES desta reserva: liga a conversa já existente (10/11/2026)
   if (a.status !== "cancelled" && contacts.code) {
     const { linkAirbnbConversationsForBooking } = await import("@/lib/channex-messages.server");

@@ -725,7 +725,7 @@ export async function handleChannexMessage(payload: unknown): Promise<void> {
     if (await newerGuestMessage()) return;
   }
 
-  await runAirbnbAiTurn(admin, {
+  await dispatchAirbnbAiTurn(admin, {
     convId,
     threadId: m.threadId,
     guestName: m.guestName,
@@ -736,6 +736,69 @@ export async function handleChannexMessage(payload: unknown): Promise<void> {
     guestMessageId: guestRow?.id ?? null,
     guestCreatedAt: guestRow?.created_at ?? null,
   });
+}
+
+/**
+ * TURNO EM REQUISIÇÃO PRÓPRIA (17/11/2026, decisão do titular: mais tempo, raciocínio sem limite). O webhook é
+ * encerrado pela plataforma em ~30 s; o turno passa a rodar em `/api/public/ia/turno`, disparado pelo banco
+ * (`dispatch_guest_ai_turn`, pg_net com espera de 150 s), com os prazos de `LONG_TURN`. Se o disparo falhar, roda
+ * aqui mesmo com os prazos curtos de antes (nunca perder a resposta). `GUEST_AI_TURN_DISPATCH=off` desliga.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function dispatchAirbnbAiTurn(admin: any, p: AirbnbAiTurn, env: Record<string, string | undefined> = process.env): Promise<"dispatched" | "inline"> {
+  if ((env["GUEST_AI_TURN_DISPATCH"] ?? "on").trim().toLowerCase() !== "off" && p.guestMessageId) {
+    try {
+      const { data, error } = await admin.rpc("dispatch_guest_ai_turn", { p_turn: airbnbTurnPayload(p) });
+      if (!error && data !== null && data !== undefined) return "dispatched";
+      console.error("[channex-messages] disparo do turno falhou; rodando aqui", error?.message ?? "sem id");
+    } catch (e) {
+      console.error("[channex-messages] disparo do turno falhou; rodando aqui", e);
+    }
+  }
+  await runAirbnbAiTurn(admin, p);
+  return "inline";
+}
+
+/** Corpo do disparo: só identificadores e o texto já gravado da mensagem (para o push de encaminhamento). */
+export function airbnbTurnPayload(p: AirbnbAiTurn): Record<string, string | null> {
+  return {
+    convId: p.convId,
+    threadId: p.threadId,
+    guestName: p.guestName,
+    guestContent: p.guestContent,
+    propertyId: p.propertyId,
+    ownerId: p.ownerId,
+    propertyName: p.propertyName,
+    guestMessageId: p.guestMessageId,
+    guestCreatedAt: p.guestCreatedAt,
+  };
+}
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+/** Lê e valida o corpo recebido em `/api/public/ia/turno` (fail-closed: qualquer campo essencial inválido ⇒ null). */
+export function parseAirbnbTurnPayload(body: unknown): AirbnbAiTurn | null {
+  if (!body || typeof body !== "object") return null;
+  const b = body as Record<string, unknown>;
+  const str = (k: string): string | null => (typeof b[k] === "string" ? (b[k] as string) : null);
+  const convId = str("convId");
+  const propertyId = str("propertyId");
+  const guestMessageId = str("guestMessageId");
+  const threadId = str("threadId");
+  if (!convId || !UUID_RE.test(convId) || !propertyId || !UUID_RE.test(propertyId)) return null;
+  if (!guestMessageId || !UUID_RE.test(guestMessageId) || !threadId) return null;
+  const ownerId = str("ownerId");
+  if (ownerId !== null && !UUID_RE.test(ownerId)) return null;
+  return {
+    convId,
+    threadId,
+    guestName: str("guestName"),
+    guestContent: str("guestContent") ?? "",
+    propertyId,
+    ownerId,
+    propertyName: str("propertyName") ?? "",
+    guestMessageId,
+    guestCreatedAt: str("guestCreatedAt"),
+  };
 }
 
 export interface AirbnbAiTurn {
@@ -757,7 +820,7 @@ export interface AirbnbAiTurn {
  * use exatamente o mesmo caminho, a mesma barreira e as mesmas travas.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function runAirbnbAiTurn(admin: any, p: AirbnbAiTurn): Promise<void> {
+export async function runAirbnbAiTurn(admin: any, p: AirbnbAiTurn, opts: { longTurn?: boolean } = {}): Promise<void> {
   const guestRow = { id: p.guestMessageId, created_at: p.guestCreatedAt };
   // ─── IA de atendimento: ponto de extensão (sem implementação instalada).
   // Sem IA, a conversa vai para a fila humana e a equipe é avisada por push.
@@ -768,6 +831,7 @@ export async function runAirbnbAiTurn(admin: any, p: AirbnbAiTurn): Promise<void
     messageId: p.guestMessageId ?? "",
     // Dono do anúncio resolvido com certeza por `resolveListing`.
     expectedOwnerId: p.ownerId,
+    longTurn: opts.longTurn === true,
   });
   // ─── BARREIRA PRÉ-ENVIO (14/11/2026, caso Jayr): a geração demora segundos; humano, equipe ou hóspede podem ter
   // falado nesse intervalo. Vale ANTES de mexer na conversa e de novo imediatamente antes de entregar.
