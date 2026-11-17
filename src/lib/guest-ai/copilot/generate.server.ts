@@ -969,6 +969,12 @@ export async function generateCopilotSuggestion(
       failed_stage: outcome.kind === "technical_error" ? String(outcome.stage ?? "") || null : null,
       remaining_ms: Math.max(0, Math.round(remainingMs())),
       tool_rounds: g.toolRounds ?? null,
+      ...(outcome.kind === "refused" && outcome.blocked
+        ? {
+            blocked_reply: outcome.blocked.reply,
+            blocked_detail: [...outcome.blocked.blocks, ...outcome.blocked.kinds.map((k) => `afirmacao:${k}`)].join(", ") || null,
+          }
+        : {}),
     });
     // Sinais operacionais: a decisão validada da resposta é a fonte única; sem ela, o leitor de reserva.
     const decided =
@@ -1070,6 +1076,9 @@ export interface GenerationTrace {
   failed_stage: string | null;
   remaining_ms: number;
   tool_rounds: number | null;
+  /** Resposta barrada (só se o guard a considerou sem credencial) e bloqueios/afirmações (17/11/2026). */
+  blocked_reply?: string | null;
+  blocked_detail?: string | null;
 }
 
 export const GENERATION_TRACE_MAX_MS = 1_500;

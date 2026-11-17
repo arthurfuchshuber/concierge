@@ -246,8 +246,11 @@ export function validateSemantics(input: SemanticInput): SemanticReport {
   }
   if (unauthorizedKinds.length) add("unauthorized_commitment");
 
-  // 2) Alteração contratual: nunca decidida na conversa; precisa de rota.
-  if (sig.formalChangeRequests.length > 0 && !d.handoff.needed && !(FORMAL_ROUTE_STRATEGIES as readonly string[]).includes(d.strategy)) {
+  // 2) Alteração contratual: nunca decidida na conversa; precisa de rota. Exceção (17/11/2026, caso Apê "mais uma
+  // diária, não tem mesmo?"): com o calendário consultado pelo sistema, responder se há ou não noite livre é
+  // INFORMAÇÃO verificada, não a alteração. Prometer ou dizer que alterou segue barrado pela leitura do texto.
+  const calendarConsulted = ctx.guest.calendar?.status === "available";
+  if (sig.formalChangeRequests.length > 0 && !d.handoff.needed && !calendarConsulted && !(FORMAL_ROUTE_STRATEGIES as readonly string[]).includes(d.strategy)) {
     add("formal_change_without_route");
   }
 
