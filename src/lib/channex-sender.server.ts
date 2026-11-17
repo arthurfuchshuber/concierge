@@ -45,7 +45,7 @@ async function airbnbAccountEmail(channelId: string, settings: any): Promise<str
   try {
     const res = await fetch(`https://api.airbnb.com/v2/users/${encodeURIComponent(userId)}?_format=v1_legacy_for_p3`, {
       headers: { "X-Airbnb-OAuth-Token": token, Accept: "application/json" },
-      signal: AbortSignal.timeout(4000),
+      signal: AbortSignal.timeout(2000),
     });
     if (res.ok) {
       const body = (await res.json()) as { user?: { email?: unknown } };
@@ -64,24 +64,27 @@ async function loadAirbnbChannels(ownerId: string, withEmail = false): Promise<C
   // Só os canais da conta: a chave da Channex enxerga os de todos os clientes.
   const { accountChannelScope } = await import("@/lib/airbnb-accounts.server");
   const scope = await accountChannelScope(ownerId);
-  const out: Chan[] = [];
-  for (const c of list.data ?? []) {
-    if (c.attributes?.channel !== "AirBNB") continue;
-    if (scope && !scope.has(String(c.id))) continue;
-    const [full, listings] = await Promise.all([
-      getChannelCached(String(c.id)),
-      cx<{ data: any }>(`/channels/${c.id}/action/listings`).catch(() => null),
-    ]);
-    const a = full.data?.attributes ?? {};
-    out.push({
-      id: c.id,
-      title: String(a.title ?? c.attributes?.title ?? "Conta Airbnb"),
-      email: withEmail ? await airbnbAccountEmail(String(c.id), a.settings) : null,
-      properties: a.properties ?? [],
-      mappings: (a.rate_plans ?? []).map((m: any) => ({ id: m.id, ratePlanId: m.rate_plan_id, listingId: String(m.settings?.listing_id ?? "") })),
-      catalog: new Set(((listings?.data?.listing_id_dictionary?.values ?? []) as any[]).map((l) => String(l.id))),
-    });
-  }
+  // Em paralelo: cada canal faz 2–3 chamadas externas; em sequência a janela demorava segundos por conta.
+  const chans = (list.data ?? []).filter(
+    (c: any) => c.attributes?.channel === "AirBNB" && (!scope || scope.has(String(c.id))),
+  );
+  const out: Chan[] = await Promise.all(
+    chans.map(async (c: any) => {
+      const [full, listings] = await Promise.all([
+        getChannelCached(String(c.id)),
+        cx<{ data: any }>(`/channels/${c.id}/action/listings`).catch(() => null),
+      ]);
+      const a = full.data?.attributes ?? {};
+      return {
+        id: c.id,
+        title: String(a.title ?? c.attributes?.title ?? "Conta Airbnb"),
+        email: withEmail ? await airbnbAccountEmail(String(c.id), a.settings) : null,
+        properties: a.properties ?? [],
+        mappings: (a.rate_plans ?? []).map((m: any) => ({ id: m.id, ratePlanId: m.rate_plan_id, listingId: String(m.settings?.listing_id ?? "") })),
+        catalog: new Set(((listings?.data?.listing_id_dictionary?.values ?? []) as any[]).map((l) => String(l.id))),
+      } as Chan;
+    }),
+  );
   return out;
 }
 

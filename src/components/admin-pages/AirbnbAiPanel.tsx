@@ -158,7 +158,7 @@ function SenderPicker({
         avoidCollisions={false}
         sideOffset={4}
         onOpenAutoFocus={(e) => e.preventDefault()}
-        className="w-[var(--radix-popover-trigger-width)] overflow-hidden rounded-[10px] border border-border bg-popover p-1 text-xs text-popover-foreground shadow-md ![scrollbar-gutter:auto]"
+        className="z-[70] w-[var(--radix-popover-trigger-width,260px)] min-w-[240px] overflow-hidden rounded-[10px] border border-border bg-popover p-1 text-xs text-popover-foreground shadow-md ![scrollbar-gutter:auto]"
       >
         <label className="mb-1 flex h-8 min-w-0 items-center gap-2 border-b border-[var(--panel-div)] px-2.5 text-muted-foreground">
           <Search className="size-3.5 shrink-0" />
@@ -183,9 +183,11 @@ function SenderPicker({
                   role="option"
                   aria-selected={on}
                   data-clip-row
-                  onClick={() => {
-                    setOpen(false);
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    // Primeiro dispara a troca, depois fecha: o fechamento não pode engolir a escolha.
                     if (!on) onPick(o.channelId);
+                    setOpen(false);
                   }}
                   className={cn(
                     "flex h-7 w-full snap-start items-center gap-2 rounded-[7px] px-2.5 text-left transition-colors hover:bg-foreground/[0.06]",
@@ -298,7 +300,16 @@ function ListingCard({
         />
       </div>
       {sender ? (
-        <div className="relative mt-1 flex min-w-0 items-center gap-2 border-t border-border/60 pt-2">
+        // O menu "Assina como" fica num portal, mas os eventos dele sobem pela árvore do React até o
+        // card: sem barrar aqui, o toque longo/seleção do card disputava o clique da opção.
+        <div
+          className="relative mt-1 flex min-w-0 items-center gap-2 border-t border-border/60 pt-2"
+          onClick={(e) => e.stopPropagation()}
+          onPointerDown={(e) => e.stopPropagation()}
+          onPointerMove={(e) => e.stopPropagation()}
+          onPointerUp={(e) => e.stopPropagation()}
+          onContextMenu={(e) => e.stopPropagation()}
+        >
           <span className="shrink-0 text-[11px] text-muted-foreground">Assina como</span>
           <SenderPicker sender={sender} disabled={readOnly} onPick={onPickSender} />
         </div>
