@@ -175,6 +175,7 @@ import {
   ACTION_BUTTON_TONE,
   ACTION_ICON,
   ACTION_ICON_LABELED,
+  ACTION_COUNT_SEAL,
   ACTION_LABEL,
 } from "@/components/dashboard/panel-chrome";
 import {
@@ -3237,7 +3238,7 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                               25/09/2026: "sempre dourado, igual Pendências",
                               não herda a cor do status acima. Mesmas medidas e
                               cores exatas do selo original. */}
-                          <span className="grid h-[15px] min-w-[15px] shrink-0 place-items-center rounded-full bg-[#c9a962] px-1 text-[9px] font-extrabold leading-none text-[#1a1408]">
+                          <span className={ACTION_COUNT_SEAL}>
                             {current.count > 99 ? "99+" : current.count}
                           </span>
                           {/* Seta "⌄" removida (pedido explícito, 25/09/2026:

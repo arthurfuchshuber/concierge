@@ -205,6 +205,11 @@ export const ACTION_ICON = "size-[15px] shrink-0";
  * no desktop (`lg:`); no celular os botões continuam só com o ícone de 15px.
  */
 export const ACTION_ICON_LABELED = "size-[15px] shrink-0 lg:size-[13px]";
+/** Selo de contagem ao lado do rótulo de um botão de ação (padrão único, 16/11/2026): âmbar suave (não "gritante"),
+ * 18 px e centralizado na linha do rótulo. */
+export const ACTION_COUNT_SEAL =
+  "grid h-[18px] min-w-[18px] shrink-0 self-center place-items-center rounded-full bg-[#c9a962]/20 px-1.5 text-[10.5px] font-bold leading-none tabular-nums text-[#8a6a1a] dark:text-[#d9bd7a]";
+
 export const ACTION_LABEL = "whitespace-nowrap text-sm font-semibold leading-none";
 
 /* As peças dos quadrantes de Filtros moram em `filter-panel.tsx`. */
