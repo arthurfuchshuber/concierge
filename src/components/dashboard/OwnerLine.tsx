@@ -1,7 +1,7 @@
 /**
- * PADRÃO ÚNICO DO PROPRIETÁRIO (01/11/2026): SEM rótulo,
- * só o NOME INTEIRO em destaque (cor de texto cheia) e ícone verde de chat colado
- * ao nome. Toda tela que cita o dono de um imóvel usa esta peça.
+ * PADRÃO ÚNICO DO PROPRIETÁRIO (16/11/2026): SEM rótulo e SEM ícone de chat,
+ * só o NOME INTEIRO em destaque (cor de texto cheia). Toda tela que cita o dono
+ * de um imóvel usa esta peça.
  */
 export function OwnerLine({
   name,
