@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { centsToReaisInput, parseReaisInputToCents } from "@/components/ui/money-input";
 import { CleaningProviderAvatar, useCleaningProviderName } from "@/components/dashboard/CleaningProviderAvatar";
 import { EDIT_BTN, EDIT_INPUT } from "@/components/dashboard/edit-frame";
-import { FINANCE_WINDOW_CLASS, windowTitle } from "@/components/dashboard/wide-window";
+import { FINANCE_WINDOW_CLASS } from "@/components/dashboard/wide-window";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -183,7 +183,7 @@ function BottomRow({ children, value }: { children: React.ReactNode; value: Reac
   return (
     <div data-bottom-row="" className={`mt-0.5 flex min-w-0 items-center justify-between gap-2 ${LINE}`}>
       <span className="flex min-w-0 items-center gap-1.5">{children}</span>
-      <span className="ml-auto flex shrink-0 items-center gap-1 text-[11.5px] font-semibold tabular-nums">{value}</span>
+      <span className="ml-auto flex shrink-0 items-center gap-1 whitespace-nowrap text-[11.5px] font-bold tabular-nums text-foreground">{value}</span>
     </div>
   );
 }
@@ -541,7 +541,7 @@ export function CleaningDayDetailContent({
                       </span>
                       <span className="mt-1 flex min-w-0 items-center justify-between gap-2 text-[12.5px] text-muted-foreground">
                         <span className="min-w-0 truncate">{[dateSP(r.concludedAt), timeSP(r.concludedAt)].filter(Boolean).join(" · ")}</span>
-                        <span className="shrink-0 whitespace-nowrap font-bold tabular-nums text-foreground">{brl(r.priceCents ?? 0)}</span>
+                        <span className="ml-auto shrink-0 whitespace-nowrap font-bold tabular-nums text-foreground">{brl(r.priceCents ?? 0)}</span>
                       </span>
                     </PropertyCell>
                   </tr>
@@ -683,9 +683,9 @@ export function CleaningDayDetailContent({
       {/* CABEÇALHO UNIVERSAL DE JANELA AMPLA (07/11/2026, referência: "Check-ins
           amanhã"): sem ícone, título 14px negrito em 1 linha e subtítulo 12px;
           o `pr-14` deixa o "X" oficial (canto superior direito) livre. */}
-      <DialogHeader className={WINDOW_HEADER_CLASS}>
+      <DialogHeader className={cn(WINDOW_HEADER_CLASS, "sm:mx-6")}>
         <DialogTitle className={WINDOW_TITLE_CLASS} title={heading}>
-          {windowTitle(heading)}
+          {heading}
         </DialogTitle>
         <p className={WINDOW_SUBTITLE_CLASS}>{subtitle}</p>
       </DialogHeader>
@@ -694,7 +694,7 @@ export function CleaningDayDetailContent({
       {/* Rolagem NATIVA (sem JS mexendo na altura): o iOS não congela e o rodapé nunca sai da tela.
           Anti-corte: `snap-start` nas linhas faz a lista parar numa linha inteira. */}
       {body && (
-        <div className="sg-elegant-scroll min-h-0 flex-1 snap-y snap-proximity overflow-y-auto overscroll-contain touch-pan-y px-4 pb-1 pt-2.5 sm:mx-6 [scrollbar-gutter:stable]">
+        <div className="sg-elegant-scroll min-h-0 flex-1 snap-y snap-proximity overflow-y-auto overscroll-contain touch-pan-y px-4 pb-1 pt-2.5 sm:mx-6 [scrollbar-gutter:stable] [&>table:first-of-type>tbody>tr:first-child>td]:border-t-0">
           {body}
         </div>
       )}

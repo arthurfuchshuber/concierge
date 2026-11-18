@@ -385,7 +385,7 @@ describe("cabeçalho universal de janela ampla", () => {
       <CleaningDayDetailContent date="all" title="Custo Total Limpeza" source={{ mode: "done", items }} caretX={null} />,
     );
     const h2 = html.match(/<h2[^>]*>[\s\S]*?<\/h2>/)?.[0] ?? "";
-    expect(text(h2).trim()).toBe("Custo total limpeza");
+    expect(text(h2).trim()).toBe("Custo Total Limpeza");
     // Padrão único das janelas (11/2026): faixa 48px, título 14px negrito, subtítulo 12px, filete embaixo, `pr-14` p/ o X oficial.
     for (const c of WINDOW_TITLE_CLASS.split(" ")) expect(h2).toContain(c);
     const header = html.match(/<div class="[^"]*pr-14[^"]*">/)?.[0] ?? "";

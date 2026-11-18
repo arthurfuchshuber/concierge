@@ -5159,7 +5159,7 @@ function CleaningBreakdownContent({ label, breakdown }: { label: string; breakdo
         <ul>
           {sorted.map((item) => {
             return (
-              <li key={item.propertyId} className="flex min-w-0 items-start justify-between gap-3 border-t border-border/60 py-3 pr-[34px]">
+              <li key={item.propertyId} className="flex min-w-0 items-start justify-between gap-3 border-t border-border/60 py-3">
                 <div className="min-w-0 flex-1">
                   {/* Regra global (29/10/2026): título do imóvel primeiro, proprietário + chat logo abaixo; título em 1 linha. */}
                   <ClampName text={item.propertyName} className="text-[12.5px] font-bold leading-snug" />
@@ -5278,7 +5278,7 @@ function StatDisplayCard({
         <DialogContent aria-describedby={undefined} className={FINANCE_WINDOW_CLASS}>
           {/* Cabeçalho universal de janela ampla (07/11/2026): sem ícone, título
               14px e subtítulo 12px; o "X" oficial fica no canto. */}
-          <DialogHeader className={WINDOW_HEADER_CLASS}>
+          <DialogHeader className={cn(WINDOW_HEADER_CLASS, "sm:mx-6")}>
             <DialogTitle className={WINDOW_TITLE_CLASS}>{windowTitle(label)}</DialogTitle>
             <div className={WINDOW_SUBTITLE_CLASS}>
               {value} · {breakdown!.length} {breakdown!.length === 1 ? "imóvel" : "imóveis"}
