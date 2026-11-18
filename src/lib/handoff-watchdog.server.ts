@@ -1,7 +1,7 @@
 /**
  * VIGIA DE ENCAMINHAMENTOS SEM RESPOSTA (14/11/2026). O encaminhamento da IA é silencioso: o hóspede não recebe
  * aviso, e a equipe recebe UM push. Sem este vigia, um push perdido deixa o hóspede esperando indefinidamente.
- * Regra: conversa `needs_human` com `handoff_at` e SEM nenhuma mensagem de humano/IA depois dele ⇒
+ * Regra: conversa `needs_human` com `handoff_at` cuja ÚLTIMA fala (fora nota interna) é do hóspede ⇒
  *  - ≥ GUEST_AI_WATCHDOG_REMIND_MIN (padrão 10): novo push de urgência alta (1º lembrete);
  *  - ≥ GUEST_AI_WATCHDOG_ESCALATE_MIN (padrão 30): segundo aviso (escalonamento).
  * Cada etapa dispara UMA vez (colunas `handoff_reminded_at` / `handoff_escalated_at`). Nunca fala com o hóspede,
@@ -77,19 +77,26 @@ export async function runHandoffWatchdog(deps: WatchdogDeps = {}): Promise<{ che
     const rows = (data ?? []) as WatchdogRow[];
     res.checked = rows.length;
     if (!rows.length) return res;
-    // quem já foi respondido (humano ou IA, nota interna não conta) depois do encaminhamento sai da fila
+    // quem já foi respondido (humano ou IA, nota interna não conta) depois do encaminhamento sai da fila.
+    // Caso Nailton (18/11/2026): o filtro antigo `sender_type <> 'internal_note'` não é valor do enum, a consulta
+    // falhava em silêncio e TODO encaminhamento virava "aguardando resposta", mesmo com a IA já tendo respondido.
+    // Nota interna é `is_internal_note`. Leitura falhou ⇒ não avisa (não afirma ao time o que não conferiu).
     const answered = new Set<string>();
+    const unknown = new Set<string>();
     for (const r of rows) {
-      const { data: msgs } = await db
+      // hóspede só está "aguardando" se a ÚLTIMA fala (fora nota interna) é dele; a resposta da IA pode ser gravada
+      // segundos antes ou depois do encaminhamento, então não se compara com `handoff_at`
+      const { data: msgs, error } = await db
         .from("property_chat_messages")
-        .select("id")
+        .select("id, role")
         .eq("conversation_id", r.id)
-        .eq("role", "assistant")
-        .neq("sender_type", "internal_note")
-        .gte("created_at", r.handoff_at as string)
+        .eq("is_internal_note", false)
+        .order("created_at", { ascending: false })
         .limit(1);
-      if (Array.isArray(msgs) && msgs.length > 0) answered.add(r.id);
+      if (error || !Array.isArray(msgs)) unknown.add(r.id);
+      else if (msgs.length > 0 && (msgs[0] as { role?: string }).role !== "user") answered.add(r.id);
     }
+    if (unknown.size > 0) console.error("[handoff-watchdog] leitura de respostas falhou", unknown.size);
     const push =
       deps.push ??
       (async (d: unknown, p: { propertyId: string; conversationId: string; guestName: string | null; reason: string; urgency: string }) => {
@@ -97,7 +104,7 @@ export async function runHandoffWatchdog(deps: WatchdogDeps = {}): Promise<{ che
         const userIds = await getPropertyNotifiableUsers(d as never, p.propertyId);
         await sendHandoffPush(d as never, { userIds, conversationId: p.conversationId, propertyName: "", guestName: p.guestName, guestMessage: "", checkinDate: null, reason: p.reason, urgency: p.urgency } as never);
       });
-    for (const a of planWatchdog(rows, answered, nowMs, cfg)) {
+    for (const a of planWatchdog(rows.filter((r) => !unknown.has(r.id)), answered, nowMs, cfg)) {
       const row = rows.find((r) => r.id === a.id)!;
       try {
         const lead = a.stage === "remind" ? "Hóspede aguardando resposta há mais de 10 min" : "Hóspede SEM resposta há mais de 30 min — escalonamento";

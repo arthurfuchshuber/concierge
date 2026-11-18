@@ -633,6 +633,15 @@ describe("IA · geração com a cadeia real e o Gateway real (transporte falso)"
     expect(seen).not.toMatch(/lock_code|gate_code|wifi_password|pin_code/);
   });
 
+  it("resposta + encaminhamento leva o que a equipe precisa fazer ao chamado (caso Nailton, 18/11/2026)", () => {
+    const audit = { decision: null, checks: { unknownFacts: 0, sourceConflicts: 0, senderIdentity: null, dossierScope: "ok", credentialPolicy: "deny" } } as never;
+    const situation = { humanAction: { needed: true, urgency: "normal" }, existingCase: "none", emergency: false, intents: ["other"] };
+    const out = projectOutcome(
+      { kind: "reply", text: "Perfeito, Nailton!", strategy: "answer_and_handoff", situation, audit, decision: { handoff: { needed: true, question: "Combinar a entrega presencial das chaves", urgency: "normal" } } } as never,
+      { surface: "airbnb", humanInCommand: false, reservationLinked: true },
+    );
+    expect(out.internalQuestion).toBe("Combinar a entrega presencial das chaves");
+  });
   it("marca do guia ([[info:…]]/[[tag:…]]) segue gravada até o slot, que a resolve com a D9 (outbound-text.ts)", async () => {
     const audit = {
       decision: null,
