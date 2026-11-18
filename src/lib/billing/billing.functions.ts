@@ -256,7 +256,9 @@ async function ensureStripeCustomer(ownerId: string): Promise<string> {
 function originUrl(path: string): Promise<string> {
   return import("@tanstack/react-start/server").then(({ getRequest }) => {
     const origin = new URL(getRequest().url).origin;
-    return new URL(path, origin).toString();
+    const url = new URL(path.startsWith("/") && !path.startsWith("//") ? path : "/", origin);
+    if (url.origin !== origin) return new URL("/", origin).toString();
+    return url.toString();
   });
 }
 
@@ -273,7 +275,7 @@ export const createCheckoutSession = createServerFn({ method: "POST" })
         ownerId: z.string().uuid().nullish(),
         returnPath: z
           .string()
-          .regex(/^\/[A-Za-z0-9/_\-?=&.]*$/)
+          .regex(/^\/(?![/\\])[A-Za-z0-9/_\-?=&.]*$/)
           .max(200)
           .optional(),
       })
@@ -385,7 +387,7 @@ export const createPortalSession = createServerFn({ method: "POST" })
         ownerId: z.string().uuid().nullish(),
         returnPath: z
           .string()
-          .regex(/^\/[A-Za-z0-9/_\-?=&.]*$/)
+          .regex(/^\/(?![/\\])[A-Za-z0-9/_\-?=&.]*$/)
           .max(200)
           .optional(),
       })
@@ -541,7 +543,7 @@ export const startCardSetup = createServerFn({ method: "POST" })
         ownerId: z.string().uuid().nullish(),
         returnPath: z
           .string()
-          .regex(/^\/[A-Za-z0-9/_\-?=&.]*$/)
+          .regex(/^\/(?![/\\])[A-Za-z0-9/_\-?=&.]*$/)
           .max(200)
           .optional(),
       })

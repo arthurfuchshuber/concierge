@@ -597,10 +597,17 @@ export const Route = createFileRoute("/api/public/guide-chat")({
         {
           const { data: prop } = await supabaseAdmin
             .from("properties")
-            .select("id, access_mode, pin_code")
+            .select("id, access_mode, pin_code, published")
             .eq("id", (conv as { property_id: string }).property_id)
             .maybeSingle();
-          const p = prop as { id: string; access_mode?: string | null; pin_code?: string | null } | null;
+          const p = prop as { id: string; access_mode?: string | null; pin_code?: string | null; published?: boolean | null } | null;
+          // Guia despublicado: o histórico deixa de ser servido (igual ao envio).
+          if (!p || p.published !== true) {
+            return new Response(JSON.stringify({ error: "not_found" }), {
+              status: 404,
+              headers: { "Content-Type": "application/json" },
+            });
+          }
           if (p && p.access_mode === "pin") {
             const guestAccess = await import("@/lib/guest-access.server");
             const pinOk = await guestAccess.verifyPinCookie(

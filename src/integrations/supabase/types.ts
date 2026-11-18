@@ -8792,6 +8792,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      _may_inspect_user: { Args: { _user_id: string }; Returns: boolean }
       accept_my_account_invite: {
         Args: { _invite_id: string }
         Returns: boolean
