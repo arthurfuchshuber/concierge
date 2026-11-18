@@ -65,32 +65,6 @@ const SENDER_VISIBLE_ROWS = 5;
  * Lista rolável do seletor: sem barra nativa; a linha fina (3px) é desenhada POR CIMA, rente à borda
  * direita da janela do seletor, sem nenhuma folga. A rolagem para em linhas inteiras (anticorte).
  */
-/** Altura do menu aberto: busca (32) + até 5 linhas + folgas. */
-const SENDER_MENU_NEED_PX = 32 + SENDER_VISIBLE_ROWS * SENDER_ROW_PX + 24;
-
-/**
- * O menu "Assina como" SEMPRE abre para baixo (regra do seletor). Quando o gatilho está perto do
- * fim da tela, rola a janela o suficiente para o menu inteiro caber — em vez de ficar cortado.
- */
-function revealBelow(trigger: HTMLElement | null, need: number) {
-  if (!trigger || typeof window === "undefined") return;
-  // Duas passagens de quadro: o espaço extra do fim da lista precisa já estar renderizado.
-  requestAnimationFrame(() =>
-    requestAnimationFrame(() => {
-      const viewport = window.visualViewport?.height ?? window.innerHeight;
-      const missing = need - (viewport - trigger.getBoundingClientRect().bottom);
-      if (missing <= 0) return;
-      let el: HTMLElement | null = trigger.parentElement;
-      while (el) {
-        const oy = getComputedStyle(el).overflowY;
-        if ((oy === "auto" || oy === "scroll") && el.scrollHeight > el.clientHeight) break;
-        el = el.parentElement;
-      }
-      el?.scrollBy({ top: missing, behavior: "smooth" });
-    }),
-  );
-}
-
 function SenderList({ rows, children }: { rows: number; children: ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
   const [thumb, setThumb] = useState<{ top: number; height: number } | null>(null);
@@ -140,15 +114,12 @@ function SenderPicker({
   sender,
   disabled,
   onPick,
-  onOpenChange,
 }: {
   sender: SenderInfo;
   disabled?: boolean;
   onPick: (channelId: string) => void;
-  onOpenChange?: (open: boolean) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const triggerRef = useRef<HTMLButtonElement>(null);
   const [q, setQ] = useState("");
   const current = sender.options.find((o) => o.channelId === sender.currentChannelId) ?? sender.options[0];
   const single = sender.options.length <= 1;
@@ -171,13 +142,11 @@ function SenderPicker({
       open={open}
       onOpenChange={(v) => {
         setOpen(v);
-        onOpenChange?.(v);
         if (!v) setQ("");
-        if (v) revealBelow(triggerRef.current, SENDER_MENU_NEED_PX);
       }}
     >
       <PopoverTrigger asChild>
-        <button ref={triggerRef} type="button" aria-haspopup="listbox" aria-expanded={open} className={box}>
+        <button type="button" aria-haspopup="listbox" aria-expanded={open} className={box}>
           <AccountLabel title={current?.title ?? "—"} email={current?.email} />
           <ChevronDown className="size-3 shrink-0 text-muted-foreground" />
         </button>
@@ -189,7 +158,7 @@ function SenderPicker({
         avoidCollisions={false}
         sideOffset={4}
         onOpenAutoFocus={(e) => e.preventDefault()}
-        className="z-[70] max-h-none w-[var(--radix-popover-trigger-width,260px)] min-w-[240px] overflow-hidden rounded-[10px] border border-border bg-popover p-1 text-xs text-popover-foreground shadow-md ![scrollbar-gutter:auto]"
+        className="z-[70] w-[var(--radix-popover-trigger-width,260px)] min-w-[240px] overflow-hidden rounded-[10px] border border-border bg-popover p-1 text-xs text-popover-foreground shadow-md ![scrollbar-gutter:auto]"
       >
         <label className="mb-1 flex h-8 min-w-0 items-center gap-2 border-b border-[var(--panel-div)] px-2.5 text-muted-foreground">
           <Search className="size-3.5 shrink-0" />
@@ -248,7 +217,6 @@ function ListingCard({
   onStartSelect,
   onToggleAi,
   onPickSender,
-  onPickerOpenChange,
 }: {
   g: Group;
   sender: SenderInfo | undefined;
@@ -260,7 +228,6 @@ function ListingCard({
   onStartSelect: () => void;
   onToggleAi: (next: boolean) => void;
   onPickSender: (channelId: string) => void;
-  onPickerOpenChange?: (open: boolean) => void;
 }) {
   const on = g.primary.enabled;
   const { handlers, consumeClick } = useLongPress(() => {
@@ -337,7 +304,7 @@ function ListingCard({
           onContextMenu={(e) => e.stopPropagation()}
         >
           <span className="shrink-0 text-[11px] text-muted-foreground">Assina como:</span>
-          <SenderPicker sender={sender} disabled={readOnly} onPick={onPickSender} onOpenChange={onPickerOpenChange} />
+          <SenderPicker sender={sender} disabled={readOnly} onPick={onPickSender} />
         </div>
       ) : null}
     </div>
@@ -476,7 +443,6 @@ export function AirbnbAiPanel({ readOnly }: { readOnly?: boolean }) {
     },
   });
 
-  const [pickerOpen, setPickerOpen] = useState(false);
   const changeSender = useMutation({
     mutationFn: (v: { listingIds: string[]; channelId: string }) => setSenderFn({ data: v }),
     onSuccess: (r) => {
@@ -503,7 +469,7 @@ export function AirbnbAiPanel({ readOnly }: { readOnly?: boolean }) {
       inWindow
       title="IA no Airbnb"
       subtitle="Sem IA, a equipe responde os hóspedes."
-      bodyDeps={[visible.length, loading, failed, selecting, filter, q, pickerOpen]}
+      bodyDeps={[visible.length, loading, failed, selecting, filter, q]}
       toggles={
         showList ? (
           <>
@@ -632,11 +598,9 @@ export function AirbnbAiPanel({ readOnly }: { readOnly?: boolean }) {
               onStartSelect={() => setSelected(new Set([g.propertyId]))}
               onToggleAi={(next) => toggle.mutate({ propertyId: g.propertyId, enabled: next })}
               onPickSender={(channelId) => changeSender.mutate({ listingIds: g.listingIds, channelId })}
-              onPickerOpenChange={setPickerOpen}
             />
           ))}
-          {/* Só enquanto o menu "Assina como" está aberto: dá chão para o último card rolar e o menu caber. */}
-          <div className={pickerOpen ? "h-[200px]" : "h-2"} />
+          <div className="h-2" />
         </div>
       )}
     </IntegrationShell>
