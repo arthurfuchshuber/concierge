@@ -122,11 +122,11 @@ export function isFarewell(text: string | null | undefined): boolean {
 }
 
 const CHECKOUT_DONE =
-  /\b(check ?out (feito|realizado|concluido|efetuado|ok|finalizado)|fizemos o check ?out|fiz o check ?out|ja (fizemos|fiz) o check ?out|(ja )?(saimos|sai|deixamos|desocupamos) (do|o|da|a) (apartamento|ap|apto|imovel|studio|estudio|casa|local|quarto)|ja (saimos|sai)\b|(deixei|deixamos) (as|a) chaves?|chaves? (no|na|dentro do|dentro da) (cofre|caixinha|lugar|apartamento|mesa|bancada)|checked out|we (have )?left)\b/;
+  /\b(check ?out (feito|realizado|concluido|efetuado|ok|finalizado)|fizemos o check ?out|fiz o check ?out|ja (fizemos|fiz) o check ?out|(ja )?(saimos|sai|deixamos|desocupamos) (do|o|da|a) (apartamento|ap|apto|imovel|studio|estudio|casa|local|quarto)|ja (saimos|sai)\b|(acabamos|acabei) de (sair|deixar o (apartamento|imovel|studio|estudio|casa|local))|(deixei|deixamos) (as|a) chaves?|chaves? (no|na|dentro do|dentro da) (cofre|caixinha|cadeado( cofre)?|lugar|apartamento|mesa|bancada)|checked out|we (have )?left)\b/;
 const CHECKOUT_FILLER = [
   "ok", "pronto", "tudo certo", "deu tudo certo", "tudo ok", "ja", "sigma", "ola", "oi", "bom dia", "boa tarde", "boa noite", "conforme combinado",
   "conforme (as )?orientac\\w*", "e", "foi (tudo )?(otimo|otima|maravilhos[oa]|perfeito|excelente)",
-  "(no|na|dentro do|dentro da|em cima da) (cofre|caixinha|mesa|bancada|lugar combinado|porta)",
+  "(no|na|dentro do|dentro da|em cima da) (cofre|caixinha|cadeado( cofre)?|mesa|bancada|lugar combinado|porta)", "as", "os",
 ];
 const CHECKOUT_FILLER_RE = new RegExp(`\\b(${CHECKOUT_FILLER.join("|")})\\b`, "g");
 
@@ -137,7 +137,11 @@ const CHECKOUT_FILLER_RE = new RegExp(`\\b(${CHECKOUT_FILLER.join("|")})\\b`, "g
 export function isCheckoutDoneNotice(text: string | null | undefined): boolean {
   const raw = (text ?? "").trim();
   if (!raw || raw.includes("?") || raw.length > 220) return false;
-  const n = normalizeAck(raw);
+  // "as chaves ficaram no cofre" é devolução das chaves, não objeto esquecido (caso Rayssa, 17/11/2026)
+  const n = normalizeAck(raw).replace(
+    /\bchaves? (ficaram|ficou|estao|esta) (no|na|dentro do|dentro da) (cofre|caixinha|cadeado( cofre)?)\b/g,
+    "chaves no $3",
+  );
   if (!CHECKOUT_DONE.test(n) || TIME_MENTION.test(n) || PROBLEM_OR_RESERVATION.test(n)) return false;
   if (/\b(esqueci|esquecemos|ficou|ficaram|perdi|perdemos|onde|como|podem|pode|preciso|precisamos|gostaria|quero|queria)\b/.test(n)) return false;
   const rest = n
