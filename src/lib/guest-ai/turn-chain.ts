@@ -295,7 +295,10 @@ export function blockedDraft(
   if (text && guard) {
     try {
       const r = guard.scan(text);
+      // `safe` = texto original; `sanitized` = texto com o segredo já trocado pelo marcador (caso Gleici, 17/11/2026:
+      // o rascunho barrado sumia da auditoria por qualquer achado da varredura)
       if (r && r.status === "safe" && r.text === text && r.findings.length === 0) safe = text.slice(0, 2_000);
+      else if (r && r.status === "sanitized" && r.text) safe = r.text.slice(0, 2_000);
     } catch {
       safe = null;
     }

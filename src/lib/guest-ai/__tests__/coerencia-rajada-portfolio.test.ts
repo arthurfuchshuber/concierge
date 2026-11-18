@@ -115,7 +115,7 @@ describe("despedidas e check-out concluído (casos Carlos Eduardo e Juan)", () =
     expect(isFarewell(t)).toBe(true);
     expect(shouldSilenceBareAck([H("team", "Senhas no guia.", "2026-11-12T11:02:00Z", 1), H("guest", t, "2026-11-12T11:20:34Z", 2)])).toBe(true);
   });
-  it.each(["Check out feito ", "check out feito, obrigado por tudo, deu tudo certo", "já saímos do apartamento", "Deixamos as chaves no cofre"])(
+  it.each(["Check out feito ", "check out feito, obrigado por tudo, deu tudo certo", "já saímos do apartamento", "Deixamos as chaves no cofre", "Acabamos de sair, as chaves ficaram no cofre"])(
     "check-out concluído ⇒ silêncio mesmo com pergunta nossa pendente: %s",
     (t) => {
       expect(isCheckoutDoneNotice(t)).toBe(true);
@@ -129,6 +129,8 @@ describe("despedidas e check-out concluído (casos Carlos Eduardo e Juan)", () =
     "obrigado, até amanhã",
     "Check out feito, mas esqueci meu carregador",
     "já saímos, onde deixo a chave?",
+    "Acabamos de sair, o carregador ficou no quarto",
+    "Acabamos de sair, as chaves ficaram no carro",
   ])("com pergunta, pedido ou ressalva ⇒ vai ao modelo: %s", (t) => {
     expect(isFarewell(t) || isCheckoutDoneNotice(t)).toBe(false);
   });

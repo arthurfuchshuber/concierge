@@ -33,6 +33,9 @@ describe("rascunho barrado para a auditoria", () => {
       kinds: ["credential_release"],
     });
   });
+  it("texto com segredo vai ao rastro já mascarado pela varredura (caso Gleici)", () => {
+    expect(blockedDraft("O código é 4471.", ["x"], [], guard).reply).toBe("O código é [segredo removido].");
+  });
   it("sem guard ou guard que não aprova ⇒ o texto não é guardado", () => {
     expect(blockedDraft("O código é 4471.", ["x"], [], null).reply).toBeNull();
     const deny = { scan: (t: string) => ({ status: "redacted", text: t, findings: [1] }) };
