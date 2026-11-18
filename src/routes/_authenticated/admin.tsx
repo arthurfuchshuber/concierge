@@ -6,7 +6,7 @@ import conciergeLogo from "@/assets/concierge-logo.png";
 import { LiveSync, useFallbackInterval } from "@/components/LiveSync";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { supabase } from "@/integrations/supabase/client";
-import { useQueryClient, useQuery } from "@tanstack/react-query";
+import { useQueryClient, useQuery, useIsFetching } from "@tanstack/react-query";
 import { useManualOverlayLayer } from "@/lib/global-overlay-store";
 import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
@@ -236,8 +236,14 @@ function AdminLayout() {
   // Primeiro acesso: se a página atual estiver bloqueada, leva o usuário
   // para a PRIMEIRA página do menu à qual ele tem acesso.
   const firstAllowedPath = firstAllowedPage(areaAccess.can) ?? undefined;
+  // Aplicar filtros dispara consultas em série. Enquanto qualquer uma está em trânsito, a decisão de acesso
+  // vale a ÚLTIMA conhecida (o `useAreaAccess` mantém o dado antigo no refetch): nunca redireciona por uma
+  // negação momentânea nem por erro transitório — só quando tudo assentou.
+  const fetchingCount = useIsFetching();
   useEffect(() => {
     if (resolvingAccount || awaitingAccountChoice) return;
+    if (areaAccess.loading || areaAccess.failed) return;
+    if (fetchingCount > 0) return;
     if (!areaAccess.ready) return;
     if (!routePermission) return;
     if (areaAccess.can(routePermission)) return;
@@ -247,6 +253,9 @@ function AdminLayout() {
     resolvingAccount,
     awaitingAccountChoice,
     areaAccess.ready,
+    areaAccess.loading,
+    areaAccess.failed,
+    fetchingCount,
     routePermission,
     firstAllowedPath,
     pathname,

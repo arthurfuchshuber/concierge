@@ -15,23 +15,22 @@ function isUnauthorizedError(err: unknown): boolean {
 let checkingSession = false;
 
 /**
- * "Invalid token" também aparece quando o serviço de login está lento e não
- * consegue validar um token que é válido. Antes de deslogar, tenta renovar a
- * sessão; só manda para /auth se a sessão realmente não existe mais.
+ * "Invalid token" também aparece quando o serviço de login está lento, quando várias consultas renovam o
+ * token ao mesmo tempo ("refresh token já usado") ou num erro pontual de permissão de uma chamada. Nada disso
+ * pode derrubar quem está logado. A decisão vem do servidor: `getUser()` valida o token (e renova se preciso).
+ * Se ainda há usuário, ignora o erro e deixa o retry da consulta agir. Só desloga quando o login é
+ * comprovadamente inexistente/revogado: 401 sem usuário, ou nenhuma sessão guardada.
  */
 async function handleUnauthorized() {
   if (typeof window === "undefined" || checkingSession) return;
   checkingSession = true;
   try {
     const { supabase } = await import("@/integrations/supabase/client");
-    const { data } = await supabase.auth.getSession();
-    if (data.session) {
-      const { data: refreshed, error } = await supabase.auth.refreshSession();
-      // Falha de rede/lentidão ao renovar: mantém a sessão e deixa o retry agir.
-      if (refreshed.session || (error && !/invalid|expired|not found|revoked/i.test(error.message))) {
-        return;
-      }
-    }
+    const { data, error } = await supabase.auth.getUser();
+    if (data?.user) return;
+    const e = error as { status?: number; name?: string } | null;
+    const revoked = e?.status === 401 || e?.name === "AuthSessionMissingError";
+    if (!revoked) return; // rede/lentidão/erro pontual: mantém a sessão
     await supabase.auth.signOut().catch(() => {});
     if (!window.location.pathname.startsWith("/auth")) {
       window.location.replace("/auth");
