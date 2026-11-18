@@ -151,11 +151,12 @@ function SenderPicker({
           <ChevronDown className="size-3 shrink-0 text-muted-foreground" />
         </button>
       </PopoverTrigger>
-      {/* Sempre para BAIXO (regra do seletor): sem inverter para cima por falta de espaço. */}
+      {/* Abre para BAIXO; só inverte para CIMA quando falta espaço (ex.: último card da tela), para não cortar. */}
       <PopoverContent
         align="start"
         side="bottom"
-        avoidCollisions={false}
+        avoidCollisions
+        collisionPadding={12}
         sideOffset={4}
         onOpenAutoFocus={(e) => e.preventDefault()}
         className="z-[70] w-[var(--radix-popover-trigger-width,260px)] min-w-[240px] overflow-hidden rounded-[10px] border border-border bg-popover p-1 text-xs text-popover-foreground shadow-md ![scrollbar-gutter:auto]"
