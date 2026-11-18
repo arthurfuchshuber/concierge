@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { DateField } from "@/components/dashboard/CalendarWindow";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
@@ -16,8 +17,6 @@ import {
   Pencil,
   NotebookPen,
 } from "lucide-react";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar as CalendarPicker } from "@/components/ui/calendar";
 import {
   Dialog,
   DialogContent,
@@ -139,16 +138,12 @@ function toDate(iso: string): Date | null {
   if (!y || !m || !d) return null;
   return new Date(y, m - 1, d, 12);
 }
-function toISO(date: Date): string {
-  const p = (n: number) => String(n).padStart(2, "0");
-  return `${date.getFullYear()}-${p(date.getMonth() + 1)}-${p(date.getDate())}`;
-}
 function fmtBR(iso: string): string {
   const d = toDate(iso);
   return d ? d.toLocaleDateString("pt-BR") : "";
 }
 
-/** Campo de data única com calendário — usado na vigência do contrato. */
+/** Campo de data única com calendário — usado na vigência do contrato (calendário padrão do sistema, 18/11/2026). */
 function SingleDateField({
   label,
   value,
@@ -160,53 +155,19 @@ function SingleDateField({
   placeholder: string;
   onChange: (iso: string) => void;
 }) {
-  const [open, setOpen] = useState(false);
   return (
     <div className="space-y-1.5">
       <Label className="ds-meta flex items-center gap-1.5">
         <Calendar className="size-3.5" /> {label}
       </Label>
-      <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
-          <button
-            type="button"
-            className="flex h-9 w-full items-center justify-between gap-2 rounded-lg border border-input bg-transparent px-3 text-left text-[13px]"
-          >
-            <span className={`truncate ${value ? "" : "text-muted-foreground/60"}`}>
-              {value ? fmtBR(value) : placeholder}
-            </span>
-            <Calendar className="size-3.5 shrink-0 text-muted-foreground" />
-          </button>
-        </PopoverTrigger>
-        <PopoverContent className="w-auto rounded-[8px] p-0" align="start">
-          <CalendarPicker
-            mode="single"
-            captionLayout="dropdown"
-            fromYear={2015}
-            toYear={new Date().getFullYear() + 5}
-            defaultMonth={toDate(value) ?? undefined}
-            selected={toDate(value) ?? undefined}
-            onSelect={(d) => {
-              if (d) onChange(toISO(d));
-              setOpen(false);
-            }}
-            numberOfMonths={1}
-            className="pointer-events-auto p-3"
-          />
-          <div className="flex justify-end border-t border-border/40 p-2">
-            <Button
-              variant="ghost"
-              className="h-8 rounded-lg text-[12px]"
-              onClick={() => {
-                onChange("");
-                setOpen(false);
-              }}
-            >
-              Limpar
-            </Button>
-          </div>
-        </PopoverContent>
-      </Popover>
+      <DateField
+        value={value}
+        onChange={onChange}
+        placeholder={placeholder}
+        title={`Escolher ${label}`}
+        clearable
+        className="rounded-lg text-[13px]"
+      />
     </div>
   );
 }
@@ -956,15 +917,16 @@ export function StakeholderFormDialog({
                       <Label className="ds-meta flex items-center gap-1.5">
                         <Calendar className="size-3.5" /> Data de nascimento{req}
                       </Label>
-                      <Input
-                        type="date"
+                      <DateField
                         value={form.birth_date}
-                        onChange={(e) => {
-                          set({ birth_date: e.target.value });
+                        title="Escolher Nascimento"
+                        max={new Date().toISOString().slice(0, 10)}
+                        onChange={(v) => {
+                          set({ birth_date: v });
                           clearError("birth_date");
-                          presence.broadcastTyping("birth_date", e.target.value);
+                          presence.broadcastTyping("birth_date", v);
+                          presence.broadcastFieldBlur("birth_date");
                         }}
-                        onBlur={() => presence.broadcastFieldBlur("birth_date")}
                         className={errors.birth_date ? "border-destructive" : ""}
                       />
                       {errors.birth_date && (

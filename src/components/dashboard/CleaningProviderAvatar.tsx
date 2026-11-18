@@ -101,6 +101,38 @@ export function useCleaningProviderName(propertyId: string, logId: string, reser
   return resolveCleaningProvider(board.data, propertyId, logId, reservationId).current?.name ?? null;
 }
 
+/**
+ * Prestador de UMA limpeza para as janelas do Financeiro (mockup Fin-15, 18/11/2026): a lista completa de
+ * prestadores da conta, quem está atribuído agora e a troca pontual (só esta limpeza). Escolher o padrão do
+ * imóvel limpa a atribuição pontual, como no avatar.
+ */
+export function useCleaningProviderControl(propertyId: string, logId: string, reservationId: string | null) {
+  const board = useCleaningBoard();
+  const qc = useQueryClient();
+  const setFn = useServerFn(setCleaningAssignment);
+  const r = resolveCleaningProvider(board.data, propertyId, logId, reservationId);
+  const editable = !!(r.realLog || r.resId || r.manualId);
+  async function set(providerId: string | null) {
+    await setFn({
+      data: {
+        propertyId,
+        logId: r.realLog,
+        reservationId: r.resId,
+        statusId: r.manualId,
+        providerId: providerId && providerId === r.defaultId ? null : providerId,
+      },
+    });
+    void qc.invalidateQueries({ queryKey: ["cleaning-board"] });
+  }
+  return {
+    providers: board.data?.providers ?? [],
+    currentId: r.currentId ?? null,
+    currentName: r.current?.name ?? null,
+    editable,
+    set,
+  };
+}
+
 /** Bolinha do responsável pela limpeza + troca pontual (só esta limpeza). */
 export function CleaningProviderAvatar({
   propertyId,

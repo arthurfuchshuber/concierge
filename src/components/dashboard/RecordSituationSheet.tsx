@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { CalendarWindow, isoToLocalDate, localDateToIso } from "@/components/dashboard/CalendarWindow";
 import { OwnerLine } from "@/components/dashboard/OwnerLine";
 import { useServerFn } from "@tanstack/react-start";
 import { useQueryClient } from "@tanstack/react-query";
@@ -326,6 +327,8 @@ export function RecordSituationSheet({
      "Próximo checkout" (padrão, presa ao card do próximo checkout do imóvel) ou "Personalizar…" = uma data
      específica. Com série (semana/mês/3 meses) vale o `repeat`. */
   const [repeat, setRepeat] = useState<RepeatCfg | null>(null);
+  // "Começa em": calendário padrão do sistema (janela "Ir para", 18/11/2026), não o seletor nativo.
+  const [startCal, setStartCal] = useState(false);
   const [agendaMode, setAgendaMode] = useState<"next" | "date">("next");
   const [specificDate, setSpecificDate] = useState<string>(() => todayStr());
   const [dateChecklist, setDateChecklist] = useState(category === "cleaning");
@@ -1261,21 +1264,24 @@ export function RecordSituationSheet({
 
           {repeat && (
             <div className="overflow-hidden rounded-[10px] bg-[var(--panel-well)]">
-              <label className="relative flex w-full cursor-pointer items-center gap-2.5 px-3.5 py-2.5">
+              <button
+                type="button"
+                onClick={() => setStartCal(true)}
+                aria-label="Começa em"
+                className="relative flex w-full cursor-pointer items-center gap-2.5 px-3.5 py-2.5 text-left"
+              >
                 <span className="flex-1 text-[12.5px] font-semibold text-foreground">Começa em</span>
                 <span className="text-[12.5px] font-bold tabular-nums text-foreground">{fmtBR(repeat.start)}</span>
                 <ChevronRight className="size-[15px] text-muted-foreground" />
-                <input
-                  type="date"
-                  value={repeat.start}
-                  min={todayIso()}
-                  onChange={(e) => {
-                    if (e.target.value) setRepeat({ ...repeat, start: e.target.value, startTouched: true });
-                  }}
-                  className="absolute inset-0 size-full cursor-pointer opacity-0"
-                  aria-label="Começa em"
-                />
-              </label>
+              </button>
+              <CalendarWindow
+                open={startCal}
+                onOpenChange={setStartCal}
+                title="Escolher Data de Início"
+                value={isoToLocalDate(repeat.start)}
+                min={isoToLocalDate(todayIso())}
+                onPick={(d) => setRepeat({ ...repeat, start: localDateToIso(d), startTouched: true })}
+              />
               <div className="flex items-center gap-2.5 border-t border-[var(--panel-div)] px-3.5 py-2.5">
                 <span className="min-w-0 flex-1">
                   <span className="block text-[12.5px] font-semibold text-foreground">Entra no checklist de limpeza</span>

@@ -12,11 +12,12 @@ import { cn } from "@/lib/utils";
  *    Janela somente leitura não mostra a linha.
  */
 /**
- * Tom do item selecionado: 9% do texto sobre o cartão no tema CLARO (mais suave) e 20% no ESCURO.
+ * Tom do item selecionado: no tema CLARO o bege quente do sistema (`--chip-bg`, mockup do filtro Proprietário
+ * aprovado em 18/11/2026: o cinza destoava do creme das janelas); no ESCURO, 20% do texto sobre o cartão.
  * Sem borda: a seleção é só o tom.
  */
 export const SELECTED_ITEM_BG_CLASS =
-  "bg-[color-mix(in_oklab,var(--foreground)_9%,var(--card))] dark:bg-[color-mix(in_oklab,var(--foreground)_20%,var(--card))]";
+  "bg-[var(--chip-bg)] dark:bg-[color-mix(in_oklab,var(--foreground)_20%,var(--card))]";
 
 /** Mesmo tom com o filete neutro, para cartões que já têm borda própria (ex.: Guias). */
 export const SELECTED_ITEM_CLASS = `border-foreground/[0.28] ${SELECTED_ITEM_BG_CLASS}`;

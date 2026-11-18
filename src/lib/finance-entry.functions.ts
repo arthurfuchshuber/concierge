@@ -23,6 +23,10 @@ export type FinanceEntryDetail = {
   description: string | null;
   reservation: { guestName: string | null; checkin: string | null; checkout: string | null } | null;
   media: FinanceEntryMedia[];
+  /** Serviço extra: a tarefa dona da situação (onde anexar fotos/vídeos novos). */
+  taskId: string | null;
+  /** Serviço extra: prestador que executou (para a janela "Alterar Prestador"). */
+  providerId: string | null;
 };
 
 const Input = z.object({
@@ -42,27 +46,30 @@ export const getFinanceEntryDetail = createServerFn({ method: "GET" })
     let reservationId = data.reservationId ?? null;
     let taskId: string | null = null;
     let description: string | null = null;
+    let providerId: string | null = null;
 
     if (data.kind === "extra") {
       const { data: t } = await db
         .from("tasks")
-        .select("id, description, log_id, reservation_id")
+        .select("id, description, log_id, reservation_id, resolved_by_provider_id")
         .eq("id", data.id)
         .maybeSingle();
       if (t) {
         taskId = t.id as string;
         description = (t.description as string | null) ?? null;
+        providerId = (t.resolved_by_provider_id as string | null) ?? null;
         logId = logId ?? ((t.log_id as string | null) ?? null);
         reservationId = reservationId ?? ((t.reservation_id as string | null) ?? null);
       } else {
         // Conclusão de tarefa recorrente: a descrição vive na tarefa-mãe.
         const { data: c } = await db
           .from("task_completions")
-          .select("task_id, log_id, reservation_id")
+          .select("task_id, log_id, reservation_id, resolved_by_provider_id")
           .eq("id", data.id)
           .maybeSingle();
         if (c) {
           taskId = c.task_id as string;
+          providerId = (c.resolved_by_provider_id as string | null) ?? null;
           logId = logId ?? ((c.log_id as string | null) ?? null);
           reservationId = reservationId ?? ((c.reservation_id as string | null) ?? null);
           const { data: p } = await db.from("tasks").select("description").eq("id", taskId).maybeSingle();
@@ -161,6 +168,8 @@ export const getFinanceEntryDetail = createServerFn({ method: "GET" })
     return {
       description: description?.trim() || null,
       reservation,
+      taskId,
+      providerId,
       media: files.map((r) => ({
         id: r.id,
         kind: r.kind,

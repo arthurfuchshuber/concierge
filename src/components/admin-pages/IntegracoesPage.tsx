@@ -296,7 +296,8 @@ export function IntegracoesPage() {
                     ))}
                   </div>
                 )}
-                <div className="mt-auto flex items-center gap-1.5 pt-2.5">
+                {/* Visão do membro (mockup de 18/11/2026): o card aparece, mas o botão fica apagado — só o titular altera. */}
+                <div className={cn("mt-auto flex items-center gap-1.5 pt-2.5", !canManage && "pointer-events-none opacity-45")} aria-disabled={!canManage || undefined}>
                   {act ? (
                     <>
                       <ActionButton full icon={<Settings2 className="size-3" strokeWidth={2.2} />} onClick={() => setPanel(cfg.key)}>

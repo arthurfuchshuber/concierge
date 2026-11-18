@@ -4,7 +4,6 @@ import { useServerFn } from "@tanstack/react-start";
 import { Building2, Loader2, Lock, RotateCw, TriangleAlert } from "lucide-react";
 import { toast } from "sonner";
 import { PANEL_SHELL } from "@/components/dashboard/panel-chrome";
-import { ActionButton } from "@/components/admin-pages/admin-mobile-ui";
 import { Switch } from "@/components/ui/switch";
 import { UField, UINPUT_BARE, UROW } from "@/components/admin-pages/profile-fields";
 import { formatBRPhone, formatCNPJ } from "@/lib/masks";
@@ -137,7 +136,7 @@ function FieldRow({
   );
 }
 
-export function CompanySection({ ownerId }: { ownerId: string | null }) {
+export function CompanySection({ ownerId, readOnly = false }: { ownerId: string | null; readOnly?: boolean }) {
   const getFn = useServerFn(getMyCompany);
   const choiceFn = useServerFn(setMyCompanyChoice);
   const lookupFn = useServerFn(lookupMyCompany);
@@ -315,6 +314,11 @@ export function CompanySection({ ownerId }: { ownerId: string | null }) {
   }, [phase, missing.length, snapshot, savedCnpj]);
 
   const frozen = !!savedCnpj; // CNPJ já gravado: só o suporte muda
+  // Visão do membro (mockup de 18/11/2026): tudo à mostra, só o titular altera.
+  const ALL_KEYS: CompanyFieldKey[] = [
+    "legalName", "tradeName", "email", "phone", "cep", "street", "number", "city", "state", "taxRegime", "municipalRegistration",
+  ];
+  const lockedView = readOnly ? ALL_KEYS : locked;
 
   // Ajuste manual do usuário (17/11/2026): sem texto explicativo nos estados "consultando" e "ativo"; só as
   // mensagens de erro (CNPJ inativo, inválido, não encontrado, em uso) e o aviso de Receita fora do ar.
@@ -340,7 +344,9 @@ export function CompanySection({ ownerId }: { ownerId: string | null }) {
         <div className="min-w-0">
           <div className="text-[13.5px] font-bold leading-tight">Somos uma Empresa (CNPJ)</div>
           <div className="mt-0.5 text-[11.5px] text-muted-foreground">
-            {frozen
+            {readOnly
+              ? "Somente o titular da conta pode alterar."
+              : frozen
               ? "CNPJ validado na Receita Federal. Alteração apenas via suporte."
               : on
                 ? "Preencha os dados da empresa abaixo."
@@ -349,7 +355,7 @@ export function CompanySection({ ownerId }: { ownerId: string | null }) {
         </div>
         <Switch
           checked={on}
-          disabled={frozen || choice.isPending || q.isLoading}
+          disabled={readOnly || frozen || choice.isPending || q.isLoading}
           onCheckedChange={onToggle}
           aria-label="Somos uma Empresa (CNPJ)"
         />
@@ -370,35 +376,48 @@ export function CompanySection({ ownerId }: { ownerId: string | null }) {
                 Empresa
               </div>
               <div className="mt-px truncate text-[12px] text-muted-foreground">
-                Todos os campos são obrigatórios
+                {readOnly ? "Somente leitura" : "Todos os campos são obrigatórios"}
               </div>
             </div>
           </div>
           <div className="mb-1 mt-4 border-t border-foreground/[0.07]" />
 
-          {phase === "unavailable" ? (
+          {readOnly ? (
+            <p className="px-0 pb-0.5 pt-2.5 text-[11.5px] leading-[1.4] text-muted-foreground">
+              Somente o titular da conta pode alterar os dados da empresa.
+              {checkedAt
+                ? ` Dados da Receita Federal (consulta de ${new Date(checkedAt).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}).`
+                : ""}
+            </p>
+          ) : phase === "unavailable" ? (
             <div className="mb-2 mt-3.5 flex items-start gap-2.5 rounded-[10px] bg-[#f7efd9] px-3.5 py-3 ring-1 ring-inset ring-[#9a6a00]/20 dark:bg-[#3a2f12] dark:ring-[#c9a962]/25">
               <TriangleAlert
                 className="mt-px size-[18px] shrink-0 text-[#9a6a00] dark:text-[#c9a962]"
                 strokeWidth={2}
               />
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 <div className="text-[12.5px] font-bold leading-[1.3] text-[#7a5200] dark:text-[#e2c77a]">
                   Receita Federal indisponível
                 </div>
+                {/* Mockups de 18/11/2026: no celular o texto curto; no computador a explicação inteira. */}
                 <div className="mt-[3px] text-[11.5px] leading-[1.45] text-muted-foreground">
-                  Não conseguimos consultar o CNPJ agora. Os campos{" "}
-                  <br className="hidden lg:block" />
-                  ficam bloqueados: os dados só entram pela consulta.
+                  <span className="lg:hidden">A consulta ao CNPJ falhou.</span>
+                  <span className="hidden lg:inline">
+                    Não conseguimos consultar o CNPJ agora. Os campos <br />
+                    ficam bloqueados: os dados só entram pela consulta.
+                  </span>
                 </div>
-                <ActionButton
-                  className="mt-2.5"
-                  icon={<RotateCw className="size-3" strokeWidth={2.2} />}
-                  onClick={() => setRetry((n) => n + 1)}
-                >
-                  Tentar de novo
-                </ActionButton>
               </div>
+              {/* "Tentar de novo" só com o ícone, à direita e centralizado na altura do aviso (18/11/2026). */}
+              <button
+                type="button"
+                title="Tentar de novo"
+                aria-label="Tentar de novo"
+                onClick={() => setRetry((n) => n + 1)}
+                className="grid size-7 shrink-0 place-items-center self-center rounded-[8px] bg-card text-foreground shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_14%,transparent)] transition-colors hover:bg-foreground/[0.04]"
+              >
+                <RotateCw className="size-[15px]" strokeWidth={2.2} />
+              </button>
             </div>
           ) : note ? (
             <p className="px-0 pb-0.5 pt-2.5 text-[11.5px] leading-[1.4] text-muted-foreground">
@@ -438,7 +457,7 @@ export function CompanySection({ ownerId }: { ownerId: string | null }) {
                     placeholder="00.000.000/0000-00"
                     className={UINPUT_BARE}
                     aria-label="CNPJ"
-                    disabled={phase === "loading"}
+                    disabled={readOnly || phase === "loading"}
                   />
                   {phase === "loading" ? (
                     <span className="flex shrink-0 items-center gap-1.5 text-[11.5px] text-muted-foreground">
@@ -459,7 +478,7 @@ export function CompanySection({ ownerId }: { ownerId: string | null }) {
 
             <FieldRow
               phase={phase}
-              locked={locked}
+              locked={lockedView}
               label="Razão social"
               k="legalName"
               value={form.legalName}
@@ -468,7 +487,7 @@ export function CompanySection({ ownerId }: { ownerId: string | null }) {
             />
             <FieldRow
               phase={phase}
-              locked={locked}
+              locked={lockedView}
               label="Nome fantasia"
               k="tradeName"
               value={form.tradeName}
@@ -478,7 +497,7 @@ export function CompanySection({ ownerId }: { ownerId: string | null }) {
             />
             <FieldRow
               phase={phase}
-              locked={locked}
+              locked={lockedView}
               label="E-mail"
               k="email"
               value={form.email}
@@ -489,7 +508,7 @@ export function CompanySection({ ownerId }: { ownerId: string | null }) {
             />
             <FieldRow
               phase={phase}
-              locked={locked}
+              locked={lockedView}
               label="Telefone"
               k="phone"
               value={form.phone}
@@ -500,7 +519,7 @@ export function CompanySection({ ownerId }: { ownerId: string | null }) {
             />
             <FieldRow
               phase={phase}
-              locked={locked}
+              locked={lockedView}
               label="CEP"
               k="cep"
               value={form.cep}
@@ -511,7 +530,7 @@ export function CompanySection({ ownerId }: { ownerId: string | null }) {
             />
             <FieldRow
               phase={phase}
-              locked={locked}
+              locked={lockedView}
               label="Rua"
               k="street"
               value={form.street}
@@ -520,7 +539,7 @@ export function CompanySection({ ownerId }: { ownerId: string | null }) {
             />
             <FieldRow
               phase={phase}
-              locked={locked}
+              locked={lockedView}
               label="Nº"
               k="number"
               value={form.number}
@@ -529,7 +548,7 @@ export function CompanySection({ ownerId }: { ownerId: string | null }) {
             />
             <FieldRow
               phase={phase}
-              locked={locked}
+              locked={lockedView}
               label="Cidade"
               k="city"
               value={form.city}
@@ -538,7 +557,7 @@ export function CompanySection({ ownerId }: { ownerId: string | null }) {
             />
             <FieldRow
               phase={phase}
-              locked={locked}
+              locked={lockedView}
               label="UF"
               k="state"
               value={form.state}
@@ -547,7 +566,14 @@ export function CompanySection({ ownerId }: { ownerId: string | null }) {
               placeholder="PR"
             />
             {/* A Receita não informa a inscrição municipal: é o único campo sempre aberto. */}
-            {phase === "ok" ? (
+            {phase === "ok" && readOnly ? (
+              <UField label="Inscrição municipal" required>
+                <div aria-disabled="true" className={`${UROW} cursor-not-allowed text-muted-foreground`}>
+                  <span className="min-w-0 flex-1 truncate">{form.municipalRegistration || "—"}</span>
+                  <Lock className="size-3.5 text-[var(--faint)]" />
+                </div>
+              </UField>
+            ) : phase === "ok" ? (
               <UField label="Inscrição municipal" required>
                 <div className={UROW}>
                   <input
@@ -571,7 +597,7 @@ export function CompanySection({ ownerId }: { ownerId: string | null }) {
             )}
             <FieldRow
               phase={phase}
-              locked={locked}
+              locked={lockedView}
               label="Regime tributário"
               k="taxRegime"
               value={form.taxRegime}

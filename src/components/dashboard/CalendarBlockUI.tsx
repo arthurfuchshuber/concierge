@@ -181,7 +181,10 @@ function CalendarPickWindow({
   return (
     <Dialog open={open} onOpenChange={(v) => (!v ? onClose() : undefined)}>
       <DialogContent aria-describedby={undefined} onOpenAutoFocus={(e) => e.preventDefault()} overlayClassName="bg-background/45 backdrop-blur-[1.5px]" className="w-[292px] max-w-[292px] gap-0 overflow-x-hidden p-4 sm:p-4">
-        <DialogTitle className="sr-only">{title}</DialogTitle>
+        {/* Padrão das janelas de calendário ("Ir para", 18/11/2026): título visível no cabeçalho, ao lado do X. */}
+        <DialogTitle className="-mx-4 -mt-4 flex min-h-12 items-center border-b border-[var(--panel-div)] py-1.5 pl-4 pr-14 font-display text-[14px] font-bold leading-tight text-foreground">
+          <span className="truncate">{title}</span>
+        </DialogTitle>
         <DialogDescription className="sr-only">Toque num dia para escolher.</DialogDescription>
         <Calendar
           mode="multiple"
@@ -438,7 +441,7 @@ export function CalendarBlockDialog({
         picking={picking}
         from={from}
         to={to}
-        title={release ? "Escolher datas a liberar" : picking === "from" ? "Escolher data de entrada" : "Escolher data de saída"}
+        title={release ? "Escolher Datas a Liberar" : picking === "from" ? "Escolher Data de Entrada" : "Escolher Data de Saída"}
         min={bounds(picking).min}
         max={bounds(picking).max}
         occupied={occupied}

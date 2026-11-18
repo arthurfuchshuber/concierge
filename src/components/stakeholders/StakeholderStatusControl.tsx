@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { DateField } from "@/components/dashboard/CalendarWindow";
 import { useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
@@ -201,13 +202,11 @@ export function StakeholderStatusControl({
             <Label htmlFor="status-date" className="text-xs font-semibold">
               {statusDraft?.status === "canceled" ? "Data final" : "Data da alteração"}
             </Label>
-            <Input
+            <DateField
               id="status-date"
-              type="date"
               value={statusDraft?.date ?? ""}
-              onChange={(e) =>
-                setStatusDraft((d) => (d ? { ...d, date: e.target.value, stage: null } : d))
-              }
+              title={statusDraft?.status === "canceled" ? "Escolher Data Final" : "Escolher Data da Alteração"}
+              onChange={(v) => setStatusDraft((d) => (d ? { ...d, date: v, stage: null } : d))}
             />
             <p className="text-xs text-muted-foreground">
               Pode ser uma data futura, se a mudança ainda vai acontecer.

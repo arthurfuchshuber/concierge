@@ -17,16 +17,17 @@ const acesso = vi.hoisted(() => ({ liberado: false }));
 vi.mock("@/lib/permissions/useAreaAccess", () => ({
   useAreaAccess: () => ({ ready: true, can: () => acesso.liberado }),
 }));
-// Prestador atribuído controlado pelo teste: o avatar vira um botãozinho com as
-// iniciais e o hook devolve o nome do prestador (null = "?").
+// Prestador atribuído controlado pelo teste: a etiqueta azul mostra o nome
+// (null = "Sem prestador") e só vira botão quando a limpeza tem reserva ligada.
 const prestador = vi.hoisted(() => ({ nome: null as string | null }));
 vi.mock("@/components/dashboard/CleaningProviderAvatar", () => ({
-  useCleaningProviderName: () => prestador.nome,
-  CleaningProviderAvatar: () => (
-    <span data-provider="">
-      {prestador.nome ? prestador.nome.split(" ").map((p) => p[0]).join("") : "?"}
-    </span>
-  ),
+  useCleaningProviderControl: (_p: string, logId: string, reservationId: string | null) => ({
+    providers: [],
+    currentId: null,
+    currentName: prestador.nome,
+    editable: !!logId || !!reservationId,
+    set: async () => {},
+  }),
 }));
 import { CleaningDayDetailContent } from "../CleaningDayDetail";
 import { WINDOW_HEADER_CLASS, WINDOW_SUBTITLE_CLASS, WINDOW_TITLE_CLASS } from "../window-header";
@@ -95,13 +96,13 @@ describe("CleaningDayDetailContent — tabela do dia", () => {
         caretX={40}
       />,
     );
-    expect(html.match(/<tbody>[\s\S]*<\/tbody>/)?.[0].match(/<tr/g)).toHaveLength(3);
+    expect(html.match(/snap-start border-b/g)).toHaveLength(3);
     const t = text(html);
     expect(t).toContain("Quinta, 17/09");
     expect(t).toContain("3 limpezas concluídas");
     expect(t).not.toContain("Outro dia");
     expect(t).toContain("em análise");
-    expect(t).toContain("14:20 · Maria");
+    expect(t).toContain("17/09 · 14:20");
     expect(t).toMatch(/R\$\s240,00/);
     expect(t).toMatch(/\+R\$\s345,00 em análise/);
   });
@@ -153,15 +154,16 @@ describe("CleaningDayDetailContent — tabela do dia", () => {
     expect(t).toMatch(/Estimativa · Limpeza Normal R\$\s120,00/);
   });
 
-  it("limpezas: data + hora + quem fez e proprietário(a) do imóvel; sem permissão não há botão", () => {
+  it("limpezas (mockup Fin-01): título + valor, proprietário e data · hora com as etiquetas", () => {
     acesso.liberado = false;
+    prestador.nome = "Esther Villar";
     const html = renderToStaticMarkup(
       <CleaningDayDetailContent
         date="2026-09-17"
         source={{
           mode: "done",
           items: [
-            { ...items[1], ownerName: "Patrícia Souza" },
+            { ...items[1], ownerName: "Patrícia Souza", logId: "11111111-1111-1111-1111-111111111111" },
             { ...items[2], ownerName: "Clayton Lima" },
           ],
         }}
@@ -169,40 +171,32 @@ describe("CleaningDayDetailContent — tabela do dia", () => {
       />,
     );
     const t = text(html);
-    expect(t).toContain("Patrícia");
-    expect(t).toContain("Clayton");
-    expect(t).toContain("17/09/2026 · 14:20 · Maria");
-    expect(t).toContain("Tipo da Limpeza: Normal");
-    // Sem permissão não há botão de edição.
-    expect(html).not.toContain("Alterar valor");
-    expect(html).not.toContain("Mudar para");
+    expect(t).toMatch(/Studio B R\$\s120,00 Patrícia Souza 17\/09 · 14:20 Normal Esther Villar/);
+    expect(t).toContain("Clayton Lima");
+    // Sem permissão: a etiqueta do prestador não é botão e nada abre edição na lista.
+    expect(html).not.toContain("Alterar prestador");
+    expect(html).not.toContain("Tipo da Limpeza");
+    prestador.nome = null;
   });
 
-  it("limpezas: com permissão, tipo e valor viram botão (só o dado)", () => {
+  it("limpezas: com permissão, só a etiqueta do prestador vira botão (o resto edita no detalhe)", () => {
     acesso.liberado = true;
     const html = renderToStaticMarkup(
       <CleaningDayDetailContent
         date="2026-09-17"
-        source={{ mode: "done", items: [items[1]] }}
+        source={{ mode: "done", items: [{ ...items[1], logId: "11111111-1111-1111-1111-111111111111" }] }}
         caretX={null}
       />,
     );
     const botoes = html.match(/<button[\s\S]*?<\/button>/g) ?? [];
-    expect(botoes.some((b) => text(b).trim() === "Normal")).toBe(true);
-    expect(botoes.some((b) => /R\$\s120,00/.test(text(b)))).toBe(true);
-    // Moldura de botão editável padrão (justa, sem lápis) em tipo e valor.
-    const editaveis = botoes.filter((b) => /Mudar para|Alterar valor/.test(b));
-    expect(editaveis).toHaveLength(2);
-    for (const b of editaveis) {
-      for (const c of ["border", "rounded-[0.3rem]", "bg-card", "shrink-0", "justify-center", "px-1.5", "h-[20px]"])
-        expect(b).toContain(c);
-      expect(b).not.toContain("lucide-pencil");
-    }
+    expect(botoes).toHaveLength(1);
+    expect(botoes[0]).toContain('title="Alterar prestador"');
+    expect(text(botoes[0] ?? "").trim()).toBe("Sem prestador");
     expect(html).not.toContain("lucide-pencil");
     acesso.liberado = false;
   });
 
-  it("sem expansividade: tudo nasce visível, sem seta, com o valor na linha da data", () => {
+  it("sem expansividade: tudo nasce visível, sem seta", () => {
     acesso.liberado = false;
     for (const mode of ["done", "cost"] as const) {
       const html = renderToStaticMarkup(
@@ -210,19 +204,11 @@ describe("CleaningDayDetailContent — tabela do dia", () => {
       );
       expect(html).not.toContain("aria-expanded");
       expect(html).not.toContain("grid-rows-[0fr]");
-      expect(html).not.toContain("pl-[30px]");
-      expect(html).not.toContain("Valor do Serviço");
+      expect(html).not.toContain("lucide-chevron-right");
     }
-    const html = renderToStaticMarkup(
-      <CleaningDayDetailContent date="2026-09-17" source={{ mode: "done", items: [items[1]] }} caretX={null} />,
-    );
-    // Linha inferior: data/hora à esquerda e o valor à direita, na mesma linha.
-    const linha = html.match(/<div data-bottom-row[\s\S]*?<\/div>/)?.[0] ?? "";
-    expect(text(linha)).toMatch(/17\/09\/2026 · 14:20 · Maria .*R\$\s120,00/);
-    expect(linha).toContain("min-w-0");
   });
 
-  it("serviços extras: mesma linha inferior, com o valor à direita", () => {
+  it("serviços extras (mockup Fin-03): data · hora + etiqueta da situação e a descrição embaixo", () => {
     const html = renderToStaticMarkup(
       <CleaningDayDetailContent
         date="2026-09-17"
@@ -235,7 +221,7 @@ describe("CleaningDayDetailContent — tabela do dia", () => {
               date: "2026-09-17",
               propertyId: "a",
               propertyName: "Casa A",
-              ownerName: null,
+              ownerName: "Dono",
               ownerPhone: null,
               ownerPhoneCountry: null,
               situation: "manutencao",
@@ -252,128 +238,9 @@ describe("CleaningDayDetailContent — tabela do dia", () => {
         caretX={null}
       />,
     );
-    const t = text(html);
-    expect(t).toContain("Situação: Manutenção");
-    expect(t).toContain("Troca do chuveiro");
-    const linha = html.match(/<span class="mt-1 flex min-w-0 items-center justify-between[\s\S]*?<\/span><\/span>/)?.[0] ?? "";
-    expect(text(linha)).toMatch(/17\/09\/2026 · 14:20.*R\$\s80,00/);
+    expect(text(html)).toMatch(/Casa A R\$\s80,00 Dono 17\/09 · 14:20 Manutenção Troca do chuveiro/);
+    expect(html).not.toContain("Situação:");
     expect(html).not.toContain("aria-expanded");
-  });
-
-  describe("desduplicação de quem concluiu × prestador", () => {
-    const comPrestador = { ...items[1], logId: "11111111-1111-1111-1111-111111111111" };
-    const render = (doneByName: string) =>
-      text(
-        renderToStaticMarkup(
-          <CleaningDayDetailContent
-            date="2026-09-17"
-            source={{ mode: "done", items: [{ ...comPrestador, doneByName }] }}
-            caretX={null}
-          />,
-        ),
-      );
-
-    it("mesma pessoa: só data/hora + iniciais, sem repetir o nome", () => {
-      prestador.nome = "Esther Villar";
-      const t = render("Esther Villar");
-      expect(t).toContain("17/09/2026 · 14:20 EV");
-      expect(t).not.toContain("Esther Villar");
-    });
-
-    it("mesma pessoa com acento/caixa diferentes também não repete", () => {
-      prestador.nome = "Esther Villar";
-      expect(render("esther  villár")).not.toMatch(/villar/i);
-    });
-
-    it("pessoas diferentes: nome de quem concluiu + iniciais do prestador", () => {
-      prestador.nome = "Esther Villar";
-      expect(render("Anfitrião Sigma")).toContain("17/09/2026 · 14:20 · Anfitrião Sigma EV");
-    });
-
-    it("prestador ainda indefinido: nome de quem concluiu + ?", () => {
-      prestador.nome = null;
-      expect(render("Anfitrião Sigma")).toContain("17/09/2026 · 14:20 · Anfitrião Sigma ?");
-    });
-  });
-});
-
-describe("valor inline com auto-save (sem Cancelar/OK)", () => {
-  const abrir = () => {
-    acesso.liberado = true;
-    render(
-      <QueryClientProvider client={new QueryClient()}>
-        <Dialog open>
-          <DialogContent aria-describedby={undefined}>
-            <CleaningDayDetailContent
-              date="2026-09-17"
-              source={{ mode: "done", items: [items[1]] }}
-              caretX={null}
-            />
-          </DialogContent>
-        </Dialog>
-      </QueryClientProvider>,
-    );
-    fireEvent.click(screen.getByTitle("Alterar valor"));
-    return screen.getByLabelText("Valor de Studio B") as HTMLInputElement;
-  };
-  afterEach(() => {
-    cleanup();
-    acesso.liberado = false;
-  });
-
-  it("vira um campo na mesma posição, com foco e sem botões Cancelar/OK", () => {
-    const input = abrir();
-    expect(document.activeElement).toBe(input);
-    expect(input.value).toBe("120,00");
-    expect(input.className).toContain("w-[72px]");
-    expect(input.className).toContain("h-[20px]");
-    expect(input.className).toContain("ring-1");
-    expect(screen.queryByRole("button", { name: "Cancelar" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "OK" })).toBeNull();
-  });
-
-  it("Enter com valor alterado abre o Confirmar alteração? (De → Para)", () => {
-    const input = abrir();
-    fireEvent.change(input, { target: { value: "150,00" } });
-    fireEvent.keyDown(input, { key: "Enter" });
-    expect(screen.getByText("Confirmar alteração?")).toBeTruthy();
-    const dlg = within(screen.getByRole("alertdialog"));
-    expect(dlg.getByText(/R\$\s120,00/).className).toContain("line-through");
-    expect(dlg.getByText(/R\$\s150,00/)).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Confirmar" })).toBeTruthy();
-  });
-
-  it("sair do campo com valor alterado também abre a confirmação", () => {
-    const input = abrir();
-    fireEvent.change(input, { target: { value: "99,90" } });
-    fireEvent.blur(input);
-    expect(screen.getByText("Confirmar alteração?")).toBeTruthy();
-  });
-
-  it("valor igual: sair do campo descarta, sem diálogo", () => {
-    const input = abrir();
-    fireEvent.blur(input);
-    expect(screen.queryByText("Confirmar alteração?")).toBeNull();
-    expect(screen.queryByLabelText("Valor de Studio B")).toBeNull();
-    expect(screen.getByTitle("Alterar valor")).toBeTruthy();
-  });
-
-  it("Escape descarta mesmo com valor alterado, sem diálogo", () => {
-    const input = abrir();
-    fireEvent.change(input, { target: { value: "150,00" } });
-    fireEvent.keyDown(input, { key: "Escape" });
-    fireEvent.blur(input);
-    expect(screen.queryByText("Confirmar alteração?")).toBeNull();
-    expect(screen.queryByLabelText("Valor de Studio B")).toBeNull();
-  });
-
-  it("cancelar a confirmação descarta a edição", () => {
-    const input = abrir();
-    fireEvent.change(input, { target: { value: "150,00" } });
-    fireEvent.keyDown(input, { key: "Enter" });
-    fireEvent.click(screen.getByRole("button", { name: "Cancelar" }));
-    expect(screen.queryByText("Confirmar alteração?")).toBeNull();
-    expect(screen.queryByLabelText("Valor de Studio B")).toBeNull();
   });
 });
 
@@ -394,8 +261,8 @@ describe("cabeçalho universal de janela ampla", () => {
     expect(html).not.toContain("Fechar detalhe");
     expect(html).not.toContain("size-10");
     expect(html).not.toContain("rounded-xl");
-    // Respiro do topo dentro da área rolável.
-    expect(html).toMatch(/sg-elegant-scroll[^"]*px-4[^"]*pt-2\.5/);
+    // Cartões dos lançamentos encostam no cabeçalho (mockup Fin-01..04).
+    expect(html).toMatch(/sg-elegant-scroll[^"]*px-4[^"]*py-0/);
   });
 
   it("dentro da janela, o único X é o oficial do DialogContent", () => {

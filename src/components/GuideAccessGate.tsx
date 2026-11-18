@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from "react";
+import { CalendarWindow, DateField } from "@/components/dashboard/CalendarWindow";
 import { zonedTimeToUtc } from "@/lib/property-timezone";
 import { useServerFn } from "@tanstack/react-start";
 import {
@@ -11,7 +12,6 @@ import { BottomNav } from "@/components/guide/BottomNav";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Select,
@@ -38,7 +38,6 @@ import {
   X,
 } from "lucide-react";
 import { format, addDays } from "date-fns";
-import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
 import { GuestPushStep, shouldShowGuestPushStep } from "@/components/GuestPushStep";
 import { guestSessionId } from "@/lib/guest-push-client";
@@ -415,6 +414,7 @@ export function GuideAccessGate({
 
   // Auto-pair check-out when the user picks a known reservation check-in.
   const [checkinPopoverOpen, setCheckinPopoverOpen] = useState(false);
+  const [checkoutCalOpen, setCheckoutCalOpen] = useState(false);
   const handleCheckinSelect = (selected: Date | undefined) => {
     if (!selected) {
       setRange(undefined);
@@ -855,42 +855,38 @@ export function GuideAccessGate({
                     hóspede precisa escolhê-las aqui, senão nunca conclui. */}
                 {!codeGateActive && calendarAvailability.state === "ready" && (
                   <div className="grid grid-cols-2 gap-2">
+                    {/* Calendário padrão do sistema (janela "Ir para", 18/11/2026). */}
                     <RangeButton
                       label="Chegada"
                       emoji="📅"
                       value={range?.from ? format(range.from, "dd/MM/yyyy") : "—"}
                       open={checkinPopoverOpen}
+                      onClick={() => setCheckinPopoverOpen(true)}
+                    />
+                    <CalendarWindow
+                      open={checkinPopoverOpen}
                       onOpenChange={setCheckinPopoverOpen}
-                      popover={
-                        <Calendar
-                          mode="single"
-                          locale={ptBR}
-                          selected={range?.from}
-                          onSelect={handleCheckinSelect}
-                          disabled={isDateDisabled}
-                          className="p-3"
-                        />
-                      }
+                      title="Escolher Chegada"
+                      fieldLabel="Chegada"
+                      value={range?.from}
+                      isDisabled={isDateDisabled}
+                      onPick={handleCheckinSelect}
                     />
                     <RangeButton
                       label="Saída"
                       emoji="📅"
                       value={range?.to ? format(range.to, "dd/MM/yyyy") : "—"}
-                      popover={
-                        <Calendar
-                          mode="single"
-                          locale={ptBR}
-                          selected={range?.to}
-                          onSelect={(d) =>
-                            setRange((r) => (d ? { from: r?.from, to: d } : { from: r?.from }))
-                          }
-                          disabled={(d) =>
-                            range?.from ? d <= range.from : isDateDisabled(d)
-                          }
-                          defaultMonth={range?.from}
-                          className="p-3"
-                        />
-                      }
+                      open={checkoutCalOpen}
+                      onClick={() => setCheckoutCalOpen(true)}
+                    />
+                    <CalendarWindow
+                      open={checkoutCalOpen}
+                      onOpenChange={setCheckoutCalOpen}
+                      title="Escolher Saída"
+                      fieldLabel="Saída"
+                      value={range?.to ?? range?.from}
+                      isDisabled={(d) => (range?.from ? d <= range.from : isDateDisabled(d))}
+                      onPick={(d) => setRange((r) => ({ from: r?.from, to: d }))}
                     />
                   </div>
                 )}
@@ -1157,13 +1153,13 @@ function Step2(props: {
                   <label className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground font-bold whitespace-nowrap">
                     Dia
                   </label>
-                  <input
-                    type="date"
+                  <DateField
                     value={arrivalDate || arrivalDateMin || ""}
                     min={arrivalDateMin}
                     max={arrivalDateMax}
-                    onChange={(e) => setArrivalDate(e.target.value)}
-                    className="h-9 rounded-[10px] border border-border bg-foreground/[0.04] px-2.5 text-[13px] font-semibold text-foreground"
+                    onChange={setArrivalDate}
+                    title="Escolher Dia da Chegada"
+                    className="h-9 w-auto rounded-[10px] border border-border bg-foreground/[0.04] px-2.5 text-[13px] font-semibold text-foreground"
                   />
                 </div>
                 <div className="flex flex-wrap items-center justify-center gap-2">
@@ -1235,13 +1231,13 @@ function Step2(props: {
                   <label className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground font-bold whitespace-nowrap">
                     Dia
                   </label>
-                  <input
-                    type="date"
+                  <DateField
                     value={departureDate || departureDateMax || ""}
                     min={departureDateMin}
                     max={departureDateMax}
-                    onChange={(e) => setDepartureDate(e.target.value)}
-                    className="h-9 rounded-[10px] border border-border bg-foreground/[0.04] px-2.5 text-[13px] font-semibold text-foreground"
+                    onChange={setDepartureDate}
+                    title="Escolher Dia da Saída"
+                    className="h-9 w-auto rounded-[10px] border border-border bg-foreground/[0.04] px-2.5 text-[13px] font-semibold text-foreground"
                   />
                 </div>
                 <div className="flex flex-wrap items-center justify-center gap-2">
@@ -1741,9 +1737,12 @@ function RangeButton({
   open,
   onOpenChange,
   emoji,
+  onClick,
 }: {
   label: string;
   value: string;
+  /** Abre a janela de calendário padrão (no lugar do popover). */
+  onClick?: () => void;
   popover?: React.ReactNode;
   locked?: boolean;
   themeClass?: string;
@@ -1756,6 +1755,7 @@ function RangeButton({
     <button
       type="button"
       disabled={locked}
+      onClick={onClick}
       className={cn(
         "relative w-full h-[52px] rounded-[12px] border bg-foreground/[0.04] px-3 text-left text-foreground",
         "transition-colors hover:bg-foreground/[0.06] focus:outline-none",
