@@ -104,7 +104,7 @@ export function WindowBody({ children }: { children: React.ReactNode }) {
   return (
     <div
       data-window-body
-      className="sg-elegant-scroll grid min-h-0 shrink grid-cols-[minmax(0,1fr)] content-start overflow-y-auto overscroll-contain touch-pan-y"
+      className="sg-elegant-scroll grid min-h-0 shrink grid-cols-[minmax(0,1fr)] content-start overflow-y-auto overflow-x-hidden overscroll-contain touch-pan-y"
       style={{ gap: "inherit" }}
     >
       {children}

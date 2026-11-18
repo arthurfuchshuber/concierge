@@ -38,10 +38,10 @@ async function isFullMode(sb: any, userId: string, ownerId: string | null | unde
 const LIGHT_MSG = "Bloqueio de datas só está disponível no Modo Full. No Modo Leve, bloqueie direto na plataforma de hospedagem.";
 
 /**
- * PRAZO DE DATAS DO(S) ANÚNCIO(S) de cada imóvel (29/10/2026): o calendário de bloqueio só oferece datas dentro
- * da regra do anúncio — `minDays` = antecedência mínima, `maxDays` = janela máxima de reservas, ambos em dias a
- * partir de hoje. Com mais de um anúncio no imóvel (principal + gêmeos) vale o MENOR mínimo e o MAIOR máximo.
- * Valor desconhecido = `null` (o calendário usa o padrão: sem antecedência e a janela padrão do sistema).
+ * PRAZO DE DATAS DO(S) ANÚNCIO(S) de cada imóvel: o calendário de bloqueio só limita o FIM pela janela máxima de
+ * reservas (`maxDays`, em dias a partir de hoje); com mais de um anúncio (principal + gêmeos) vale o MAIOR máximo.
+ * A antecedência mínima do hóspede (`booking_lead_time`) NÃO se aplica ao bloqueio do anfitrião: `minDays` vai
+ * sempre `null`, e o início escolhível é hoje. Valor desconhecido = `null` (o calendário usa a janela padrão).
  */
 async function propertyBookingWindows(sb: any, propertyIds: string[]) {
   const out: Record<string, { minDays: number | null; maxDays: number | null }> = {};
@@ -60,19 +60,19 @@ async function propertyBookingWindows(sb: any, propertyIds: string[]) {
     };
     for (const r of (raws ?? []) as any[]) {
       const rule = r.raw_settings?.availability_rule ?? {};
-      add(r.property_id, num(rule.booking_lead_time), num(rule.max_days_notice));
+      add(r.property_id, null, num(rule.max_days_notice));
     }
     const { listingAvailabilityRule } = await import("@/lib/channex-full-connect.server");
     await Promise.all(
       ((twins ?? []) as any[]).map(async (t) => {
         const rule = await listingAvailabilityRule(t.channel_id, t.twin_listing_id).catch(() => null);
-        if (rule) add(t.property_id, rule.minDays, rule.maxDays);
+        if (rule) add(t.property_id, null, rule.maxDays);
       }),
     );
     for (const pid of propertyIds) {
       const mn = mins.get(pid);
       const mx = maxs.get(pid);
-      if (mn?.length || mx?.length) out[pid] = { minDays: mn?.length ? Math.min(...mn) : null, maxDays: mx?.length ? Math.max(...mx) : null };
+      if (mn?.length || mx?.length) out[pid] = { minDays: null, maxDays: mx?.length ? Math.max(...mx) : null };
     }
   } catch (e) {
     console.error("[manual-block] prazo dos anúncios indisponível; usando o padrão", e);

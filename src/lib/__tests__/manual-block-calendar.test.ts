@@ -79,14 +79,24 @@ describe("calendário do liberar: só bloqueio manual", () => {
 });
 
 describe("prazo do anúncio no calendário do bloqueio", () => {
-  it("usa hoje + antecedência mínima até hoje + janela máxima", () => {
-    const w = bookingWindowBounds(TODAY, { minDays: 2, maxDays: 30 });
-    expect(w.firstNight).toBe("2026-10-31");
+  it("bloqueio manual vai de HOJE até hoje + janela máxima (a antecedência mínima do hóspede não vale)", () => {
+    const w = bookingWindowBounds(TODAY, { minDays: 6, maxDays: 30 });
+    expect(w.firstNight).toBe(TODAY);
     expect(w.lastNight).toBe("2026-11-28");
     expect(w.lastTo).toBe("2026-11-29");
-    expect(canPickBlockFrom(new Set<string>(), w.firstNight, "2026-10-30", w.lastNight)).toBe(false);
-    expect(canPickBlockFrom(new Set<string>(), w.firstNight, "2026-10-31", w.lastNight)).toBe(true);
+    expect(canPickBlockFrom(new Set<string>(), w.firstNight, TODAY, w.lastNight)).toBe(true);
+    expect(canPickBlockFrom(new Set<string>(), w.firstNight, "2026-10-30", w.lastNight)).toBe(true);
+    expect(canPickBlockFrom(new Set<string>(), w.firstNight, "2026-10-28", w.lastNight)).toBe(false);
     expect(canPickBlockFrom(new Set<string>(), w.firstNight, "2026-11-29", w.lastNight)).toBe(false);
+  });
+
+  it("dia livre de hoje até hoje + antecedência do anúncio continua selecionável no bloqueio", () => {
+    const w = bookingWindowBounds(TODAY, { minDays: 6, maxDays: 365 });
+    for (const day of ["2026-10-29", "2026-10-30", "2026-11-04", "2026-11-05"]) {
+      expect(canPickBlockFrom(new Set<string>(), w.firstNight, day, w.lastNight)).toBe(true);
+    }
+    // noite ocupada continua travada
+    expect(canPickBlockFrom(new Set(["2026-10-31"]), w.firstNight, "2026-10-31", w.lastNight)).toBe(false);
   });
 
   it("o fim também respeita a janela máxima", () => {
