@@ -51,6 +51,7 @@ import {
   type DayDetailSource,
 } from "@/components/dashboard/CleaningDayDetail";
 import { FINANCE_WINDOW_CLASS, WIDE_WINDOW_CLASS, windowTitle } from "@/components/dashboard/wide-window";
+import { WINDOW_HEADER_CLASS, WINDOW_SUBTITLE_CLASS, WINDOW_TITLE_CLASS } from "@/components/dashboard/window-header";
 import { cleaningAdvanceDecision } from "@/lib/cleaning-advance";
 import { CleaningProviderAvatar, useCleaningBoard } from "@/components/dashboard/CleaningProviderAvatar";
 import { PropertyAccessButton } from "@/components/dashboard/PropertyAccessButton";
@@ -4841,9 +4842,9 @@ function KpiCard({
       >
         {/* JANELA PADRÃO (29/10/2026): sem ícone no cabeçalho, título 14px
             negrito e subtítulo 12px em caixa normal, recuo de 16px. */}
-        <DialogHeader className="shrink-0 border-b border-border/40 px-4 pb-2.5 pt-3 pr-12 text-left">
-          <DialogTitle className="truncate text-sm font-bold leading-5 text-foreground">{windowTitle(label)}</DialogTitle>
-          <div className="text-xs leading-4 text-muted-foreground">
+        <DialogHeader className={WINDOW_HEADER_CLASS}>
+          <DialogTitle className={WINDOW_TITLE_CLASS}>{windowTitle(label)}</DialogTitle>
+          <div className={WINDOW_SUBTITLE_CLASS}>
             {rangeLabel} · {displayRows.length} {displayRows.length === 1 ? "hóspede" : "hóspedes"}
           </div>
           {/* Botão de print (câmera) removido POR ENQUANTO (pedido explícito,
@@ -5082,11 +5083,11 @@ function FreePropertiesCard({
       <DialogContent className={WIDE_WINDOW_CLASS}>
         {/* JANELA PADRÃO (29/10/2026): título 14px negrito com iniciais
             maiúsculas, subtítulo 12px com singular/plural, recuo de 16px. */}
-        <DialogHeader className="shrink-0 border-b border-border/40 px-4 pb-2.5 pt-3 pr-12 text-left">
-          <DialogTitle className="truncate text-sm font-bold leading-5 text-foreground">
+        <DialogHeader className={WINDOW_HEADER_CLASS}>
+          <DialogTitle className={WINDOW_TITLE_CLASS}>
             {windowTitle(`Imóveis livres ${isToday ? "hoje" : dayLabel}`)}
           </DialogTitle>
-          <div className="text-xs leading-4 text-muted-foreground">
+          <div className={WINDOW_SUBTITLE_CLASS}>
             {isToday ? "Hoje" : dayLabel} · {properties.length} {properties.length === 1 ? "imóvel" : "imóveis"}
           </div>
         </DialogHeader>
@@ -5158,8 +5159,8 @@ function CleaningBreakdownContent({ label, breakdown }: { label: string; breakdo
         <ul>
           {sorted.map((item) => {
             return (
-              <li key={item.propertyId} className="min-w-0 border-t border-border/60 py-3">
-                <div className="min-w-0">
+              <li key={item.propertyId} className="flex min-w-0 items-start justify-between gap-3 border-t border-border/60 py-3 pr-[34px]">
+                <div className="min-w-0 flex-1">
                   {/* Regra global (29/10/2026): título do imóvel primeiro, proprietário + chat logo abaixo; título em 1 linha. */}
                   <ClampName text={item.propertyName} className="text-[12.5px] font-bold leading-snug" />
                   <OwnerLine
@@ -5168,11 +5169,8 @@ function CleaningBreakdownContent({ label, breakdown }: { label: string; breakdo
                     country={item.ownerPhoneCountry ?? null}
                     phonePosition="adjacent"
                   />
-                  <p className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[11.5px] font-semibold text-foreground/80">
-                    <span className="shrink-0">Valor do Serviço:</span>
-                    <span>{centsToBRL(item.totalCents)}</span>
-                  </p>
                 </div>
+                <span className="shrink-0 font-display text-[13px] font-bold tabular-nums text-foreground">{centsToBRL(item.totalCents)}</span>
               </li>
             );
           })}
@@ -5280,9 +5278,9 @@ function StatDisplayCard({
         <DialogContent aria-describedby={undefined} className={FINANCE_WINDOW_CLASS}>
           {/* Cabeçalho universal de janela ampla (07/11/2026): sem ícone, título
               14px e subtítulo 12px; o "X" oficial fica no canto. */}
-          <DialogHeader className="shrink-0 border-b border-border/40 px-4 pb-2.5 pt-3 pr-12 text-left sm:mx-6 sm:mt-6">
-            <DialogTitle className="truncate text-sm font-bold leading-5 text-foreground">{windowTitle(label)}</DialogTitle>
-            <div className="text-xs leading-4 text-muted-foreground">
+          <DialogHeader className={WINDOW_HEADER_CLASS}>
+            <DialogTitle className={WINDOW_TITLE_CLASS}>{windowTitle(label)}</DialogTitle>
+            <div className={WINDOW_SUBTITLE_CLASS}>
               {value} · {breakdown!.length} {breakdown!.length === 1 ? "imóvel" : "imóveis"}
             </div>
           </DialogHeader>
@@ -9427,15 +9425,15 @@ function EngagementBreakdownDialog({
             maiúsculas ("Instruções Check-In" / "Senhas de Acesso" — sem a
             palavra "Viram"), subtítulo 12px em caixa normal concordando em
             singular/plural, recuo de 16px nas laterais. */}
-        <DialogHeader className="border-b border-border/40 px-4 pb-2.5 pt-3 pr-12 text-left">
+        <DialogHeader className={WINDOW_HEADER_CLASS}>
           {/* pr-12 no header: reserva espaço pro botão "X" de fechar do Dialog. */}
           <div className="flex items-center justify-between gap-3">
-            <DialogTitle className="min-w-0 truncate text-sm font-bold leading-5 text-foreground">{windowTitle(engagementWindowTitle(label))}</DialogTitle>
+            <DialogTitle className={cn("min-w-0", WINDOW_TITLE_CLASS)}>{windowTitle(engagementWindowTitle(label))}</DialogTitle>
             <span className="shrink-0 rounded-full bg-emerald-500/15 px-2.5 py-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
               {pct}%
             </span>
           </div>
-          <div className="text-xs leading-4 text-muted-foreground">
+          <div className={WINDOW_SUBTITLE_CLASS}>
             {value} de {total} {total === 1 ? "check-in" : "check-ins"}
           </div>
           {todayOnly && (

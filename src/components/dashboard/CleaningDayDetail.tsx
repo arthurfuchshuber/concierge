@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { ArrowRight, ChevronRight, X } from "lucide-react";
+import { ArrowRight, X } from "lucide-react";
 import { CORNER_CLOSE_CLASS } from "@/components/ui/corner-close";
 import { cn } from "@/lib/utils";
 import { useServerFn } from "@tanstack/react-start";
@@ -129,12 +129,12 @@ function PropertyCell({
   phone?: string | null;
   country?: string | null;
   children?: React.ReactNode;
-  /** Abre o detalhe do lançamento na mesma janela (linha clicável + seta). */
+  /** Abre o detalhe do lançamento na mesma janela (linha clicável). */
   onOpen?: () => void;
 }) {
   return (
     <td
-      className={cn(TD, onOpen && "relative cursor-pointer pr-[34px] active:bg-foreground/[0.05]")}
+      className={cn(TD, onOpen && "cursor-pointer active:bg-foreground/[0.05]")}
       onClick={
         onOpen
           ? (e) => {
@@ -153,14 +153,9 @@ function PropertyCell({
       tabIndex={onOpen ? 0 : undefined}
     >
       {onOpen ? (
-        /* Mockup det-lanc-a: nome 14.5px, proprietário 13px com ícone de 15px, seta no meio da linha, à direita. */
+        /* Mockup det-lanc-a: nome 14.5px, proprietário 13px com ícone de 15px, sem seta (valor alinhado à direita, na coluna do total). */
         <>
           <ClampName text={name} className="min-w-0 text-[14.5px] font-bold leading-[1.25]" />
-          <ChevronRight
-            className="pointer-events-none absolute right-3.5 top-1/2 size-3.5 -translate-y-1/2 text-foreground/45"
-            strokeWidth={2.2}
-            aria-hidden
-          />
         </>
       ) : (
         <ClampName text={name} className="font-bold" />

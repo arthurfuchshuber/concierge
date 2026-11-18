@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient, type QueryKey } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
-import { ChevronRight, Clock3 } from "lucide-react";
+import { Clock3 } from "lucide-react";
 import { toast } from "sonner";
 import { FinanceEntryDetail } from "@/components/dashboard/FinanceEntryDetail";
 import { FINANCE_WINDOW_CLASS } from "@/components/dashboard/wide-window";
@@ -293,7 +293,6 @@ function ApprovalRow({
               normal: {brl(item.normalPriceCents)}
             </p>
           )}
-          <ChevronRight className="ml-auto mt-1 size-4 text-muted-foreground" aria-hidden />
         </div>
       </div>
       {canApprove ? (
@@ -380,11 +379,6 @@ function ApprovalWindowRow({
               normal: {brl(item.normalPriceCents)}
             </p>
           ) : null}
-          <ChevronRight
-            className="ml-auto mt-1 size-3.5 text-foreground/45"
-            strokeWidth={2.2}
-            aria-hidden
-          />
         </div>
       </div>
       <div className="mt-2.5">
