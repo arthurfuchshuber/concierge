@@ -475,6 +475,8 @@ export function projectOutcome(
         // Visão: sem frase de recibo de anexo no início ("recebi sua foto"), rede de segurança do prompt.
         text: formatForChannel(stripRoboticAck(outcome.text), extra.surface),
         strategy: outcome.strategy,
+        // resposta + encaminhamento: o que a equipe precisa fazer vai ao chamado e ao push (caso Nailton, 18/11/2026)
+        internalQuestion: handoff.needed ? (outcome.decision.handoff.question ?? "").trim().slice(0, 1000) || null : null,
         outcomeKind: "reply",
         outcomeCode: null,
         warnings: uniq(warnings),
