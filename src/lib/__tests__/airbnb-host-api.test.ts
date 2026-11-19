@@ -6,6 +6,9 @@ import {
   discoverDynamicHostFacts,
   dynamicFactAudience,
   floorLabelOf,
+  parseApt,
+  extractUnitFromAddress,
+  discoverChannexFacts,
   quietHoursOf,
   quietHoursText,
   checkoutInstructionsText,
@@ -220,16 +223,26 @@ describe("API do anfitrião — andar, silêncio e comodidades detalhadas", () =
   const h = parseHostListing("999", { listing: rich, descriptions, rooms: richRooms, photos })!;
   const fact = (key: string) => hostFacts(h).find((f) => f.key === key)?.content ?? null;
 
-  it("andar do anúncio vira o campo apartment_floor (1 = térreo, 2 = 1º andar)", () => {
-    expect(floorLabelOf(1)).toBe("Térreo");
+  it("andar do anúncio vira o campo apartment_floor (regra por número de pavimentos)", () => {
     expect(floorLabelOf(0)).toBe("Térreo");
-    expect(floorLabelOf(2)).toBe("1º andar");
+    expect(floorLabelOf(1, 1)).toBe("Térreo");
+    expect(floorLabelOf(1, 4)).toBe("1º andar");
+    expect(floorLabelOf(1, null, true)).toBe("1º andar");
+    expect(floorLabelOf(1)).toBe("Térreo");
+    expect(floorLabelOf(2, 4)).toBe("2º andar");
+    expect(floorLabelOf(3)).toBe("3º andar");
     expect(floorLabelOf(null)).toBeNull();
+    // Apê da Lívia: prédio de 4 pavimentos, listing_floor 1 → 1º andar (não térreo)
+    const livia = parseHostListing("2", { listing: { listing: { street: "Rua A, 1", apt: "Apto 202, Bloco 1 - Garagem 202", property_details: { listing_floor: 1, number_of_floors: 4 } } } })!;
+    expect(hostPropertyPatch(livia, {})["apartment_floor"]).toBe("1º andar");
+    const casa = parseHostListing("3", { listing: { listing: { street: "Rua A, 1", apt: "Casa", property_details: { listing_floor: 1, number_of_floors: 1 } } } })!;
+    expect(hostPropertyPatch(casa, {})["apartment_floor"]).toBe("Térreo");
+    expect(hostPropertyPatch(casa, {})).not.toHaveProperty("apartment_number");
     expect(h.listingFloor).toBe(3);
-    expect(hostPropertyPatch(h, {})["apartment_floor"]).toBe("2º andar");
-    expect(hostPropertyPatch(h, { apartment_floor: "2º andar" })).not.toHaveProperty("apartment_floor");
+    expect(hostPropertyPatch(h, {})["apartment_floor"]).toBe("3º andar");
+    expect(hostPropertyPatch(h, { apartment_floor: "3º andar" })).not.toHaveProperty("apartment_floor");
     // anúncio soberano: divergência substitui o que estava salvo
-    expect(hostPropertyPatch(h, { apartment_floor: "5" })["apartment_floor"]).toBe("2º andar");
+    expect(hostPropertyPatch(h, { apartment_floor: "5" })["apartment_floor"]).toBe("3º andar");
     // sem o dado na API, nada é apagado
     const semAndar = parseHostListing("1", { listing: { listing: { city: "X" } } })!;
     expect(hostPropertyPatch(semAndar, { apartment_floor: "Térreo" })).not.toHaveProperty("apartment_floor");
@@ -237,7 +250,7 @@ describe("API do anfitrião — andar, silêncio e comodidades detalhadas", () =
 
   it("o andar também sai do JSON bruto de anúncios sincronizados antes do campo existir", () => {
     const antigo = { ...h, listingFloor: undefined, quietHours: undefined };
-    expect(hostPropertyPatch(antigo, {})["apartment_floor"]).toBe("2º andar");
+    expect(hostPropertyPatch(antigo, {})["apartment_floor"]).toBe("3º andar");
     expect(quietHoursText(antigo)).toBe("23:00 às 07:00");
   });
 
@@ -385,5 +398,54 @@ describe("API do anfitrião — auto-descoberta de fatos novos (extra_*)", () =>
     const merged = mergeHostFacts([{ key: "extra_pool_hours", title: "x", content: "velho" }], h);
     expect(merged.filter((f) => f.key === "extra_pool_hours")).toHaveLength(1);
     expect(merged.find((f) => f.key === "extra_pool_hours")!.content).toBe("08:00–20:00");
+  });
+});
+
+describe("número do apartamento, vaga e condomínio (apt)", () => {
+  it("parseApt extrai unidade e garagem", () => {
+    expect(parseApt("Apto 202, Bloco 1 - Garagem 202")).toEqual({ unit: "202, Bloco 1", parking: "202" });
+    expect(parseApt("Apto 101")).toEqual({ unit: "101", parking: null });
+    expect(parseApt("Studio n° 4")).toEqual({ unit: "4", parking: null });
+    expect(parseApt("Casa")).toEqual({ unit: null, parking: null });
+    expect(parseApt("Studio")).toEqual({ unit: null, parking: null });
+    expect(parseApt(null)).toEqual({ unit: null, parking: null });
+  });
+
+  it("fallback pelo endereço salvo", () => {
+    expect(extractUnitFromAddress("Rua Bento Gonçalves, 60, Apto 102, CEP 85868-070").unit).toBe("102");
+    expect(extractUnitFromAddress("Rua Ataláia, 312, Studio n° 4, CEP 85855-715").unit).toBe("4");
+    expect(extractUnitFromAddress("Rua Maracatu, 621, Casa").unit).toBeNull();
+  });
+
+  it("hostPropertyPatch grava apartment_number, in_condominium e vaga (sem apagar vaga já cadastrada)", () => {
+    const h = parseHostListing("2", { listing: { listing: { street: "Rua A, 1", apt: "Apto 202, Bloco 1 - Garagem 202", property_details: { listing_floor: 1, number_of_floors: 4 } } } })!;
+    const p = hostPropertyPatch(h, { in_condominium: false, parking_spots: [] });
+    expect(p["apartment_number"]).toBe("202, Bloco 1");
+    expect(p["in_condominium"]).toBe(true);
+    expect(p["parking_spots"]).toEqual(["202"]);
+    const manual = hostPropertyPatch(h, { in_condominium: true, parking_spots: ["A1"] });
+    expect(manual).not.toHaveProperty("parking_spots");
+    expect(manual).not.toHaveProperty("in_condominium");
+  });
+});
+
+describe("auto-descoberta Channex", () => {
+  const meta = { title: "X", city: "Foz", property_kind: "apartment", checkin_token: "abc" };
+  const settings = {
+    booking_setting: { check_in_time_start: 14, smart_lock_code: "1234", parking_available: true, pet_fee_note: "Taxa de R$ 50" },
+    availability_rule: { default_min_nights: 1, gap_nights: 2 },
+    rate_plan_id: "zzz",
+  };
+  const facts = discoverChannexFacts(meta, settings);
+  const keys = facts.map((f) => f.key);
+  it("fatos novos viram extra_channex_*", () => {
+    expect(keys).toContain("extra_channex_meta_property_kind");
+    expect(keys).toContain("extra_channex_booking_setting_parking_available");
+    expect(keys).toContain("extra_channex_booking_setting_pet_fee_note");
+    expect(keys).toContain("extra_channex_availability_rule_gap_nights");
+    expect(facts.find((f) => f.key.endsWith("parking_available"))?.content).toBe("Sim");
+  });
+  it("mapeados, credenciais e ruído ficam de fora", () => {
+    expect(keys.join()).not.toMatch(/check_in_time_start|default_min_nights|smart_lock_code|rate_plan_id|token|meta_title/);
   });
 });
