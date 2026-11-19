@@ -1,7 +1,8 @@
 /**
  * Foto de capa do anúncio do Airbnb: leitura nativa (fetch + meta `og:image`),
- * sem Firecrawl e sem IA — custo zero. Cada imóvel guarda SOMENTE essa foto
- * (`hero_image_url` e `gallery_images = [capa]`).
+ * sem Firecrawl e sem IA — custo zero. Só preenche a capa e a galeria vazias:
+ * a galeria completa vem da API do anfitrião (`backfillHostListings`, 19/11/2026)
+ * e nunca é mais reduzida a 1 foto.
  */
 function listingIdFromUrl(url: string | null | undefined): string | null {
   const m = String(url ?? "").match(/\/rooms\/(?:plus\/)?(\d{5,})/);
@@ -31,7 +32,7 @@ export async function fetchListingCover(listingId: string): Promise<string | nul
   return extractCoverFromHtml(await res.text());
 }
 
-/** Revisão diária: atualiza a capa de todos os imóveis com anúncio e mantém só 1 foto. */
+/** Revisão diária: atualiza a capa (vinda do Airbnb) dos imóveis com anúncio; galeria só se estiver vazia. */
 export async function refreshAllListingCovers(): Promise<{ checked: number; updated: number; failed: number }> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data } = await supabaseAdmin
@@ -52,9 +53,13 @@ export async function refreshAllListingCovers(): Promise<{ checked: number; upda
     }
     cover ??= p.hero_image_url ?? p.gallery_images?.[0] ?? null;
     if (!cover) continue;
-    const same = p.hero_image_url === cover && (p.gallery_images ?? []).length === 1 && p.gallery_images![0] === cover;
-    if (same) continue;
-    const { error } = await supabaseAdmin.from("properties").update({ hero_image_url: cover, gallery_images: [cover] } as never).eq("id", p.id);
+    const patch: Record<string, unknown> = {};
+    // Capa enviada à mão (armazenamento do sistema) é preservada; galeria cheia nunca encolhe.
+    const heroFromAirbnb = !p.hero_image_url || /muscache\.com\//.test(p.hero_image_url);
+    if (heroFromAirbnb && p.hero_image_url !== cover && (p.gallery_images ?? []).length <= 1) patch["hero_image_url"] = cover;
+    if (!(p.gallery_images ?? []).filter(Boolean).length) patch["gallery_images"] = [cover];
+    if (!Object.keys(patch).length) continue;
+    const { error } = await supabaseAdmin.from("properties").update(patch as never).eq("id", p.id);
     if (!error) updated++;
   }
   return { checked, updated, failed };

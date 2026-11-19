@@ -4,7 +4,8 @@ import { createFileRoute } from "@tanstack/react-router";
 // 1) releitura completa da Channex (08/11/2026): horários de check-in/out, taxas,
 //    hóspedes incluídos e reserva instantânea chegam ao dossiê mesmo sem nenhum
 //    webhook — a Channex não avisa quando o anfitrião edita o anúncio no Airbnb;
-// 2) foto de capa e 3) releitura da página pública do anúncio.
+// 2) foto de capa, 3) releitura da página pública do anúncio e 4) API oficial do anfitrião
+//    (endereço, coordenadas, cômodos, galeria completa e tarefas de saída).
 export const Route = createFileRoute("/api/public/cron/refresh-airbnb-listings")({
   server: {
     handlers: {
@@ -37,7 +38,16 @@ export const Route = createFileRoute("/api/public/cron/refresh-airbnb-listings")
             const res = await scrapePublicListingForProperty(r.property_id, { onlyIfChanged: true }).catch(() => null);
             if (res?.changed) listingsChanged++;
           }
-          return Response.json({ ok: true, ...covers, listingsChanged, channex });
+          // API oficial do anfitrião (19/11/2026): endereço, coordenadas, cômodos, fotos e tarefas de
+          // saída de TODOS os anúncios conectados. Falha aqui nunca derruba o restante.
+          let hostApi: { checked: number; updated: number; failed: number } | null = null;
+          try {
+            const { backfillHostListings } = await import("@/lib/channex-listing.server");
+            hostApi = await backfillHostListings();
+          } catch (err) {
+            console.error("[cron:refresh-airbnb-listings] api do anfitrião", err);
+          }
+          return Response.json({ ok: true, ...covers, listingsChanged, channex, hostApi });
         } catch (err) {
           console.error("[cron:refresh-airbnb-listings]", err);
           return Response.json({ ok: false }, { status: 500 });

@@ -315,7 +315,9 @@ export async function syncChannexEntities(opts: { force?: boolean; source?: stri
         const pub = (rr?.normalized?.public_listing ?? null) as import("@/lib/channex-listing.server").PublicListing | null;
         await applyListingToProperty({ propertyId, listingId: lid, meta, settings, pub: null });
         const { publicFacts } = await import("@/lib/channex-listing.server");
-        const facts = [...normalizeListing(meta, settings), ...(pub ? publicFacts(pub) : [])];
+        const { mergeHostFacts } = await import("@/lib/airbnb-host-api");
+        // Fatos da API do anfitrião (como chegar, tarefas de saída, cômodos) não se perdem na releitura.
+        const facts = mergeHostFacts([...normalizeListing(meta, settings), ...(pub ? publicFacts(pub) : [])], rr?.normalized?.host_listing ?? null);
         await admin
           .from("property_listing_raw_data")
           .update({

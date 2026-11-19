@@ -6,6 +6,7 @@ import { structuredListing, houseRulesText } from "@/lib/listing-structured";
  */
 import { getChannelCached } from "@/lib/channex-channel-cache.server";
 import { untypedTable } from "@/lib/untyped-table";
+import { hostPropertyPatch, mergeHostFacts, type HostCurrent, type HostListing } from "@/lib/airbnb-host-api";
 const CHANNEX_BASE = "https://app.channex.io/api/v1";
 const AIRBNB_CHANNEL_ID = "9f7f35ab-3b40-4b84-8483-693122d9604b";
 const CLAYTON_CHANNEL_ID = "24c871d9-d6fd-46f5-944d-a38b8a4df189";
@@ -187,7 +188,8 @@ export async function syncPilotListings(): Promise<Array<{ listingId: string; pr
       : null;
     // A Channex não entrega descrição nem comodidades: lê do anúncio público do Airbnb.
     const pub = await fetchPublicListing(listingId).catch(() => null);
-    const facts = [...normalizeListing(meta, rp.settings), ...(pub ? publicFacts(pub) : [])];
+    const prevHost = ((prev as { normalized?: { host_listing?: HostListing } } | null)?.normalized?.host_listing) ?? null;
+    const facts = mergeHostFacts([...normalizeListing(meta, rp.settings), ...(pub ? publicFacts(pub) : [])], prevHost);
     const { error } = await supabaseAdmin.from("property_listing_raw_data" as never).upsert(
       {
         property_id: prop.id,
@@ -267,6 +269,8 @@ export async function applyListingToProperty(args: {
   meta: Record<string, unknown>;
   settings?: Record<string, any> | null;
   pub?: PublicListing | null;
+  /** Dados cadastrais da API oficial do anfitrião (endereço, coordenadas, cômodos, fotos, tarefas de saída). */
+  host?: HostListing | null;
 }): Promise<{ title: string }> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { listingTitle } = await import("@/lib/channex-entity-sync.server");
@@ -323,10 +327,29 @@ export async function applyListingToProperty(args: {
     patch["airbnb_listing_last_synced_at"] = new Date().toISOString();
   }
   {
-    // Só a foto de capa do anúncio (leitura nativa, custo zero); imóvel fica com 1 foto.
-    const { fetchListingCover } = await import("@/lib/airbnb-cover.server");
-    const cover = args.pub?.cover ?? (await fetchListingCover(args.listingId).catch(() => null));
-    if (cover) { patch["hero_image_url"] = cover; patch["gallery_images"] = [cover]; }
+    // Campos nativos (19/11/2026): a API do anfitrião preenche localização, instruções vazias,
+    // capacidade, cômodos e a galeria COMPLETA. Sem ela, a capa pública só preenche o que está
+    // vazio — a galeria nunca é mais reduzida a 1 foto.
+    const { data: curRow } = await supabaseAdmin
+      .from("properties")
+      .select("lat, lng, address, city, state, country, checkin_instructions, checkout_instructions, hero_image_url, gallery_images")
+      .eq("id", args.propertyId)
+      .maybeSingle();
+    const cur = (curRow ?? {}) as HostCurrent;
+    if (args.host) {
+      Object.assign(patch, hostPropertyPatch(args.host, cur));
+      if (!args.pub?.descriptions.length && (args.host.summary || args.host.description)) {
+        patch["airbnb_description_full"] = [args.host.summary, args.host.description].filter(Boolean).join("\n\n").slice(0, 20_000);
+      }
+      patch["airbnb_listing_last_synced_at"] = new Date().toISOString();
+    }
+    if (!args.host?.photos.length) {
+      const { fetchListingCover } = await import("@/lib/airbnb-cover.server");
+      const cover = args.pub?.cover ?? (await fetchListingCover(args.listingId).catch(() => null));
+      const fromAirbnb = (u?: string | null) => !u || /muscache\.com\//.test(u);
+      if (cover && fromAirbnb(cur.hero_image_url)) patch["hero_image_url"] = cover;
+      if (cover && !(cur.gallery_images ?? []).filter(Boolean).length) patch["gallery_images"] = [cover];
+    }
   }
   if (Object.keys(patch).length) {
     const { error } = await supabaseAdmin.from("properties").update(patch as never).eq("id", args.propertyId);
@@ -401,8 +424,15 @@ export async function syncAccountListing(args: {
         };
       }>(`/rate_plans/${rp.rate_plan_id}`).catch(() => null)
     : null;
-  const pub = await fetchPublicListing(args.listingId).catch(() => null);
-  const facts = [...normalizeListing(meta, rp.settings), ...(pub ? publicFacts(pub) : [])];
+  const [pub, freshHost] = await Promise.all([
+    fetchPublicListing(args.listingId).catch(() => null),
+    // API oficial do anfitrião já no ato da vinculação/importação (19/11/2026).
+    import("@/lib/airbnb-host-api.server")
+      .then((m) => m.fetchAirbnbHostListingData(args.channelId, args.listingId))
+      .catch((e) => (console.warn("[syncAccountListing] api do anfitrião", e), null)),
+  ]);
+  const host = freshHost ?? ((prevRow?.normalized as { host_listing?: HostListing } | undefined)?.host_listing ?? null);
+  const facts = mergeHostFacts([...normalizeListing(meta, rp.settings), ...(pub ? publicFacts(pub) : [])], host);
   const { error } = await supabaseAdmin.from("property_listing_raw_data" as never).upsert(
     {
       property_id: args.propertyId,
@@ -419,7 +449,7 @@ export async function syncAccountListing(args: {
       airbnb_listing_id: args.listingId,
       listing_meta: meta,
       raw_settings: rp.settings,
-      normalized: { ...(prevRow?.normalized ?? {}), facts, public_listing: pub, ...structuredListing(rp.settings, Boolean((prevRow?.normalized as any)?.cohosts?.length)) },
+      normalized: { ...(prevRow?.normalized ?? {}), facts, public_listing: pub, ...(host ? { host_listing: host } : {}), ...structuredListing(rp.settings, Boolean((prevRow?.normalized as any)?.cohosts?.length)) },
       sync_paused_at: null,
       paused_reason: null,
       not_found_at: null,
@@ -437,6 +467,7 @@ export async function syncAccountListing(args: {
     meta,
     settings: rp.settings,
     pub,
+    host,
   });
   // Conta/anúncio novo: já puxa o calendário da plataforma (somente importação).
   try {
@@ -477,14 +508,62 @@ export async function scrapePublicListingForProperty(propertyId: string, opts: {
   if (row.normalized) row.normalized = { ...row.normalized, public_checked_at: new Date().toISOString() };
   else row.normalized = { public_checked_at: new Date().toISOString() };
   if (pub) {
-    const facts = [...normalizeListing(meta, settings), ...publicFacts(pub)];
+    const facts = mergeHostFacts([...normalizeListing(meta, settings), ...publicFacts(pub)], row.normalized?.host_listing ?? null);
     await supabaseAdmin
       .from("property_listing_raw_data" as never)
       .update({ normalized: { ...(row.normalized ?? {}), facts, public_listing: pub }, updated_at: new Date().toISOString() } as never)
       .eq("property_id", propertyId);
   }
-  await applyListingToProperty({ propertyId, listingId: lid, meta: meta as Record<string, unknown>, settings, pub });
+  await applyListingToProperty({ propertyId, listingId: lid, meta: meta as Record<string, unknown>, settings, pub, host: row.normalized?.host_listing ?? null });
   return { ok: Boolean(pub), changed };
+}
+
+/**
+ * Backfill/releitura pela API oficial do anfitrião (19/11/2026): para cada anúncio conectado
+ * (`airbnb_listing_id` + `channex_channel_id`, sincronização ativa), lê endereço, coordenadas,
+ * cômodos, fotos e tarefas de saída, grava em `normalized.host_listing` + fatos do dossiê e
+ * aplica nos campos nativos de `properties`. Somente GET no Airbnb; nada é enviado.
+ */
+export async function backfillHostListings(opts: { propertyIds?: string[] } = {}): Promise<{ checked: number; updated: number; failed: number }> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { fetchAirbnbHostListingData } = await import("@/lib/airbnb-host-api.server");
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let q: any = supabaseAdmin
+    .from("property_listing_raw_data" as never)
+    .select("property_id, airbnb_listing_id, channex_channel_id, listing_meta, raw_settings, normalized")
+    .not("airbnb_listing_id", "is", null)
+    .not("channex_channel_id", "is", null)
+    .is("sync_paused_at", null);
+  if (opts.propertyIds?.length) q = q.in("property_id", opts.propertyIds);
+  const { data } = await q;
+  type Row = { property_id: string; airbnb_listing_id: string; channex_channel_id: string; listing_meta?: Record<string, unknown>; raw_settings?: Record<string, any>; normalized?: Record<string, any> };
+  let checked = 0, updated = 0, failed = 0;
+  for (const r of (data ?? []) as Row[]) {
+    checked++;
+    try {
+      const host = await fetchAirbnbHostListingData(r.channex_channel_id, String(r.airbnb_listing_id));
+      if (!host) { failed++; continue; }
+      const norm = r.normalized ?? {};
+      const facts = mergeHostFacts((norm.facts ?? []) as Fact[], host);
+      await supabaseAdmin
+        .from("property_listing_raw_data" as never)
+        .update({ normalized: { ...norm, facts, host_listing: host }, updated_at: new Date().toISOString() } as never)
+        .eq("property_id", r.property_id);
+      await applyListingToProperty({
+        propertyId: r.property_id,
+        listingId: String(r.airbnb_listing_id),
+        meta: r.listing_meta ?? {},
+        settings: r.raw_settings ?? {},
+        pub: (norm.public_listing as PublicListing | null) ?? null,
+        host,
+      });
+      updated++;
+    } catch (e) {
+      failed++;
+      console.error("[backfillHostListings]", r.property_id, e instanceof Error ? e.message : e);
+    }
+  }
+  return { checked, updated, failed };
 }
 
 /** Releitura por evento: só relê o anúncio público se a última checagem passou de `LISTING_STALE_MS`. Custo zero. */

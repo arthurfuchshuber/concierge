@@ -48,7 +48,7 @@ export const PROPERTY_OUTBOUND_TAG_COLUMNS = [
 ] as const;
 
 /** 3) Operacionais (audiência G): só com reserva ativa. */
-export const PROPERTY_OPERATIONAL_COLUMNS = ["address"] as const;
+export const PROPERTY_OPERATIONAL_COLUMNS = ["address", "lat", "lng"] as const;
 
 /**
  * Colunas que alimentam o construtor do Dossiê (`buildPlaybook`) SEM credenciais.
@@ -63,6 +63,8 @@ export const PROPERTY_DOSSIER_COLUMNS = [
   "city",
   "state",
   "country",
+  "lat",
+  "lng",
   "maps_url",
   "garage_maps_url",
   "address_note",
