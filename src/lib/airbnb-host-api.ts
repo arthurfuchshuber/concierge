@@ -699,6 +699,147 @@ export function amenityDetails(rawAmenities: unknown, rawRooms: unknown): { deta
 
 export type HostFact = { key: string; title: string; content: string };
 
+// ── Auto-descoberta de fatos novos (Dynamic Fact Extractor) ─────────────────────────────────────
+// Todo campo que o Airbnb passar a devolver em `listing` (ou em `property_details`) e que ainda não tem
+// mapeamento fixo vira um fato `extra_<chave>` sozinho, sem código novo. A etiqueta de audiência sai da
+// própria chave (`dynamicFactAudience`): termos de acesso/trajeto = G; o resto = P.
+
+/** Chaves de `listing` que já têm mapeamento fixo (campo, fato ou parser próprio): a descoberta as ignora. */
+export const KNOWN_HOST_KEYS: ReadonlySet<string> = new Set([
+  "street", "apt", "city", "state", "zipcode", "country_code", "lat", "lng", "directions",
+  "person_capacity", "bedrooms", "beds", "bathrooms", "listing_nickname",
+  "check_out_tasks", "check_in_option", "house_manual", "quality_standards", "host_roles",
+  "space", "access", "interaction", "neighborhood_overview", "transit", "notes", "house_rules", "summary", "description",
+  "property_type_group", "property_type", "property_type_category", "room_type_category", "room_type",
+  "check_in_time_start", "check_in_time_end", "check_out_time",
+  "wireless_info", "wifi_info", "wifi_network", "wifi_password", "wireless_ssid", "wireless_password",
+  "amenities", "listing_views", "quiet_hours", "property_details", "name",
+]);
+
+/** Chaves de `property_details` já lidas por `propertyStructureText`/`listingFloorOf`. */
+const KNOWN_PROPERTY_DETAILS: ReadonlySet<string> = new Set(["listing_floor", "listing_size", "number_of_floors", "year_built"]);
+
+/** Chaves técnicas ou de operação interna do Airbnb: não são informação para o hóspede. */
+const NOISE_HOST_KEY = /(^|_)(id|ids|uuid|hash|token|tokens|user|created|updated|deleted|tracking|track|utm|pixel|click|redirect|signature|etag|cursor)(_|$)|_at$/i;
+/** Estado interno de operação/sincronização do Airbnb (sem valor para o hóspede). */
+const OPERATIONAL_HOST_KEYS: ReadonlySet<string> = new Set([
+  "has_availability", "has_active_disaster", "reservation_issues", "synchronization_category", "tier", "locked_attributes",
+]);
+const isNoiseKey = (k: string) => OPERATIONAL_HOST_KEYS.has(k.toLowerCase()) || NOISE_HOST_KEY.test(k);
+
+/** Termos de acesso/trajeto na CHAVE: o fato dinâmico só vale com reserva (G). */
+const SENSITIVE_TOKENS: ReadonlySet<string> = new Set([
+  "code", "pin", "password", "passcode", "senha", "key", "chave", "lock", "gate", "portao", "route", "trajeto", "secret",
+]);
+/**
+ * Dentre eles, o que é CREDENCIAL (código, PIN, senha, segredo): nunca vira fato. Credencial só chega ao hóspede
+ * pela D9 (`CredentialGrant`, com janela de liberação e vetos de no-show/checkout); um fato G a entregaria fora dela.
+ */
+const CREDENTIAL_TOKENS: ReadonlySet<string> = new Set(["code", "pin", "password", "passcode", "senha", "secret"]);
+
+const tokensOf = (k: string) => k.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+
+/** Audiência de um fato `extra_*`: G quando a chave tem termo de acesso/trajeto; P no resto. */
+export function dynamicFactAudience(key: string): "P" | "G" {
+  return tokensOf(key.replace(/^extra_/, "")).some((t) => SENSITIVE_TOKENS.has(t)) ? "G" : "P";
+}
+
+const isCredentialKey = (k: string) => tokensOf(k).some((t) => CREDENTIAL_TOKENS.has(t));
+
+const TOKEN_PT: Record<string, string> = {
+  speed: "velocidade", charger: "carregador", charging: "carregamento", vehicle: "veicular", vehicles: "veículos", ev: "elétrico",
+  display: "exibir", exact: "exata", location: "localização", guest: "hóspede", guests: "hóspedes", accessibility: "acessibilidade",
+  features: "recursos", feature: "recurso", categories: "categorias", category: "categoria", parking: "estacionamento", pool: "piscina",
+  security: "segurança", safety: "segurança", pets: "animais", pet: "animal", smoking: "fumar", noise: "ruído", cameras: "câmeras",
+  camera: "câmera", elevator: "elevador", stairs: "escadas", building: "prédio", host: "anfitrião", check: "check", in: "in", out: "out",
+  time: "horário", hours: "horas", minimum: "mínimo", maximum: "máximo", max: "máximo", min: "mínimo", number: "número", of: "de",
+  rooms: "cômodos", room: "cômodo", beds: "camas", bathrooms: "banheiros", size: "tamanho", type: "tipo", description: "descrição",
+  instructions: "instruções", instruction: "instrução", rules: "regras", wifi: "Wi-Fi", internet: "internet", noisy: "barulhento",
+  to: "para", the: "o", and: "e", is: "é", has: "tem", allowed: "permitido", available: "disponível", free: "grátis", paid: "pago",
+};
+
+/** Frases conhecidas, onde a ordem em português difere da do inglês. */
+const PHRASE_PT: Record<string, string> = {
+  ev_charger_speed: "Velocidade do carregador veicular",
+  display_exact_location_to_guest: "Exibir localização exata ao hóspede",
+  categories: "Categorias do anúncio",
+  accessibility_features: "Recursos de acessibilidade",
+};
+
+/** `ev_charger_speed` → "Velocidade do carregador veicular": frase conhecida, ou palavra a palavra (o que não tem tradução fica humanizado). */
+export function humanizeDynamicTitle(key: string): string {
+  const bare = key.replace(/^extra_/, "");
+  if (PHRASE_PT[bare]) return PHRASE_PT[bare]!;
+  const words = tokensOf(bare);
+  const pt = words.map((w) => TOKEN_PT[w] ?? w);
+  const text = pt.join(" ");
+  return text ? text[0]!.toUpperCase() + text.slice(1) : key;
+}
+
+const isPlainString = (v: unknown): v is string => typeof v === "string" && v.trim().length > 0;
+const HASHLIKE = /^(?:[0-9a-f]{24,}|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
+const TRACKING_URL = /^https?:\/\/\S*(?:utm_|track|click|pixel|redirect|\/r\/)\S*$/i;
+
+function renderPrimitive(v: unknown): string | null {
+  if (typeof v === "boolean") return v ? "Sim" : "Não";
+  if (typeof v === "number") return Number.isFinite(v) ? String(v) : null;
+  if (!isPlainString(v)) return null;
+  const t = v.trim();
+  if (HASHLIKE.test(t) || TRACKING_URL.test(t)) return null;
+  return /^[A-Z][A-Z0-9_]+$/.test(t) ? valuePt(t) : t.slice(0, 5000);
+}
+
+function renderValue(v: unknown): string | null {
+  if (Array.isArray(v)) {
+    if (!v.length || v.length > 30 || v.some((x) => x !== null && typeof x === "object")) return null;
+    const items = v.map(renderPrimitive).filter((x): x is string => !!x);
+    return items.length ? items.join(", ") : null;
+  }
+  return renderPrimitive(v);
+}
+
+/**
+ * Varre o primeiro e o segundo nível de `listing` e de `property_details`. Para cada chave nova com valor
+ * primitivo útil (texto, número, booleano ou lista simples) gera `extra_<chave>`. Credenciais não viram fato.
+ */
+export function discoverDynamicHostFacts(rawListing: Record<string, unknown> | null | undefined): HostFact[] {
+  if (!rawListing || typeof rawListing !== "object") return [];
+  const out: HostFact[] = [];
+  const seen = new Set<string>();
+  const add = (path: string, value: unknown) => {
+    if (isCredentialKey(path) || isNoiseKey(path)) return;
+    const content = renderValue(value);
+    if (!content) return;
+    const key = `extra_${path.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "")}`;
+    if (key === "extra_" || seen.has(key)) return;
+    seen.add(key);
+    out.push({ key, title: `${humanizeDynamicTitle(key)} (Airbnb)`, content });
+  };
+  const walk = (obj: Record<string, unknown>, prefix: string, known: ReadonlySet<string>) => {
+    for (const [k, v] of Object.entries(obj)) {
+      if (known.has(k) || isCredentialKey(k) || isNoiseKey(k)) continue;
+      const path = prefix ? `${prefix}_${k}` : k;
+      if (v && typeof v === "object" && !Array.isArray(v)) {
+        for (const [k2, v2] of Object.entries(v as Record<string, unknown>)) {
+          if (v2 && typeof v2 === "object" && !Array.isArray(v2)) continue; // só até o segundo nível
+          add(`${path}_${k2}`, v2);
+        }
+      } else add(path, v);
+    }
+  };
+  walk(rawListing, "", KNOWN_HOST_KEYS);
+  const pd = rawListing.property_details;
+  if (pd && typeof pd === "object" && !Array.isArray(pd)) {
+    for (const [k, v] of Object.entries(pd as Record<string, unknown>)) {
+      if (KNOWN_PROPERTY_DETAILS.has(k) || (v && typeof v === "object" && !Array.isArray(v))) continue;
+      add(`property_details_${k}`, v);
+    }
+  }
+  return out;
+}
+
+
+
 /** Fatos ricos para o dossiê da IA. */
 export function hostFacts(h: HostListing | null | undefined): HostFact[] {
   if (!h) return [];
@@ -736,6 +877,8 @@ export function hostFacts(h: HostListing | null | undefined): HostFact[] {
       if (lines.length) out.push({ key: `comodidade_${group}`, title: `Detalhes de ${AMENITY_GROUP_TITLE[group].toLowerCase()} (Airbnb)`, content: lines.join("\n") });
     }
     if (absent.length) out.push({ key: "comodidades_ausentes_api", title: "Comodidades que o anúncio declara NÃO ter (Airbnb)", content: absent.map((a) => `• ${a}`).join("\n") });
+    // Campos que o Airbnb passar a devolver e ainda não têm mapeamento fixo entram sozinhos (`extra_*`).
+    out.push(...discoverDynamicHostFacts(rawListing));
   }
   if (Array.isArray(h.rooms) && h.rooms.length) out.push({ key: "distribuicao_comodos", title: "Cômodos e Camas Detalhados", content: h.rooms.map((r) => `${r.room}: ${r.beds}`).join("\n") });
   return out;
