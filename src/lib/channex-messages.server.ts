@@ -944,6 +944,52 @@ export function isAutomatedHostMessage(payload: unknown, text: string): boolean 
   return false;
 }
 
+/** Palavras de uma mensagem para comparar modelos (minúsculas, sem acento, sem números). */
+function templateWords(text: string): Set<string> {
+  return new Set(
+    text
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z\s]/g, " ")
+      .split(/\s+/)
+      .filter((w) => w.length > 2),
+  );
+}
+
+/**
+ * Semelhança (Jaccard) entre duas mensagens do anfitrião. Mensagem programada da conta muda só o nome do hóspede
+ * e as datas; fala humana escrita na hora quase nunca se repete assim em outra conversa.
+ */
+export function templateSimilarity(a: string, b: string): number {
+  const x = templateWords(a);
+  const y = templateWords(b);
+  if (x.size === 0 || y.size === 0) return 0;
+  let inter = 0;
+  for (const w of x) if (y.has(w)) inter++;
+  return inter / (x.size + y.size - inter);
+}
+
+/** Mínimo de semelhança e de conversas distintas para tratar a mensagem como modelo da conta. */
+export const TEMPLATE_MIN_SIMILARITY = 0.85;
+export const TEMPLATE_MIN_CONVERSATIONS = 2;
+const TEMPLATE_MIN_WORDS = 12;
+
+/**
+ * Mensagem programada sem marca no payload (caso Whyll, 18/11/2026: o aviso de check-out das 19h, sem link do guia
+ * nem código da reserva, era gravado como fala humana, pausava a IA por 10 min e levava a conversa para "Humano").
+ * Pura: recebe o texto e as mensagens do anfitrião de OUTRAS conversas.
+ */
+export function isRecurringTemplate(text: string, others: ReadonlyArray<{ conversationId: string; content: string }>): boolean {
+  if (templateWords(text).size < TEMPLATE_MIN_WORDS) return false;
+  const convs = new Set<string>();
+  for (const o of others) {
+    if (templateSimilarity(text, o.content) >= TEMPLATE_MIN_SIMILARITY) convs.add(o.conversationId);
+    if (convs.size >= TEMPLATE_MIN_CONVERSATIONS) return true;
+  }
+  return false;
+}
+
 /** Patch aplicado quando o anfitrião responde no Airbnb: pausa a IA e leva a conversa para "Humano". */
 export function hostTakeoverPatch<T extends Record<string, unknown>>(pause: T, now = new Date()): T & {
   status: "assigned";
@@ -963,6 +1009,27 @@ export async function pauseOnHostMessage(m: Inbound, automated = false): Promise
     .select("id")
     .eq("guest_session_id", `airbnb:${m.threadId}`);
   const norm = (x: string) => x.replace(/\s+/g, " ").trim();
+  if (!automated && (convs ?? []).length > 0) {
+    // mesma mensagem enviada a outros hóspedes nos últimos 14 dias = modelo programado da conta
+    try {
+      const ids = ((convs ?? []) as Array<{ id: string }>).map((c) => c.id);
+      const { data: recent } = await admin
+        .from("property_chat_messages")
+        .select("conversation_id, content")
+        .eq("channel", "airbnb" as never)
+        .in("sender_type", ["human", "system"])
+        .eq("is_internal_note", false)
+        .gte("created_at", new Date(Date.now() - 14 * 86_400_000).toISOString())
+        .order("created_at", { ascending: false })
+        .limit(400);
+      const others = ((recent ?? []) as Array<{ conversation_id: string; content: string | null }>)
+        .filter((r) => !ids.includes(r.conversation_id) && r.content)
+        .map((r) => ({ conversationId: r.conversation_id, content: String(r.content) }));
+      automated = isRecurringTemplate(m.text, others);
+    } catch {
+      // leitura falhou: segue como fala humana (pausa), o lado seguro
+    }
+  }
   for (const c of (convs ?? []) as Array<{ id: string }>) {
     // Eco das próprias respostas da IA (enviadas pela API) não conta como anfitrião.
     const since = new Date(Date.now() - 10 * 60_000).toISOString();
