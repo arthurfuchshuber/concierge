@@ -6,7 +6,7 @@ import { structuredListing, houseRulesText } from "@/lib/listing-structured";
  */
 import { getChannelCached } from "@/lib/channex-channel-cache.server";
 import { untypedTable } from "@/lib/untyped-table";
-import { fullDescriptionText, hostPropertyPatch, mergeHostFacts, type HostCurrent, type HostListing } from "@/lib/airbnb-host-api";
+import { HOUSE_MANUAL_ENTRY, fullDescriptionText, hostPropertyPatch, houseManualText, mergeHostFacts, type HostCurrent, type HostListing } from "@/lib/airbnb-host-api";
 const CHANNEX_BASE = "https://app.channex.io/api/v1";
 const AIRBNB_CHANNEL_ID = "9f7f35ab-3b40-4b84-8483-693122d9604b";
 const CLAYTON_CHANNEL_ID = "24c871d9-d6fd-46f5-944d-a38b8a4df189";
@@ -357,6 +357,35 @@ export async function applyListingToProperty(args: {
   if (Object.keys(patch).length) {
     const { error } = await supabaseAdmin.from("properties").update(patch as never).eq("id", args.propertyId);
     if (error) throw new Error(error.message);
+  }
+  {
+    // Manual da casa do anúncio no campo "Manual da casa" do Dossiê (anúncio soberano no texto; a
+    // etiqueta escolhida pelo usuário é preservada). Sem manual no anúncio, nada é apagado.
+    const manual = houseManualText(args.host)?.slice(0, 20_000);
+    if (manual) {
+      const { data: cur } = await supabaseAdmin
+        .from("property_playbook_entries")
+        .select("value")
+        .eq("property_id", args.propertyId)
+        .eq("field_key", HOUSE_MANUAL_ENTRY.fieldKey)
+        .maybeSingle();
+      if (!cur) {
+        await supabaseAdmin.from("property_playbook_entries").insert({
+          property_id: args.propertyId,
+          field_key: HOUSE_MANUAL_ENTRY.fieldKey,
+          custom_label: HOUSE_MANUAL_ENTRY.label,
+          custom_audience: HOUSE_MANUAL_ENTRY.audience,
+          section_num: HOUSE_MANUAL_ENTRY.section,
+          value: manual,
+        } as never);
+      } else if ((cur as { value: string | null }).value !== manual) {
+        await supabaseAdmin
+          .from("property_playbook_entries")
+          .update({ value: manual } as never)
+          .eq("property_id", args.propertyId)
+          .eq("field_key", HOUSE_MANUAL_ENTRY.fieldKey);
+      }
+    }
   }
   if (cleanTitle) {
     const tw = supabaseAdmin.from("channex_twin_links" as never) as any;
