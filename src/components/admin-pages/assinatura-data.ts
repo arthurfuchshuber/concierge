@@ -62,7 +62,20 @@ export function nextCardCheck(from = new Date()): Date {
   return nextAnchor(20, from);
 }
 
-export function buildAssinatura(info: SubscriptionInfo, payments: PaymentRow[]) {
+/** "Outubro de 2026" — título de cada mês do extrato (mockup Mob-Assinatura-extrato, 18/11/2026). */
+const MESES_LONGOS = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+export const monthTitle = (iso: string | Date) => {
+  const d = brt(iso);
+  return `${MESES_LONGOS[d.getUTCMonth()]} de ${d.getUTCFullYear()}`;
+};
+
+export function buildAssinatura(
+  info: SubscriptionInfo,
+  payments: PaymentRow[],
+  card?: { brand: string | null; last4: string | null } | null,
+) {
+  const cardTxt =
+    card?.last4 ? ` · ${card.brand ? card.brand.charAt(0).toUpperCase() + card.brand.slice(1).toLowerCase() : "Cartão"} •••• ${card.last4}` : "";
   const b = info.billing;
   const qtd = b?.activeListings ?? 0;
   const monthly = b?.monthlyCents ?? 0;
@@ -86,8 +99,8 @@ export function buildAssinatura(info: SubscriptionInfo, payments: PaymentRow[]) 
   if (nextChargeAt && !info.billingPaused) {
     faturas.push({
       id: "previsto",
-      titulo: `Fatura ${monthLabel(nextChargeAt)}`,
-      sub: `Prevista para ${fmtDate(nextChargeAt)} · ${qtd} ${qtd === 1 ? "anúncio" : "anúncios"}`,
+      titulo: monthTitle(nextChargeAt),
+      sub: `Próxima cobrança em ${fmtDayMonth(nextChargeAt)}`,
       valor: courtesy ? "Cortesia" : brl(monthly),
       cor: AMBER,
       url: null,
@@ -122,10 +135,10 @@ export function buildAssinatura(info: SubscriptionInfo, payments: PaymentRow[]) 
       const cents = courtesy ? 0 : valorEm(d);
       faturas.push({
         id: `hist-${d.toISOString()}`,
-        titulo: `Fatura ${monthLabel(d)}`,
-        sub: exempt ? `Isenta em ${fmtDate(d)}` : `Sem cobrança em ${fmtDate(d)}`,
+        titulo: monthTitle(d),
+        sub: exempt ? "Isenta · cobrança de cortesia" : `Sem cobrança em ${fmtDayMonth(d)}`,
         valor: courtesy ? "Cortesia" : cents > 0 ? brl(cents) : "—",
-        cor: MUTED,
+        cor: exempt ? SAGE : MUTED,
         url: null,
         riscada: exempt,
       });
@@ -136,8 +149,8 @@ export function buildAssinatura(info: SubscriptionInfo, payments: PaymentRow[]) 
     const failed = p.status === "failed" || p.status === "uncollectible";
     faturas.push({
       id: p.id,
-      titulo: `Fatura ${monthLabel(p.createdAt)}`,
-      sub: `${paid ? "Paga em" : failed ? "Falhou em" : "Emitida em"} ${fmtDate(p.createdAt)}`,
+      titulo: monthTitle(p.createdAt),
+      sub: `${paid ? "Pago em" : failed ? "Falhou em" : "Emitida em"} ${fmtDayMonth(p.createdAt)}${paid ? cardTxt : ""}`,
       valor: brl(p.amount),
       cor: paid ? SAGE : failed ? ROSE : AMBER,
       url: p.invoiceUrl ?? null,

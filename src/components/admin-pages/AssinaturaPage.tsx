@@ -152,8 +152,8 @@ function AssinaturaPage({ embedded = false, readOnly = false }: { embedded?: boo
     }
   }
 
-  const view = buildAssinatura(info, payments.data?.payments ?? []);
   const pm = paymentMethod.data?.paymentMethod ?? null;
+  const view = buildAssinatura(info, payments.data?.payments ?? [], pm ? { brand: pm.brand, last4: pm.last4 } : null);
 
   return (
     <div className="flex w-full min-w-0 flex-col gap-[10px]">
