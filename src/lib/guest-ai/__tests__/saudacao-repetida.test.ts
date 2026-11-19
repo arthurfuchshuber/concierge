@@ -35,3 +35,12 @@ describe("dado técnico fora do dossiê (caso Alice, tomadas, 19/11/2026)", () =
     expect(sys).toMatch(/marque o encaminhamento para a equipe confirmar o dado do imóvel/);
   });
 });
+
+describe("chegou não é entrou (caso Larissa, 19/11/2026)", () => {
+  it("aviso de chegada sem entrada: pergunta pelo acesso, checagem da casa só depois", async () => {
+    const { buildSystemPrompt } = await import("@/lib/guest-ai/system-prompt");
+    const sys = buildSystemPrompt("airbnb", undefined, { phase: "in_stay" });
+    expect(sys).toMatch(/Avisar que chegou, sem dizer que já entrou, é chegada à porta/);
+    expect(sys).toMatch(/a pergunta sobre encontrar tudo como esperado fica para depois da entrada confirmada/);
+  });
+});
