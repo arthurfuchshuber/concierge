@@ -105,7 +105,6 @@ function spDate(iso: string): string {
 }
 import { AudioPlayer } from "@/components/dashboard/ReservationRecords";
 import { MediaLightbox } from "@/components/dashboard/MediaLightbox";
-import { RecordMediaPanel } from "@/components/dashboard/RecordMediaPanel";
 import { DictationField } from "@/components/dashboard/RecordSituationSheet";
 import { CoverImage } from "@/components/ui/cover-image";
 import { NewRecordButton } from "@/components/dashboard/NewRecordButton";
@@ -282,22 +281,6 @@ function hasTitle(r: AccountRecord): boolean {
  * de ponta a ponta no topo do quadrado, centralizada — sobre foto ou vídeo a
  * translucidez deixa a imagem aparecer por baixo.
  */
-/** A mesma cor, sólida — para quando a etiqueta fica SOBRE uma imagem. */
-/* PADRÃO "PRESENÇA" (18/09/2026): as cinco categorias usavam cinco cores
-   saturadas (laranja, rosa, violeta, azul, cinza). Agora são três tons
-   contidos, pela NATUREZA e não pelo nome: rosa terroso para o que é problema
-   (dano, manutenção), âmbar queimado para o que pede atenção (esquecidos,
-   outros) e verde sálvia para rotina (auditoria de limpeza). */
-const CATEGORY_SOLID: Record<RecordCategory, string> = {
-  forgotten: "bg-[#c9a962] text-[#1a1408]",
-  damage: "bg-[#c98c8c] text-[#1a0a0a]",
-  incident: "bg-[#c98c8c] text-[#1a0a0a]",
-  cleaning: "bg-[#7fb79a] text-[#05140d]",
-  cleaning_audit: "bg-[#6fa8b5] text-[#06141a]",
-  maintenance: "bg-[#c98c8c] text-[#1a0a0a]",
-  other: "bg-muted-foreground text-background",
-};
-
 const CATEGORY_BAND: Record<RecordCategory, string> = {
   forgotten: "bg-[#c9a962]/15 text-[#c9a962]",
   damage: "bg-[#c98c8c]/15 text-[#c98c8c]",
@@ -2245,7 +2228,7 @@ function Thumb({
  * O DETALHE DO REGISTRO (mockups aprovados, 30/10 e 01/11/2026). Cabeçalho com a foto do imóvel (modelo do
  * Histórico da Reserva), UM cartão com barra de status — categoria e data/hora no topo, o quadrado da mídia ao
  * lado do TÍTULO e da DESCRIÇÃO do registro, dados da reserva e do registro separados por um fio — e a fileira
- * de ações dos cartões. Tocar no quadrado abre só a mídia (`RecordMediaPanel`); sem mídia, sem quadrado.
+ * de ações dos cartões. Tocar no quadrado abre só a mídia (`MediaLightbox`); sem mídia, sem quadrado.
  */
 function RecordViewerDialog({
   record,
@@ -2393,7 +2376,7 @@ function fmtRecordStamp(iso: string): string {
 
 /**
  * QUADRADO DA MÍDIA (mockup aprovado, 01/11/2026). A mídia do registro vira um quadrado pequeno à
- * esquerda do título e da descrição; tocar nele abre SÓ a mídia, num painel (`RecordMediaPanel`) —
+ * esquerda do título e da descrição; tocar nele abre SÓ a mídia, no visualizador (`MediaLightbox`) —
  * não a tela inteira. Com mais de uma mídia elas aparecem em CASCATA (quadrados menores e mais
  * apagados atrás do primeiro) e uma pílula "+N" diz quantas há além da primeira. Registro sem mídia
  * NÃO ganha quadrado: o texto ocupa a largura toda do cartão.
@@ -2543,9 +2526,7 @@ function RecordViewerBody({
   /* Só as mídias que têm arquivo entram no quadrado e no painel; registro só de texto não ganha quadrado. */
   const playable = media.filter((m) => !!m.url);
   const [idx, setIdx] = useState(0);
-  const [painel, setPainel] = useState(false);
-  /* TELA CHEIA (11/09/2026), agora chamada de DENTRO do painel da mídia: tocar na foto do painel abre a
-     camada com zoom (`MediaLightbox`) para examinar um detalhe. */
+  /* Visualizador de mídia (`MediaLightbox`, regra do sistema desde 19/11/2026). */
   const [cheia, setCheia] = useState(false);
   const [editing, setEditing] = useState(false);
   // Cor do status (rosa terroso em aberto, sálvia resolvido, neutro cancelado/sem pendência).
@@ -2677,7 +2658,7 @@ function RecordViewerBody({
                   media={playable}
                   onOpen={() => {
                     setIdx(0);
-                    setPainel(true);
+                    setCheia(true);
                   }}
                 />
               )}
@@ -2718,46 +2699,21 @@ function RecordViewerBody({
         </div>
       </div>
 
-      {playable.length > 0 && (
-        <RecordMediaPanel
-          open={painel}
-          onOpenChange={setPainel}
-          media={playable.map((m) => ({ id: m.id, kind: m.kind, url: m.url, durationMs: m.durationMs }))}
-          index={idx}
-          onIndex={setIdx}
-          label={meta?.label ?? "Registro"}
-          onDownloadAll={baixarTodas}
-          downloading={baixando}
-          onZoom={(i) => {
-            setIdx(i);
-            setCheia(true);
-          }}
-        />
-      )}
-
-      {cheia && (
+      {/* VISUALIZADOR ÚNICO (mockup Fin-23, 19/11/2026): tocar no quadrado abre direto a mídia. */}
+      {cheia && playable.length > 0 && (
         <MediaLightbox
-          media={playable.map((m) => ({ id: m.id, kind: m.kind, url: m.url, mime: m.mime }))}
+          media={playable.map((m) => ({
+            id: m.id,
+            kind: m.kind,
+            url: m.url,
+            mime: m.mime,
+            durationMs: m.durationMs,
+            createdAt: m.createdAt,
+          }))}
           startIndex={Math.min(idx, playable.length - 1)}
-          categoryLabel={meta?.label ?? null}
-          categoryClass={CATEGORY_SOLID[record.category] ?? CATEGORY_SOLID.other}
-          statusLabel={
-            record.taskId
-              ? record.taskStatus === "pending"
-                ? "Em aberto"
-                : record.taskStatus === "canceled"
-                  ? "Cancelada"
-                  : "Resolvida"
-              : null
-          }
-          statusClass={
-            record.taskStatus === "pending"
-              ? "bg-rose-600"
-              : record.taskStatus === "canceled"
-                ? "bg-zinc-600"
-                : "bg-emerald-600"
-          }
-          fileBaseName={record.fileName}
+          title={hasTitle(record) ? title : (meta?.label ?? "Registro")}
+          subtitle={record.propertyName}
+          author={record.createdByName}
           onClose={() => setCheia(false)}
         />
       )}

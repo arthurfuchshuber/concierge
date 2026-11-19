@@ -11,7 +11,7 @@ export type GeneratedSystemDoc = {
   content_hash: string;
 };
 
-export const GENERATED_AT = "2026-11-19T13:19:49.134Z";
+export const GENERATED_AT = "2026-11-19T17:06:11.254Z";
 
 export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
   {
@@ -1039,6 +1039,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/components/dashboard/CleaningPendencies.tsx",
     "audience": [],
     "content_hash": "f8ce108e93e0db6eb3d48894b6805312"
+  },
+  {
+    "doc_key": "rule:CATEGORY_BAND",
+    "kind": "rule",
+    "title": "Regra — CATEGORY_BAND",
+    "content": "A FAIXA DA CATEGORIA dentro do quadrante (pedido explícito, 10/09/2026):\nmesma cor da categoria, translúcida, com o texto na versão clara dela. Fica\nde ponta a ponta no topo do quadrado, centralizada — sobre foto ou vídeo a\ntranslucidez deixa a imagem aparecer por baixo.",
+    "source_path": "src/components/dashboard/RecordsWorkspace.tsx",
+    "audience": [],
+    "content_hash": "4c6740a4bb12fe958c8e9a8b03b68031"
   },
   {
     "doc_key": "rule:CategoryCard",
@@ -2787,6 +2796,24 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "2a32479c98801443db7fb3a89f64556e"
   },
   {
+    "doc_key": "rule:hostPropertyPatch",
+    "kind": "rule",
+    "title": "Regra — hostPropertyPatch",
+    "content": "Patch de `properties` — o ANÚNCIO É SOBERANO (regra do proprietário, 19/11/2026): todo dado\nque a API informa substitui o do sistema sempre que houver QUALQUER divergência, inclusive\nedições manuais. Fotos: uma única divergência (foto, quantidade ou ordem) substitui a galeria\ninteira pelas fotos do anúncio, e a capa passa a ser a 1ª. Dado ausente na API não apaga o salvo.\nSó entram no patch os campos que realmente mudaram.",
+    "source_path": "src/lib/airbnb-host-api.ts",
+    "audience": [],
+    "content_hash": "629ca414b81bb5516dc75ee351a582f9"
+  },
+  {
+    "doc_key": "rule:HostRoom",
+    "kind": "rule",
+    "title": "Regra — HostRoom",
+    "content": "Leitura PURA (sem rede, testável) dos dados cadastrais do anúncio vindos da API\noficial do anfitrião no Airbnb (`api.airbnb.com/v2`, token OAuth do canal na Channex).\n\nRegra de mapeamento (19/11/2026): os dados entram nas colunas NATIVAS que já existem\nem `properties` (lat, lng, address, city, state, country, gallery_images,\ncheckin_instructions, checkout_instructions, airbnb_*). Não há coluna nova: o CEP\nentra no endereço composto. Campo editado à mão no sistema nunca é sobrescrito.",
+    "source_path": "src/lib/airbnb-host-api.ts",
+    "audience": [],
+    "content_hash": "9b294659aa18a7a63f19b8b06c539557"
+  },
+  {
     "doc_key": "rule:humanizeEventMessage",
     "kind": "rule",
     "title": "Regra — humanizeEventMessage",
@@ -3172,6 +3199,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/channex-full-connect.server.ts",
     "audience": [],
     "content_hash": "bde8d43461d366d5e7216259b7117e3b"
+  },
+  {
+    "doc_key": "rule:listingIdFromUrl",
+    "kind": "rule",
+    "title": "Regra — listingIdFromUrl",
+    "content": "Foto de capa do anúncio do Airbnb: leitura nativa (fetch + meta `og:image`),\nsem Firecrawl e sem IA — custo zero. Só preenche a capa e a galeria vazias:\na galeria completa vem da API do anfitrião (`backfillHostListings`, 19/11/2026)\ne nunca é mais reduzida a 1 foto.",
+    "source_path": "src/lib/airbnb-cover.server.ts",
+    "audience": [],
+    "content_hash": "5046357a3fc80f5efeef6f1a7607b856"
   },
   {
     "doc_key": "rule:listSyncDismissedProperties",
@@ -4599,10 +4635,10 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "doc_key": "rule:RecordMediaSquare",
     "kind": "rule",
     "title": "Regra — RecordMediaSquare",
-    "content": "QUADRADO DA MÍDIA (mockup aprovado, 01/11/2026). A mídia do registro vira um quadrado pequeno à\nesquerda do título e da descrição; tocar nele abre SÓ a mídia, num painel (`RecordMediaPanel`) —\nnão a tela inteira. Com mais de uma mídia elas aparecem em CASCATA (quadrados menores e mais\napagados atrás do primeiro) e uma pílula \"+N\" diz quantas há além da primeira. Registro sem mídia\nNÃO ganha quadrado: o texto ocupa a largura toda do cartão.",
+    "content": "QUADRADO DA MÍDIA (mockup aprovado, 01/11/2026). A mídia do registro vira um quadrado pequeno à\nesquerda do título e da descrição; tocar nele abre SÓ a mídia, no visualizador (`MediaLightbox`) —\nnão a tela inteira. Com mais de uma mídia elas aparecem em CASCATA (quadrados menores e mais\napagados atrás do primeiro) e uma pílula \"+N\" diz quantas há além da primeira. Registro sem mídia\nNÃO ganha quadrado: o texto ocupa a largura toda do cartão.",
     "source_path": "src/components/dashboard/RecordsWorkspace.tsx",
     "audience": [],
-    "content_hash": "0c3956eac34fb067cff20d5669ba1b66"
+    "content_hash": "86932e4e165059ff4f10b61ab93b7e07"
   },
   {
     "doc_key": "rule:recordOpsNoAdvance",
@@ -5661,10 +5697,10 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "doc_key": "rule:src/components/dashboard/MediaLightbox.tsx:0",
     "kind": "rule",
     "title": "Regra em MediaLightbox.tsx",
-    "content": "TELA CHEIA COM ZOOM PARA OS REGISTROS (pedido de 11/09/2026).\n\n\"preciso que o usuário do sistema consiga visualizar em tela cheia os\n registros (fotos, vídeos) e que consiga dar zoom\"\n\nO visualizador do registro mostra a mídia num palco 4:3 com a ficha embaixo.\nServe para reconhecer o que é, não para examinar: um risco fino na parede, a\nplaca de um carro num vídeo de auditoria, o número de série de um aparelho —\nnada disso se lê ali.\n\nPOR QUE NÃO A TELA CHEIA DO NAVEGADOR: no Safari do iPhone a\n`requestFullscreen` não vale para um elemento qualquer — só para o próprio\n<video>. Como 71% dos acessos deste sistema vêm de iPhone, uma implementação\nbaseada nela funcionaria para a minoria. Esta camada ocupa a viewport\ninteira, que é o comportamento que existe em todo lugar.\n\nO ZOOM É PRÓPRIO, e não o do navegador, por um motivo prático: o zoom nativo\nda página ampliaria a interface junto (botões, etiquetas) e não deixaria\narrastar a imagem por baixo dos cantos. Aqui a transformação é só da mídia.\n\nDecisões tomadas com o produto (11/09):\n · a etiqueta da categoria e a situação da pendência CONTINUAM visíveis no\n topo — quem revisa vários registros seguidos perde o contexto sem elas;\n · existe download, porque a foto do dano costuma ir para o hóspede, para o\n seguro ou para o prestador.",
+    "content": "VISUALIZADOR DE MÍDIA DOS REGISTROS — REGRA DO SISTEMA (mockup Fin-23, aprovado em 19/11/2026).\n\n\"implemente essa tela como REGRA no sistema inteiro sempre que o usuário abrir um registro,\n independentemente de qual pagina ele esteja ... precisa ser impecavelmente esse layout\"\n\nToda foto ou vídeo de registro que o usuário abrir — Registros, Financeiro, Limpeza, pendências,\nrelato do prestador — abre AQUI, e só aqui. Nada de painel próprio por tela.\n\nLAYOUT (igual ao mockup):\n · véu escuro e quente (rgba(16,12,10,.82)) com desfoque de 14 px sobre a página — a tela de trás\n continua \"presente\", como nas demais janelas;\n · cabeçalho: título (Sora 15, branco) + imóvel (12,5, branco 62%); X em aba no canto superior\n direito (36 px, véu branco 12%, quina inferior esquerda 14 px);\n · a mídia num CARTÃO arredondado (18 px) com margem de 16 px, fundo escuro em degradê e sombra;\n · vídeo: selo com a duração no topo esquerdo, play de vidro no centro e barra fosca de controles\n (play, tempo, progresso com bolinha, duração, tela cheia) dentro do cartão;\n · setas ‹ › de vidro nas laterais do cartão — SÓ com mais de uma mídia;\n · embaixo do cartão: \"Enviado por <autor>\" à esquerda e \"dd/mm/aaaa · hh:mm\" à direita;\n · fileira de miniaturas 52×52 (a atual com anel branco, as outras apagadas) e o contador \"2 de 5\".\n A fileira rola na horizontal pelo arrasto, SEM barra de rolagem (exceção aprovada: o contador\n já diz onde a pessoa está). Com UMA mídia só: sem miniatura, sem seta, sem contador.…",
     "source_path": "src/components/dashboard/MediaLightbox.tsx",
     "audience": [],
-    "content_hash": "59823a76849d5b7930747f34a9a3cc3b"
+    "content_hash": "e71322d83a5177d3b3922fd077591975"
   },
   {
     "doc_key": "rule:src/components/dashboard/OperationWorkspace.tsx:109100",
@@ -6054,15 +6090,6 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "1b50fd69dd824cce84da89a6a3bd6fb7"
   },
   {
-    "doc_key": "rule:src/components/dashboard/RecordMediaPanel.tsx:0",
-    "kind": "rule",
-    "title": "Regra em RecordMediaPanel.tsx",
-    "content": "PAINEL DA MÍDIA DO REGISTRO (mockup aprovado, 31/10/2026).\n\nClicar no quadrado da mídia do Detalhe do Registro abre SÓ a mídia, num painel\nsobre a janela (que continua escurecida por trás) — não é a tela cheia.\n\n · cabeçalho: \"Categoria · 1 de 3\", baixar tudo e o X da janela;\n · mídia grande, com a foto/vídeo inteiro sobre um fosco da própria imagem;\n · setas nas laterais para ir à anterior / próxima (só quando há mais de uma);\n · vídeo: os controles (progresso, play, tempo, volume, tela cheia) ficam DENTRO\n da imagem, na parte de baixo, sobre um degradê escuro;\n · fileira de miniaturas embaixo (a atual com contorno), 16 px de respiro em volta.\n\nA tela cheia com zoom (`MediaLightbox`) continua existindo: tocar na FOTO dentro do\npainel chama `onZoom`, para quem precisa examinar um detalhe.",
-    "source_path": "src/components/dashboard/RecordMediaPanel.tsx",
-    "audience": [],
-    "content_hash": "23005f1ef90147c04abf9416b0fd4124"
-  },
-  {
     "doc_key": "rule:src/components/dashboard/RecordSituationSheet.tsx:13980",
     "kind": "rule",
     "title": "Regra em RecordSituationSheet.tsx",
@@ -6072,16 +6099,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "bb858acdfcfe0c71275a4ebad074241a"
   },
   {
-    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:10771",
-    "kind": "rule",
-    "title": "Regra em RecordsWorkspace.tsx",
-    "content": "A FAIXA DA CATEGORIA dentro do quadrante (pedido explícito, 10/09/2026):\nmesma cor da categoria, translúcida, com o texto na versão clara dela. Fica\nde ponta a ponta no topo do quadrado, centralizada — sobre foto ou vídeo a\ntranslucidez deixa a imagem aparecer por baixo.",
-    "source_path": "src/components/dashboard/RecordsWorkspace.tsx",
-    "audience": [],
-    "content_hash": "1ab915fd3496a9a1fb5383c22880b593"
-  },
-  {
-    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:14344",
+    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:13453",
     "kind": "rule",
     "title": "Regra em RecordsWorkspace.tsx",
     "content": "Capa do imóvel (04/10/2026, proposta A). `undefined` = \"Por data\": o\ncartão reúne vários imóveis e não mostra foto. `null` = imóvel sem capa.",
@@ -6090,7 +6108,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "2a36d540280566cf3f361f2e1a5bba3c"
   },
   {
-    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:15698",
+    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:14807",
     "kind": "rule",
     "title": "Regra em RecordsWorkspace.tsx",
     "content": "ACERVO RECOLHIDO POR PADRÃO, UM DE CADA VEZ (pedido explícito,\n10/09/2026). A tela abre mostrando só o que há para EXECUTAR; as\nminiaturas de prova ficam a um toque. E abrir um imóvel fecha o anterior,\nsenão a página volta a ser uma parede de quadradinhos.",
@@ -6099,7 +6117,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "da56a7e41911b71c751dc4fed78c2097"
   },
   {
-    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:16054",
+    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:15163",
     "kind": "rule",
     "title": "Regra em RecordsWorkspace.tsx",
     "content": "PENDÊNCIAS TAMBÉM RECOLHIDAS, PELA MESMA REGRA (pedido explícito,\n11/09/2026): \"coloque também a linha PENDÊNCIAS recolhida seguindo as\nmesmas regras da linha REGISTROS\". Mesma mecânica, estado separado — a\nlinha inteira é o botão, sem seta, e abrir um imóvel fecha o anterior.\nSeparado do acervo de propósito: são duas perguntas diferentes (\"o que há\npara fazer aqui?\" e \"que provas existem aqui?\"), e amarrar as duas faria\numa abrir a outra sem ninguém ter pedido.",
@@ -6108,7 +6126,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "921b94e2b28e53f61ef460f4945f7be2"
   },
   {
-    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:48550",
+    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:47659",
     "kind": "rule",
     "title": "Regra em RecordsWorkspace.tsx",
     "content": "Contador/filtro de uma categoria. Mesma casca dos KPIs da Operacional.\n\nA COR DO NÚMERO É UM SEMÁFORO, NÃO UMA ETIQUETA (pedido explícito,\n10/09/2026): zerado é BRANCO em todas as categorias — não há nada ali, nada\na sinalizar. Acima de zero, a cor diz o quanto aquilo pesa: manutenção e\ndano em vermelho (é trabalho parado), esquecidos e outros em âmbar (é\natenção), auditoria de limpeza no violeta de sempre (é rotina, não alarme)\ne \"Todos\" sempre branco, porque somar tudo não é sinal de nada.\n\nCartão zerado NÃO é mais esmaecido — todos têm a mesma tonalidade.",
@@ -6117,7 +6135,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "0d8acd5693abba2abe9b8f2962b36ba3"
   },
   {
-    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:55764",
+    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:54873",
     "kind": "rule",
     "title": "Regra em RecordsWorkspace.tsx",
     "content": "O CARTÃO DO IMÓVEL EM DOIS ANDARES (mockup B, aprovado 10/09/2026).\n\nAntes era uma fileira de quadrados cinzentos com um ponto de 6px: um dano\nsem conserto e uma foto de auditoria eram visualmente o mesmo quadrado. O\ncartão passa a admitir que há duas naturezas ali dentro —\n\n A RESOLVER o que abriu pendência e ela ainda está de pé (dano,\n manutenção, objeto esquecido). Vira LINHA, com título\n legível, porque é trabalho e trabalho precisa de nome.\n REGISTROS o resto. Continua miniatura, porque é prova.\n\nSem nada em aberto o primeiro andar não existe e o cartão fica igual ao de\nantes — a mesma regra de sempre: o aviso só aparece quando há aviso.",
@@ -6126,7 +6144,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "1bede5e40def9ea40c009fa805397bcc"
   },
   {
-    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:56491",
+    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:55600",
     "kind": "rule",
     "title": "Regra em RecordsWorkspace.tsx",
     "content": "A FAIXA LATERAL DO CARTÃO DO IMÓVEL (pedido explícito, 10/09/2026).\n\nMesma barra de 3px dos cards do Kanban, mas dizendo outra coisa: aqui ela\nresponde \"o que mais tem neste imóvel?\" antes de a pessoa ler qualquer\nlinha. A cor é a da CATEGORIA MAIS FREQUENTE entre os registros daquele\nimóvel, com UMA exceção pedida pelo cliente:\n\n \"só nunca usar a cor da auditoria de limpeza quando tiver registro de\n outras categorias junto. só usar a cor da auditoria da limpeza quando só\n tiver isso no imóvel\"\n\nFaz sentido: auditoria é ROTINA — todo imóvel limpo gera vídeo, então ela\nganharia quase sempre na contagem e a faixa viraria uma fileira roxa que não\ninforma nada. Tirando-a da disputa, a faixa passa a mostrar o que exige\natenção; roxo então significa exatamente \"aqui só há prova de limpeza, nada\npendente\".\n\nEmpate: vence a mais grave — dano, depois manutenção, depois esquecidos,\ndepois outros.",
@@ -6135,7 +6153,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "ac3013773b1e44cf4e096d38a8c66d5a"
   },
   {
-    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:57457",
+    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:56566",
     "kind": "rule",
     "title": "Regra em RecordsWorkspace.tsx",
     "content": "O DEGRADÊ MORA DENTRO DA BARRA (pedido explícito, 10/09/2026).\n\nA primeira tentativa deixava a cor sangrar para dentro do cartão e o\ncliente cortou na hora: \"eu não quero que a cor vaze para o quadrante, eu\nsó quero que o efeito da barra conceda uma leveza na cor, sem torná-la\ngritante\".\n\nEntão a faixa continua sendo SÓ a faixa — nada invade o conteúdo. O que\nmudou é que ela deixou de ser um bloco chapado: cheia na quina de fora e\ndissolvendo até quase transparente do lado de dentro. De longe continua\ndizendo a cor; de perto é um fio de luz, não um adesivo.\n\nDois botões de ajuste, se quiser calibrar: a LARGURA (`w-[4px]`) e a\nOPACIDADE das duas pontas do degradê.",
@@ -6171,7 +6189,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "8d3f18e2c6903bd49d0d42ecb7202428"
   },
   {
-    "doc_key": "rule:src/components/dashboard/TaskResolveDialog.tsx:20747",
+    "doc_key": "rule:src/components/dashboard/TaskResolveDialog.tsx:20817",
     "kind": "rule",
     "title": "Regra em TaskResolveDialog.tsx",
     "content": "Prestador do destino da diferença — só pedido quando nenhum prestador foi\nescolhido antes (nem em \"Quem resolveu\", nem em \"Quem deve pagar\").",
@@ -6412,6 +6430,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/airbnb-accounts.server.ts",
     "audience": [],
     "content_hash": "91f53b5ebefe7bf29aa5d6a21dc3596d"
+  },
+  {
+    "doc_key": "rule:src/lib/airbnb-host-api.server.ts:0",
+    "kind": "rule",
+    "title": "Regra em airbnb-host-api.server.ts",
+    "content": "Leitura (somente GET) dos dados cadastrais do anúncio na API oficial do anfitrião\nno Airbnb, com o token OAuth do canal conectado na Channex (lido ao vivo, nunca\ngravado). Substitui a dependência do scraping público para endereço, coordenadas,\ncômodos, fotos e tarefas de saída. Cada chamada falha sozinha sem derrubar as outras.",
+    "source_path": "src/lib/airbnb-host-api.server.ts",
+    "audience": [],
+    "content_hash": "7d05bb7f07e13802a85a722cafe475e4"
   },
   {
     "doc_key": "rule:src/lib/airbnb-rules.ts:0",
@@ -7395,7 +7422,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "e3743ba1a60f8b20bc41f53cf00e6585"
   },
   {
-    "doc_key": "rule:src/lib/guest-ai/data/projections.ts:3930",
+    "doc_key": "rule:src/lib/guest-ai/data/projections.ts:3962",
     "kind": "rule",
     "title": "Regra em projections.ts",
     "content": "IA · VISÃO — mensagens do hóspede com IMAGEM. Única projeção do módulo com o caminho do anexo no\nstorage: usada só por `data/guest-images.server.ts`, que baixa a foto pelo acesso de leitura restrito ao\nbucket `chat-attachments` (`client.server.ts`). O caminho nunca vai ao prompt, a log nem ao resultado.",

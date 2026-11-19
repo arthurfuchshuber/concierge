@@ -17,6 +17,9 @@ export type FinanceEntryMedia = {
   url: string | null;
   mime: string | null;
   fileName: string | null;
+  /** Quem enviou e quando — rodapé do visualizador de mídia. */
+  author: string | null;
+  createdAt: string | null;
 };
 
 export type FinanceEntryDetail = {
@@ -118,8 +121,10 @@ export const getFinanceEntryDetail = createServerFn({ method: "GET" })
       mime: string | null;
       file_name: string | null;
       body: string | null;
+      created_by_name: string | null;
+      created_at: string | null;
     };
-    const cols = "id, group_id, kind, storage_path, mime, file_name, body";
+    const cols = "id, group_id, kind, storage_path, mime, file_name, body, created_by_name, created_at";
     let recs: Rec[] = [];
     if (data.kind === "extra" && taskId) {
       const { data: first } = await db.from("reservation_records").select(cols).eq("task_id", taskId).limit(200);
@@ -176,6 +181,8 @@ export const getFinanceEntryDetail = createServerFn({ method: "GET" })
         url: r.storage_path ? (urlByPath.get(r.storage_path) ?? null) : null,
         mime: r.mime,
         fileName: r.file_name,
+        author: r.created_by_name,
+        createdAt: r.created_at,
       })),
     };
   });

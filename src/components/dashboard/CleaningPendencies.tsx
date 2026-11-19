@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { attachTaskRecord } from "@/lib/reservation-records.functions";
 import { listTaskLinkOptions, listTasks, reportTaskAsProvider, returnTaskToProvider, setTaskStatus } from "@/lib/tasks.functions";
 import { ProviderConcludeDialog } from "@/components/dashboard/ProviderConcludeDialog";
+import { MediaLightbox } from "@/components/dashboard/MediaLightbox";
 import type { ArrivalRow } from "@/lib/dashboard-arrival-types";
 import type { TaskCategory, TaskRow } from "@/lib/tasks-types";
 import { fmtBRShort } from "@/lib/recurrence-dates";
@@ -473,7 +474,7 @@ function useTaskOrigin(taskId: string) {
         .eq("task_id", taskId)
         .order("created_at", { ascending: true })
         .limit(20);
-      const rows = (data ?? []) as Array<{ created_by_name: string | null; storage_path: string | null; mime: string | null; kind: string | null }>;
+      const rows = (data ?? []) as Array<{ created_by_name: string | null; storage_path: string | null; mime: string | null; kind: string | null; created_at: string | null }>;
       const author = rows.find((r) => r.created_by_name)?.created_by_name ?? null;
       const img = rows.find((r) => r.storage_path && (r.mime ?? "").startsWith("image/"));
       let photo: string | null = null;
@@ -481,7 +482,7 @@ function useTaskOrigin(taskId: string) {
         const { data: signed } = await supabase.storage.from("reservation-records").createSignedUrl(img.storage_path, 3600);
         photo = signed?.signedUrl ?? null;
       }
-      return { author, photo };
+      return { author, photo, photoAt: (img as { created_at?: string | null } | undefined)?.created_at ?? null };
     },
     staleTime: 5 * 60_000,
   });
@@ -496,20 +497,36 @@ function TaskDetail({ t, row, onResolve }: { t: TaskRow; row: ArrivalRow; onReso
   const price = money(t.amountSpentCents);
   const shown = splitTaskTitle(t);
   const origin = useTaskOrigin(t.id).data;
+  const [vendo, setVendo] = useState(false);
   const rule = "border-t border-foreground/[0.08]";
   return (
     <>
+      {vendo && origin?.photo && (
+        <MediaLightbox
+          media={[{ id: t.id, kind: "photo", url: origin.photo, author: origin.author, createdAt: origin.photoAt }]}
+          title={shown.title}
+          subtitle={row.propertyName}
+          onClose={() => setVendo(false)}
+        />
+      )}
       <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden p-4">
         <div className="relative overflow-hidden rounded-xl bg-foreground/[0.04] py-3.5 pl-[17px] pr-3.5 shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_8%,transparent)]">
           <span className="absolute inset-y-0 left-0 w-[3px]" style={{ background: color }} />
           <div className="flex items-start gap-3">
-            <div className="relative grid size-14 flex-none place-items-center overflow-hidden rounded-[10px] bg-[linear-gradient(135deg,#8a7a68,#4a4038)] text-white/85">
-              {origin?.photo ? (
+            {origin?.photo ? (
+              <button
+                type="button"
+                aria-label="Ver foto do registro"
+                onClick={() => setVendo(true)}
+                className="relative grid size-14 flex-none place-items-center overflow-hidden rounded-[10px] bg-[linear-gradient(135deg,#8a7a68,#4a4038)] text-white/85"
+              >
                 <img src={origin.photo} alt="" className="absolute inset-0 size-full object-cover" />
-              ) : (
+              </button>
+            ) : (
+              <div className="relative grid size-14 flex-none place-items-center overflow-hidden rounded-[10px] bg-[linear-gradient(135deg,#8a7a68,#4a4038)] text-white/85">
                 <Camera className="size-[18px]" strokeWidth={2} />
-              )}
-            </div>
+              </div>
+            )}
             <div className="min-w-0">
               <div className="text-sm font-bold leading-[1.3]">{shown.title}</div>
               {t.description && <div className="mt-1 text-[12.5px] leading-[1.4] text-muted-foreground">{t.description}</div>}

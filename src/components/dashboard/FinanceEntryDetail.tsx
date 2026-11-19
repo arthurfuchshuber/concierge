@@ -21,6 +21,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { uploadPendingAttachments, type PendingAttachment } from "@/components/dashboard/TaskAttachments";
 import { useAreaAccess } from "@/lib/permissions/useAreaAccess";
 import { useCleaningBoard, useCleaningProviderControl } from "@/components/dashboard/CleaningProviderAvatar";
+import { MediaLightbox } from "@/components/dashboard/MediaLightbox";
 import {
   EditDateTimeWindow,
   EditMediaWindow,
@@ -122,6 +123,8 @@ export function FinanceEntryDetail({
     providerName?: string | null;
   }>({});
   const [edit, setEdit] = useState<EditKind>(null);
+  /** Índice da mídia aberta no visualizador (null = fechado). */
+  const [viewer, setViewer] = useState<number | null>(null);
   const it = { ...base, ...(patch.priceCents !== undefined ? { priceCents: patch.priceCents } : {}) };
   const concludedAt = patch.concludedAt ?? it.concludedAt;
   const cleaningType = patch.cleaningType ?? (ext ? null : entry.item.cleaningType);
@@ -235,17 +238,39 @@ export function FinanceEntryDetail({
       ) : null}
     </Tap>
   ) : null;
+  const fotosTitulo = ext ? "Fotos e Vídeos" : "Fotos da Conferência";
+  const editarFotos = open("media");
+  /* Tocar na MINIATURA abre direto a mídia no visualizador (regra do sistema, mockup Fin-23);
+     tocar no RESTO do quadrante abre a edição. */
   const fotos =
     media.length > 0 || canEdit ? (
-      <Tap onClick={open("media")} label="Editar fotos e vídeos" className={FIN_CARD}>
+      <div
+        role={editarFotos ? "button" : undefined}
+        tabIndex={editarFotos ? 0 : undefined}
+        aria-label={editarFotos ? "Editar fotos e vídeos" : undefined}
+        onClick={editarFotos}
+        onKeyDown={(e) => {
+          if (editarFotos && (e.key === "Enter" || e.key === " ")) {
+            e.preventDefault();
+            editarFotos();
+          }
+        }}
+        className={cn(FIN_CARD, editarFotos && "cursor-pointer transition-[filter] active:brightness-95")}
+      >
         <div className={cn(FIN_CAP, "mb-2")}>
           {ext ? "Fotos e vídeos" : "Fotos da conferência"} · {media.length}
         </div>
         {media.length > 0 ? (
           <div className="flex gap-2 overflow-x-auto">
-            {media.map((m) => (
-              <span
+            {media.map((m, i) => (
+              <button
                 key={m.id}
+                type="button"
+                aria-label={`Ver ${m.kind === "video" ? "vídeo" : "foto"} ${i + 1}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (m.url) setViewer(i);
+                }}
                 className="relative grid h-[72px] w-[88px] flex-none place-items-center overflow-hidden rounded-[10px] bg-foreground/[0.08] text-foreground/45"
               >
                 {m.kind === "photo" && m.url ? (
@@ -253,14 +278,15 @@ export function FinanceEntryDetail({
                 ) : (
                   <Play className="size-4" />
                 )}
-              </span>
+              </button>
             ))}
           </div>
         ) : (
           <p className="text-[12.5px] text-muted-foreground">Nenhum arquivo. Toque para adicionar.</p>
         )}
-      </Tap>
+      </div>
     ) : null;
+  const viewerMedia = media.filter((m) => !!m.url);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden" aria-label={`Detalhe de ${title}`}>
@@ -395,6 +421,15 @@ export function FinanceEntryDetail({
           }
         />
       ) : null}
+      {viewer !== null && viewerMedia.length > 0 && (
+        <MediaLightbox
+          media={viewerMedia.map((m) => ({ id: m.id, kind: m.kind, url: m.url, mime: m.mime, author: m.author, createdAt: m.createdAt }))}
+          startIndex={Math.max(0, viewerMedia.findIndex((m) => m.id === media[viewer]?.id))}
+          title={fotosTitulo}
+          subtitle={it.propertyName}
+          onClose={() => setViewer(null)}
+        />
+      )}
       <EditMediaWindow
         open={edit === "media"}
         onOpenChange={(v) => !v && setEdit(null)}

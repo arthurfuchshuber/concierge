@@ -47,6 +47,7 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "sonner";
+import { MediaLightbox } from "@/components/dashboard/MediaLightbox";
 import {
   Dialog,
   DialogContent,
@@ -748,7 +749,7 @@ export function TaskResolveDialog({
               </div>
             </div>
 
-            {report && <ProviderReportBlock report={report} original={task?.amountSpentCents ?? null} media={reportMedia ?? []} />}
+            {report && <ProviderReportBlock report={report} original={task?.amountSpentCents ?? null} media={reportMedia ?? []} propertyName={task?.propertyName ?? null} />}
 
             <div className="grid grid-cols-2 gap-2">
               <ProviderPicker
@@ -964,11 +965,15 @@ function ProviderReportBlock({
   report,
   original,
   media,
+  propertyName,
 }: {
   report: NonNullable<TaskRow["providerReport"]>;
   original: number | null;
   media: Array<{ url: string; video: boolean }>;
+  propertyName?: string | null;
 }) {
+  /* Anexo do relato abre no visualizador único (mockup Fin-23). */
+  const [vendo, setVendo] = useState<number | null>(null);
   const AMB = "#e2b45a";
   const brl = (c: number | null) => (c == null ? "—" : (c / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }));
   const when = report.at ? new Date(report.at) : null;
@@ -1024,17 +1029,37 @@ function ProviderReportBlock({
       {report.note && <div className="mt-2 text-[12.5px] leading-[1.4]">“{report.note}”</div>}
       {media.length > 0 && (
         <div className="mt-2 flex gap-1.5">
-          {media.slice(0, 3).map((m) => (
-            <span key={m.url} className="relative grid size-11 flex-none place-items-center overflow-hidden rounded-lg bg-foreground/[0.06]">
+          {media.slice(0, 3).map((m, i) => (
+            <button
+              key={m.url}
+              type="button"
+              aria-label={`Ver anexo ${i + 1}`}
+              onClick={() => setVendo(i)}
+              className="relative grid size-11 flex-none place-items-center overflow-hidden rounded-lg bg-foreground/[0.06]"
+            >
               <img src={m.url} alt="" className="absolute inset-0 size-full object-cover" />
-            </span>
+            </button>
           ))}
           {media.length > 3 && (
-            <span className="grid size-11 flex-none place-items-center rounded-lg bg-foreground/[0.05] text-[11px] font-extrabold text-muted-foreground shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_9%,transparent)]">
+            <button
+              type="button"
+              aria-label="Ver todos os anexos"
+              onClick={() => setVendo(3)}
+              className="grid size-11 flex-none place-items-center rounded-lg bg-foreground/[0.05] text-[11px] font-extrabold text-muted-foreground shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_9%,transparent)]">
               +{media.length - 3}
-            </span>
+            </button>
           )}
         </div>
+      )}
+      {vendo !== null && (
+        <MediaLightbox
+          media={media.map((m) => ({ id: m.url, kind: m.video ? "video" : "photo", url: m.url, createdAt: report.at ?? null }))}
+          startIndex={vendo}
+          title="Anexos do Prestador"
+          subtitle={propertyName}
+          author={report.byName}
+          onClose={() => setVendo(null)}
+        />
       )}
     </div>
   );
