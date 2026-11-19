@@ -28,6 +28,10 @@ export type HostListing = {
   bathrooms: number | null;
   nickname: string | null;
   checkoutTasks: string[];
+  /** Instruções de check-in escritas pelo anfitrião no Airbnb (`check_in_option.instruction`). */
+  checkInInstruction?: string | null;
+  /** Manual da casa escrito pelo anfitrião no Airbnb (`house_manual`). */
+  houseManual?: string | null;
   isGuestFavorite: boolean | null;
   isSuperhost: boolean | null;
   name: string | null;
@@ -265,6 +269,8 @@ export function parseHostListing(
     bathrooms: num(l.bathrooms),
     nickname: str(l.listing_nickname),
     checkoutTasks: checkoutTaskLines(l.check_out_tasks),
+    checkInInstruction: checkInInstructionOf(l),
+    houseManual: str(l.house_manual),
     isGuestFavorite: typeof qs.is_guest_favorite === "boolean" ? qs.is_guest_favorite : null,
     isSuperhost: typeof roles.is_super_host === "boolean" ? roles.is_super_host : null,
     name: str(d.name),
@@ -299,6 +305,23 @@ export function parseHostListing(
 export function composeAddress(h: Pick<HostListing, "street" | "apt" | "zipcode">): string | null {
   if (!h.street) return null;
   return [h.street, h.apt, h.zipcode ? `CEP ${h.zipcode}` : null].filter(Boolean).join(", ");
+}
+
+/** `check_in_option.instruction` do anúncio (texto livre do anfitrião). */
+export function checkInInstructionOf(l: Record<string, unknown> | null | undefined): string | null {
+  const opt = (l?.check_in_option ?? null) as Record<string, unknown> | null;
+  return opt && typeof opt === "object" ? str(opt.instruction) : null;
+}
+
+/**
+ * Lê também do JSON BRUTO guardado (`raw.listing`): anúncios sincronizados antes deste campo existir já têm o
+ * texto lá (caso Larissa/Whyll, 19/11/2026: "Abriremos o portão da garagem remotamente" estava só no bruto).
+ */
+function rawListingField(h: HostListing, pick: (l: Record<string, unknown>) => string | null): string | null {
+  const raw = h.raw?.listing as Record<string, unknown> | undefined;
+  if (!raw || typeof raw !== "object") return null;
+  const l = (raw["listing"] && typeof raw["listing"] === "object" ? raw["listing"] : raw) as Record<string, unknown>;
+  return pick(l);
 }
 
 export function checkoutInstructionsText(h: Pick<HostListing, "checkoutTasks">): string | null {
@@ -346,6 +369,10 @@ export function hostFacts(h: HostListing | null | undefined): HostFact[] {
   const legendas = h.photos.filter((x) => x.caption).map((x) => `• ${x.caption}`);
   if (legendas.length) out.push({ key: "fotos_legendas", title: "Fotos do anúncio e o que mostram (Airbnb)", content: legendas.join("\n") });
   if (h.directions) out.push({ key: "como_chegar", title: "Orientações de Trajeto (Airbnb)", content: h.directions });
+  const checkin = h.checkInInstruction ?? rawListingField(h, checkInInstructionOf);
+  if (checkin) out.push({ key: "instrucoes_checkin", title: "Instruções de Check-in do Anúncio", content: checkin });
+  const manual = h.houseManual ?? rawListingField(h, (l) => str(l.house_manual));
+  if (manual) out.push({ key: "manual_casa_anuncio", title: "Manual da casa (Airbnb)", content: manual });
   const co = checkoutInstructionsText(h);
   if (co) out.push({ key: "tarefas_checkout", title: "Instruções de Check-out do Anúncio", content: co });
   if (h.rooms.length) out.push({ key: "distribuicao_comodos", title: "Cômodos e Camas Detalhados", content: h.rooms.map((r) => `${r.room}: ${r.beds}`).join("\n") });
