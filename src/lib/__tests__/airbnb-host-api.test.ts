@@ -114,16 +114,30 @@ describe("API do anfitrião — leitura pura", () => {
     expect(merged[0]!.key).toBe("horarios");
   });
 
-  it("anúncio soberano nos dados cadastrais; instruções do guia escritas pela equipe são preservadas", () => {
-    const p = hostPropertyPatch(h, { lat: -25.4, lng: -54.5, address: "", city: "Minha cidade", checkin_instructions: "manual", checkout_instructions: "guia da equipe", gallery_images: [] });
+  it("anúncio soberano nos dados cadastrais e nas instruções, cada uma no seu campo", () => {
+    const comCheckin = parseHostListing("1", { listing: { listing: { ...listing.listing, check_in_option: { category: "lockbox", instruction: "1. Abra o cofre." } } } })!;
+    const p = hostPropertyPatch(comCheckin, { lat: -25.4, lng: -54.5, address: "", city: "Minha cidade", checkin_instructions: "https://conciergeia.app/g/x", checkout_instructions: "guia da equipe", address_note: "antigo", gallery_images: [] });
     expect(p).toMatchObject({ lat: -25.5, lng: -54.58, address: "Rua das Cataratas, 100, Casa 2, CEP 85851-000", city: "Foz do Iguaçu", state: "PR", country: "BR", airbnb_guest_count: 6 });
-    expect(p).not.toHaveProperty("checkin_instructions");
-    expect(p).not.toHaveProperty("checkout_instructions");
+    expect(p["checkin_instructions"]).toBe("1. Abra o cofre.");
+    expect(p["checkout_instructions"]).toContain("• Devolver as chaves");
+    expect(p["address_note"]).toBe("Após o portão, siga à esquerda.");
+  });
+
+  it("Como chegar: link do Maps vai para Link do mapa, link do guia fica de fora; cópia antiga sai de Instruções de check-in", () => {
+    const comLink = (d: string) => parseHostListing("1", { listing: { listing: { ...listing.listing, directions: d } } })!;
+    const maps = hostPropertyPatch(comLink("https://maps.app.goo.gl/abc"), { checkin_instructions: "https://maps.app.goo.gl/abc" });
+    expect(maps["maps_url"]).toBe("https://maps.app.goo.gl/abc");
+    expect(maps).not.toHaveProperty("address_note");
+    expect(maps["checkin_instructions"]).toBeNull();
+    const guia = hostPropertyPatch(comLink("https://conciergeia.app/g/studio101"), { address_note: "texto da equipe" });
+    expect(guia).not.toHaveProperty("address_note");
+    expect(guia).not.toHaveProperty("maps_url");
+    expect(hostFacts(comLink("https://conciergeia.app/g/studio101")).some((f) => f.key === "como_chegar")).toBe(false);
   });
 
   it("instruções vazias são preenchidas pelo anúncio", () => {
     const p = hostPropertyPatch(h, { checkin_instructions: "", checkout_instructions: null });
-    expect(p["checkin_instructions"]).toBe("Após o portão, siga à esquerda.");
+    expect(p["address_note"]).toBe("Após o portão, siga à esquerda.");
     expect(p["checkout_instructions"]).toContain("• Devolver as chaves");
     expect(p["hero_image_url"]).toBe("https://a0.muscache.com/a.jpg");
   });

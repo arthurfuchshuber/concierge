@@ -394,6 +394,17 @@ export function fullDescriptionText(h: HostListing): string | null {
   return parts.length ? parts.join("\n\n") : null;
 }
 
+/** Onde o "Como chegar" do anúncio se encaixa no Dossiê. */
+export function directionsTarget(v: string | null | undefined): { kind: "maps" | "text"; value: string } | { kind: "none" } {
+  const t = (v ?? "").trim();
+  if (!t) return { kind: "none" };
+  if (/^https?:\/\/\S+$/i.test(t)) {
+    if (/^https?:\/\/(maps\.app\.goo\.gl|goo\.gl\/maps|(www\.)?google\.[a-z.]+\/maps|maps\.google\.[a-z.]+)\b/i.test(t)) return { kind: "maps", value: t };
+    return { kind: "none" };
+  }
+  return { kind: "text", value: t };
+}
+
 export type HostFact = { key: string; title: string; content: string };
 
 /** Fatos ricos para o dossiê da IA. */
@@ -413,7 +424,8 @@ export function hostFacts(h: HostListing | null | undefined): HostFact[] {
   if (selos.length) out.push({ key: "selos_anuncio", title: "Selos do anúncio (Airbnb)", content: selos.join("\n") });
   const legendas = (Array.isArray(h.photos) ? h.photos : []).filter((x) => x.caption).map((x) => `• ${x.caption}`);
   if (legendas.length) out.push({ key: "fotos_legendas", title: "Fotos do anúncio e o que mostram (Airbnb)", content: legendas.join("\n") });
-  if (h.directions) out.push({ key: "como_chegar", title: "Orientações de Trajeto (Airbnb)", content: h.directions });
+  const route = directionsTarget(h.directions);
+  if (route.kind !== "none") out.push({ key: "como_chegar", title: "Orientações de Trajeto (Airbnb)", content: route.value });
   const checkin = h.checkInInstruction ?? rawListingField(h, checkInInstructionOf);
   if (checkin) out.push({ key: "instrucoes_checkin", title: "Instruções de Check-in do Anúncio", content: checkin });
   const manual = h.houseManual ?? rawListingField(h, (l) => str(l.house_manual));
@@ -444,6 +456,8 @@ export type HostCurrent = {
   country?: string | null;
   checkin_instructions?: string | null;
   checkout_instructions?: string | null;
+  address_note?: string | null;
+  maps_url?: string | null;
   hero_image_url?: string | null;
   gallery_images?: string[] | null;
   airbnb_guest_count?: number | null;
@@ -480,12 +494,19 @@ export function hostPropertyPatch(h: HostListing, cur: HostCurrent): Record<stri
   set("city", h.city?.slice(0, 120));
   set("state", h.state?.slice(0, 120));
   set("country", h.countryCode?.slice(0, 8));
-  // Instruções de chegada/saída: o texto do guia escrito pela equipe é mais rico que as tarefas
-  // padrão do Airbnb; só preenche quando vazio (as tarefas sempre entram como fato do dossiê).
-  const blank = (v: unknown) => v == null || (typeof v === "string" && !v.trim());
-  if (blank(cur.checkin_instructions) && h.directions) p["checkin_instructions"] = h.directions.slice(0, 10_000);
-  const co = checkoutInstructionsText(h);
-  if (blank(cur.checkout_instructions) && co) p["checkout_instructions"] = co.slice(0, 10_000);
+  // Instruções do anúncio, cada uma no seu campo do Dossiê (titular, 19/11/2026; antes o "Como chegar"
+  // do Airbnb caía em Instruções de check-in só quando vazio e as instruções reais nunca entravam):
+  //  - Instruções de check-in ← `check_in_option.instruction`;
+  //  - Instruções de check-out ← tarefas de saída;
+  //  - Como chegar ← `directions` em texto; link do Google Maps vai para Link do mapa; link do próprio
+  //    Guia Digital não é trajeto e fica de fora.
+  const checkin = h.checkInInstruction ?? rawListingField(h, checkInInstructionOf);
+  set("checkin_instructions", checkin?.slice(0, 10_000));
+  if (!checkin && h.directions && cur.checkin_instructions === h.directions) p["checkin_instructions"] = null;
+  set("checkout_instructions", checkoutInstructionsText(h)?.slice(0, 10_000));
+  const route = directionsTarget(h.directions);
+  if (route.kind === "maps") set("maps_url", route.value.slice(0, 2_000));
+  if (route.kind === "text") set("address_note", route.value.slice(0, 10_000));
   if (h.personCapacity != null && h.personCapacity > 0) set("airbnb_guest_count", Math.min(200, Math.round(h.personCapacity)));
   if (h.bedrooms != null && h.bedrooms >= 0) set("airbnb_bedroom_count", Math.min(200, Math.round(h.bedrooms)));
   if (h.beds != null && h.beds >= 0) set("airbnb_bed_count", Math.min(200, Math.round(h.beds)));
