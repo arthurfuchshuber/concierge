@@ -324,8 +324,53 @@ function rawListingField(h: HostListing, pick: (l: Record<string, unknown>) => s
   return pick(l);
 }
 
+const CHECKIN_CATEGORY: Record<string, string> = {
+  lockbox: "Autoatendimento com cofre de chaves",
+  smartlock: "Autoatendimento com fechadura inteligente",
+  keypad: "Autoatendimento com teclado numérico",
+  doorman_entry: "Recepção por porteiro",
+  building_staff: "Recepção pela equipe do prédio",
+  host_checkin: "Recepção pelo anfitrião",
+  other_checkin: "Outro método de check-in",
+};
+
+const VIEW_LABEL: Record<string, string> = {
+  COURTYARD_VIEW: "pátio",
+  GARDEN_VIEW: "jardim",
+  POOL_VIEW: "piscina",
+  CITY_SKYLINE_VIEW: "cidade",
+  MOUNTAIN_VIEW: "montanhas",
+  PARK_VIEW: "parque",
+  RIVER_VIEW: "rio",
+  LAKE_VIEW: "lago",
+  BEACH_VIEW: "praia",
+  OCEAN_VIEW: "oceano",
+  SEA_VIEW: "mar",
+  VALLEY_VIEW: "vale",
+};
+
+/** Estrutura física e método de check-in do anúncio (`property_details`, `listing_views`, `check_in_option.category`). */
+export function propertyStructureText(l: Record<string, unknown>): string | null {
+  const d = (l.property_details ?? {}) as Record<string, unknown>;
+  const size = (d.listing_size ?? {}) as Record<string, unknown>;
+  const lines: string[] = [];
+  const area = num(size.size);
+  if (area) lines.push(`Área: ${area} ${size.size_unit === "SQUARE_FEET" ? "pés²" : "m²"}`);
+  const floor = num(d.listing_floor);
+  if (floor !== null) lines.push(`Andar do imóvel: ${floor === 0 || floor === 1 ? "térreo" : `${floor - 1}º andar`}`);
+  const floors = num(d.number_of_floors);
+  if (floors) lines.push(`Pavimentos do edifício/casa: ${floors}`);
+  const year = num(d.year_built);
+  if (year) lines.push(`Ano de construção: ${year}`);
+  const views = Array.isArray(l.listing_views) ? (l.listing_views as unknown[]).map((v) => VIEW_LABEL[String(v)] ?? "").filter(Boolean) : [];
+  if (views.length) lines.push(`Vista: ${views.join(", ")}`);
+  const cat = str(((l.check_in_option ?? {}) as Record<string, unknown>).category);
+  if (cat && CHECKIN_CATEGORY[cat]) lines.push(`Método de check-in: ${CHECKIN_CATEGORY[cat]}`);
+  return lines.length ? lines.join("\n") : null;
+}
+
 export function checkoutInstructionsText(h: Pick<HostListing, "checkoutTasks">): string | null {
-  return h.checkoutTasks.length ? h.checkoutTasks.map((t) => `• ${t}`).join("\n") : null;
+  return Array.isArray(h.checkoutTasks) && h.checkoutTasks.length ? h.checkoutTasks.map((t) => `• ${t}`).join("\n") : null;
 }
 
 const SECTIONS: Array<[keyof HostListing, string, string]> = [
@@ -366,7 +411,7 @@ export function hostFacts(h: HostListing | null | undefined): HostFact[] {
   if (tipo) out.push({ key: "tipo_imovel", title: "Tipo de imóvel (Airbnb)", content: tipo });
   const selos = [h.isSuperhost ? "Anfitrião é Superhost" : null, h.isGuestFavorite ? "Anúncio é Preferido dos hóspedes" : null].filter(Boolean);
   if (selos.length) out.push({ key: "selos_anuncio", title: "Selos do anúncio (Airbnb)", content: selos.join("\n") });
-  const legendas = h.photos.filter((x) => x.caption).map((x) => `• ${x.caption}`);
+  const legendas = (Array.isArray(h.photos) ? h.photos : []).filter((x) => x.caption).map((x) => `• ${x.caption}`);
   if (legendas.length) out.push({ key: "fotos_legendas", title: "Fotos do anúncio e o que mostram (Airbnb)", content: legendas.join("\n") });
   if (h.directions) out.push({ key: "como_chegar", title: "Orientações de Trajeto (Airbnb)", content: h.directions });
   const checkin = h.checkInInstruction ?? rawListingField(h, checkInInstructionOf);
@@ -375,7 +420,9 @@ export function hostFacts(h: HostListing | null | undefined): HostFact[] {
   if (manual) out.push({ key: "manual_casa_anuncio", title: "Manual da casa (Airbnb)", content: manual });
   const co = checkoutInstructionsText(h);
   if (co) out.push({ key: "tarefas_checkout", title: "Instruções de Check-out do Anúncio", content: co });
-  if (h.rooms.length) out.push({ key: "distribuicao_comodos", title: "Cômodos e Camas Detalhados", content: h.rooms.map((r) => `${r.room}: ${r.beds}`).join("\n") });
+  const structure = rawListingField(h, propertyStructureText);
+  if (structure) out.push({ key: "estrutura_imovel", title: "Estrutura do imóvel (Airbnb)", content: structure });
+  if (Array.isArray(h.rooms) && h.rooms.length) out.push({ key: "distribuicao_comodos", title: "Cômodos e Camas Detalhados", content: h.rooms.map((r) => `${r.room}: ${r.beds}`).join("\n") });
   return out;
 }
 

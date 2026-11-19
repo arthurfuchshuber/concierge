@@ -20,6 +20,18 @@
  */
 import type { ListingFacts } from "@/lib/guest-ai/types";
 import { splitListingTitle } from "@/lib/playbook-build";
+import { mergeHostFacts, type HostListing } from "@/lib/airbnb-host-api";
+import { plainGuideTags } from "@/lib/guide-tags";
+
+/**
+ * Etiqueta de audiência dos fatos do anúncio, igual à regra do Dossiê: o que o Airbnb só libera ao
+ * hóspede com reserva (trajeto, instruções de check-in e check-out, manual da casa) é G; o resto é P.
+ */
+const RESERVATION_ONLY_FACTS: ReadonlySet<string> = new Set(["como_chegar", "instrucoes_checkin", "tarefas_checkout", "manual_casa_anuncio"]);
+
+export function listingFactAudience(key: string): "P" | "G" {
+  return RESERVATION_ONLY_FACTS.has(key) ? "G" : "P";
+}
 
 type Row = Record<string, unknown>;
 const s = (v: unknown): string | null => (typeof v === "string" && v.trim() ? v.trim() : null);
@@ -103,7 +115,7 @@ export function publicReviews(raw: unknown): { reviews: PublicReview[]; withheld
 export function pickNormalized(raw: unknown, publicName: string | null): ListingFacts["normalized"] {
   if (!raw || typeof raw !== "object") return null;
   const n = raw as Row;
-  const facts = Array.isArray(n["facts"])
+  const stored = Array.isArray(n["facts"])
     ? (n["facts"] as unknown[])
         .map((f) => f as Row)
         .filter((f) => typeof f?.["key"] === "string" && typeof f?.["content"] === "string")
@@ -118,6 +130,12 @@ export function pickNormalized(raw: unknown, publicName: string | null): Listing
           };
         })
     : [];
+  // Os fatos do anfitrião são recalculados na leitura: um campo novo extraído do bruto já guardado
+  // (instruções de check-in, estrutura do imóvel) chega à IA sem esperar a próxima sincronização.
+  const host = n["host_listing"] && typeof n["host_listing"] === "object" ? (n["host_listing"] as HostListing) : null;
+  const facts = mergeHostFacts(stored, host)
+    .map((f) => ({ key: f.key, title: f.title, content: plainGuideTags(f.content) }))
+    .filter((f) => f.content.trim());
   const w = n["checkin_window"] as Row | undefined;
   const pl = n["public_listing"];
   const { reviews } = publicReviews(n["reviews"]);
