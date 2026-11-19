@@ -238,7 +238,8 @@ describe("CleaningDayDetailContent — tabela do dia", () => {
         caretX={null}
       />,
     );
-    expect(text(html)).toMatch(/Casa A R\$\s80,00 Dono 17\/09 · 14:20 Manutenção Troca do chuveiro/);
+    // Fin-03: "data · hora · título" na última linha e o tipo da situação à direita.
+    expect(text(html)).toMatch(/Casa A R\$\s80,00 Dono 17\/09 · 14:20 · Troca do chuveiro Manutenção/);
     expect(html).not.toContain("Situação:");
     expect(html).not.toContain("aria-expanded");
   });

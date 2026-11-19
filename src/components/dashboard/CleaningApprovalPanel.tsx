@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient, type QueryKey } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Clock3 } from "lucide-react";
 import { toast } from "sonner";
 import { FinanceEntryDetail } from "@/components/dashboard/FinanceEntryDetail";
@@ -70,6 +70,9 @@ export function CleaningApprovalPanel({
     null,
   );
   const openItem = win?.detail ?? null;
+  /* "‹ Voltar" de uma subtela do lançamento (Detalhes da Reserva) volta para o lançamento. */
+  const [subBack, setSubBack] = useState<(() => void) | null>(null);
+  useEffect(() => setSubBack(null), [openItem?.id]);
 
   const q = useQuery({
     queryKey: [CLEANING_APPROVALS_KEY, ownerId ?? "self", propertyIds?.join(",") ?? ""],
@@ -181,10 +184,12 @@ export function CleaningApprovalPanel({
         <DialogContent
           aria-describedby={undefined}
           className={FINANCE_WINDOW_CLASS}
-          onBack={openItem ? () => setWin((w) => (w ? { ...w, detail: null } : w)) : undefined}
+          onBack={subBack ?? (openItem ? () => setWin((w) => (w ? { ...w, detail: null } : w)) : undefined)}
         >
           {openItem ? (
             <FinanceEntryDetail
+              key={openItem.id}
+              onSubBack={(fn) => setSubBack(() => fn)}
               entry={{
                 kind: "cleaning",
                 item: {

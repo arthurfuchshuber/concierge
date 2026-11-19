@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useCleaningProviderControl } from "@/components/dashboard/CleaningProviderAvatar";
@@ -147,6 +146,7 @@ function EntryRow({
   value,
   onOpen,
   extra,
+  tight,
   children,
 }: {
   name: string;
@@ -154,6 +154,8 @@ function EntryRow({
   value: string;
   onOpen?: () => void;
   extra?: React.ReactNode;
+  /** Serviços extras (Fin-03): última linha 5px abaixo do proprietário, em vez de 7px. */
+  tight?: boolean;
   children: React.ReactNode;
 }) {
   return (
@@ -190,7 +192,12 @@ function EntryRow({
           {owner}
         </div>
       ) : null}
-      <div className="mt-[7px] flex min-h-[22px] min-w-0 items-center gap-2 text-[12px] font-medium text-muted-foreground">
+      <div
+        className={cn(
+          "flex min-h-[22px] min-w-0 items-center text-[12px] font-medium text-muted-foreground",
+          tight ? "mt-[5px] gap-2.5" : "mt-[7px] gap-2",
+        )}
+      >
         {children}
       </div>
       {extra}
@@ -199,7 +206,7 @@ function EntryRow({
 }
 
 /**
- * Etiqueta do prestador (mockup Fin-01): nome em azul com a seta; quem pode alterar toca e abre a janela
+ * Etiqueta do prestador (mockup Fin-01): nome em azul, SEM seta (pedido de 18/11/2026); quem pode alterar toca e abre a janela
  * "Alterar Prestador" (5 opções à vista + busca). Sem permissão, só a etiqueta.
  */
 function ProviderTag({
@@ -220,9 +227,9 @@ function ProviderTag({
   const ctl = useCleaningProviderControl(propertyId, logId, reservationId);
   const [open, setOpen] = useState(false);
   const tag =
-    "inline-flex min-w-0 items-center gap-1 rounded-[6px] bg-[color-mix(in_oklab,var(--cleaning-soft)_45%,transparent)] py-0.5 pl-2 pr-1.5 text-[11.5px] font-semibold text-[var(--cleaning-soft-foreground)] dark:text-[var(--cleaning-soft)]";
+    "inline-flex min-w-0 items-center gap-1 rounded-[6px] bg-[color-mix(in_oklab,var(--cleaning-soft)_45%,transparent)] px-2 py-0.5 text-[11.5px] font-semibold text-[var(--cleaning-soft-foreground)] dark:text-[var(--cleaning-soft)]";
   const label = <span className="min-w-0 truncate">{ctl.currentName ?? "Sem prestador"}</span>;
-  if (!canEdit || !ctl.editable) return <span className={cn(tag, "pr-2")}>{label}</span>;
+  if (!canEdit || !ctl.editable) return <span className={tag}>{label}</span>;
   return (
     <>
       <button
@@ -235,7 +242,6 @@ function ProviderTag({
         className={tag}
       >
         {label}
-        <ChevronDown className="size-2.5 shrink-0" strokeWidth={2.6} />
       </button>
       <EditProviderWindow
         open={open}
@@ -292,7 +298,13 @@ export function CleaningDayDetailWindow({
   onOpenChange,
   ...props
 }: Parameters<typeof CleaningDayDetailContent>[0] & { open: boolean; onOpenChange: (v: boolean) => void }) {
-  const [entry, setEntry] = useState<FinanceEntry | null>(null);
+  const [entry, setEntryState] = useState<FinanceEntry | null>(null);
+  /* "‹ Voltar" de uma subtela do lançamento (Detalhes da Reserva) volta para o lançamento, não para a lista. */
+  const [subBack, setSubBack] = useState<(() => void) | null>(null);
+  const setEntry = (e: FinanceEntry | null) => {
+    setSubBack(null);
+    setEntryState(e);
+  };
   return (
     <Dialog
       open={open}
@@ -304,11 +316,13 @@ export function CleaningDayDetailWindow({
       <DialogContent
         aria-describedby={undefined}
         className={FINANCE_WINDOW_CLASS}
-        onBack={entry ? () => setEntry(null) : undefined}
+        onBack={subBack ?? (entry ? () => setEntry(null) : undefined)}
       >
         {entry ? (
           <FinanceEntryDetail
+            key={entry.item.id}
             entry={entry}
+            onSubBack={(fn) => setSubBack(() => fn)}
             onNavigate={() => {
               setEntry(null);
               onOpenChange(false);
@@ -442,16 +456,17 @@ export function CleaningDayDetailContent({
               owner={r.ownerName}
               value={brl(r.priceCents ?? 0)}
               onOpen={onEntryChange ? () => onEntryChange({ kind: "extra", item: r }) : undefined}
-              extra={
-                r.title ? (
-                  <div className="mt-[5px] truncate text-[12px] leading-4 text-[var(--faint)]" title={r.title}>
-                    {r.title}
-                  </div>
-                ) : null
-              }
+              tight
             >
-              <span className="whitespace-nowrap">{whenShort(r.concludedAt)}</span>
-              <span className={cn(TAG, "min-w-0 truncate")} title={r.situationName}>
+              {/* Mockup Fin-03: "data · hora · título da situação" na última linha e a etiqueta do
+                  tipo da situação no canto direito, alinhada ao meio dessa linha. */}
+              <span
+                className="min-w-0 flex-1 truncate leading-4"
+                title={[whenShort(r.concludedAt), r.title].filter(Boolean).join(" · ")}
+              >
+                {[whenShort(r.concludedAt), r.title].filter(Boolean).join(" · ")}
+              </span>
+              <span className={cn(TAG, "ml-auto max-w-[45%] shrink-0 truncate")} title={r.situationName}>
                 {r.situationName}
               </span>
             </EntryRow>

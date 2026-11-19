@@ -11,7 +11,7 @@ export type GeneratedSystemDoc = {
   content_hash: string;
 };
 
-export const GENERATED_AT = "2026-11-19T17:06:11.254Z";
+export const GENERATED_AT = "2026-11-19T17:39:09.249Z";
 
 export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
   {
@@ -4405,6 +4405,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/components/dashboard/TaskResolveDialog.tsx",
     "audience": [],
     "content_hash": "b8709a9ed776c0fd5ec230ac5a45de3f"
+  },
+  {
+    "doc_key": "rule:ProviderTag",
+    "kind": "rule",
+    "title": "Regra — ProviderTag",
+    "content": "Etiqueta do prestador (mockup Fin-01): nome em azul, SEM seta (pedido de 18/11/2026); quem pode alterar toca e abre a janela\n\"Alterar Prestador\" (5 opções à vista + busca). Sem permissão, só a etiqueta.",
+    "source_path": "src/components/dashboard/CleaningDayDetail.tsx",
+    "audience": [],
+    "content_hash": "1c8077b30b107d9b794dac3c126e77c4"
   },
   {
     "doc_key": "rule:PT_HINT",

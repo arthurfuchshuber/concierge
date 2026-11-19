@@ -23,9 +23,9 @@ import {
 
 /* ---------------------------------------------------------------- peças ---------------------------------------------------------------- */
 
-/** Quadrante das janelas do Financeiro: tom de card do sistema e sombra leve. */
+/** Quadrante das janelas do Financeiro (Fin-05/06/22): MESMA cor neutra da janela, contorno fino e sombra leve. */
 export const FIN_CARD =
-  "rounded-[12px] bg-card px-3 py-2.5 shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_7%,transparent),0_1px_2px_rgba(40,25,10,.06),0_3px_8px_rgba(40,25,10,.05)]";
+  "rounded-[12px] bg-[var(--panel)] px-3 py-2.5 shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_7%,transparent),0_1px_2px_rgba(40,25,10,.06),0_3px_8px_rgba(40,25,10,.05)]";
 /** Rótulo pequeno em caixa alta dos quadrantes. */
 export const FIN_CAP = "text-[10px] font-extrabold uppercase tracking-[0.1em] text-[var(--faint)]";
 /** Corpo das janelas: quadrantes separados por 20px na cor do fundo da janela. */

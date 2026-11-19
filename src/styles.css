@@ -146,7 +146,8 @@
   --panel-border: oklch(0.4 0.03 60 / 0.14);
   --panel-div: oklch(0.22 0.02 60 / 0.08);
   --panel-well: oklch(0.22 0.02 60 / 0.045);
-  --panel-hair: linear-gradient(90deg, transparent, oklch(0.6 0.14 60 / 0.45), transparent);
+  /* Fio dourado no topo das janelas REMOVIDO (mockups Fin de 18/11/2026: cabeçalho limpo, sem filete). */
+  --panel-hair: linear-gradient(transparent, transparent);
 
   /* Grade do "Calendário de ocupação" (pedido explícito, 25/09/2026) —
    * tokens PRÓPRIOS, sem reaproveitar `--border`: esse token é usado em
@@ -239,7 +240,7 @@
   --panel-border: rgba(255, 205, 150, 0.12);
   --panel-div: rgba(255, 255, 255, 0.065);
   --panel-well: rgba(255, 255, 255, 0.045);
-  --panel-hair: linear-gradient(90deg, transparent, oklch(0.78 0.1 75 / 0.55), transparent);
+  --panel-hair: linear-gradient(transparent, transparent);
 
   /* Grade do "Calendário de ocupação" — ver comentário no `:root` acima.
    * BRANCA (pedido explícito, 25/09/2026: "as linhas verticais implementadas

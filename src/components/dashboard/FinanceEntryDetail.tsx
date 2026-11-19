@@ -13,7 +13,8 @@ import { Play } from "lucide-react";
 import { toast } from "sonner";
 import { DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { WINDOW_SUBTITLE_CLASS, WINDOW_TITLE_CLASS } from "./window-header";
-import { getFinanceEntryDetail } from "@/lib/finance-entry.functions";
+import { getFinanceEntryDetail, type FinanceReservation } from "@/lib/finance-entry.functions";
+import { PhoneActionButton } from "@/components/PhoneActionButton";
 import { setCleaningPriceOverride, setCleaningType } from "@/lib/cleaning-price.functions";
 import { attachCleaningRecord, setCleaningConcludedAt, updateExtraService } from "@/lib/finance-edit.functions";
 import { attachTaskRecord, deleteReservationRecord } from "@/lib/reservation-records.functions";
@@ -33,6 +34,7 @@ import {
   FIN_CAP,
   FIN_CARD,
   FIN_FOOT,
+  PropertyContextCard,
 } from "@/components/dashboard/FinanceEditWindows";
 
 export type FinanceEntry =
@@ -68,7 +70,8 @@ function fmtWhenFull(iso: string | null | undefined): string | null {
   return `${day} · ${time}`;
 }
 
-const VAL = "mt-0.5 truncate text-[13.5px] font-bold leading-5 text-foreground";
+/** Valor dos quadrantes (mockups Fin-05/06/22): 14px, semibold. */
+const VAL = "mt-[3px] truncate text-[14px] font-semibold leading-5 text-foreground";
 
 /** Quadrante que abre a edição quando a pessoa pode alterar; sem permissão é só leitura. */
 function Tap({
@@ -103,8 +106,11 @@ type EditKind = "value" | "provider" | "type" | "date" | "situation" | "media" |
 export function FinanceEntryDetail({
   entry,
   approval,
+  onSubBack,
 }: {
   entry: FinanceEntry;
+  /** A janela que hospeda o detalhe troca o "‹ Voltar" para sair da subtela (Detalhes da Reserva). */
+  onSubBack?: (back: (() => void) | null) => void;
   /** Mantido por compatibilidade com quem chama (o botão de registro completo saiu). */
   onNavigate?: () => void;
   approval?: ApprovalExtra;
@@ -123,6 +129,12 @@ export function FinanceEntryDetail({
     providerName?: string | null;
   }>({});
   const [edit, setEdit] = useState<EditKind>(null);
+  /** Subtela dentro da mesma janela: os detalhes da reserva (Fin-22). */
+  const [sub, setSubState] = useState<"reserva" | null>(null);
+  const setSub = (v: "reserva" | null) => {
+    setSubState(v);
+    onSubBack?.(v ? () => setSub(null) : null);
+  };
   /** Índice da mídia aberta no visualizador (null = fechado). */
   const [viewer, setViewer] = useState<number | null>(null);
   const it = { ...base, ...(patch.priceCents !== undefined ? { priceCents: patch.priceCents } : {}) };
@@ -201,13 +213,14 @@ export function FinanceEntryDetail({
       ) : null}
     </div>
   );
+  /* Tocar no quadrante "Reserva" abre os detalhes da reserva na MESMA janela (Fin-22, ‹ Voltar). */
   const reserva = reservaTxt ? (
-    <div className={FIN_CARD}>
+    <Tap onClick={() => setSub("reserva")} label="Ver detalhes da reserva" className={FIN_CARD}>
       <div className={FIN_CAP}>{ext ? "Reserva" : "Reserva (saída)"}</div>
       <div className={VAL} title={reservaTxt}>
         {reservaTxt}
       </div>
-    </div>
+    </Tap>
   ) : null;
   const quem = (
     <div className={cn(FIN_CARD, "grid grid-cols-2 p-0")}>
@@ -222,7 +235,7 @@ export function FinanceEntryDetail({
       <Tap
         onClick={concludedAt ? open("date") : undefined}
         label="Alterar data e hora"
-        className="min-w-0 rounded-r-[12px] border-l border-foreground/[0.08] py-2.5 pl-3 pr-3"
+        className="min-w-0 rounded-r-[12px] border-l border-foreground/[0.08] py-2.5 pl-3 pr-3 text-right"
       >
         <div className={FIN_CAP}>{ext ? "Concluído em" : "Concluída em"}</div>
         <div className={VAL}>{fmtWhenFull(concludedAt) ?? "—"}</div>
@@ -287,6 +300,10 @@ export function FinanceEntryDetail({
       </div>
     ) : null;
   const viewerMedia = media.filter((m) => !!m.url);
+
+  if (sub === "reserva" && d?.reservation) {
+    return <ReservationDetailView r={d.reservation} property={it.propertyName} owner={it.ownerName ?? null} />;
+  }
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden" aria-label={`Detalhe de ${title}`}>
@@ -483,6 +500,76 @@ export function FinanceEntryDetail({
           refresh();
         }}
       />
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------------------------------------ */
+/* DETALHES DA RESERVA (mockup Fin-22, 18/11/2026): toque no quadrante "Reserva" do lançamento.      */
+/* ------------------------------------------------------------------------------------------------ */
+function nightsBetween(a: string | null, b: string | null): number | null {
+  if (!a || !b) return null;
+  const d1 = Date.parse(`${a.slice(0, 10)}T12:00:00Z`);
+  const d2 = Date.parse(`${b.slice(0, 10)}T12:00:00Z`);
+  if (!Number.isFinite(d1) || !Number.isFinite(d2)) return null;
+  const n = Math.round((d2 - d1) / 86_400_000);
+  return n > 0 ? n : null;
+}
+
+function guestsLabel(r: FinanceReservation): string | null {
+  const parts: string[] = [];
+  if (r.adults) parts.push(`${r.adults} ${r.adults === 1 ? "adulto" : "adultos"}`);
+  if (r.children) parts.push(`${r.children} ${r.children === 1 ? "criança" : "crianças"}`);
+  if (r.infants) parts.push(`${r.infants} ${r.infants === 1 ? "bebê" : "bebês"}`);
+  return parts.length ? parts.join(", ") : null;
+}
+
+function DetailPair({ a, b }: { a: [string, string | null]; b: [string, string | null] }) {
+  return (
+    <div className={cn(FIN_CARD, "grid grid-cols-2")}>
+      <div className="min-w-0 pr-2.5">
+        <div className={FIN_CAP}>{a[0]}</div>
+        <div className={cn(VAL, !a[1] && "font-medium text-[var(--faint)]")}>{a[1] ?? "—"}</div>
+      </div>
+      <div className="min-w-0 border-l border-foreground/[0.08] pl-3">
+        <div className={FIN_CAP}>{b[0]}</div>
+        <div className={cn(VAL, !b[1] && "font-medium text-[var(--faint)]")}>{b[1] ?? "—"}</div>
+      </div>
+    </div>
+  );
+}
+
+function ReservationDetailView({ r, property, owner }: { r: FinanceReservation; property: string; owner: string | null }) {
+  const nights = nightsBetween(r.checkin, r.checkout);
+  const when = (date: string | null, time: string | null) => {
+    const d = fmtDay(date);
+    return d ? [d, time].filter(Boolean).join(" · ") : null;
+  };
+  return (
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden" aria-label="Detalhes da Reserva">
+      <DialogHeader className="shrink-0 space-y-0 py-3 pl-4 pr-24 text-left">
+        <DialogTitle className={WINDOW_TITLE_CLASS}>Detalhes da Reserva</DialogTitle>
+        <p className={WINDOW_SUBTITLE_CLASS}>
+          {nights ? `Reserva · ${nights} ${nights === 1 ? "noite" : "noites"}` : "Reserva"}
+        </p>
+      </DialogHeader>
+      <div className={cn("sg-elegant-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain sm:mx-6", FIN_BODY)}>
+        <PropertyContextCard name={property} owner={owner} />
+        <div className={FIN_CARD}>
+          <div className={FIN_CAP}>Hóspede</div>
+          <div className="mt-[3px] flex min-w-0 items-center gap-[5px]">
+            <span className="truncate text-[14px] font-semibold leading-5 text-foreground">{r.guestName ?? "Não informado"}</span>
+            <PhoneActionButton
+              phone={r.guestPhone}
+              country={r.guestPhoneCountry}
+              className="p-0 text-[#7a746a] hover:text-foreground dark:text-muted-foreground dark:hover:text-foreground"
+            />
+          </div>
+        </div>
+        <DetailPair a={["Check-in", when(r.checkin, r.checkinTime)]} b={["Check-out", when(r.checkout, r.checkoutTime)]} />
+        <DetailPair a={["Hóspedes", guestsLabel(r)]} b={["Noites", nights ? String(nights) : null]} />
+        <DetailPair a={["Código", r.code]} b={["Canal", r.channel]} />
+      </div>
     </div>
   );
 }
