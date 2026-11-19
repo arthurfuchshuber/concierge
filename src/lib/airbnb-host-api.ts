@@ -15,6 +15,8 @@ export type HostListing = {
   listingId: string;
   street: string | null;
   apt: string | null;
+  /** `property_details.number_of_floors` (pavimentos do edifício/casa). */
+  numberOfFloors?: number | null;
   city: string | null;
   state: string | null;
   zipcode: string | null;
@@ -276,6 +278,7 @@ export function parseHostListing(
     checkInInstruction: checkInInstructionOf(l),
     houseManual: str(l.house_manual),
     listingFloor: listingFloorOf(l),
+    numberOfFloors: numberOfFloorsOf(l),
     quietHours: quietHoursOf(l),
     isGuestFavorite: typeof qs.is_guest_favorite === "boolean" ? qs.is_guest_favorite : null,
     isSuperhost: typeof roles.is_super_host === "boolean" ? roles.is_super_host : null,
@@ -366,10 +369,64 @@ export function listingFloorOf(l: Record<string, unknown> | null | undefined): n
   return f !== null && f >= 0 ? Math.round(f) : null;
 }
 
-/** Andar no formato do campo `apartment_floor`: 0/1 → "Térreo", 2 → "1º andar", 3 → "2º andar". */
-export function floorLabelOf(listingFloor: number | null | undefined): string | null {
+/** `property_details.number_of_floors` (pavimentos do edifício/casa). */
+export function numberOfFloorsOf(l: Record<string, unknown> | null | undefined): number | null {
+  const d = (l?.property_details ?? null) as Record<string, unknown> | null;
+  const n = d && typeof d === "object" ? num(d.number_of_floors) : null;
+  return n !== null && n >= 1 ? Math.round(n) : null;
+}
+
+/**
+ * Andar no formato do campo `apartment_floor` (regra do titular, 19/11/2026). No Airbnb `listing_floor: 1`
+ * é o primeiro pavimento e só é "Térreo" em imóvel de um pavimento; em prédio/condomínio é "1º andar".
+ *  - 0 → "Térreo";
+ *  - 1 → "Térreo" se `number_of_floors === 1`; "1º andar" se > 1; sem o dado, "1º andar" só em apartamento/condomínio;
+ *  - ≥ 2 → "<n>º andar".
+ */
+export function floorLabelOf(
+  listingFloor: number | null | undefined,
+  numberOfFloors?: number | null,
+  multiUnit?: boolean | null,
+): string | null {
   if (listingFloor == null || !Number.isFinite(listingFloor) || listingFloor < 0) return null;
-  return listingFloor <= 1 ? "Térreo" : `${listingFloor - 1}º andar`;
+  if (listingFloor === 0) return "Térreo";
+  if (listingFloor === 1) {
+    if (numberOfFloors === 1) return "Térreo";
+    if (numberOfFloors != null && numberOfFloors > 1) return "1º andar";
+    return multiUnit ? "1º andar" : "Térreo";
+  }
+  return `${listingFloor}º andar`;
+}
+
+const MULTI_UNIT_TYPE = /apartment|apartamento|condo|flat|loft|studio|kitnet/i;
+const isMultiUnitType = (t: string | null | undefined) => !!t && MULTI_UNIT_TYPE.test(t);
+
+/** Número da unidade e vaga a partir do `apt` do anúncio ("Apto 202, Bloco 1 - Garagem 202"). "Casa"/"Studio" sem número → nada. */
+export function parseApt(apt: string | null | undefined): { unit: string | null; parking: string | null } {
+  const raw = (apt ?? "").replace(/\s+/g, " ").trim();
+  if (!raw) return { unit: null, parking: null };
+  let parking: string | null = null;
+  let rest = raw.replace(/\s*[-–,;]?\s*\b(?:garagem|vagas?)\s*(?:n[°ºo.]?\s*)?([0-9][0-9A-Za-z]*)/i, (_m, v: string) => {
+    parking = v;
+    return "";
+  });
+  rest = rest.replace(/[\s,;-]+$/, "").trim();
+  const m = rest.match(/^(?:apto?\.?|apartamento|ap\.?|studio|sala|unidade|conj(?:unto)?\.?)?\s*(?:n[°ºo.]?\s*)?([0-9][0-9A-Za-z]*)\s*(.*)$/i);
+  if (!m) return { unit: null, parking };
+  const tail = (m[2] ?? "").replace(/^[\s,;-]+/, "").trim();
+  const unit = tail ? `${m[1]}, ${tail}` : m[1]!;
+  return { unit: unit.slice(0, 40), parking };
+}
+
+/** Fallback para imóveis sem API: procura "Apto 101" / "Studio n° 4" nos trechos do endereço salvo. */
+export function extractUnitFromAddress(address: string | null | undefined): { unit: string | null; parking: string | null } {
+  for (const seg of (address ?? "").split(",")) {
+    const t = seg.trim();
+    if (!/^(?:apto?\.?|apartamento|ap\.?|studio)\b/i.test(t)) continue;
+    const r = parseApt(t);
+    if (r.unit) return r;
+  }
+  return { unit: null, parking: null };
 }
 
 /** `quiet_hours` do anúncio: [{ start_time: "23", end_time: "7" }] → [{ start: "23:00", end: "07:00" }]. */
@@ -400,8 +457,9 @@ export function propertyStructureText(l: Record<string, unknown>): string | null
   const area = num(size.size);
   if (area) lines.push(`Área: ${area} ${size.size_unit === "SQUARE_FEET" ? "pés²" : "m²"}`);
   const floor = num(d.listing_floor);
-  if (floor !== null) lines.push(`Andar do imóvel: ${floor === 0 || floor === 1 ? "térreo" : `${floor - 1}º andar`}`);
   const floors = num(d.number_of_floors);
+  const floorText = floor !== null ? floorLabelOf(floor, floors, isMultiUnitType(str(l.property_type_group ?? l.property_type_category))) : null;
+  if (floorText) lines.push(`Andar do imóvel: ${floorText.toLowerCase()}`);
   if (floors) lines.push(`Pavimentos do edifício/casa: ${floors}`);
   const year = num(d.year_built);
   if (year) lines.push(`Ano de construção: ${year}`);
@@ -839,6 +897,55 @@ export function discoverDynamicHostFacts(rawListing: Record<string, unknown> | n
 }
 
 
+/** Caminhos (e chaves de qualquer nível) da Channex que `normalizeListing` já converte em fatos fixos. */
+const CHANNEX_MAPPED: ReadonlySet<string> = new Set([
+  "title", "city", "occupancies",
+  "check_in_time_start", "check_in_time_end", "check_out_time", "instant_book_welcome_message", "listing_expectations_for_guests",
+  "allows_children_as_host", "allows_infants_as_host", "allows_pets_as_host", "allows_events_as_host", "allows_smoking_as_host",
+  "pet_capacity", "children_not_allowed_details",
+  "cancellation_policy_category", "non_refundable_price_factor",
+  "default_daily_price", "guests_included", "price_per_extra_person", "weekend_price", "weekly_price_factor", "monthly_price_factor",
+  "security_deposit", "standard_fees",
+  "default_min_nights", "default_max_nights", "booking_lead_time", "max_days_notice", "instant_booking_allowed_category", "seasonal_min_nights",
+]);
+
+/**
+ * Auto-descoberta da Channex (titular, 19/11/2026): varre `listing_meta` e `raw_settings` (até 3 níveis) e transforma toda
+ * chave ainda não mapeada, com valor primitivo útil, em `extra_channex_<caminho>`. Credenciais e ruído técnico ficam de fora;
+ * a etiqueta (P/G) sai de `dynamicFactAudience`.
+ */
+export function discoverChannexFacts(
+  meta: Record<string, unknown> | null | undefined,
+  settings: Record<string, unknown> | null | undefined,
+): HostFact[] {
+  const out: HostFact[] = [];
+  const seen = new Set<string>();
+  const add = (path: string, value: unknown) => {
+    if (isCredentialKey(path) || isNoiseKey(path)) return;
+    const content = renderValue(value);
+    if (!content) return;
+    const slug = path.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
+    if (!slug) return;
+    const key = `extra_channex_${slug}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push({ key, title: `${humanizeDynamicTitle(`extra_${slug}`)} (Channex)`, content });
+  };
+  const walk = (obj: unknown, prefix: string, depth: number) => {
+    if (!obj || typeof obj !== "object" || Array.isArray(obj)) return;
+    for (const [k, v] of Object.entries(obj as Record<string, unknown>)) {
+      if (CHANNEX_MAPPED.has(k) || isCredentialKey(k) || isNoiseKey(k)) continue;
+      const path = prefix ? `${prefix}_${k}` : k;
+      if (v && typeof v === "object" && !Array.isArray(v)) {
+        if (depth < 3) walk(v, path, depth + 1);
+      } else add(path, v);
+    }
+  };
+  walk(meta, "meta", 1);
+  walk(settings, "", 1);
+  return out;
+}
+
 
 /** Fatos ricos para o dossiê da IA. */
 export function hostFacts(h: HostListing | null | undefined): HostFact[] {
@@ -905,6 +1012,9 @@ export type HostCurrent = {
   address_note?: string | null;
   maps_url?: string | null;
   apartment_floor?: string | null;
+  apartment_number?: string | null;
+  in_condominium?: boolean | null;
+  parking_spots?: string[] | null;
   hero_image_url?: string | null;
   gallery_images?: string[] | null;
   airbnb_guest_count?: number | null;
@@ -960,7 +1070,17 @@ export function hostPropertyPatch(h: HostListing, cur: HostCurrent): Record<stri
   if (h.bathrooms != null && h.bathrooms >= 0) set("airbnb_bathroom_count", Math.min(200, h.bathrooms));
   if (h.rooms.length) set("airbnb_rooms_beds", h.rooms);
   // Andar do imóvel (P: serve a dúvidas de escada/acessibilidade antes da reserva). O número do apartamento é outro campo (G).
-  set("apartment_floor", floorLabelOf(h.listingFloor ?? listingFloorOf(innerRawListing(h))));
+  const rawL = innerRawListing(h);
+  const multiUnit = isMultiUnitType(h.propertyType) || cur.in_condominium === true;
+  set("apartment_floor", floorLabelOf(h.listingFloor ?? listingFloorOf(rawL), h.numberOfFloors ?? numberOfFloorsOf(rawL), multiUnit));
+  // Unidade e vaga: `apt` do anúncio (fonte principal) ou, sem API, o endereço salvo. Identificou apartamento → condomínio.
+  const fromApi = parseApt(h.apt);
+  const unitInfo = fromApi.unit ? fromApi : extractUnitFromAddress(cur.address);
+  if (unitInfo.unit) {
+    set("apartment_number", unitInfo.unit);
+    if (cur.in_condominium !== true) p["in_condominium"] = true;
+  }
+  if (unitInfo.parking && !(cur.parking_spots ?? []).length) p["parking_spots"] = [unitInfo.parking];
   set("checkin_time", h.checkInStart);
   set("checkin_time_max", h.checkInEnd);
   set("checkout_time", h.checkOutTime);

@@ -6,7 +6,7 @@ import { structuredListing, houseRulesText } from "@/lib/listing-structured";
  */
 import { getChannelCached } from "@/lib/channex-channel-cache.server";
 import { untypedTable } from "@/lib/untyped-table";
-import { HOUSE_MANUAL_ENTRY, fullDescriptionText, hostPropertyPatch, houseManualText, mergeHostFacts, type HostCurrent, type HostListing } from "@/lib/airbnb-host-api";
+import { HOUSE_MANUAL_ENTRY, discoverChannexFacts, extractUnitFromAddress, fullDescriptionText, hostPropertyPatch, houseManualText, mergeHostFacts, type HostCurrent, type HostListing } from "@/lib/airbnb-host-api";
 const CHANNEX_BASE = "https://app.channex.io/api/v1";
 const AIRBNB_CHANNEL_ID = "9f7f35ab-3b40-4b84-8483-693122d9604b";
 const CLAYTON_CHANNEL_ID = "24c871d9-d6fd-46f5-944d-a38b8a4df189";
@@ -140,6 +140,9 @@ export function normalizeListing(meta: Record<string, unknown>, s: Record<string
       .sort((x, y) => x.start_date.localeCompare(y.start_date))
       .map((x) => `De ${x.start_date} a ${x.end_date}: mínimo ${x.min_nights} noite(s)`),
   ]);
+  // Auto-descoberta: o que a Channex trouxer de novo vira fato `extra_channex_*` com etiqueta dinâmica.
+  const known = new Set(facts.map((f) => f.key));
+  for (const f of discoverChannexFacts(meta, s)) if (!known.has(f.key)) facts.push(f);
   return facts;
 }
 
@@ -329,7 +332,7 @@ export async function applyListingToProperty(args: {
     // diferente troca a galeria inteira). Sem fotos da API, a capa pública só preenche o vazio.
     const { data: curRow } = await supabaseAdmin
       .from("properties")
-      .select("lat, lng, address, city, state, country, checkin_instructions, checkout_instructions, address_note, maps_url, apartment_floor, hero_image_url, gallery_images, airbnb_guest_count, airbnb_bedroom_count, airbnb_bed_count, airbnb_bathroom_count, airbnb_rooms_beds, wifi_ssid, wifi_password, checkin_time, checkin_time_max, checkout_time")
+      .select("lat, lng, address, city, state, country, checkin_instructions, checkout_instructions, address_note, maps_url, apartment_floor, apartment_number, in_condominium, parking_spots, hero_image_url, gallery_images, airbnb_guest_count, airbnb_bedroom_count, airbnb_bed_count, airbnb_bathroom_count, airbnb_rooms_beds, wifi_ssid, wifi_password, checkin_time, checkin_time_max, checkout_time")
       .eq("id", args.propertyId)
       .maybeSingle();
     const cur = (curRow ?? {}) as HostCurrent;
@@ -345,6 +348,13 @@ export async function applyListingToProperty(args: {
       const url = `https://www.airbnb.com.br/rooms/${args.listingId}`;
       if (/^\d{5,}$/.test(args.listingId)) patch["airbnb_listing_url"] = url;
       patch["airbnb_listing_last_synced_at"] = new Date().toISOString();
+    }
+    if (!args.host) {
+      // Sem API: unidade/vaga a partir do endereço salvo ("Apto 101", "Studio n° 4").
+      const u = extractUnitFromAddress(cur.address);
+      if (u.unit && !cur.apartment_number) patch["apartment_number"] = u.unit;
+      if (u.unit && cur.in_condominium !== true) patch["in_condominium"] = true;
+      if (u.parking && !(cur.parking_spots ?? []).length) patch["parking_spots"] = [u.parking];
     }
     if (!args.host?.photos.length) {
       const { fetchListingCover } = await import("@/lib/airbnb-cover.server");
