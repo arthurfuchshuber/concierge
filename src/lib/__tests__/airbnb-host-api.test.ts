@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  checkoutInstructionsText,
   checkoutTaskLines,
   composeAddress,
   fullDescriptionText,
@@ -133,6 +134,10 @@ describe("API do anfitrião — leitura pura", () => {
     expect(guia).not.toHaveProperty("address_note");
     expect(guia).not.toHaveProperty("maps_url");
     expect(hostFacts(comLink("https://conciergeia.app/g/studio101")).some((f) => f.key === "como_chegar")).toBe(false);
+  });
+
+  it("tarefa de saída já numerada pelo anfitrião entra sem marcador por cima", () => {
+    expect(checkoutInstructionsText({ checkoutTasks: ["1. Retire o veículo.\n2. Feche o portão.", "Jogar o lixo fora"] })).toBe("1. Retire o veículo.\n2. Feche o portão.\n• Jogar o lixo fora");
   });
 
   it("instruções vazias são preenchidas pelo anúncio", () => {

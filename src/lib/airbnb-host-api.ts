@@ -370,7 +370,8 @@ export function propertyStructureText(l: Record<string, unknown>): string | null
 }
 
 export function checkoutInstructionsText(h: Pick<HostListing, "checkoutTasks">): string | null {
-  return Array.isArray(h.checkoutTasks) && h.checkoutTasks.length ? h.checkoutTasks.map((t) => `• ${t}`).join("\n") : null;
+  // Texto que o anfitrião já numerou ("1. Retire o veículo…") entra como está, sem marcador por cima.
+  return Array.isArray(h.checkoutTasks) && h.checkoutTasks.length ? h.checkoutTasks.map((t) => (/^\s*\d+[.)]\s/.test(t) ? t : `• ${t}`)).join("\n") : null;
 }
 
 const SECTIONS: Array<[keyof HostListing, string, string]> = [
