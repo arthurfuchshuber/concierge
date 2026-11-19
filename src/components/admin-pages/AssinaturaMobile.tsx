@@ -249,14 +249,14 @@ export function AssinaturaMobile({
             faturas.map((f, i) => (
               <div key={f.id} className={`flex min-w-0 items-center gap-2.5 py-3 ${i === 0 ? "" : `border-t ${HAIR}`}`}>
                 <div className="min-w-0 flex-1">
-                  <div className="truncate text-[13.5px] font-bold leading-[1.3]">{f.titulo}</div>
+                  <div className="truncate text-[13.5px] font-bold leading-[1.3]">{f.mob.titulo}</div>
                   <div className="mt-[3px] flex items-center gap-1.5">
-                    <span className="size-1.5 shrink-0 rounded-full" style={{ background: f.cor }} />
-                    <p className="text-[11.5px] font-medium leading-[1.45] tabular-nums text-[var(--faint)]">{f.sub}</p>
+                    <span className="size-1.5 shrink-0 rounded-full" style={{ background: f.mob.cor }} />
+                    <p className="text-[11.5px] font-medium leading-[1.45] tabular-nums text-[var(--faint)]">{f.mob.sub}</p>
                   </div>
                 </div>
                 {/* Recibo e selo "ISENTA" à esquerda do valor; o valor alinhado à direita. */}
-                {f.riscada ? <IsentaPill /> : null}
+                {f.riscada ? <IsentaPill tone="sage" /> : null}
                 {f.url ? (
                   <a
                     href={f.url}

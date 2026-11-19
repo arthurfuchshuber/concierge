@@ -144,7 +144,17 @@ export function CardCheckTag({ view }: { view: View }) {
 }
 
 /** Selo das faturas isentas que já passaram. */
-export function IsentaPill() {
+export function IsentaPill({ tone = "gold" }: { tone?: "gold" | "sage" }) {
+  // Desktop: dourado (mockup Perfil e Assinatura). Celular: verde-sálvia claro (mockup Mob-Assinatura-extrato).
+  if (tone === "gold")
+    return (
+      <span
+        className="shrink-0 rounded-full text-[9.5px] font-extrabold tracking-[0.06em]"
+        style={{ background: OK, color: INK, padding: "2px 8px" }}
+      >
+        ISENTA
+      </span>
+    );
   return (
     <span
       className="shrink-0 rounded-full bg-[#E3EFE6] text-[9.5px] font-extrabold tracking-[0.06em] text-[#1f1a14] dark:bg-[rgba(127,183,154,0.18)] dark:text-foreground"

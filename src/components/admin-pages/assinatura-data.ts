@@ -37,6 +37,8 @@ export type Fatura = {
   valor: string;
   cor: string;
   url: string | null;
+  /** Textos do CELULAR (mockup Mob-Assinatura-extrato, 18/11/2026): "Outubro de 2026", "Pago em 20/09 · Visa •••• 4242". */
+  mob: { titulo: string; sub: string; cor: string };
   /** Conta isenta: fatura que já passou (valor riscado, selo "Isenta"). */
   riscada?: boolean;
 };
@@ -99,8 +101,9 @@ export function buildAssinatura(
   if (nextChargeAt && !info.billingPaused) {
     faturas.push({
       id: "previsto",
-      titulo: monthTitle(nextChargeAt),
-      sub: `Próxima cobrança em ${fmtDayMonth(nextChargeAt)}`,
+      titulo: `Fatura ${monthLabel(nextChargeAt)}`,
+      sub: `Prevista para ${fmtDate(nextChargeAt)} · ${qtd} ${qtd === 1 ? "anúncio" : "anúncios"}`,
+      mob: { titulo: monthTitle(nextChargeAt), sub: `Próxima cobrança em ${fmtDayMonth(nextChargeAt)}`, cor: AMBER },
       valor: courtesy ? "Cortesia" : brl(monthly),
       cor: AMBER,
       url: null,
@@ -135,10 +138,15 @@ export function buildAssinatura(
       const cents = courtesy ? 0 : valorEm(d);
       faturas.push({
         id: `hist-${d.toISOString()}`,
-        titulo: monthTitle(d),
-        sub: exempt ? "Isenta · cobrança de cortesia" : `Sem cobrança em ${fmtDayMonth(d)}`,
+        titulo: `Fatura ${monthLabel(d)}`,
+        sub: exempt ? `Isenta em ${fmtDate(d)}` : `Sem cobrança em ${fmtDate(d)}`,
+        mob: {
+          titulo: monthTitle(d),
+          sub: exempt ? "Isenta · cobrança de cortesia" : `Sem cobrança em ${fmtDayMonth(d)}`,
+          cor: exempt ? SAGE : MUTED,
+        },
         valor: courtesy ? "Cortesia" : cents > 0 ? brl(cents) : "—",
-        cor: exempt ? SAGE : MUTED,
+        cor: MUTED,
         url: null,
         riscada: exempt,
       });
@@ -149,8 +157,13 @@ export function buildAssinatura(
     const failed = p.status === "failed" || p.status === "uncollectible";
     faturas.push({
       id: p.id,
-      titulo: monthTitle(p.createdAt),
-      sub: `${paid ? "Pago em" : failed ? "Falhou em" : "Emitida em"} ${fmtDayMonth(p.createdAt)}${paid ? cardTxt : ""}`,
+      titulo: `Fatura ${monthLabel(p.createdAt)}`,
+      sub: `${paid ? "Paga em" : failed ? "Falhou em" : "Emitida em"} ${fmtDate(p.createdAt)}`,
+      mob: {
+        titulo: monthTitle(p.createdAt),
+        sub: `${paid ? "Pago em" : failed ? "Falhou em" : "Emitida em"} ${fmtDayMonth(p.createdAt)}${paid ? cardTxt : ""}`,
+        cor: paid ? SAGE : failed ? ROSE : AMBER,
+      },
       valor: brl(p.amount),
       cor: paid ? SAGE : failed ? ROSE : AMBER,
       url: p.invoiceUrl ?? null,
