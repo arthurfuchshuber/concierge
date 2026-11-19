@@ -185,3 +185,26 @@ describe("dossiê · andar (P), apartamento e vaga (G), silêncio e comodidades 
     expect(silencio.alsoIn).toContain("listing_channex");
   });
 });
+
+describe("dossiê · fatos descobertos sozinhos (extra_*) respeitam a etiqueta", () => {
+  const raw = { ev_charger_speed: "FAST_CHARGER", key_pickup_location: "Cofre ao lado do portão", lockbox_code: "4821" };
+  const src = (): DossierSources => {
+    const base = sources() as unknown as Record<string, any>;
+    return { ...base, listingNormalized: { facts: [], host_listing: { photos: [], rooms: [], checkoutTasks: [], raw: { listing: { listing: raw } } } } } as unknown as DossierSources;
+  };
+  const go = (audiences: Array<"P" | "G">) =>
+    normalizePropertyDossier({ target: { propertyId: P, tenantId: T, role: "primary", audiences }, sources: src(), retrievedAt: "2026-11-19T12:00:00Z", buildPlaybook: buildPlaybook as never });
+
+  it("pré-reserva vê o fato público; o de acesso fica retido e contado", () => {
+    const d = go(["P"]);
+    expect(d.entries.find((e) => e.id === "listing:fact:extra_ev_charger_speed")!.audience).toBe("P");
+    expect(d.entries.some((e) => e.id === "listing:fact:extra_key_pickup_location")).toBe(false);
+    expect(d.completeness.withheldByPolicy).toBeGreaterThanOrEqual(1);
+  });
+
+  it("reserva ativa vê os dois, e a credencial nunca aparece", () => {
+    const d = go(["P", "G"]);
+    expect(d.entries.find((e) => e.id === "listing:fact:extra_key_pickup_location")!.audience).toBe("G");
+    expect(d.entries.some((e) => e.value.includes("4821"))).toBe(false);
+  });
+});

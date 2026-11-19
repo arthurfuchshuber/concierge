@@ -20,7 +20,7 @@
  */
 import type { ListingFacts } from "@/lib/guest-ai/types";
 import { splitListingTitle } from "@/lib/playbook-build";
-import { mergeHostFacts, type HostListing } from "@/lib/airbnb-host-api";
+import { dynamicFactAudience, mergeHostFacts, type HostListing } from "@/lib/airbnb-host-api";
 import { plainGuideTags } from "@/lib/guide-tags";
 
 /**
@@ -60,7 +60,14 @@ export const PUBLIC_HOST_FACTS: ReadonlySet<string> = new Set([
   "comodidades_ausentes_api",
 ]);
 
+/**
+ * Fatos descobertos sozinhos (`extra_*`, de `discoverDynamicHostFacts`) não estão em lista nenhuma: a
+ * etiqueta sai da chave. Termo de acesso/trajeto (chave, lock, gate, portão, rota, trajeto…) = G; o resto = P.
+ */
+export const DYNAMIC_FACT_PREFIX = "extra_";
+
 export function listingFactAudience(key: string): "P" | "G" {
+  if (key.startsWith(DYNAMIC_FACT_PREFIX)) return dynamicFactAudience(key);
   return RESERVATION_ONLY_FACTS.has(key) ? "G" : "P";
 }
 

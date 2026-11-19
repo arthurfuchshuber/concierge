@@ -3,6 +3,8 @@ import { PUBLIC_HOST_FACTS, listingFactAudience } from "@/lib/guest-ai/data/list
 import {
   HOUSE_MANUAL_ENTRY,
   amenityDetails,
+  discoverDynamicHostFacts,
+  dynamicFactAudience,
   floorLabelOf,
   quietHoursOf,
   quietHoursText,
@@ -287,5 +289,101 @@ describe("API do anfitrião — andar, silêncio e comodidades detalhadas", () =
         expect(listingFactAudience(f.key)).toBe("P");
       }
     }
+  });
+});
+
+describe("API do anfitrião — auto-descoberta de fatos novos (extra_*)", () => {
+  // Payload simulando campos que o Airbnb passou a devolver e que o código ainda não conhece.
+  const novo = {
+    // já mapeados: nunca viram extra_
+    street: "Rua A, 1",
+    city: "Foz do Iguaçu",
+    amenities: { TV: { is_present: true } },
+    quiet_hours: [{ start_time: "23", end_time: "7" }],
+    property_details: { listing_floor: 2, number_of_floors: 3, elevator_floor_access: true },
+    // inéditos e públicos
+    ev_charger_speed: "FAST_CHARGER",
+    display_exact_location_to_guest: false,
+    categories: ["National parks"],
+    parking_rules: { guest_spots: 2, visitors_allowed: false, nested: { deep: "x" } },
+    pool_hours: "08:00–20:00",
+    // inéditos com termo de acesso/trajeto na chave: G
+    key_pickup_location: "Cofre ao lado do portão",
+    gate_instructions: "Toque a campainha e aguarde",
+    // credencial: nunca vira fato
+    lockbox_code: "4821",
+    door_pin: 9911,
+    backup_password: "segredo",
+    // ruído técnico
+    user_id: "123",
+    listing_id: "999",
+    updated_at: "2026-11-19T10:00:00Z",
+    host_token: "abc",
+    hash_ref: "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+    promo_link: "https://airbnb.com/r/abc?utm_source=x",
+    reservation_issues: ["x"],
+    has_availability: true,
+    empty_text: "   ",
+    empty_list: [],
+    objeto_em_lista: [{ a: 1 }],
+  };
+  const found = discoverDynamicHostFacts(novo);
+  const by = (k: string) => found.find((f) => f.key === k);
+
+  it("campo inédito público vira fato extra_<chave> com título em português e sem sufixo técnico", () => {
+    expect(by("extra_ev_charger_speed")).toEqual({ key: "extra_ev_charger_speed", title: "Velocidade do carregador veicular (Airbnb)", content: "fast charger" });
+    expect(by("extra_display_exact_location_to_guest")!.content).toBe("Não");
+    expect(by("extra_categories")!.content).toBe("National parks");
+    expect(by("extra_pool_hours")!.content).toBe("08:00–20:00");
+  });
+
+  it("segundo nível: campos primitivos do objeto entram; mais fundo que isso fica de fora", () => {
+    expect(by("extra_parking_rules_guest_spots")!.content).toBe("2");
+    expect(by("extra_parking_rules_visitors_allowed")!.content).toBe("Não");
+    expect(found.some((f) => f.key.includes("nested") || f.key.includes("deep"))).toBe(false);
+  });
+
+  it("campo novo dentro de property_details também é descoberto; os conhecidos não", () => {
+    expect(by("extra_property_details_elevator_floor_access")!.content).toBe("Sim");
+    expect(found.some((f) => /listing_floor|number_of_floors/.test(f.key))).toBe(false);
+  });
+
+  it("chaves já mapeadas nunca duplicam", () => {
+    expect(found.some((f) => /street|city|amenities|quiet_hours/.test(f.key))).toBe(false);
+  });
+
+  it("ruído técnico, vazios e estruturas complexas ficam de fora", () => {
+    for (const k of ["user_id", "listing_id", "updated_at", "host_token", "hash_ref", "promo_link", "reservation_issues", "has_availability", "empty_text", "empty_list", "objeto_em_lista"]) {
+      expect(found.some((f) => f.key === `extra_${k}`), k).toBe(false);
+    }
+  });
+
+  it("credencial (código, PIN, senha) nunca vira fato, nem como G", () => {
+    for (const k of ["lockbox_code", "door_pin", "backup_password"]) expect(found.some((f) => f.key === `extra_${k}`), k).toBe(false);
+    expect(JSON.stringify(found)).not.toMatch(/4821|9911|segredo/);
+  });
+
+  it("etiqueta dinâmica: termo de acesso/trajeto na chave = G; qualquer outro = P", () => {
+    expect(listingFactAudience("extra_key_pickup_location")).toBe("G");
+    expect(listingFactAudience("extra_gate_instructions")).toBe("G");
+    expect(by("extra_key_pickup_location")!.content).toBe("Cofre ao lado do portão");
+    for (const k of ["extra_ev_charger_speed", "extra_pool_hours", "extra_categories", "extra_parking_rules_guest_spots", "extra_pinned_note"]) {
+      expect(listingFactAudience(k), k).toBe("P");
+    }
+    expect(dynamicFactAudience("extra_trajeto_alternativo")).toBe("G");
+    // fatos fixos seguem como antes
+    expect(listingFactAudience("como_chegar")).toBe("G");
+    expect(listingFactAudience("estrutura_imovel")).toBe("P");
+  });
+
+  it("integrado ao hostFacts a partir do bruto guardado (anúncio já sincronizado ganha os fatos sem nova coleta)", () => {
+    const h = parseHostListing("777", { listing: { listing: novo } })!;
+    const keys = hostFacts(h).map((f) => f.key);
+    expect(keys).toEqual(expect.arrayContaining(["extra_ev_charger_speed", "extra_key_pickup_location", "horario_silencio"]));
+    expect(keys).not.toContain("extra_lockbox_code");
+    // regravação: o fato novo substitui o antigo de mesma chave
+    const merged = mergeHostFacts([{ key: "extra_pool_hours", title: "x", content: "velho" }], h);
+    expect(merged.filter((f) => f.key === "extra_pool_hours")).toHaveLength(1);
+    expect(merged.find((f) => f.key === "extra_pool_hours")!.content).toBe("08:00–20:00");
   });
 });
