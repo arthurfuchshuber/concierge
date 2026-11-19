@@ -8,6 +8,7 @@
  * anfitrião herda a audiência da linha.
  */
 import type { DossierItem, DossierKnowledge, GuestAudience } from "@/lib/guest-ai/types";
+import { plainGuideTags } from "@/lib/guide-tags";
 import { CREDENTIAL_ROW_KEYS } from "./projections";
 
 /** Subconjunto estrutural de `PlaybookRow` (evita acoplar o teste ao módulo da UI). */
@@ -43,7 +44,7 @@ export function projectDossier(
       id: r.id,
       label: r.label,
       // `raw` é o texto sem máscara; linhas secretas nunca chegam aqui.
-      value: r.raw,
+      value: plainGuideTags(r.raw),
       audience: r.au,
       note: r.note.trim() ? r.note.trim() : null,
     });

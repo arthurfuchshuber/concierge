@@ -15,7 +15,8 @@
  * Linha de outro imóvel ⇒ erro (fail-closed). Os dados originais nunca são alterados.
  */
 import { projectDossier, type DossierRowLike } from "@/lib/guest-ai/data/dossier-projection";
-import { pickNormalized } from "@/lib/guest-ai/data/listing-normalized";
+import { listingFactAudience, pickNormalized } from "@/lib/guest-ai/data/listing-normalized";
+import { plainGuideTags } from "@/lib/guide-tags";
 import { detectListingConflicts } from "@/lib/guest-ai/data/listing.server";
 import { publicPropertyTitle } from "@/lib/guest-ai/data/public-title";
 import type { BuildPlaybookFn } from "@/lib/guest-ai/data/dossier.server";
@@ -156,7 +157,8 @@ export function normalizePropertyDossier(input: NormalizeInput): PropertyDossier
 
   const entries: DossierEntry[] = [];
   const seen = new Map<string, DossierEntry>();
-  const push = (e: Omit<DossierEntry, "alsoIn">) => {
+  const push = (entry: Omit<DossierEntry, "alsoIn">) => {
+    const e = { ...entry, value: plainGuideTags(entry.value) };
     if (!e.value.trim()) return;
     const key = dedupeKey(e.value);
     const prior = seen.get(key);
@@ -179,7 +181,12 @@ export function normalizePropertyDossier(input: NormalizeInput): PropertyDossier
   // 2) Anúncio (Channex normalizado + página pública). Audiência P.
   if (listing) {
     for (const f of listing.facts) {
-      push({ id: `listing:fact:${f.key}`, label: f.title || f.key, value: f.content, kind: listingFactKind(f.key), source: "listing_channex", audience: "P", note: null, temporal: "current", observedAt: null });
+      const audience = listingFactAudience(f.key);
+      if (!audiences.has(audience)) {
+        withheld += 1;
+        continue;
+      }
+      push({ id: `listing:fact:${f.key}`, label: f.title || f.key, value: f.content, kind: listingFactKind(f.key), source: "listing_channex", audience, note: null, temporal: "current", observedAt: null });
     }
     if (listing.checkoutTime) push({ id: "listing:checkout_time", label: "Horário de checkout (anúncio)", value: listing.checkoutTime, kind: "fact", source: "listing_channex", audience: "P", note: null, temporal: "current", observedAt: null });
     if (listing.checkinWindow && (listing.checkinWindow.start || listing.checkinWindow.end)) {

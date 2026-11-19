@@ -326,6 +326,24 @@ export function expandInfoTags(
 }
 
 
+/**
+ * Texto puro para a IA: `[[tag:...]]` vira "Guia Digital (rótulo)" e `[[info:...]]` vira só o rótulo.
+ * Nunca resolve valores (podem ser credenciais); o texto cru com colchetes não chega ao modelo.
+ */
+export function plainGuideTags(text: string): string {
+  if (!text || !text.includes("[[")) return text;
+  return text
+    .replace(TAG_RE, (_m, rawKey: string, _p?: string, rawLabel?: string) => {
+      const key = rawKey.toLowerCase();
+      const label = rawLabel?.trim() || (isGuideTagKey(key) ? TAG_BY_KEY[key].label : "");
+      return label ? `Guia Digital (${label})` : "Guia Digital";
+    })
+    .replace(INFO_RE, (_m, rawKey: string, _p?: string, rawLabel?: string) => {
+      const key = rawKey.toLowerCase();
+      return rawLabel?.trim() || (isGuideInfoKey(key) ? GUIDE_INFOS.find((i) => i.key === key)?.label ?? "" : "");
+    });
+}
+
 // ---- Combined tokenizer (tag + info) for inline rendering ---------------------
 
 export type AnyToken =
