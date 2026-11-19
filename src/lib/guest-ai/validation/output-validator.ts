@@ -113,7 +113,13 @@ export function validateDecision(input: ValidationInput): ValidationReport {
 
   // 6) B2.1 — alteração formal (datas, hóspedes, valores, cancelamento, early/late…): nunca compromisso
   if (sig.intents.includes("formal_change_request") !== sig.formalChangeRequests.length > 0) add("formal_change_inconsistent");
-  if (sig.formalChangeRequests.length > 0 && d.commitments.length > 0) add("formal_change_commitment");
+  // Exceção (19/11/2026, caso Luiz Eduardo): o roteiro manda, na chegada fora da janela, dizer que vai verificar com
+  // a equipe (team_relay + other_conditions + encaminhamento). Repassar à equipe não é compromisso sobre a alteração;
+  // a validação barrava a resposta que o próprio roteiro pede. Qualquer outro compromisso continua barrado.
+  const changeKinds = commitmentKindsOf(d);
+  const onlyTeamRelay =
+    d.handoff.needed && changeKinds !== null && changeKinds.length > 0 && changeKinds.every((k) => k === "team_relay");
+  if (sig.formalChangeRequests.length > 0 && d.commitments.length > 0 && !onlyTeamRelay) add("formal_change_commitment");
 
   // 7) B2.1 — marco de hospitalidade: coerente com a intenção e provado pela mensagem ATUAL do hóspede
   const m = sig.hospitalityMilestone;
