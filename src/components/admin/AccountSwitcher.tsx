@@ -39,13 +39,13 @@ export function AccountSwitcher() {
       <PopoverTrigger asChild>
         <button
           type="button"
-          className="w-full flex items-center gap-2 px-3 py-2.5 rounded-md text-sm border border-border bg-secondary/40 hover:bg-secondary text-left transition-colors"
+          className="w-full min-w-0 flex items-center gap-2 px-3 py-2.5 rounded-md text-sm border border-border bg-secondary/40 hover:bg-secondary text-left transition-colors"
           disabled={totalOptions <= 1}
         >
           <Building2 className="size-4 shrink-0 text-primary" />
           <div className="flex-1 min-w-0">
             <div className="text-[10px] uppercase tracking-wider text-muted-foreground leading-none">Empresa ativa</div>
-            <div className="text-sm break-words mt-0.5">{activeLabel}</div>
+            <div className="text-sm truncate mt-0.5" title={activeLabel}>{activeLabel}</div>
           </div>
           {totalOptions > 1 && <ChevronDown className="size-4 shrink-0 opacity-60" />}
         </button>
