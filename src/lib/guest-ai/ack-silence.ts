@@ -203,3 +203,34 @@ export function shouldSilenceBareAck(entries: readonly HistoryEntry[]): boolean 
   if (isAccommodationCheck(ours.text)) return turn.every((e) => closed(e) || isSatisfiedCheckReply(e.text));
   return false;
 }
+
+/**
+ * Já cumprimentamos há pouco? (casos Luiz Eduardo, 19/11/2026: "Olá, Luiz, bom dia! Tudo bem por aí?" e, 3 min depois,
+ * "Olá, Luiz! Seja bem-vindo.") Verdadeiro se houve fala nossa (IA ou equipe) até `GREETING_ECHO_WINDOW_MS` antes da
+ * mensagem atual do hóspede.
+ */
+export function greetedRecently(entries: readonly HistoryEntry[]): boolean {
+  let i = entries.length - 1;
+  while (i >= 0 && entries[i]!.speaker === "guest") i--;
+  if (i < 0 || i === entries.length - 1) return false;
+  const ours = entries[i]!;
+  if (ours.speaker !== "legacy_ai" && ours.speaker !== "team") return false;
+  const oursAt = Date.parse(ours.at ?? "");
+  const lastAt = Date.parse(entries[entries.length - 1]!.at ?? "");
+  return Number.isFinite(oursAt) && Number.isFinite(lastAt) && lastAt >= oursAt && lastAt - oursAt <= GREETING_ECHO_WINDOW_MS;
+}
+
+const OPENING_GREETING = /^(ol[aá]|oi|bom dia|boa tarde|boa noite)(?=[\s,.!?]|$)[^.!?\n]*[.!?]*\s*/i;
+const OPENING_WELCOME = /^seja[m]? (muito )?bem[- ]vind[oa]s?(?=[\s,.!?]|$)[^.!?\n]*[.!?]*\s*/i;
+
+/** Tira o cumprimento de abertura de uma resposta (só a abertura; o resto fica intacto). Sem resto ⇒ texto original. */
+export function stripOpeningGreeting(text: string): string {
+  let t = text.trimStart();
+  for (let k = 0; k < 3; k++) {
+    const m = t.match(OPENING_GREETING) ?? t.match(OPENING_WELCOME);
+    if (!m) break;
+    t = t.slice(m[0].length).trimStart();
+  }
+  if (!t) return text;
+  return t.charAt(0).toUpperCase() + t.slice(1);
+}

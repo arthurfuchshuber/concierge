@@ -34,7 +34,7 @@ import {
 } from "@/lib/guest-ai/data/client.server";
 import { loadConversationContext } from "@/lib/guest-ai/context/conversation-context.server";
 import { fetchConversationHistory } from "@/lib/guest-ai/data/history.server";
-import { shouldSilenceBareAck } from "@/lib/guest-ai/ack-silence";
+import { greetedRecently, shouldSilenceBareAck, stripOpeningGreeting } from "@/lib/guest-ai/ack-silence";
 import { fetchGuestImages, type GuestImage } from "@/lib/guest-ai/data/guest-images.server";
 import { fetchGuestProfile } from "@/lib/guest-ai/data/guest-profile.server";
 import { fetchCityEvents } from "@/lib/guest-ai/data/city-events.server";
@@ -396,6 +396,8 @@ export function projectOutcome(
     reservationLinked: boolean | null;
     /** Fotos do hóspede que foram ao modelo neste turno (diagnóstico visual só vale com foto). */
     imagesSent?: number;
+    /** Já falamos com o hóspede há pouco: a resposta não abre com novo cumprimento. */
+    greetedRecently?: boolean;
   },
 ): Pick<
   TurnResultInput,
@@ -473,7 +475,10 @@ export function projectOutcome(
         state: "available",
         // Pilar 3: forma do canal (letras estilizadas, Markdown, links no Airbnb); conteúdo intacto.
         // Visão: sem frase de recibo de anexo no início ("recebi sua foto"), rede de segurança do prompt.
-        text: formatForChannel(stripRoboticAck(outcome.text), extra.surface),
+        text: formatForChannel(
+          extra.greetedRecently ? stripOpeningGreeting(stripRoboticAck(outcome.text)) : stripRoboticAck(outcome.text),
+          extra.surface,
+        ),
         strategy: outcome.strategy,
         // resposta + encaminhamento: o que a equipe precisa fazer vai ao chamado e ao push (caso Nailton, 18/11/2026)
         internalQuestion: handoff.needed ? (outcome.decision.handoff.question ?? "").trim().slice(0, 1000) || null : null,
@@ -889,6 +894,9 @@ export async function generateGuestAiTurn(
       humanInCommand,
       reservationLinked,
       imagesSent: g.imagesSent,
+      greetedRecently: ((h: HistoryResult | null) => !!h && h.status === "available" && greetedRecently(h.entries))(
+        history as HistoryResult | null,
+      ),
     });
     // bloqueio do gerador (orçamento do turno, substituída, prazo) ⇒ código fechado em vez do técnico genérico
     const outcomeCode =

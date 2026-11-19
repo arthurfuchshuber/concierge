@@ -117,6 +117,20 @@ describe("B2.1 · validador — alterações formais (§7.3)", () => {
     expect(blocks(v2({ intents: ["formal_change_request"], formalChangeRequests: [] }))).toContain("formal_change_inconsistent");
     expect(blocks(v2({ intents: ["informational_query"], formalChangeRequests: ["price"] }))).toContain("formal_change_inconsistent");
   });
+  it("chegada fora da janela: repassar à equipe (team_relay + encaminhamento) não é compromisso sobre a alteração (caso Luiz Eduardo)", () => {
+    const d = v2({
+      intents: ["informational_query", "formal_change_request"],
+      formalChangeRequests: ["other_conditions"],
+      commitments: ["vou verificar internamente com a equipe"],
+      commitmentKinds: ["team_relay"],
+      handoff: { needed: true, question: "Viabilizar recepção à 1h30?", urgency: "high" },
+      strategy: "answer_and_handoff",
+    } as never);
+    expect(blocks(d)).not.toContain("formal_change_commitment");
+    expect(blocks({ ...(d as object), commitmentKinds: ["resolution"] })).toContain("formal_change_commitment");
+    const semEncaminhar = v2({ intents: ["formal_change_request"], formalChangeRequests: ["other_conditions"], commitments: ["x"], commitmentKinds: ["team_relay"] } as never);
+    expect(blocks(semEncaminhar)).toContain("formal_change_commitment");
+  });
   it.each(FORMAL_CHANGE_KINDS.map((k) => [k]))("%s com compromisso ⇒ formal_change_commitment (nunca aprova na conversa)", (k) => {
     expect(blocks(v2({ intents: ["formal_change_request"], formalChangeRequests: [k], commitments: ["Está aprovado"] }))).toContain("formal_change_commitment");
   });

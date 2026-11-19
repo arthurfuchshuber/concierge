@@ -460,7 +460,7 @@ describe("formatação por canal", () => {
       path.resolve(__dirname, "..", "turn", "generate.server.ts"),
       "utf8",
     );
-    expect(src).toMatch(/text: formatForChannel\(stripRoboticAck\(outcome\.text\), extra\.surface\)/);
+    expect(src).toMatch(/text: formatForChannel\(\s*extra\.greetedRecently \? stripOpeningGreeting\(stripRoboticAck\(outcome\.text\)\) : stripRoboticAck\(outcome\.text\),\s*extra\.surface,/);
   });
 });
 
