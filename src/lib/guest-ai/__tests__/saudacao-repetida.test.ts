@@ -42,5 +42,6 @@ describe("chegou não é entrou (caso Larissa, 19/11/2026)", () => {
     const sys = buildSystemPrompt("airbnb", undefined, { phase: "in_stay" });
     expect(sys).toMatch(/Avisar que chegou, sem dizer que já entrou, é chegada à porta/);
     expect(sys).toMatch(/a pergunta sobre encontrar tudo como esperado fica para depois da entrada confirmada/);
+    expect(sys).toMatch(/acesso depende de uma ação da equipe \(abrir o portão remotamente, entregar as chaves\)/);
   });
 });
