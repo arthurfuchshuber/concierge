@@ -149,7 +149,16 @@ const BASE_FIELDS: FieldMeta[] = [
     "au": "P",
     "copy": false,
     "secret": false,
-    "obs": "Diz se há elevador ou se o acesso é por escadas. A IA deve usar quando perguntarem sobre bagagem, acessibilidade ou cadeira de rodas, respondendo só o que consta."
+    "obs": "Diz se há elevador ou se o acesso é por escadas e em que andar fica o imóvel. A IA deve usar quando perguntarem sobre bagagem, acessibilidade, escadas ou cadeira de rodas, inclusive antes da reserva, respondendo só o que consta."
+  },
+  {
+    "key": "apartamento_e_vaga",
+    "section": 1,
+    "label": "Apartamento e vaga",
+    "au": "G",
+    "copy": false,
+    "secret": false,
+    "obs": "Número do apartamento e identificação da vaga privativa. A IA só informa depois da reserva confirmada, quando o hóspede precisar localizar a unidade ou a vaga. Antes da reserva, o andar do imóvel já está em Elevador e escadas."
   },
   {
     "key": "avaliacao_airbnb",
@@ -729,7 +738,7 @@ export const PLAYBOOK_LAYOUT: Array<Array<[string, string[]]>> = [
     ["Identificação", ["titulo_publico", "tipo_de_espaco", "nome_interno", "link_do_anuncio", "avaliacao_airbnb", "descricao_completa_anuncio"]],
     ["Endereço e rotas", ["endereco_rua_e_numero", "bairro", "cidade", "cep", "link_do_mapa", "link_mapa_garagem", "como_chegar"]],
     ["Capacidade e cômodos", ["hospedes_maximo", "quartos", "camas", "banheiros", "distribuicao_das_camas"]],
-    ["Prédio, acessibilidade e garagem", ["imovel_em_condominio", "elevador", "vagas_de_garagem", "maximo_de_veiculos"]],
+    ["Prédio, acessibilidade e garagem", ["imovel_em_condominio", "elevador", "apartamento_e_vaga", "vagas_de_garagem", "maximo_de_veiculos"]],
   ],
   [
     ["Portão e acesso externo", ["modo_de_acesso", "ponto_de_acesso", "codigo_do_portao", "instrucoes_do_portao"]],

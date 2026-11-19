@@ -97,3 +97,91 @@ describe("dossiê · etiquetas dos fatos do anúncio", () => {
     expect(propertyStructureText({ property_details: { listing_size: {} } })).toBeNull();
   });
 });
+
+describe("dossiê · andar (P), apartamento e vaga (G), silêncio e comodidades da API", () => {
+  const apiListing = {
+    property_details: { listing_floor: 3, listing_size: { size: 35, size_unit: "SQUARE_METERS" } },
+    quiet_hours: [{ start_time: "23", end_time: "7" }],
+    amenities: {
+      AC: { is_present: true, metadata: { ac: { ac_options: ["SPLIT_TYPE_DUCTLESS"] } } },
+      TV: { is_present: true, metadata: { tv: { size_in_inch: 55 } } },
+      FREE_PARKING: { is_present: true, metadata: { parking: { number_of_spaces: 1, parking_type: "RESIDENTIAL_GARAGE" } } },
+      CARBON_MONOXIDE_DETECTOR: { is_present: false },
+    },
+  };
+  const withApi = (): DossierSources => {
+    const base = sources() as unknown as Record<string, any>;
+    return {
+      ...base,
+      property: {
+        ...base.property,
+        in_condominium: true,
+        apartment_number: "302",
+        apartment_floor: "2º andar",
+        parking_spots: ["14"],
+        airbnb_house_rules: "Proibido festas",
+        airbnb_amenities: [
+          { name: "Ar-condicionado", available: true },
+          { name: "TV", available: true },
+          { name: "Estacionamento gratuito no local", available: true },
+        ],
+      },
+      listingNormalized: { facts: [], host_listing: { photos: [], rooms: [], checkoutTasks: [], raw: { listing: { listing: apiListing }, rooms: { listing_rooms: [] } } } },
+    } as unknown as DossierSources;
+  };
+  const runApi = (audiences: Array<"P" | "G">) =>
+    normalizePropertyDossier({
+      target: { propertyId: P, tenantId: T, role: "primary", audiences },
+      sources: withApi(),
+      retrievedAt: "2026-11-19T12:00:00Z",
+      buildPlaybook: buildPlaybook as never,
+    });
+  const byLabel = (d: ReturnType<typeof runApi>, label: string) => d.entries.find((e) => e.label === label);
+
+  it("andar do imóvel é P: aparece na pré-reserva, em Elevador e escadas, sem o número do apartamento", () => {
+    const d = runApi(["P"]);
+    const elev = byLabel(d, "Elevador e escadas")!;
+    expect(elev.audience).toBe("P");
+    expect(elev.value).toContain("Andar do imóvel: 2º andar");
+    const condo = byLabel(d, "Imóvel em condomínio")!;
+    expect(condo.audience).toBe("P");
+    expect(condo.value).toBe("Sim");
+    expect(d.entries.some((e) => e.value.includes("302") || e.value.includes("Vaga 14"))).toBe(false);
+    expect(byLabel(d, "Apartamento e vaga")).toBeUndefined();
+  });
+
+  it("número do apartamento e vaga privativa são G: só com reserva ativa", () => {
+    const d = runApi(["P", "G"]);
+    const row = byLabel(d, "Apartamento e vaga")!;
+    expect(row.audience).toBe("G");
+    expect(row.value).toBe("Apto 302 · Vaga 14");
+  });
+
+  it("horário de silêncio vem do dado estruturado da API, mesmo sem a frase nas regras", () => {
+    expect(byLabel(runApi(["P"]), "Horário de silêncio")!.value).toBe("23:00 às 07:00");
+  });
+
+  it("vagas de garagem (P) trazem tipo e quantidade da API; sem identificador de vaga", () => {
+    const v = byLabel(runApi(["P"]), "Vagas de garagem")!;
+    expect(v.audience).toBe("P");
+    expect(v.value).toContain("1 vaga");
+    expect(v.value).toContain("garagem residencial");
+    expect(v.value).not.toContain("14");
+  });
+
+  it("comodidades do Playbook ganham o detalhe da API; ausentes declaradas entram", () => {
+    const d = runApi(["P"]);
+    expect(byLabel(d, "Climatização")!.value).toContain("Ar-condicionado: split");
+    expect(byLabel(d, "Entretenimento")!.value).toContain("TV: 55 polegadas");
+    expect(byLabel(d, "Ausentes no anúncio")!.value).toContain("Detector de monóxido de carbono");
+  });
+
+  it("estrutura (área em m²) e silêncio são fatos P para a IA; nada disso é retido na pré-reserva", () => {
+    const d = runApi(["P"]);
+    expect(d.entries.find((e) => e.id === "listing:fact:estrutura_imovel")!.value).toContain("Área: 35 m²");
+    // o fato tem o mesmo texto da linha do Playbook: o Dossiê funde os dois e registra a origem extra
+    const silencio = byLabel(d, "Horário de silêncio")!;
+    expect(silencio.audience).toBe("P");
+    expect(silencio.alsoIn).toContain("listing_channex");
+  });
+});

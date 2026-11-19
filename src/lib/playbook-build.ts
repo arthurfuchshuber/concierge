@@ -7,6 +7,7 @@ import {
   type Audience,
 } from "@/lib/playbook-catalog";
 import { partsFor, partsFromProperty } from "@/lib/playbook-parts";
+import { floorLabel, spotsLabel, cleanLocationText } from "@/lib/property-location";
 
 /**
  * PLAYBOOK DO IMÓVEL — monta as linhas a partir do cadastro (puro, testável).
@@ -337,8 +338,14 @@ export function buildPlaybook(src: PlaybookSource): PlaybookSectionData[] {
     amenityNames.some((a) => /condom[ií]nio|porteiro|portaria/i.test(a)) || /condom[ií]nio|portaria/i.test(desc);
   const descCameraLine = desc.split("\n").find((l) => /c[aâ]mera/i.test(l))?.replace(/[\u{1F300}-\u{1FAFF}\u2600-\u27BF]/gu, "").trim() ?? "";
   const stairsText = [s(p.airbnb_safety_info), desc].join("\n").split("\n").find((l) => /elevador|escada/i.test(l) && l.length > 15)?.replace(/⚠️/g, "").trim() ?? "";
-  const elevatorText =
+  const elevatorOrStairs =
     p.has_elevator === true ? "Com elevador" : p.has_elevator === false ? `Sem elevador${stairsText ? ` · ${stairsText}` : ""}` : stairsText;
+  // Andar do imóvel é público (P): o hóspede pergunta de escada/acessibilidade antes de reservar. O número do apartamento é G.
+  const floorText = floorLabel(s(p.apartment_floor));
+  const elevatorText = [elevatorOrStairs, floorText ? `Andar do imóvel: ${floorText}` : ""].filter(Boolean).join("\n");
+  const aptAndSpot = [cleanLocationText(s(p.apartment_number)) ? `Apto ${cleanLocationText(s(p.apartment_number))}` : "", spotsLabel(Array.isArray(p.parking_spots) ? (p.parking_spots as string[]) : null) ?? ""]
+    .filter(Boolean)
+    .join(" · ");
   const money = (c: unknown) => (n(c) === null ? "" : `R$ ${(Number(c) / 100).toFixed(2).replace(".", ",")}`);
   const cleaningText = [
     money(p.cleaning_price_normal_cents) || n(p.cleaning_duration_normal_minutes) !== null
@@ -366,6 +373,14 @@ export function buildPlaybook(src: PlaybookSource): PlaybookSectionData[] {
     [s(p.airbnb_cancellation_policy), cancelCategory ? `Categoria: ${cancelCategory}` : ""].filter(Boolean).join("\n") ||
     factLines("cancelamento").join("\n");
 
+  // Detalhes das comodidades vindos da API do anfitrião (fatos `comodidade_<grupo>`), abaixo dos nomes do anúncio.
+  const withDetails = (base: string, group: string) => [base, ...factLines(`comodidade_${group}`)].filter(Boolean).join("\n");
+  const mergeAbsent = (scrap: string, api: string[]) => {
+    const have = new Set(scrap.split(" · ").map((x) => x.trim().toLowerCase()));
+    const extra = api.map((l) => l.replace(/^•\s*/, "").trim()).filter((x) => x && !have.has(x.toLowerCase()));
+    return [scrap, ...extra].filter(Boolean).join(" · ");
+  };
+
   const values: Record<string, string> = {
     titulo_publico: s(p.name) || splitListingTitle(src.listingTitle, s(p.name)).publicTitle,
     tipo_de_espaco: s(p.short_description),
@@ -379,11 +394,14 @@ export function buildPlaybook(src: PlaybookSource): PlaybookSectionData[] {
     imovel_em_condominio: p.in_condominium == null
       ? (listingSaysCondo ? "Sim · conforme o anúncio (condomínio/portaria)" : "")
       : condo
-        ? `Sim${s(p.apartment_number) ? ` · apto ${s(p.apartment_number)}` : ""}${s(p.apartment_floor) ? `, andar ${s(p.apartment_floor)}` : ""}`
+        ? "Sim"
         : listingSaysCondo
           ? "Não (cadastro) · atenção: o anúncio cita condomínio/portaria — confirme e ajuste"
           : "Não · sem condomínio",
-    vagas_de_garagem: garage || (parking ? `${parking} vaga(s) cadastrada(s)` : ""),
+    // Estacionamento da API (tipo, vagas, gratuito/pago) vem antes do nome genérico do anúncio público.
+    // Números/identificadores de vaga privativa (`parking_spots`) são G: ficam em "Apartamento e vaga".
+    vagas_de_garagem: factLines("comodidade_garagem").join("\n") || garage || (parking ? `${parking} vaga(s) cadastrada(s)` : ""),
+    apartamento_e_vaga: aptAndSpot,
     maximo_de_veiculos: veh === null ? "" : plural(veh, "veículo", "veículos"),
     hospedes_maximo: guests === null ? "" : `${plural(guests, "hóspede", "hóspedes")} (incluindo crianças)`,
     quartos: n(p.airbnb_bedroom_count)?.toString() ?? "",
@@ -404,14 +422,15 @@ export function buildPlaybook(src: PlaybookSource): PlaybookSectionData[] {
     aviso_de_check_out: s(p.checkout_note),
     nome_da_rede_wi_fi: s(p.wifi_ssid),
     senha_do_wi_fi: s(p.wifi_password),
-    climatizacao: amenityLine(p, "climatizacao"),
-    cozinha_e_sala_de_jantar: amenityLine(p, "cozinha_e_sala_de_jantar"),
-    entretenimento: amenityLine(p, "entretenimento"),
-    quarto_e_lavanderia: amenityLine(p, "quarto_e_lavanderia"),
-    banheiro: amenityLine(p, "banheiro"),
-    ausentes_no_anuncio: absentAmenities(p),
+    climatizacao: withDetails(amenityLine(p, "climatizacao"), "climatizacao"),
+    cozinha_e_sala_de_jantar: withDetails(amenityLine(p, "cozinha_e_sala_de_jantar"), "cozinha_e_sala_de_jantar"),
+    entretenimento: withDetails(amenityLine(p, "entretenimento"), "entretenimento"),
+    quarto_e_lavanderia: withDetails(amenityLine(p, "quarto_e_lavanderia"), "quarto_e_lavanderia"),
+    banheiro: withDetails(amenityLine(p, "banheiro"), "banheiro"),
+    ausentes_no_anuncio: mergeAbsent(absentAmenities(p), factLines("comodidades_ausentes_api")),
     manuais_de_equipamentos: src.manuals.map((m) => m.title).filter(Boolean).join("\n") || entryValue("manuais_de_equipamentos"),
-    horario_de_silencio: silence ? `${silence[0]} às ${silence[1]}` : "",
+    // O dado estruturado da API (`quiet_hours`) vale antes de procurar a frase nas regras em texto livre.
+    horario_de_silencio: factLines("horario_silencio").join(" · ") || (silence ? `${silence[0]} às ${silence[1]}` : ""),
     animais_de_estimacao: petsLine ? (/n[aã]o/i.test(petsLine) ? "Não permitidos" : `Permitidos${petsMax ? ` · até ${petsMax} animais` : ""}`) : "",
     fumar: ruleLine(p, /fumar/i) ? `Proibido${/independentemente do ambiente/i.test(additional) ? " em qualquer ambiente do imóvel" : ""}` : "",
     festas_e_eventos: rulesText(p) ? (ruleLine(p, /n[aã]o s[aã]o permitidas festas/i) ? "Não permitidos" : "Permitidos") : "",

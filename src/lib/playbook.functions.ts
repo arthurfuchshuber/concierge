@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { mergeHostFacts, type HostListing } from "@/lib/airbnb-host-api";
 import { COLUMN_FIELDS, ENTRY_FIELDS, LIST_FIELDS, type PlaybookSource } from "@/lib/playbook-build";
 import { PLAYBOOK_FIELDS } from "@/lib/playbook-catalog";
 import { partsFor, partsToColumns } from "@/lib/playbook-parts";
@@ -157,11 +158,14 @@ export const getPlaybook = createServerFn({ method: "POST" })
     }
 
     // Título bruto do anúncio (Channex): dele saem o nome interno e o título público.
-    const listingRes = await dbq<{ listing_meta: { title?: string } | null; normalized: { facts?: PlaybookSource["listingFacts"] } | null }>(() =>
+    const listingRes = await dbq<{ listing_meta: { title?: string } | null; normalized: { facts?: PlaybookSource["listingFacts"]; host_listing?: HostListing } | null }>(() =>
       sb.from("property_listing_raw_data").select("listing_meta, normalized").eq("property_id", id).maybeSingle(),
     );
     const listingTitle = listingRes.error ? null : (listingRes.data?.listing_meta?.title ?? null);
-    const listingFacts = listingRes.error ? [] : (listingRes.data?.normalized?.facts ?? []);
+    // Fatos do anfitrião recalculados na leitura (mesma regra da IA): campo novo extraído do bruto guardado aparece sem esperar a sincronização.
+    const listingFacts = listingRes.error
+      ? []
+      : (mergeHostFacts(listingRes.data?.normalized?.facts ?? [], listingRes.data?.normalized?.host_listing ?? null) as PlaybookSource["listingFacts"]);
 
     // BAIRRO e CEP: a Channex só entrega a cidade do anúncio. O endereço do
     // imóvel vem do Google Places (busca estruturada), então bairro e CEP são

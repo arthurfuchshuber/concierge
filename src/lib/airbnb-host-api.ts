@@ -32,6 +32,10 @@ export type HostListing = {
   checkInInstruction?: string | null;
   /** Manual da casa escrito pelo anfitrião no Airbnb (`house_manual`). */
   houseManual?: string | null;
+  /** Andar do imóvel segundo o anúncio (`property_details.listing_floor`; 1 = térreo). */
+  listingFloor?: number | null;
+  /** Horário de silêncio do anúncio (`quiet_hours`), já em HH:MM. */
+  quietHours?: Array<{ start: string; end: string }>;
   isGuestFavorite: boolean | null;
   isSuperhost: boolean | null;
   name: string | null;
@@ -271,6 +275,8 @@ export function parseHostListing(
     checkoutTasks: checkoutTaskLines(l.check_out_tasks),
     checkInInstruction: checkInInstructionOf(l),
     houseManual: str(l.house_manual),
+    listingFloor: listingFloorOf(l),
+    quietHours: quietHoursOf(l),
     isGuestFavorite: typeof qs.is_guest_favorite === "boolean" ? qs.is_guest_favorite : null,
     isSuperhost: typeof roles.is_super_host === "boolean" ? roles.is_super_host : null,
     name: str(d.name),
@@ -313,15 +319,19 @@ export function checkInInstructionOf(l: Record<string, unknown> | null | undefin
   return opt && typeof opt === "object" ? str(opt.instruction) : null;
 }
 
+function innerRawListing(h: HostListing): Record<string, unknown> | null {
+  const raw = h.raw?.listing as Record<string, unknown> | undefined;
+  if (!raw || typeof raw !== "object") return null;
+  return (raw["listing"] && typeof raw["listing"] === "object" ? raw["listing"] : raw) as Record<string, unknown>;
+}
+
 /**
  * Lê também do JSON BRUTO guardado (`raw.listing`): anúncios sincronizados antes deste campo existir já têm o
  * texto lá (caso Larissa/Whyll, 19/11/2026: "Abriremos o portão da garagem remotamente" estava só no bruto).
  */
 function rawListingField(h: HostListing, pick: (l: Record<string, unknown>) => string | null): string | null {
-  const raw = h.raw?.listing as Record<string, unknown> | undefined;
-  if (!raw || typeof raw !== "object") return null;
-  const l = (raw["listing"] && typeof raw["listing"] === "object" ? raw["listing"] : raw) as Record<string, unknown>;
-  return pick(l);
+  const l = innerRawListing(h);
+  return l ? pick(l) : null;
 }
 
 const CHECKIN_CATEGORY: Record<string, string> = {
@@ -348,6 +358,39 @@ const VIEW_LABEL: Record<string, string> = {
   SEA_VIEW: "mar",
   VALLEY_VIEW: "vale",
 };
+
+/** `property_details.listing_floor` (1 = térreo). */
+export function listingFloorOf(l: Record<string, unknown> | null | undefined): number | null {
+  const d = (l?.property_details ?? null) as Record<string, unknown> | null;
+  const f = d && typeof d === "object" ? num(d.listing_floor) : null;
+  return f !== null && f >= 0 ? Math.round(f) : null;
+}
+
+/** Andar no formato do campo `apartment_floor`: 0/1 → "Térreo", 2 → "1º andar", 3 → "2º andar". */
+export function floorLabelOf(listingFloor: number | null | undefined): string | null {
+  if (listingFloor == null || !Number.isFinite(listingFloor) || listingFloor < 0) return null;
+  return listingFloor <= 1 ? "Térreo" : `${listingFloor - 1}º andar`;
+}
+
+/** `quiet_hours` do anúncio: [{ start_time: "23", end_time: "7" }] → [{ start: "23:00", end: "07:00" }]. */
+export function quietHoursOf(l: Record<string, unknown> | null | undefined): Array<{ start: string; end: string }> {
+  const q = l?.quiet_hours;
+  const out: Array<{ start: string; end: string }> = [];
+  for (const e of Array.isArray(q) ? q : []) {
+    if (!e || typeof e !== "object") continue;
+    const o = e as Record<string, unknown>;
+    const start = hhmmOf(o.start_time ?? o.start);
+    const end = hhmmOf(o.end_time ?? o.end);
+    if (start && end) out.push({ start, end });
+  }
+  return out;
+}
+
+export function quietHoursText(h: Pick<HostListing, "quietHours" | "raw"> | null | undefined): string | null {
+  if (!h) return null;
+  const list = h.quietHours?.length ? h.quietHours : quietHoursOf(innerRawListing(h as HostListing));
+  return list.length ? list.map((x) => `${x.start} às ${x.end}`).join(" · ") : null;
+}
 
 /** Estrutura física e método de check-in do anúncio (`property_details`, `listing_views`, `check_in_option.category`). */
 export function propertyStructureText(l: Record<string, unknown>): string | null {
@@ -417,6 +460,243 @@ export function directionsTarget(v: string | null | undefined): { kind: "maps" |
   return { kind: "text", value: t };
 }
 
+// ── Comodidades detalhadas da API (`listing.amenities`) ─────────────────────────────────────────
+// O scrap público só traz o NOME de cada comodidade. A API do anfitrião traz também os metadados
+// (tamanho da TV, tipo de fogão, lava e seca na unidade, tipo de vaga, cômodos atendidos…). Nada
+// disso é descartado: o que não tem tradução própria entra pelo texto genérico do próprio campo.
+
+export type AmenityGroup =
+  | "climatizacao"
+  | "cozinha_e_sala_de_jantar"
+  | "entretenimento"
+  | "quarto_e_lavanderia"
+  | "banheiro"
+  | "garagem"
+  | "areas_externas";
+
+export const AMENITY_GROUP_TITLE: Record<AmenityGroup, string> = {
+  climatizacao: "Climatização",
+  cozinha_e_sala_de_jantar: "Cozinha e sala de jantar",
+  entretenimento: "Entretenimento",
+  quarto_e_lavanderia: "Quarto e lavanderia",
+  banheiro: "Banheiro",
+  garagem: "Estacionamento",
+  areas_externas: "Áreas externas, acesso e outros",
+};
+
+const AMENITY_INFO: Record<string, [AmenityGroup, string]> = {
+  AC: ["climatizacao", "Ar-condicionado"],
+  HEATING: ["climatizacao", "Aquecimento"],
+  PORTABLE_FANS: ["climatizacao", "Ventiladores portáteis"],
+  CEILING_FAN: ["climatizacao", "Ventilador de teto"],
+  KITCHEN: ["cozinha_e_sala_de_jantar", "Cozinha"],
+  KITCHENETTE: ["cozinha_e_sala_de_jantar", "Cozinha compacta"],
+  REFRIGERATOR: ["cozinha_e_sala_de_jantar", "Geladeira"],
+  MINI_FRIDGE: ["cozinha_e_sala_de_jantar", "Frigobar"],
+  FREEZER: ["cozinha_e_sala_de_jantar", "Freezer"],
+  MICROWAVE: ["cozinha_e_sala_de_jantar", "Micro-ondas"],
+  STOVE: ["cozinha_e_sala_de_jantar", "Fogão"],
+  OVEN: ["cozinha_e_sala_de_jantar", "Forno"],
+  COFFEE_MAKER: ["cozinha_e_sala_de_jantar", "Cafeteira"],
+  POUR_OVER_COFFEE: ["cozinha_e_sala_de_jantar", "Coador de café"],
+  BLENDER: ["cozinha_e_sala_de_jantar", "Liquidificador"],
+  DISHES_AND_SILVERWARE: ["cozinha_e_sala_de_jantar", "Pratos e talheres"],
+  COOKING_BASICS: ["cozinha_e_sala_de_jantar", "Itens básicos de cozinha"],
+  TRASH_COMPACTER: ["cozinha_e_sala_de_jantar", "Compactador de lixo"],
+  DINING_TABLE: ["cozinha_e_sala_de_jantar", "Mesa de jantar"],
+  ALFRESCO_DINING: ["cozinha_e_sala_de_jantar", "Mesa de jantar externa"],
+  BARBEQUE_UTENSILS: ["cozinha_e_sala_de_jantar", "Utensílios de churrasco"],
+  CLEANING_PRODUCTS: ["cozinha_e_sala_de_jantar", "Produtos de limpeza"],
+  CHILDRENS_DINNERWARE: ["cozinha_e_sala_de_jantar", "Louça infantil"],
+  TV: ["entretenimento", "TV"],
+  POOL: ["entretenimento", "Piscina"],
+  BBQ_AREA: ["entretenimento", "Churrasqueira"],
+  CHILDRENS_BOOKS_AND_TOYS: ["entretenimento", "Livros e brinquedos infantis"],
+  BED_LINENS: ["quarto_e_lavanderia", "Roupa de cama"],
+  EXTRA_PILLOWS_AND_BLANKETS: ["quarto_e_lavanderia", "Travesseiros e cobertores extras"],
+  WARDROBE_OR_CLOSET: ["quarto_e_lavanderia", "Guarda-roupa ou closet"],
+  HANGERS: ["quarto_e_lavanderia", "Cabides"],
+  ROOM_DARKENING_SHADES: ["quarto_e_lavanderia", "Cortinas blackout"],
+  IRON: ["quarto_e_lavanderia", "Ferro de passar"],
+  WASHER: ["quarto_e_lavanderia", "Máquina de lavar"],
+  DRYER: ["quarto_e_lavanderia", "Secadora"],
+  CLOTHES_DRYING_RACK: ["quarto_e_lavanderia", "Varal"],
+  CRIB: ["quarto_e_lavanderia", "Berço"],
+  PACK_N_PLAY_TRAVEL_CRIB: ["quarto_e_lavanderia", "Berço portátil"],
+  HAIR_DRYER: ["banheiro", "Secador de cabelo"],
+  HOT_WATER: ["banheiro", "Água quente"],
+  ESSENTIALS: ["banheiro", "Itens essenciais (toalhas, sabonete e papel higiênico)"],
+  FREE_PARKING: ["garagem", "Estacionamento gratuito no local"],
+  PAID_PARKING_ON_PREMISES: ["garagem", "Estacionamento pago no local"],
+  PAID_PARKING_OFF_PREMISES: ["garagem", "Estacionamento pago fora do local"],
+  STREET_PARKING: ["garagem", "Estacionamento na rua"],
+  EV_CHARGER: ["garagem", "Carregador de veículo elétrico"],
+  PATIO: ["areas_externas", "Pátio"],
+  PATIO_OR_BELCONY: ["areas_externas", "Pátio ou varanda"],
+  GARDEN_OR_BACKYARD: ["areas_externas", "Jardim ou quintal"],
+  OUTDOOR_SEATING: ["areas_externas", "Área de estar externa"],
+  OUTDOOR_KITCHEN: ["areas_externas", "Cozinha externa"],
+  LAPTOP_FRIENDLY_WORKSPACE: ["areas_externas", "Espaço de trabalho"],
+  PRIVATE_ENTRANCE: ["areas_externas", "Entrada privativa"],
+  PRIVATE_LIVING_ROOM: ["areas_externas", "Sala de estar privativa"],
+  SINGLE_LEVEL_HOME: ["areas_externas", "Imóvel em um único andar"],
+  WHEELCHAIR_ACCESSIBLE: ["areas_externas", "Acessível para cadeira de rodas"],
+  LONG_TERM_STAYS_ALLOWED: ["areas_externas", "Estadias longas permitidas"],
+  DOORMAN: ["areas_externas", "Porteiro"],
+  GATED_COMMUNITY: ["areas_externas", "Condomínio fechado"],
+  LAUNDROMAT_NEARBY: ["areas_externas", "Lavanderia comercial por perto"],
+  CLEANING_BEFORE_CHECKOUT: ["areas_externas", "Limpeza antes do check-out"],
+  CARBON_MONOXIDE_DETECTOR: ["areas_externas", "Detector de monóxido de carbono"],
+  SMOKE_ALARM: ["areas_externas", "Detector de fumaça"],
+  FIRE_EXTINGUISHER: ["areas_externas", "Extintor de incêndio"],
+  FIRST_AID_KIT: ["areas_externas", "Kit de primeiros socorros"],
+};
+
+const VALUE_PT: Record<string, string> = {
+  SPLIT_TYPE_DUCTLESS: "split",
+  CENTRAL: "central",
+  CENTRAL_AC: "central",
+  WINDOW: "de janela",
+  PORTABLE: "portátil",
+  GAS: "a gás",
+  ELECTRIC: "elétrico",
+  INDUCTION: "por indução",
+  STAINLESS_STEEL: "aço inox",
+  SINGLE: "simples",
+  DOUBLE: "duplo",
+  IN_UNIT: "dentro da unidade",
+  IN_BUILDING: "no prédio",
+  FREE: "grátis",
+  PAID: "pago",
+  COTTON: "algodão",
+  PRIVATE: "privativo",
+  PRIVATE_SPACE: "privativo",
+  SHARED: "compartilhado",
+  CHARCOAL: "a carvão",
+  POUR_OVER_COFFEE: "coador",
+  CHROMECAST: "Chromecast",
+  NETFLIX: "Netflix",
+  HD: "HD",
+  FULL_HD: "Full HD",
+  UHD_4K: "4K",
+  RESIDENTIAL_GARAGE: "garagem residencial",
+  DRESSER: "cômoda",
+  WARDROBE: "guarda-roupa",
+  CLOSET: "closet",
+  EVERY_DAY: "todos os dias",
+  SHEETS_PROVIDED: "com lençóis",
+  ALWAYS_AVAILABLE: "sempre disponível",
+  PACK_N_PLAY: "berço portátil",
+  STANDARD: "padrão",
+  SINK: "pia",
+};
+
+const valuePt = (v: unknown): string => {
+  const t = String(v ?? "").trim();
+  return VALUE_PT[t.toUpperCase()] ?? humanize(t).toLowerCase();
+};
+
+const hhmm4 = (v: unknown) => {
+  const t = String(v ?? "").replace(/\D/g, "");
+  return t.length === 4 ? `${t.slice(0, 2)}:${t.slice(2)}` : (hhmmOf(v) ?? String(v ?? ""));
+};
+
+/** Frases de um campo de metadado; recursivo para objetos aninhados (preço, dias, horários). */
+function metaPhrases(key: string, v: unknown, amenityKey: string): string[] {
+  if (v == null || v === "" || v === false) return [];
+  if (Array.isArray(v)) {
+    if (key === "available_times") {
+      return v.map((t) => (t && typeof t === "object" ? `das ${hhmm4((t as any).start_time)} às ${hhmm4((t as any).end_time)}` : "")).filter(Boolean);
+    }
+    const items = v.map((x) => (x && typeof x === "object" ? "" : valuePt(x))).filter(Boolean);
+    return items.length ? [items.join(", ")] : [];
+  }
+  if (typeof v === "object") {
+    return Object.entries(v as Record<string, unknown>).flatMap(([k, x]) => metaPhrases(k, x, amenityKey));
+  }
+  if (typeof v === "boolean") return key === "fenced" ? ["cercado"] : key === "confirmed_safe" ? [] : [humanize(key).toLowerCase()];
+  if (typeof v === "number" || /^\d+(\.\d+)?$/.test(String(v))) {
+    const n = Number(v);
+    if (key === "size_in_inch") return [`${n} polegadas`];
+    if (key === "number_of_burners") return [`${n} ${n === 1 ? "boca" : "bocas"}`];
+    if (key === "number_of_spaces") return [amenityKey.includes("PARKING") ? `${n} ${n === 1 ? "vaga" : "vagas"}` : `${n} lugares`];
+    return [`${humanize(key).toLowerCase()}: ${n}`];
+  }
+  if (key === "brand") return [`marca ${String(v)}`];
+  if (key === "service_day_availability_type" || key === "service_time_availability_type") {
+    return /SPECIFIC_TIMES/i.test(String(v)) ? [] : [valuePt(v)];
+  }
+  if (key === "price_category") return [valuePt(v)];
+  return [valuePt(v)];
+}
+
+/** Cômodos por id, com o mesmo nome que `parseRooms` dá a cada um. */
+function roomNamesById(rawRooms: unknown): Map<string, string> {
+  const out = new Map<string, string>();
+  let bedroomN = 0;
+  const sorted = list(rawRooms, "listing_rooms").slice().sort((a, b) => (num(a.room_number) ?? 0) - (num(b.room_number) ?? 0));
+  for (const r of sorted) {
+    const type = String(r.room_type ?? r.type ?? (num(r.room_number) === 0 ? "common_space" : "bedroom")).trim().toLowerCase();
+    const id = str(r.id);
+    if (!id) continue;
+    let name = str(r.name) ?? ROOM_LABEL[type] ?? (type === "exterior" ? "Área externa" : humanize(type));
+    if (type === "bedroom" && !str(r.name)) name = `Quarto ${++bedroomN}`;
+    out.set(id, name);
+  }
+  return out;
+}
+
+export type AmenityDetail = { group: AmenityGroup; line: string };
+
+function amenityEntries(raw: unknown): Array<[string, Record<string, any>]> {
+  if (Array.isArray(raw)) {
+    return raw
+      .filter((a) => a && typeof a === "object")
+      .map((a) => [String((a as any).amenity_type ?? (a as any).type ?? (a as any).name ?? "").toUpperCase(), a as Record<string, any>] as [string, Record<string, any>])
+      .filter(([k]) => k);
+  }
+  if (raw && typeof raw === "object") {
+    return Object.entries(raw as Record<string, unknown>)
+      .filter(([, v]) => v && typeof v === "object")
+      .map(([k, v]) => [k.toUpperCase(), v as Record<string, any>] as [string, Record<string, any>]);
+  }
+  return [];
+}
+
+const amenityInfo = (key: string): [AmenityGroup, string] => AMENITY_INFO[key] ?? ["areas_externas", humanize(key)];
+
+/**
+ * Detalhes (metadados e cômodos atendidos) das comodidades PRESENTES e rol das AUSENTES.
+ * Comodidade sem detalhe algum não gera linha: a presença já vem pelo nome do anúncio público.
+ */
+export function amenityDetails(rawAmenities: unknown, rawRooms: unknown): { details: AmenityDetail[]; absent: string[] } {
+  const rooms = roomNamesById(rawRooms);
+  const details: AmenityDetail[] = [];
+  const absent: string[] = [];
+  for (const [key, a] of amenityEntries(rawAmenities)) {
+    const [group, label] = amenityInfo(key);
+    if (a.is_present === false) {
+      absent.push(label);
+      continue;
+    }
+    if (a.is_present !== true && a.is_present !== undefined) continue;
+    const phrases = Object.values((a.metadata ?? {}) as Record<string, unknown>).flatMap((m) =>
+      m && typeof m === "object" ? Object.entries(m as Record<string, unknown>).flatMap(([k, v]) => metaPhrases(k, v, key)) : [],
+    );
+    // FREE_PARKING / PAID_PARKING_*: o tipo de cobrança já está no rótulo.
+    const attached = (Array.isArray(a.room_attachment_infos) ? a.room_attachment_infos : [])
+      .filter((r: any) => r && r.is_attached !== false)
+      .map((r: any) => rooms.get(String(r.room_id)) ?? "")
+      .filter(Boolean);
+    if (attached.length) phrases.push(`em ${[...new Set(attached)].join(", ")}`);
+    const instruction = str(a.instruction);
+    if (instruction) phrases.push(instruction);
+    const unique = [...new Set(phrases.filter(Boolean))];
+    if (unique.length) details.push({ group, line: `• ${label}: ${unique.join(" · ")}` });
+  }
+  return { details, absent };
+}
+
 export type HostFact = { key: string; title: string; content: string };
 
 /** Fatos ricos para o dossiê da IA. */
@@ -446,6 +726,17 @@ export function hostFacts(h: HostListing | null | undefined): HostFact[] {
   if (co) out.push({ key: "tarefas_checkout", title: "Instruções de Check-out do Anúncio", content: co });
   const structure = rawListingField(h, propertyStructureText);
   if (structure) out.push({ key: "estrutura_imovel", title: "Estrutura do imóvel (Airbnb)", content: structure });
+  const silencio = quietHoursText(h);
+  if (silencio) out.push({ key: "horario_silencio", title: "Horário de silêncio (Airbnb)", content: silencio });
+  const rawListing = innerRawListing(h);
+  if (rawListing) {
+    const { details, absent } = amenityDetails(rawListing.amenities, h.raw?.rooms);
+    for (const group of Object.keys(AMENITY_GROUP_TITLE) as AmenityGroup[]) {
+      const lines = details.filter((d) => d.group === group).map((d) => d.line);
+      if (lines.length) out.push({ key: `comodidade_${group}`, title: `Detalhes de ${AMENITY_GROUP_TITLE[group].toLowerCase()} (Airbnb)`, content: lines.join("\n") });
+    }
+    if (absent.length) out.push({ key: "comodidades_ausentes_api", title: "Comodidades que o anúncio declara NÃO ter (Airbnb)", content: absent.map((a) => `• ${a}`).join("\n") });
+  }
   if (Array.isArray(h.rooms) && h.rooms.length) out.push({ key: "distribuicao_comodos", title: "Cômodos e Camas Detalhados", content: h.rooms.map((r) => `${r.room}: ${r.beds}`).join("\n") });
   return out;
 }
@@ -470,6 +761,7 @@ export type HostCurrent = {
   checkout_instructions?: string | null;
   address_note?: string | null;
   maps_url?: string | null;
+  apartment_floor?: string | null;
   hero_image_url?: string | null;
   gallery_images?: string[] | null;
   airbnb_guest_count?: number | null;
@@ -524,6 +816,8 @@ export function hostPropertyPatch(h: HostListing, cur: HostCurrent): Record<stri
   if (h.beds != null && h.beds >= 0) set("airbnb_bed_count", Math.min(200, Math.round(h.beds)));
   if (h.bathrooms != null && h.bathrooms >= 0) set("airbnb_bathroom_count", Math.min(200, h.bathrooms));
   if (h.rooms.length) set("airbnb_rooms_beds", h.rooms);
+  // Andar do imóvel (P: serve a dúvidas de escada/acessibilidade antes da reserva). O número do apartamento é outro campo (G).
+  set("apartment_floor", floorLabelOf(h.listingFloor ?? listingFloorOf(innerRawListing(h))));
   set("checkin_time", h.checkInStart);
   set("checkin_time_max", h.checkInEnd);
   set("checkout_time", h.checkOutTime);
