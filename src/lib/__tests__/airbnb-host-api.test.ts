@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   checkoutTaskLines,
   composeAddress,
+  fullDescriptionText,
   hostFacts,
   hostPropertyPatch,
   mergeHostFacts,
@@ -27,10 +28,15 @@ const listing = {
     bathrooms: 1.5,
     check_out_tasks: ["RETURN_KEYS", { type: "THROW_TRASH" }, { type: "ADDITIONAL_REQUESTS", details: "Deixe a louça na pia" }],
     quality_standards: { is_guest_favorite: true },
+    check_in_time_start: "15",
+    check_in_time_end: "22",
+    check_out_time: 11,
+    wireless_info: { wireless_ssid: "CasaWifi", wireless_password: "segredo123" },
+    property_type_group: "house",
     host_roles: { is_super_host: true },
   },
 };
-const descriptions = { listing_descriptions: [{ locale: "en", name: "EN" }, { locale: "pt", name: "Casa Charmosa", summary: "Resumo", description: "Descrição" }] };
+const descriptions = { listing_descriptions: [{ locale: "en", name: "EN" }, { locale: "pt", name: "Casa Charmosa", summary: "Resumo", description: "Descrição", space: "Sala ampla", access: "Casa inteira", neighborhood_overview: "Bairro calmo", transit: "Ônibus na esquina", notes: "Sem festas", house_rules: "Silêncio após 22h" }] };
 const rooms = {
   listing_rooms: [
     { room_number: 2, beds: [{ type: "single_bed", quantity: 2 }] },
@@ -52,6 +58,19 @@ describe("API do anfitrião — leitura pura", () => {
   it("lê endereço, coordenadas, capacidade, descrição em pt e selos", () => {
     expect(h).toMatchObject({ city: "Foz do Iguaçu", countryCode: "BR", lat: -25.5, lng: -54.58, personCapacity: 6, bathrooms: 1.5, name: "Casa Charmosa", isGuestFavorite: true, isSuperhost: true });
     expect(composeAddress(h)).toBe("Rua das Cataratas, 100, Casa 2, CEP 85851-000");
+  });
+
+  it("coleta 100% do que a API devolve: todas as seções, horários, Wi-Fi e resposta bruta", () => {
+    expect(h).toMatchObject({ space: "Sala ampla", access: "Casa inteira", neighborhoodOverview: "Bairro calmo", transit: "Ônibus na esquina", notes: "Sem festas", houseRules: "Silêncio após 22h", checkInStart: "15:00", checkInEnd: "22:00", checkOutTime: "11:00", wifiSsid: "CasaWifi", wifiPassword: "segredo123", propertyType: "house" });
+    expect(h.raw?.listing).toBe(listing);
+    const full = fullDescriptionText(h)!;
+    for (const t of ["Resumo", "Descrição", "O espaço\nSala ampla", "A vizinhança\nBairro calmo", "Como se locomover\nÔnibus na esquina", "Outras observações\nSem festas"]) expect(full).toContain(t);
+  });
+
+  it("horários e Wi-Fi do anúncio substituem os do sistema", () => {
+    const p = hostPropertyPatch(h, { checkin_time: "14:00", checkout_time: "11:00", wifi_ssid: "Velho", wifi_password: "x" });
+    expect(p).toMatchObject({ checkin_time: "15:00", checkin_time_max: "22:00", wifi_ssid: "CasaWifi", wifi_password: "segredo123" });
+    expect(p).not.toHaveProperty("checkout_time");
   });
 
   it("fotos ordenadas por sort_order, todas (sem limite de 1), só https", () => {
@@ -79,7 +98,9 @@ describe("API do anfitrião — leitura pura", () => {
   });
 
   it("fatos do dossiê: como chegar, tarefas de check-out e cômodos (substituindo os antigos)", () => {
-    expect(hostFacts(h).map((f) => f.key)).toEqual(["como_chegar", "tarefas_checkout", "distribuicao_comodos"]);
+    const keys = hostFacts(h).map((f) => f.key);
+    for (const k of ["descricao_anfitriao", "o_espaco", "acesso_hospede", "vizinhanca", "transporte", "outras_observacoes", "regras_anfitriao", "tipo_imovel", "selos_anuncio", "fotos_legendas", "como_chegar", "tarefas_checkout", "distribuicao_comodos"]) expect(keys).toContain(k);
+    expect(JSON.stringify(hostFacts(h))).not.toContain("segredo123");
     const merged = mergeHostFacts([{ key: "como_chegar", title: "velho", content: "x" }, { key: "horarios", title: "H", content: "y" }], h);
     expect(merged.filter((f) => f.key === "como_chegar")).toHaveLength(1);
     expect(merged[0]!.key).toBe("horarios");

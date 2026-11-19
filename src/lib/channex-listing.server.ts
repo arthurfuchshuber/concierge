@@ -6,7 +6,7 @@ import { structuredListing, houseRulesText } from "@/lib/listing-structured";
  */
 import { getChannelCached } from "@/lib/channex-channel-cache.server";
 import { untypedTable } from "@/lib/untyped-table";
-import { hostPropertyPatch, mergeHostFacts, type HostCurrent, type HostListing } from "@/lib/airbnb-host-api";
+import { fullDescriptionText, hostPropertyPatch, mergeHostFacts, type HostCurrent, type HostListing } from "@/lib/airbnb-host-api";
 const CHANNEX_BASE = "https://app.channex.io/api/v1";
 const AIRBNB_CHANNEL_ID = "9f7f35ab-3b40-4b84-8483-693122d9604b";
 const CLAYTON_CHANNEL_ID = "24c871d9-d6fd-46f5-944d-a38b8a4df189";
@@ -274,7 +274,7 @@ export async function applyListingToProperty(args: {
 }): Promise<{ title: string }> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { listingTitle } = await import("@/lib/channex-entity-sync.server");
-  const cleanTitle = listingTitle(args.meta.title);
+  const cleanTitle = listingTitle(args.host?.name ?? args.meta.title);
   const b = (args.settings?.booking_setting ?? {}) as Record<string, any>;
   const patch: Record<string, unknown> = {};
   if (cleanTitle) patch["name"] = cleanTitle;
@@ -329,15 +329,21 @@ export async function applyListingToProperty(args: {
     // diferente troca a galeria inteira). Sem fotos da API, a capa pública só preenche o vazio.
     const { data: curRow } = await supabaseAdmin
       .from("properties")
-      .select("lat, lng, address, city, state, country, checkin_instructions, checkout_instructions, hero_image_url, gallery_images, airbnb_guest_count, airbnb_bedroom_count, airbnb_bed_count, airbnb_bathroom_count, airbnb_rooms_beds")
+      .select("lat, lng, address, city, state, country, checkin_instructions, checkout_instructions, hero_image_url, gallery_images, airbnb_guest_count, airbnb_bedroom_count, airbnb_bed_count, airbnb_bathroom_count, airbnb_rooms_beds, wifi_ssid, wifi_password, checkin_time, checkin_time_max, checkout_time")
       .eq("id", args.propertyId)
       .maybeSingle();
     const cur = (curRow ?? {}) as HostCurrent;
     if (args.host) {
       Object.assign(patch, hostPropertyPatch(args.host, cur));
-      if (!args.pub?.descriptions.length && (args.host.summary || args.host.description)) {
-        patch["airbnb_description_full"] = [args.host.summary, args.host.description].filter(Boolean).join("\n\n").slice(0, 20_000);
+      // Descrição COMPLETA (todas as seções) e regras escritas pelo anfitrião somadas às estruturadas.
+      const full = fullDescriptionText(args.host);
+      if (full) patch["airbnb_description_full"] = full.slice(0, 20_000);
+      if (args.host.houseRules) {
+        const base = String(patch["airbnb_house_rules"] ?? args.pub?.houseRules ?? houseRulesText(structuredListing(args.settings, false).house_rules) ?? "").trim();
+        patch["airbnb_house_rules"] = (base.includes(args.host.houseRules) ? base : [base, `Orientações do anfitrião:\n${args.host.houseRules}`].filter(Boolean).join("\n\n")).slice(0, 10_000);
       }
+      const url = `https://www.airbnb.com.br/rooms/${args.listingId}`;
+      if (/^\d{5,}$/.test(args.listingId)) patch["airbnb_listing_url"] = url;
       patch["airbnb_listing_last_synced_at"] = new Date().toISOString();
     }
     if (!args.host?.photos.length) {

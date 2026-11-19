@@ -33,10 +33,35 @@ export type HostListing = {
   name: string | null;
   summary: string | null;
   description: string | null;
+  /** Demais seções da descrição do anúncio (todas as que a API devolver). */
+  space: string | null;
+  access: string | null;
+  interaction: string | null;
+  neighborhoodOverview: string | null;
+  transit: string | null;
+  notes: string | null;
+  houseRules: string | null;
+  propertyType: string | null;
+  roomType: string | null;
+  checkInStart: string | null;
+  checkInEnd: string | null;
+  checkOutTime: string | null;
+  wifiSsid: string | null;
+  wifiPassword: string | null;
   rooms: HostRoom[];
   photos: HostPhoto[];
   fetchedAt: string;
+  /** Respostas BRUTAS das 4 chamadas, guardadas sem filtro para nenhum campo se perder. */
+  raw?: { listing?: unknown; descriptions?: unknown; rooms?: unknown; photos?: unknown };
 };
+
+/** "15" → "15:00"; "9:30" → "09:30"; "FLEXIBLE"/vazio → null. */
+export function hhmmOf(v: unknown): string | null {
+  const t = String(v ?? "").trim();
+  if (/^\d{1,2}$/.test(t) && Number(t) <= 24) return `${t.padStart(2, "0")}:00`;
+  if (/^\d{1,2}:\d{2}$/.test(t)) return t.padStart(5, "0");
+  return null;
+}
 
 const str = (v: unknown): string | null => {
   const t = typeof v === "string" ? v.trim() : typeof v === "number" ? String(v) : "";
@@ -214,6 +239,7 @@ export function parseHostListing(
   const lng = num(l.lng);
   const coords = validCoord(lat, lng);
   const qs = (l.quality_standards ?? {}) as Record<string, unknown>;
+  const wifi = (l.wireless_info ?? l.wifi_info ?? {}) as Record<string, unknown>;
   const roles = (l.host_roles ?? {}) as Record<string, unknown>;
   const out: HostListing = {
     listingId,
@@ -237,13 +263,28 @@ export function parseHostListing(
     name: str(d.name),
     summary: str(d.summary),
     description: str(d.description),
+    space: str(d.space ?? l.space),
+    access: str(d.access ?? l.access),
+    interaction: str(d.interaction ?? l.interaction),
+    neighborhoodOverview: str(d.neighborhood_overview ?? l.neighborhood_overview),
+    transit: str(d.transit ?? l.transit),
+    notes: str(d.notes ?? l.notes),
+    houseRules: str(d.house_rules ?? l.house_rules),
+    propertyType: str(l.property_type_group ?? l.property_type ?? l.property_type_category),
+    roomType: str(l.room_type_category ?? l.room_type),
+    checkInStart: hhmmOf(l.check_in_time_start),
+    checkInEnd: hhmmOf(l.check_in_time_end),
+    checkOutTime: hhmmOf(l.check_out_time),
+    wifiSsid: str(wifi.wireless_ssid ?? wifi.ssid ?? l.wifi_network ?? l.wireless_ssid),
+    wifiPassword: str(wifi.wireless_password ?? wifi.password ?? l.wifi_password ?? l.wireless_password),
     rooms: parseRooms(parts.rooms),
     photos: parsePhotos(parts.photos),
     fetchedAt: now.toISOString(),
+    raw: { listing: parts.listing, descriptions: parts.descriptions, rooms: parts.rooms, photos: parts.photos },
   };
   const anything =
     out.street || out.city || out.lat != null || out.directions || out.personCapacity != null ||
-    out.rooms.length || out.photos.length || out.description || out.checkoutTasks.length;
+    out.rooms.length || out.photos.length || out.description || out.checkoutTasks.length || out.name || out.space || out.houseRules;
   return anything ? out : null;
 }
 
@@ -257,12 +298,46 @@ export function checkoutInstructionsText(h: Pick<HostListing, "checkoutTasks">):
   return h.checkoutTasks.length ? h.checkoutTasks.map((t) => `• ${t}`).join("\n") : null;
 }
 
+const SECTIONS: Array<[keyof HostListing, string, string]> = [
+  ["space", "o_espaco", "O espaço"],
+  ["access", "acesso_hospede", "Acesso do hóspede"],
+  ["interaction", "interacao_hospede", "Interação com o hóspede"],
+  ["neighborhoodOverview", "vizinhanca", "A vizinhança"],
+  ["transit", "transporte", "Como se locomover"],
+  ["notes", "outras_observacoes", "Outras observações"],
+];
+
+/** Descrição COMPLETA do anúncio, com todas as seções que a API devolveu. */
+export function fullDescriptionText(h: HostListing): string | null {
+  const parts: string[] = [];
+  const main = [h.summary, h.description].filter(Boolean).join("\n\n");
+  if (main) parts.push(main);
+  for (const [k, , title] of SECTIONS) {
+    const v = h[k];
+    if (typeof v === "string" && v) parts.push(`${title}\n${v}`);
+  }
+  return parts.length ? parts.join("\n\n") : null;
+}
+
 export type HostFact = { key: string; title: string; content: string };
 
 /** Fatos ricos para o dossiê da IA. */
 export function hostFacts(h: HostListing | null | undefined): HostFact[] {
   if (!h) return [];
   const out: HostFact[] = [];
+  const main = [h.summary, h.description].filter(Boolean).join("\n\n");
+  if (main) out.push({ key: "descricao_anfitriao", title: "Descrição do anúncio (Airbnb)", content: main });
+  for (const [k, key, title] of SECTIONS) {
+    const v = h[k];
+    if (typeof v === "string" && v) out.push({ key, title: `${title} (Airbnb)`, content: v });
+  }
+  if (h.houseRules) out.push({ key: "regras_anfitriao", title: "Regras escritas pelo anfitrião (Airbnb)", content: h.houseRules });
+  const tipo = [h.propertyType, h.roomType].filter(Boolean).map((x) => humanize(String(x))).join(" · ");
+  if (tipo) out.push({ key: "tipo_imovel", title: "Tipo de imóvel (Airbnb)", content: tipo });
+  const selos = [h.isSuperhost ? "Anfitrião é Superhost" : null, h.isGuestFavorite ? "Anúncio é Preferido dos hóspedes" : null].filter(Boolean);
+  if (selos.length) out.push({ key: "selos_anuncio", title: "Selos do anúncio (Airbnb)", content: selos.join("\n") });
+  const legendas = h.photos.filter((x) => x.caption).map((x) => `• ${x.caption}`);
+  if (legendas.length) out.push({ key: "fotos_legendas", title: "Fotos do anúncio e o que mostram (Airbnb)", content: legendas.join("\n") });
   if (h.directions) out.push({ key: "como_chegar", title: "Orientações de Trajeto (Airbnb)", content: h.directions });
   const co = checkoutInstructionsText(h);
   if (co) out.push({ key: "tarefas_checkout", title: "Instruções de Check-out do Anúncio", content: co });
@@ -295,6 +370,11 @@ export type HostCurrent = {
   airbnb_bed_count?: number | null;
   airbnb_bathroom_count?: number | null;
   airbnb_rooms_beds?: unknown;
+  wifi_ssid?: string | null;
+  wifi_password?: string | null;
+  checkin_time?: string | null;
+  checkin_time_max?: string | null;
+  checkout_time?: string | null;
 };
 
 /**
@@ -326,6 +406,11 @@ export function hostPropertyPatch(h: HostListing, cur: HostCurrent): Record<stri
   if (h.beds != null && h.beds >= 0) set("airbnb_bed_count", Math.min(200, Math.round(h.beds)));
   if (h.bathrooms != null && h.bathrooms >= 0) set("airbnb_bathroom_count", Math.min(200, h.bathrooms));
   if (h.rooms.length) set("airbnb_rooms_beds", h.rooms);
+  set("checkin_time", h.checkInStart);
+  set("checkin_time_max", h.checkInEnd);
+  set("checkout_time", h.checkOutTime);
+  set("wifi_ssid", h.wifiSsid?.slice(0, 120));
+  set("wifi_password", h.wifiPassword?.slice(0, 120));
   if (h.photos.length) {
     const urls = h.photos.slice(0, 100).map((x) => x.url);
     set("gallery_images", urls);
