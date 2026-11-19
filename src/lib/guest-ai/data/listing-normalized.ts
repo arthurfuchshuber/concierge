@@ -24,10 +24,41 @@ import { mergeHostFacts, type HostListing } from "@/lib/airbnb-host-api";
 import { plainGuideTags } from "@/lib/guide-tags";
 
 /**
- * Etiqueta de audiência dos fatos do anúncio, igual à regra do Dossiê: o que o Airbnb só libera ao
- * hóspede com reserva (trajeto, instruções de check-in e check-out, manual da casa) é G; o resto é P.
+ * Etiqueta de audiência dos fatos do anúncio, igual à regra do Dossiê. Todo fato que a API do anfitrião
+ * mapeia (`hostFacts`) tem a etiqueta declarada aqui, sem depender de padrão implícito:
+ *  - G (Reserva Ativa): o que o Airbnb só libera ao hóspede com reserva (trajeto, instruções de check-in e
+ *    check-out, manual da casa);
+ *  - P (Público): descrição, regras, tipo, selos, legendas, estrutura (área, andar, ano, vista), cômodos,
+ *    horário de silêncio e comodidades detalhadas.
+ * Chave nova que não esteja numa das duas listas (nem for dinâmica do anúncio) cai em P, e o teste
+ * `dossie-etiquetas-anuncio` falha se o `hostFacts` emitir uma chave sem etiqueta declarada.
  */
 const RESERVATION_ONLY_FACTS: ReadonlySet<string> = new Set(["como_chegar", "instrucoes_checkin", "tarefas_checkout", "manual_casa_anuncio"]);
+
+export const PUBLIC_HOST_FACTS: ReadonlySet<string> = new Set([
+  "descricao_anfitriao",
+  "o_espaco",
+  "acesso_hospede",
+  "interacao_hospede",
+  "vizinhanca",
+  "transporte",
+  "outras_observacoes",
+  "regras_anfitriao",
+  "tipo_imovel",
+  "selos_anuncio",
+  "fotos_legendas",
+  "estrutura_imovel",
+  "distribuicao_comodos",
+  "horario_silencio",
+  "comodidade_climatizacao",
+  "comodidade_cozinha_e_sala_de_jantar",
+  "comodidade_entretenimento",
+  "comodidade_quarto_e_lavanderia",
+  "comodidade_banheiro",
+  "comodidade_garagem",
+  "comodidade_areas_externas",
+  "comodidades_ausentes_api",
+]);
 
 export function listingFactAudience(key: string): "P" | "G" {
   return RESERVATION_ONLY_FACTS.has(key) ? "G" : "P";

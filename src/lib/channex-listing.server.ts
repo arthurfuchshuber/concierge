@@ -329,7 +329,7 @@ export async function applyListingToProperty(args: {
     // diferente troca a galeria inteira). Sem fotos da API, a capa pública só preenche o vazio.
     const { data: curRow } = await supabaseAdmin
       .from("properties")
-      .select("lat, lng, address, city, state, country, checkin_instructions, checkout_instructions, address_note, maps_url, hero_image_url, gallery_images, airbnb_guest_count, airbnb_bedroom_count, airbnb_bed_count, airbnb_bathroom_count, airbnb_rooms_beds, wifi_ssid, wifi_password, checkin_time, checkin_time_max, checkout_time")
+      .select("lat, lng, address, city, state, country, checkin_instructions, checkout_instructions, address_note, maps_url, apartment_floor, hero_image_url, gallery_images, airbnb_guest_count, airbnb_bedroom_count, airbnb_bed_count, airbnb_bathroom_count, airbnb_rooms_beds, wifi_ssid, wifi_password, checkin_time, checkin_time_max, checkout_time")
       .eq("id", args.propertyId)
       .maybeSingle();
     const cur = (curRow ?? {}) as HostCurrent;

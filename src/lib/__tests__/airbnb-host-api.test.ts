@@ -1,6 +1,11 @@
 import { describe, it, expect } from "vitest";
+import { PUBLIC_HOST_FACTS, listingFactAudience } from "@/lib/guest-ai/data/listing-normalized";
 import {
   HOUSE_MANUAL_ENTRY,
+  amenityDetails,
+  floorLabelOf,
+  quietHoursOf,
+  quietHoursText,
   checkoutInstructionsText,
   houseManualText,
   checkoutTaskLines,
@@ -173,5 +178,114 @@ describe("API do anfitrião — leitura pura", () => {
     expect(hostPropertyPatch(h, full)).toEqual({});
     const semFotos = parseHostListing("2", { listing: { listing: { city: "X" } } })!;
     expect(hostPropertyPatch(semFotos, { gallery_images: ["https://a0.muscache.com/z.jpg"], address: "Rua A", city: "X" })).toEqual({});
+  });
+});
+
+describe("API do anfitrião — andar, silêncio e comodidades detalhadas", () => {
+  const rich = {
+    listing: {
+      ...listing.listing,
+      property_details: { listing_floor: 3, listing_size: { size: 35, size_unit: "SQUARE_METERS" }, number_of_floors: 4 },
+      quiet_hours: [{ start_time: "23", end_time: "7" }],
+      amenities: {
+        AC: { is_present: true, metadata: { ac: { ac_options: ["SPLIT_TYPE_DUCTLESS"] } }, room_attachment_infos: [{ is_attached: true, room_id: "11" }, { is_attached: true, room_id: "12" }] },
+        TV: { is_present: true, metadata: { tv: { quality: "HD", services: ["CHROMECAST"], size_in_inch: 55 } }, room_attachment_infos: [{ is_attached: true, room_id: "13" }] },
+        STOVE: { is_present: true, metadata: { stove: { stove_type: "GAS", number_of_burners: 5, stove_materials: ["STAINLESS_STEEL"] } } },
+        WASHER: { is_present: true, metadata: { laundry: { amenity_price: { price_category: "FREE" }, location: "IN_UNIT" } } },
+        FREE_PARKING: { is_present: true, metadata: { parking: { number_of_spaces: 2, parking_type: "RESIDENTIAL_GARAGE" } } },
+        HAIR_DRYER: { is_present: true, instruction: "" },
+        CARBON_MONOXIDE_DETECTOR: { is_present: false, metadata: { carbon_monoxide_detector: { confirmed_safe: true } } },
+        CLEANING_BEFORE_CHECKOUT: {
+          is_present: true,
+          metadata: {
+            cleaning_before_checkout: {
+              amenity_price: { price_category: "PAID" },
+              day_availability: { service_day_availability_type: "EVERY_DAY" },
+              time_availability: { available_times: [{ start_time: "0800", end_time: "2000" }], service_time_availability_type: "SPECIFIC_TIMES" },
+            },
+          },
+        },
+      },
+    },
+  };
+  const richRooms = {
+    listing_rooms: [
+      { id: "11", room_type: "bedroom", beds: [{ type: "queen_bed", quantity: 1 }] },
+      { id: "12", room_type: "bedroom", beds: [{ type: "double_bed", quantity: 1 }] },
+      { id: "13", room_type: "living_room", beds: [{ type: "sofa_bed", quantity: 1 }] },
+    ],
+  };
+  const h = parseHostListing("999", { listing: rich, descriptions, rooms: richRooms, photos })!;
+  const fact = (key: string) => hostFacts(h).find((f) => f.key === key)?.content ?? null;
+
+  it("andar do anúncio vira o campo apartment_floor (1 = térreo, 2 = 1º andar)", () => {
+    expect(floorLabelOf(1)).toBe("Térreo");
+    expect(floorLabelOf(0)).toBe("Térreo");
+    expect(floorLabelOf(2)).toBe("1º andar");
+    expect(floorLabelOf(null)).toBeNull();
+    expect(h.listingFloor).toBe(3);
+    expect(hostPropertyPatch(h, {})["apartment_floor"]).toBe("2º andar");
+    expect(hostPropertyPatch(h, { apartment_floor: "2º andar" })).not.toHaveProperty("apartment_floor");
+    // anúncio soberano: divergência substitui o que estava salvo
+    expect(hostPropertyPatch(h, { apartment_floor: "5" })["apartment_floor"]).toBe("2º andar");
+    // sem o dado na API, nada é apagado
+    const semAndar = parseHostListing("1", { listing: { listing: { city: "X" } } })!;
+    expect(hostPropertyPatch(semAndar, { apartment_floor: "Térreo" })).not.toHaveProperty("apartment_floor");
+  });
+
+  it("o andar também sai do JSON bruto de anúncios sincronizados antes do campo existir", () => {
+    const antigo = { ...h, listingFloor: undefined, quietHours: undefined };
+    expect(hostPropertyPatch(antigo, {})["apartment_floor"]).toBe("2º andar");
+    expect(quietHoursText(antigo)).toBe("23:00 às 07:00");
+  });
+
+  it("horário de silêncio estruturado (quiet_hours)", () => {
+    expect(h.quietHours).toEqual([{ start: "23:00", end: "07:00" }]);
+    expect(quietHoursOf({ quiet_hours: [{ start_time: "22", end_time: "08" }, { start_time: "x" }] })).toEqual([{ start: "22:00", end: "08:00" }]);
+    expect(quietHoursOf({})).toEqual([]);
+    expect(fact("horario_silencio")).toBe("23:00 às 07:00");
+  });
+
+  it("área e estrutura entram nos fatos", () => {
+    expect(fact("estrutura_imovel")).toContain("Área: 35 m²");
+  });
+
+  it("comodidades detalhadas por grupo, com cômodos atendidos", () => {
+    expect(fact("comodidade_climatizacao")).toBe("• Ar-condicionado: split · em Quarto 1, Quarto 2");
+    expect(fact("comodidade_entretenimento")).toBe("• TV: HD · Chromecast · 55 polegadas · em Sala de estar");
+    expect(fact("comodidade_cozinha_e_sala_de_jantar")).toBe("• Fogão: a gás · 5 bocas · aço inox");
+    expect(fact("comodidade_quarto_e_lavanderia")).toBe("• Máquina de lavar: grátis · dentro da unidade");
+    expect(fact("comodidade_garagem")).toBe("• Estacionamento gratuito no local: 2 vagas · garagem residencial");
+  });
+
+  it("serviço com preço, dias e horários não perde nenhum dado", () => {
+    expect(fact("comodidade_areas_externas")).toBe("• Limpeza antes do check-out: pago · todos os dias · das 08:00 às 20:00");
+  });
+
+  it("comodidade ausente declarada pela API vai para o rol de ausentes; presente sem detalhe não gera linha", () => {
+    expect(fact("comodidades_ausentes_api")).toBe("• Detector de monóxido de carbono");
+    expect(fact("comodidade_banheiro")).toBeNull();
+  });
+
+  it("amenidade desconhecida não é descartada: entra com o nome humanizado", () => {
+    const x = amenityDetails({ SOME_NEW_THING: { is_present: true, metadata: { some: { fenced: true, privacy: "PRIVATE" } } } }, null);
+    expect(x.details).toEqual([{ group: "areas_externas", line: "• Some new thing: cercado · privativo" }]);
+  });
+
+  it("cada fato emitido tem etiqueta declarada (G só para os quatro de reserva; o resto é P explícito)", () => {
+    const G = ["como_chegar", "instrucoes_checkin", "tarefas_checkout", "manual_casa_anuncio"];
+    const full = parseHostListing("999", {
+      listing: { listing: { ...rich.listing, directions: "Siga reto", house_manual: "Manual", check_in_option: { category: "keypad", instruction: "Use o código" }, listing_views: ["GARDEN_VIEW"], check_out_tasks: ["RETURN_KEYS"] } },
+      descriptions,
+      rooms: richRooms,
+      photos: { listing_photos: [{ sort_order: 1, extra_medium_url: "https://a0.muscache.com/a.jpg", caption: "Fachada" }] },
+    })!;
+    for (const f of hostFacts(full)) {
+      if (G.includes(f.key)) expect(listingFactAudience(f.key)).toBe("G");
+      else {
+        expect(PUBLIC_HOST_FACTS.has(f.key), `chave sem etiqueta explícita: ${f.key}`).toBe(true);
+        expect(listingFactAudience(f.key)).toBe("P");
+      }
+    }
   });
 });
