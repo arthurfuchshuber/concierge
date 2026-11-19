@@ -1,10 +1,8 @@
 import * as React from "react";
 import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
 import { CalendarIcon, Loader2 } from "lucide-react";
 
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { CalendarWindow } from "@/components/dashboard/CalendarWindow";
 import { cn } from "@/lib/utils";
 import { allowedWindowPhrase, buildHourGrid } from "@/lib/time-window";
 import { readStayToken } from "@/lib/stay-token-client";
@@ -216,45 +214,33 @@ export function PredictedTimeCard({
         >
           {altLabel}
         </button>
-        <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
-          <PopoverTrigger asChild>
-            <button
-              type="button"
-              aria-label="Escolher outra data"
-              className={cn(
-                "flex size-10 shrink-0 items-center justify-center rounded-[10px] border transition-colors",
-                dateChoice === "custom"
-                  ? "border-[#e82dae]/50 bg-[#e82dae]/[0.14] text-[#ff8ade]"
-                  : "border-border/60 bg-foreground/[0.04] text-foreground/70",
-              )}
-            >
-              <CalendarIcon className="size-4" />
-            </button>
-          </PopoverTrigger>
-          <PopoverContent align="end" className="w-auto p-0">
-            <Calendar
-              mode="single"
-              locale={ptBR}
-              selected={
-                dateChoice === "custom" && customDate ? parseISODateLocal(customDate) : undefined
-              }
-              defaultMonth={parseISODateLocal(confirmedDate)}
-              disabled={
-                minDate || maxDate
-                  ? (d: Date) => (minDate ? d < minDate : false) || (maxDate ? d > maxDate : false)
-                  : undefined
-              }
-              onSelect={(d) => {
-                if (!d) return;
-                setCustomDate(dateToISOLocal(d));
-                setDateChoice("custom");
-                setCalendarOpen(false);
-                setSaved(false);
-              }}
-              className="p-3"
-            />
-          </PopoverContent>
-        </Popover>
+        {/* Calendário padrão do sistema (janela "Ir para", 18/11/2026) no lugar do popover. */}
+        <button
+          type="button"
+          aria-label="Escolher outra data"
+          onClick={() => setCalendarOpen(true)}
+          className={cn(
+            "flex size-10 shrink-0 items-center justify-center rounded-[10px] border transition-colors",
+            dateChoice === "custom"
+              ? "border-[#e82dae]/50 bg-[#e82dae]/[0.14] text-[#ff8ade]"
+              : "border-border/60 bg-foreground/[0.04] text-foreground/70",
+          )}
+        >
+          <CalendarIcon className="size-4" />
+        </button>
+        <CalendarWindow
+          open={calendarOpen}
+          onOpenChange={setCalendarOpen}
+          title="Escolher Outra Data"
+          value={dateChoice === "custom" && customDate ? parseISODateLocal(customDate) : parseISODateLocal(confirmedDate)}
+          min={minDate ?? undefined}
+          max={maxDate ?? undefined}
+          onPick={(d) => {
+            setCustomDate(dateToISOLocal(d));
+            setDateChoice("custom");
+            setSaved(false);
+          }}
+        />
       </div>
 
       {contextChip && <div className="mt-3.5">{contextChip}</div>}

@@ -40,6 +40,7 @@ export function PeriodQuickFilterButton({
   max,
   defaultChip,
   shortcut,
+  presets,
 }: {
   value: QuickPeriod | null;
   onChange: (next: QuickPeriod | null) => void;
@@ -48,6 +49,8 @@ export function PeriodQuickFilterButton({
   max?: string | null;
   /** Atalho "padrão" (ex.: "Últimos 7 dias") que limpa o período. */
   defaultChip?: string;
+  /** Botões rápidos próprios desta janela, ao lado do título (padrão "Ir para", 18/11/2026). */
+  presets?: Array<"today" | "next7" | "month">;
   /**
    * ATALHO À ESQUERDA DO "PERÍODO" (09/11/2026, só no computador): o padrão da
    * página num clique — "Hoje" no Kanban, "7 Dias" em Serviços (hoje + 6 dias
@@ -77,6 +80,7 @@ export function PeriodQuickFilterButton({
     defaultChip: defaultChip
       ? { label: defaultChip, active: !draft?.from && !value, onSelect: () => { clear(); setOpen(false); } }
       : undefined,
+    presets,
     value: draft,
     month,
     onMonthChange: setMonth,

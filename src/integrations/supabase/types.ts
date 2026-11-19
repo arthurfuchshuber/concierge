@@ -44,6 +44,101 @@ export type Database = {
         }
         Relationships: []
       }
+      account_companies: {
+        Row: {
+          answered_at: string | null
+          cep: string | null
+          city: string | null
+          cnae_code: string | null
+          cnae_description: string | null
+          cnpj: string | null
+          created_at: string
+          email: string | null
+          ibge_city_code: string | null
+          is_company: boolean | null
+          legal_name: string | null
+          locked_fields: string[]
+          municipal_registration: string | null
+          neighborhood: string | null
+          number: string | null
+          owner_id: string
+          phone: string | null
+          phone_country: string | null
+          receita_checked_at: string | null
+          simples: string | null
+          situation: string | null
+          state: string | null
+          street: string | null
+          tax_regime: string | null
+          trade_name: string | null
+          updated_at: string
+        }
+        Insert: {
+          answered_at?: string | null
+          cep?: string | null
+          city?: string | null
+          cnae_code?: string | null
+          cnae_description?: string | null
+          cnpj?: string | null
+          created_at?: string
+          email?: string | null
+          ibge_city_code?: string | null
+          is_company?: boolean | null
+          legal_name?: string | null
+          locked_fields?: string[]
+          municipal_registration?: string | null
+          neighborhood?: string | null
+          number?: string | null
+          owner_id: string
+          phone?: string | null
+          phone_country?: string | null
+          receita_checked_at?: string | null
+          simples?: string | null
+          situation?: string | null
+          state?: string | null
+          street?: string | null
+          tax_regime?: string | null
+          trade_name?: string | null
+          updated_at?: string
+        }
+        Update: {
+          answered_at?: string | null
+          cep?: string | null
+          city?: string | null
+          cnae_code?: string | null
+          cnae_description?: string | null
+          cnpj?: string | null
+          created_at?: string
+          email?: string | null
+          ibge_city_code?: string | null
+          is_company?: boolean | null
+          legal_name?: string | null
+          locked_fields?: string[]
+          municipal_registration?: string | null
+          neighborhood?: string | null
+          number?: string | null
+          owner_id?: string
+          phone?: string | null
+          phone_country?: string | null
+          receita_checked_at?: string | null
+          simples?: string | null
+          situation?: string | null
+          state?: string | null
+          street?: string | null
+          tax_regime?: string | null
+          trade_name?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "account_companies_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       account_member_invites: {
         Row: {
           accepted_at: string | null
@@ -2307,6 +2402,51 @@ export type Database = {
         }
         Relationships: []
       }
+      billing_period_snapshots: {
+        Row: {
+          active_listings: number
+          billed_units: number
+          courtesy: boolean
+          created_at: string
+          exempt: boolean
+          listing_names: string[]
+          monthly_cents: number
+          owner_id: string
+          period_date: string
+          source: string
+          terms: Json
+          unit_cents: number
+        }
+        Insert: {
+          active_listings: number
+          billed_units?: number
+          courtesy?: boolean
+          created_at?: string
+          exempt?: boolean
+          listing_names?: string[]
+          monthly_cents?: number
+          owner_id: string
+          period_date: string
+          source?: string
+          terms?: Json
+          unit_cents?: number
+        }
+        Update: {
+          active_listings?: number
+          billed_units?: number
+          courtesy?: boolean
+          created_at?: string
+          exempt?: boolean
+          listing_names?: string[]
+          monthly_cents?: number
+          owner_id?: string
+          period_date?: string
+          source?: string
+          terms?: Json
+          unit_cents?: number
+        }
+        Relationships: []
+      }
       billing_sync_queue: {
         Row: {
           attempts: number
@@ -3382,6 +3522,736 @@ export type Database = {
         }
         Relationships: []
       }
+      fiscal_attempt_evidence: {
+        Row: {
+          attempt_id: string | null
+          body_hash: string | null
+          body_redacted: Json | null
+          http_status: number | null
+          id: string
+          kind: string
+          operation_id: string
+          recorded_at: string
+          response_class: string | null
+        }
+        Insert: {
+          attempt_id?: string | null
+          body_hash?: string | null
+          body_redacted?: Json | null
+          http_status?: number | null
+          id?: string
+          kind: string
+          operation_id: string
+          recorded_at?: string
+          response_class?: string | null
+        }
+        Update: {
+          attempt_id?: string | null
+          body_hash?: string | null
+          body_redacted?: Json | null
+          http_status?: number | null
+          id?: string
+          kind?: string
+          operation_id?: string
+          recorded_at?: string
+          response_class?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fiscal_attempt_evidence_attempt_id_fkey"
+            columns: ["attempt_id"]
+            isOneToOne: false
+            referencedRelation: "fiscal_operation_attempts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fiscal_attempt_evidence_operation_id_fkey"
+            columns: ["operation_id"]
+            isOneToOne: false
+            referencedRelation: "fiscal_operations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fiscal_audit: {
+        Row: {
+          action: string
+          actor: string | null
+          created_at: string
+          detail: Json
+          entity: string
+          entity_id: string | null
+          id: number
+          owner_id: string | null
+        }
+        Insert: {
+          action: string
+          actor?: string | null
+          created_at?: string
+          detail?: Json
+          entity: string
+          entity_id?: string | null
+          id?: never
+          owner_id?: string | null
+        }
+        Update: {
+          action?: string
+          actor?: string | null
+          created_at?: string
+          detail?: Json
+          entity?: string
+          entity_id?: string | null
+          id?: never
+          owner_id?: string | null
+        }
+        Relationships: []
+      }
+      fiscal_authorization_consumptions: {
+        Row: {
+          attempt_id: string
+          authorization_id: string
+          consumed_at: string
+          id: string
+          operation_id: string
+          trigger_current_user: string
+          trigger_origin: string | null
+          trigger_request_id: string | null
+          trigger_session_user: string
+        }
+        Insert: {
+          attempt_id: string
+          authorization_id: string
+          consumed_at?: string
+          id?: string
+          operation_id: string
+          trigger_current_user?: string
+          trigger_origin?: string | null
+          trigger_request_id?: string | null
+          trigger_session_user?: string
+        }
+        Update: {
+          attempt_id?: string
+          authorization_id?: string
+          consumed_at?: string
+          id?: string
+          operation_id?: string
+          trigger_current_user?: string
+          trigger_origin?: string | null
+          trigger_request_id?: string | null
+          trigger_session_user?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fiscal_authorization_consumptions_attempt_id_fkey"
+            columns: ["attempt_id"]
+            isOneToOne: false
+            referencedRelation: "fiscal_operation_attempts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fiscal_authorization_consumptions_authorization_id_fkey"
+            columns: ["authorization_id"]
+            isOneToOne: true
+            referencedRelation: "fiscal_operation_authorizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fiscal_authorization_consumptions_operation_id_fkey"
+            columns: ["operation_id"]
+            isOneToOne: false
+            referencedRelation: "fiscal_operations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fiscal_companies: {
+        Row: {
+          approximate_taxes: string
+          capabilities: Json
+          certificate_updated_at: string | null
+          certificate_valid_until: string | null
+          cnae_code: string | null
+          cnae_description: string | null
+          connection_id: string
+          contact_email: string | null
+          contact_phone: string | null
+          created_at: string
+          dps_next_number: number
+          dps_series: string
+          ibge_city_code: string | null
+          id: string
+          invoice_note: string | null
+          legal_name: string
+          municipal_registration: string | null
+          owner_id: string
+          provider_company_ref: string | null
+          simples_option: string | null
+          soft_deleted_at: string | null
+          special_regime: number
+          status: string
+          tax_id: string
+          trade_name: string | null
+          updated_at: string
+          withholding_text_csrf: string | null
+          withholding_text_inss: string | null
+          withholding_text_ir: string | null
+        }
+        Insert: {
+          approximate_taxes?: string
+          capabilities?: Json
+          certificate_updated_at?: string | null
+          certificate_valid_until?: string | null
+          cnae_code?: string | null
+          cnae_description?: string | null
+          connection_id: string
+          contact_email?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          dps_next_number?: number
+          dps_series?: string
+          ibge_city_code?: string | null
+          id?: string
+          invoice_note?: string | null
+          legal_name: string
+          municipal_registration?: string | null
+          owner_id: string
+          provider_company_ref?: string | null
+          simples_option?: string | null
+          soft_deleted_at?: string | null
+          special_regime?: number
+          status?: string
+          tax_id: string
+          trade_name?: string | null
+          updated_at?: string
+          withholding_text_csrf?: string | null
+          withholding_text_inss?: string | null
+          withholding_text_ir?: string | null
+        }
+        Update: {
+          approximate_taxes?: string
+          capabilities?: Json
+          certificate_updated_at?: string | null
+          certificate_valid_until?: string | null
+          cnae_code?: string | null
+          cnae_description?: string | null
+          connection_id?: string
+          contact_email?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          dps_next_number?: number
+          dps_series?: string
+          ibge_city_code?: string | null
+          id?: string
+          invoice_note?: string | null
+          legal_name?: string
+          municipal_registration?: string | null
+          owner_id?: string
+          provider_company_ref?: string | null
+          simples_option?: string | null
+          soft_deleted_at?: string | null
+          special_regime?: number
+          status?: string
+          tax_id?: string
+          trade_name?: string | null
+          updated_at?: string
+          withholding_text_csrf?: string | null
+          withholding_text_inss?: string | null
+          withholding_text_ir?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fiscal_companies_connection_id_fkey"
+            columns: ["connection_id"]
+            isOneToOne: false
+            referencedRelation: "fiscal_provider_connections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fiscal_document_files: {
+        Row: {
+          company_id: string
+          created_at: string
+          document_id: string
+          id: string
+          kind: string
+          owner_id: string
+          retain_until: string
+          sha256: string
+          size_bytes: number
+          storage_path: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          document_id: string
+          id?: string
+          kind: string
+          owner_id: string
+          retain_until?: string
+          sha256: string
+          size_bytes: number
+          storage_path: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          document_id?: string
+          id?: string
+          kind?: string
+          owner_id?: string
+          retain_until?: string
+          sha256?: string
+          size_bytes?: number
+          storage_path?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fiscal_document_files_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "fiscal_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fiscal_document_files_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "fiscal_documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fiscal_documents: {
+        Row: {
+          access_key: string | null
+          authorized_at: string | null
+          company_id: string
+          created_at: string
+          direction: string
+          document_kind: string
+          id: string
+          last_query_at: string | null
+          natural_key: string
+          owner_id: string
+          protocol: string | null
+          ref: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          access_key?: string | null
+          authorized_at?: string | null
+          company_id: string
+          created_at?: string
+          direction: string
+          document_kind: string
+          id?: string
+          last_query_at?: string | null
+          natural_key: string
+          owner_id: string
+          protocol?: string | null
+          ref?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          access_key?: string | null
+          authorized_at?: string | null
+          company_id?: string
+          created_at?: string
+          direction?: string
+          document_kind?: string
+          id?: string
+          last_query_at?: string | null
+          natural_key?: string
+          owner_id?: string
+          protocol?: string | null
+          ref?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fiscal_documents_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "fiscal_companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fiscal_operation_attempts: {
+        Row: {
+          adapter_version: string
+          attempt_no: number
+          id: string
+          operation_id: string
+          payload_hash: string
+          planned_at: string
+          ref: string
+          resolution: string | null
+          resolved_at: string | null
+          responded_at: string | null
+          sent_at: string | null
+          state: string
+          unknown_at: string | null
+          unknown_reason: string | null
+        }
+        Insert: {
+          adapter_version: string
+          attempt_no: number
+          id?: string
+          operation_id: string
+          payload_hash: string
+          planned_at?: string
+          ref: string
+          resolution?: string | null
+          resolved_at?: string | null
+          responded_at?: string | null
+          sent_at?: string | null
+          state?: string
+          unknown_at?: string | null
+          unknown_reason?: string | null
+        }
+        Update: {
+          adapter_version?: string
+          attempt_no?: number
+          id?: string
+          operation_id?: string
+          payload_hash?: string
+          planned_at?: string
+          ref?: string
+          resolution?: string | null
+          resolved_at?: string | null
+          responded_at?: string | null
+          sent_at?: string | null
+          state?: string
+          unknown_at?: string | null
+          unknown_reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fiscal_operation_attempts_operation_id_fkey"
+            columns: ["operation_id"]
+            isOneToOne: false
+            referencedRelation: "fiscal_operations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fiscal_operation_authorizations: {
+        Row: {
+          authorized_by: string
+          config_version: number
+          created_at: string
+          dispatch_mode: string
+          expires_at: string
+          id: string
+          key_fingerprint: string
+          operation_id: string
+          owner_id: string
+          payload_hash: string
+          signature: string
+        }
+        Insert: {
+          authorized_by: string
+          config_version: number
+          created_at?: string
+          dispatch_mode?: string
+          expires_at: string
+          id?: string
+          key_fingerprint: string
+          operation_id: string
+          owner_id: string
+          payload_hash: string
+          signature: string
+        }
+        Update: {
+          authorized_by?: string
+          config_version?: number
+          created_at?: string
+          dispatch_mode?: string
+          expires_at?: string
+          id?: string
+          key_fingerprint?: string
+          operation_id?: string
+          owner_id?: string
+          payload_hash?: string
+          signature?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fiscal_operation_authorizations_operation_id_fkey"
+            columns: ["operation_id"]
+            isOneToOne: false
+            referencedRelation: "fiscal_operations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fiscal_operations: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string
+          document_id: string | null
+          id: string
+          kind: string
+          owner_id: string
+          payload: Json
+          payload_hash: string
+          ref: string
+          state: string
+          state_reason: string | null
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by: string
+          document_id?: string | null
+          id?: string
+          kind: string
+          owner_id: string
+          payload: Json
+          payload_hash: string
+          ref: string
+          state?: string
+          state_reason?: string | null
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string
+          document_id?: string | null
+          id?: string
+          kind?: string
+          owner_id?: string
+          payload?: Json
+          payload_hash?: string
+          ref?: string
+          state?: string
+          state_reason?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fiscal_operations_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "fiscal_companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fiscal_operations_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "fiscal_documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fiscal_provider_connections: {
+        Row: {
+          base_url: string
+          created_at: string
+          environment: string
+          id: string
+          initial_sync_at: string | null
+          last_error_code: string | null
+          last_ok_at: string | null
+          owner_id: string | null
+          provider: string
+          secret_ref: Json | null
+          status: string
+          token_fingerprint: string | null
+          updated_at: string
+          webhook_secret_hash: string | null
+        }
+        Insert: {
+          base_url: string
+          created_at?: string
+          environment: string
+          id?: string
+          initial_sync_at?: string | null
+          last_error_code?: string | null
+          last_ok_at?: string | null
+          owner_id?: string | null
+          provider?: string
+          secret_ref?: Json | null
+          status?: string
+          token_fingerprint?: string | null
+          updated_at?: string
+          webhook_secret_hash?: string | null
+        }
+        Update: {
+          base_url?: string
+          created_at?: string
+          environment?: string
+          id?: string
+          initial_sync_at?: string | null
+          last_error_code?: string | null
+          last_ok_at?: string | null
+          owner_id?: string | null
+          provider?: string
+          secret_ref?: Json | null
+          status?: string
+          token_fingerprint?: string | null
+          updated_at?: string
+          webhook_secret_hash?: string | null
+        }
+        Relationships: []
+      }
+      fiscal_services: {
+        Row: {
+          cclass_trib: string | null
+          company_id: string
+          created_at: string
+          cst: string | null
+          description: string
+          id: string
+          inss_pct: number | null
+          ir_pct: number | null
+          is_default: boolean
+          national_code: string
+          nbs_code: string | null
+          operation_indicator: string | null
+          owner_id: string
+          service_code: string | null
+          soft_deleted_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          cclass_trib?: string | null
+          company_id: string
+          created_at?: string
+          cst?: string | null
+          description: string
+          id?: string
+          inss_pct?: number | null
+          ir_pct?: number | null
+          is_default?: boolean
+          national_code: string
+          nbs_code?: string | null
+          operation_indicator?: string | null
+          owner_id: string
+          service_code?: string | null
+          soft_deleted_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          cclass_trib?: string | null
+          company_id?: string
+          created_at?: string
+          cst?: string | null
+          description?: string
+          id?: string
+          inss_pct?: number | null
+          ir_pct?: number | null
+          is_default?: boolean
+          national_code?: string
+          nbs_code?: string | null
+          operation_indicator?: string | null
+          owner_id?: string
+          service_code?: string | null
+          soft_deleted_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fiscal_services_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "fiscal_companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fiscal_tenant_enablement: {
+        Row: {
+          enabled: boolean
+          enabled_at: string | null
+          enabled_by: string | null
+          note: string | null
+          owner_id: string
+          updated_at: string
+        }
+        Insert: {
+          enabled?: boolean
+          enabled_at?: string | null
+          enabled_by?: string | null
+          note?: string | null
+          owner_id: string
+          updated_at?: string
+        }
+        Update: {
+          enabled?: boolean
+          enabled_at?: string | null
+          enabled_by?: string | null
+          note?: string | null
+          owner_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      fiscal_webhook_events: {
+        Row: {
+          attempts: number
+          body_hash: string
+          body_redacted: Json
+          claimed_until: string | null
+          connection_id: string
+          dedupe_key: string
+          id: string
+          last_error: string | null
+          owner_id: string | null
+          processed_at: string | null
+          received_at: string
+          ref: string | null
+          status: string
+        }
+        Insert: {
+          attempts?: number
+          body_hash: string
+          body_redacted: Json
+          claimed_until?: string | null
+          connection_id: string
+          dedupe_key: string
+          id?: string
+          last_error?: string | null
+          owner_id?: string | null
+          processed_at?: string | null
+          received_at?: string
+          ref?: string | null
+          status?: string
+        }
+        Update: {
+          attempts?: number
+          body_hash?: string
+          body_redacted?: Json
+          claimed_until?: string | null
+          connection_id?: string
+          dedupe_key?: string
+          id?: string
+          last_error?: string | null
+          owner_id?: string | null
+          processed_at?: string | null
+          received_at?: string
+          ref?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fiscal_webhook_events_connection_id_fkey"
+            columns: ["connection_id"]
+            isOneToOne: false
+            referencedRelation: "fiscal_provider_connections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       full_connect_conductors: {
         Row: {
           created_at: string
@@ -3400,117 +4270,54 @@ export type Database = {
         }
         Relationships: []
       }
-      guest_ai_turns: {
+      guest_ai_generation_traces: {
         Row: {
-          context_credential_policy: string | null
-          context_dossier_entries: number | null
-          context_history_messages: number | null
-          context_human_in_command: boolean | null
-          context_reservation_linked: boolean | null
-          context_sender_identity: string | null
-          context_stay_phase: string | null
-          conversation_id: string
+          attempts: number | null
+          autonomous: boolean
+          blocked_detail: string | null
+          blocked_reply: string | null
           created_at: string
-          expires_at: string
-          gateway_cost_usd: number
-          gateway_error: string | null
-          gateway_input_tokens: number | null
-          gateway_latency_ms: number | null
-          gateway_output_tokens: number | null
-          generation_attempts: number
-          generation_finished_at: string | null
-          generation_started_at: string
-          handoff_needed: boolean
-          handoff_urgency: string | null
-          id: string
-          intents: string[]
-          internal_question: string | null
-          model_id: string | null
-          outcome_code: string | null
-          outcome_kind: string | null
-          property_id: string
-          state: string
-          strategy: string | null
-          suggested_text: string | null
-          surface: string
-          tenant_id: string
-          trigger_message_id: string
-          updated_at: string
-          warnings: string[]
+          failed_stage: string | null
+          final_code: string | null
+          final_kind: string | null
+          id: number
+          remaining_ms: number | null
+          retry_reason: string | null
+          suggestion_id: string
+          tool_rounds: number | null
+          total_ms: number | null
         }
         Insert: {
-          context_credential_policy?: string | null
-          context_dossier_entries?: number | null
-          context_history_messages?: number | null
-          context_human_in_command?: boolean | null
-          context_reservation_linked?: boolean | null
-          context_sender_identity?: string | null
-          context_stay_phase?: string | null
-          conversation_id: string
+          attempts?: number | null
+          autonomous: boolean
+          blocked_detail?: string | null
+          blocked_reply?: string | null
           created_at?: string
-          expires_at?: string
-          gateway_cost_usd?: number
-          gateway_error?: string | null
-          gateway_input_tokens?: number | null
-          gateway_latency_ms?: number | null
-          gateway_output_tokens?: number | null
-          generation_attempts?: number
-          generation_finished_at?: string | null
-          generation_started_at?: string
-          handoff_needed?: boolean
-          handoff_urgency?: string | null
-          id?: string
-          intents?: string[]
-          internal_question?: string | null
-          model_id?: string | null
-          outcome_code?: string | null
-          outcome_kind?: string | null
-          property_id: string
-          state?: string
-          strategy?: string | null
-          suggested_text?: string | null
-          surface: string
-          tenant_id: string
-          trigger_message_id: string
-          updated_at?: string
-          warnings?: string[]
+          failed_stage?: string | null
+          final_code?: string | null
+          final_kind?: string | null
+          id?: never
+          remaining_ms?: number | null
+          retry_reason?: string | null
+          suggestion_id: string
+          tool_rounds?: number | null
+          total_ms?: number | null
         }
         Update: {
-          context_credential_policy?: string | null
-          context_dossier_entries?: number | null
-          context_history_messages?: number | null
-          context_human_in_command?: boolean | null
-          context_reservation_linked?: boolean | null
-          context_sender_identity?: string | null
-          context_stay_phase?: string | null
-          conversation_id?: string
+          attempts?: number | null
+          autonomous?: boolean
+          blocked_detail?: string | null
+          blocked_reply?: string | null
           created_at?: string
-          expires_at?: string
-          gateway_cost_usd?: number
-          gateway_error?: string | null
-          gateway_input_tokens?: number | null
-          gateway_latency_ms?: number | null
-          gateway_output_tokens?: number | null
-          generation_attempts?: number
-          generation_finished_at?: string | null
-          generation_started_at?: string
-          handoff_needed?: boolean
-          handoff_urgency?: string | null
-          id?: string
-          intents?: string[]
-          internal_question?: string | null
-          model_id?: string | null
-          outcome_code?: string | null
-          outcome_kind?: string | null
-          property_id?: string
-          state?: string
-          strategy?: string | null
-          suggested_text?: string | null
-          surface?: string
-          tenant_id?: string
-          trigger_message_id?: string
-          updated_at?: string
-          warnings?: string[]
+          failed_stage?: string | null
+          final_code?: string | null
+          final_kind?: string | null
+          id?: never
+          remaining_ms?: number | null
+          retry_reason?: string | null
+          suggestion_id?: string
+          tool_rounds?: number | null
+          total_ms?: number | null
         }
         Relationships: []
       }
@@ -3779,6 +4586,120 @@ export type Database = {
           suggestion_id?: string | null
           tenant_id?: string
           trigger_message_id?: string
+        }
+        Relationships: []
+      }
+      guest_ai_turns: {
+        Row: {
+          context_credential_policy: string | null
+          context_dossier_entries: number | null
+          context_history_messages: number | null
+          context_human_in_command: boolean | null
+          context_reservation_linked: boolean | null
+          context_sender_identity: string | null
+          context_stay_phase: string | null
+          conversation_id: string
+          created_at: string
+          expires_at: string
+          gateway_cost_usd: number
+          gateway_error: string | null
+          gateway_input_tokens: number | null
+          gateway_latency_ms: number | null
+          gateway_output_tokens: number | null
+          generation_attempts: number
+          generation_finished_at: string | null
+          generation_started_at: string
+          handoff_needed: boolean
+          handoff_urgency: string | null
+          id: string
+          intents: string[]
+          internal_question: string | null
+          model_id: string | null
+          outcome_code: string | null
+          outcome_kind: string | null
+          property_id: string
+          state: string
+          strategy: string | null
+          suggested_text: string | null
+          surface: string
+          tenant_id: string
+          trigger_message_id: string
+          updated_at: string
+          warnings: string[]
+        }
+        Insert: {
+          context_credential_policy?: string | null
+          context_dossier_entries?: number | null
+          context_history_messages?: number | null
+          context_human_in_command?: boolean | null
+          context_reservation_linked?: boolean | null
+          context_sender_identity?: string | null
+          context_stay_phase?: string | null
+          conversation_id: string
+          created_at?: string
+          expires_at?: string
+          gateway_cost_usd?: number
+          gateway_error?: string | null
+          gateway_input_tokens?: number | null
+          gateway_latency_ms?: number | null
+          gateway_output_tokens?: number | null
+          generation_attempts?: number
+          generation_finished_at?: string | null
+          generation_started_at?: string
+          handoff_needed?: boolean
+          handoff_urgency?: string | null
+          id?: string
+          intents?: string[]
+          internal_question?: string | null
+          model_id?: string | null
+          outcome_code?: string | null
+          outcome_kind?: string | null
+          property_id: string
+          state?: string
+          strategy?: string | null
+          suggested_text?: string | null
+          surface: string
+          tenant_id: string
+          trigger_message_id: string
+          updated_at?: string
+          warnings?: string[]
+        }
+        Update: {
+          context_credential_policy?: string | null
+          context_dossier_entries?: number | null
+          context_history_messages?: number | null
+          context_human_in_command?: boolean | null
+          context_reservation_linked?: boolean | null
+          context_sender_identity?: string | null
+          context_stay_phase?: string | null
+          conversation_id?: string
+          created_at?: string
+          expires_at?: string
+          gateway_cost_usd?: number
+          gateway_error?: string | null
+          gateway_input_tokens?: number | null
+          gateway_latency_ms?: number | null
+          gateway_output_tokens?: number | null
+          generation_attempts?: number
+          generation_finished_at?: string | null
+          generation_started_at?: string
+          handoff_needed?: boolean
+          handoff_urgency?: string | null
+          id?: string
+          intents?: string[]
+          internal_question?: string | null
+          model_id?: string | null
+          outcome_code?: string | null
+          outcome_kind?: string | null
+          property_id?: string
+          state?: string
+          strategy?: string | null
+          suggested_text?: string | null
+          surface?: string
+          tenant_id?: string
+          trigger_message_id?: string
+          updated_at?: string
+          warnings?: string[]
         }
         Relationships: []
       }
@@ -7871,6 +8792,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      _may_inspect_user: { Args: { _user_id: string }; Returns: boolean }
       accept_my_account_invite: {
         Args: { _invite_id: string }
         Returns: boolean
@@ -7904,6 +8826,160 @@ export type Database = {
           requested_at: string
         }[]
       }
+      current_verified_email: { Args: never; Returns: string }
+      decline_my_account_invite: {
+        Args: { _invite_id: string }
+        Returns: boolean
+      }
+      dispatch_guest_ai_turn: { Args: { p_turn: Json }; Returns: number }
+      enqueue_billing_sync: { Args: { _owner_id: string }; Returns: undefined }
+      finish_billing_sync: {
+        Args: { _error: string; _owner_id: string; _requested_at: string }
+        Returns: undefined
+      }
+      fiscal_attempt_mark_sent: {
+        Args: {
+          p_attempt: string
+          p_authorization: string
+          p_dispatch_owner: string
+          p_epsilon?: string
+          p_permitted_session_users: string[]
+          p_trigger_origin?: string
+          p_trigger_request_id?: string
+        }
+        Returns: Json
+      }
+      fiscal_attempt_mark_unknown: {
+        Args: { p_attempt: string; p_reason: string }
+        Returns: undefined
+      }
+      fiscal_attempt_plan: {
+        Args: { p_adapter_version: string; p_operation: string }
+        Returns: string
+      }
+      fiscal_attempt_record_payload: {
+        Args: { p_attempt: string; p_body_hash: string; p_body_redacted: Json }
+        Returns: string
+      }
+      fiscal_attempt_record_response: {
+        Args: {
+          p_attempt: string
+          p_body_hash: string
+          p_body_redacted: Json
+          p_http_status: number
+          p_response_class: string
+        }
+        Returns: undefined
+      }
+      fiscal_attempt_sweep_unknown: {
+        Args: { p_threshold?: string }
+        Returns: number
+      }
+      fiscal_attempt_transition_allowed: {
+        Args: { p_from: string; p_to: string }
+        Returns: boolean
+      }
+      fiscal_authorization_issue: {
+        Args: {
+          p_authorized_by: string
+          p_config_version: number
+          p_key_fingerprint: string
+          p_operation: string
+          p_payload_hash: string
+          p_signature: string
+          p_ttl: string
+        }
+        Returns: string
+      }
+      fiscal_document_apply_query: {
+        Args: {
+          p_access_key: string
+          p_body_hash: string
+          p_body_redacted: Json
+          p_operation: string
+          p_protocol: string
+          p_provider_status: string
+          p_result: string
+        }
+        Returns: Json
+      }
+      fiscal_document_transition_allowed: {
+        Args: { p_from: string; p_to: string }
+        Returns: boolean
+      }
+      fiscal_operation_confirm_absence: {
+        Args: {
+          p_min_queries?: number
+          p_min_span?: string
+          p_operation: string
+        }
+        Returns: Json
+      }
+      fiscal_operation_create: {
+        Args: {
+          p_company: string
+          p_created_by: string
+          p_document: string
+          p_kind: string
+          p_owner: string
+          p_payload: Json
+        }
+        Returns: string
+      }
+      fiscal_operation_transition_allowed: {
+        Args: { p_from: string; p_to: string }
+        Returns: boolean
+      }
+      fiscal_reconcile_candidates: {
+        Args: { p_limit?: number; p_stale?: string }
+        Returns: {
+          company_id: string
+          document_id: string
+          document_kind: string
+          op_kind: string
+          operation_id: string
+          owner_id: string
+          ref: string
+        }[]
+      }
+      fiscal_webhook_claim: {
+        Args: { p_limit?: number }
+        Returns: {
+          attempts: number
+          body_hash: string
+          body_redacted: Json
+          claimed_until: string | null
+          connection_id: string
+          dedupe_key: string
+          id: string
+          last_error: string | null
+          owner_id: string | null
+          processed_at: string | null
+          received_at: string
+          ref: string | null
+          status: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "fiscal_webhook_events"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      fiscal_webhook_finish: {
+        Args: { p_error?: string; p_event: string; p_status: string }
+        Returns: undefined
+      }
+      fiscal_webhook_ingest: {
+        Args: {
+          p_body: Json
+          p_body_hash: string
+          p_connection: string
+          p_dedupe_key: string
+          p_ref: string
+        }
+        Returns: Json
+      }
       guest_ai_claim_turn: {
         Args: {
           p_conversation_id: string
@@ -7913,57 +8989,6 @@ export type Database = {
           p_tenant_id: string
           p_trigger_message_id: string
           p_turn_cost_ceiling_usd: number
-        }
-        Returns: Json
-      }
-      guest_ai_turn_state: {
-        Args: { p_suggestion_id: string }
-        Returns: Json
-      }
-      guest_ai_purge_turns: { Args: never; Returns: Json }
-      guest_ai_store_turn: {
-        Args: {
-          p_attempt: number
-          p_context_credential_policy: string
-          p_context_dossier_entries: number
-          p_context_history_messages: number
-          p_context_human_in_command: boolean
-          p_context_reservation_linked: boolean
-          p_context_sender_identity: string
-          p_context_stay_phase: string
-          p_cost_usd: number
-          p_gateway_error: string
-          p_handoff_needed: boolean
-          p_handoff_urgency: string
-          p_input_tokens: number
-          p_intents: string[]
-          p_internal_question: string
-          p_latency_ms: number
-          p_model_id: string
-          p_outcome_code: string
-          p_outcome_kind: string
-          p_output_tokens: number
-          p_state: string
-          p_strategy: string
-          p_suggestion_id: string
-          p_text: string
-          p_warnings: string[]
-        }
-        Returns: Json
-      }
-      current_verified_email: { Args: never; Returns: string }
-      decline_my_account_invite: {
-        Args: { _invite_id: string }
-        Returns: boolean
-      }
-      enqueue_billing_sync: { Args: { _owner_id: string }; Returns: undefined }
-      finish_billing_sync: {
-        Args: { _error: string; _owner_id: string; _requested_at: string }
-        Returns: undefined
-      }
-      guest_ai_turn_summary: {
-        Args: {
-          r: Database["public"]["Tables"]["guest_ai_turns"]["Row"]
         }
         Returns: Json
       }
@@ -8051,6 +9076,51 @@ export type Database = {
         }
         Returns: Json
       }
+      guest_ai_purge_turns: { Args: never; Returns: Json }
+      guest_ai_record_trace: { Args: { p_trace: Json }; Returns: undefined }
+      guest_ai_release_unsent_turn: {
+        Args: {
+          p_before: string
+          p_conversation_id: string
+          p_trigger_message_id: string
+        }
+        Returns: number
+      }
+      guest_ai_store_turn: {
+        Args: {
+          p_attempt: number
+          p_context_credential_policy: string
+          p_context_dossier_entries: number
+          p_context_history_messages: number
+          p_context_human_in_command: boolean
+          p_context_reservation_linked: boolean
+          p_context_sender_identity: string
+          p_context_stay_phase: string
+          p_cost_usd: number
+          p_gateway_error: string
+          p_handoff_needed: boolean
+          p_handoff_urgency: string
+          p_input_tokens: number
+          p_intents: string[]
+          p_internal_question: string
+          p_latency_ms: number
+          p_model_id: string
+          p_outcome_code: string
+          p_outcome_kind: string
+          p_output_tokens: number
+          p_state: string
+          p_strategy: string
+          p_suggestion_id: string
+          p_text: string
+          p_warnings: string[]
+        }
+        Returns: Json
+      }
+      guest_ai_turn_state: { Args: { p_suggestion_id: string }; Returns: Json }
+      guest_ai_turn_summary: {
+        Args: { r: Database["public"]["Tables"]["guest_ai_turns"]["Row"] }
+        Returns: Json
+      }
       has_active_subscription: {
         Args: { check_env?: string; user_uuid: string }
         Returns: boolean
@@ -8082,6 +9152,7 @@ export type Database = {
         Args: { _owner_id: string; _user_id: string }
         Returns: boolean
       }
+      kick_billing_snapshot: { Args: never; Returns: undefined }
       kick_billing_sync: { Args: never; Returns: undefined }
       kick_card_check: { Args: never; Returns: undefined }
       match_ai_kb_chunks: {

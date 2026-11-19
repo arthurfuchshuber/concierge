@@ -674,6 +674,11 @@ type PeriodShortcutProps = {
   /** Limites opcionais (ex.: só dias com demanda real, na aba Limpeza). */
   min?: Date;
   max?: Date;
+  /**
+   * Botões rápidos PRÓPRIOS da janela (padrão "Ir para", 18/11/2026): cada janela de calendário leva só os
+   * seus. Ex.: Financeiro = "Próximos 7 dias" e "Este mês". Sem a prop vale o conjunto de sempre.
+   */
+  presets?: Array<"today" | "next7" | "month">;
 };
 
 const sameRange = (a?: DateRange, b?: DateRange) =>
@@ -692,16 +697,24 @@ export function FilterPeriodShortcuts({
   today,
   min,
   max,
+  presets,
 }: PeriodShortcutProps) {
   const monthChip = !!defaultChip && /m[eê]s/i.test(defaultChip.label);
-  const quick: Array<{ key: string; label: string; range: DateRange | undefined }> = [
+  const byKey = {
+    today: { key: "today", label: "Hoje", range: clampRange(today, today, min, max) },
+    next7: { key: "7d", label: "Próximos 7 dias", range: clampRange(today, addDays(today, 6), min, max) },
+    month: { key: "month", label: "Este mês", range: clampRange(startOfMonth(today), endOfMonth(today), min, max) },
+  };
+  const quick: Array<{ key: string; label: string; range: DateRange | undefined }> = presets
+    ? presets.map((k) => byKey[k])
+    : [
     { key: "today", label: "Hoje", range: clampRange(today, today, min, max) },
     ...(defaultChip
       ? [{ key: "7d", label: "Próximos 7 dias", range: clampRange(today, addDays(today, 6), min, max) }]
       : []),
     // Sem duplicar: quando o atalho padrão já é o mês atual, "Este mês" some.
     ...(monthChip ? [] : [{ key: "month", label: "Este mês", range: clampRange(startOfMonth(today), endOfMonth(today), min, max) }]),
-  ];
+      ];
   return (
     <>
       {defaultChip ? (
@@ -882,6 +895,12 @@ export function FilterPeriodCalendar({
   );
 }
 
+/** Data por extenso, com a inicial maiúscula: "Quarta-feira, 18 de novembro de 2026". */
+export function longDatePt(d: Date): string {
+  const t = format(d, "EEEE, d 'de' MMMM 'de' yyyy", { locale: ptBR });
+  return t.charAt(0).toUpperCase() + t.slice(1);
+}
+
 /* ------------------------------------------------------------------------ */
 /* Data única com calendário (Previsão)                                      */
 /* ------------------------------------------------------------------------ */
@@ -944,6 +963,9 @@ export function FilterDateCalendar({
   min,
   max,
   quickNoWrap,
+  hideQuick,
+  longDateLabel,
+  isDisabled,
 }: {
   value: Date | undefined;
   onChange: (next: Date) => void;
@@ -959,12 +981,22 @@ export function FilterDateCalendar({
    * Desligado por padrão: nos quadrantes de largura cheia nada muda.
    */
   quickNoWrap?: boolean;
+  /** Sem a fileira de atalhos (Hoje / Amanhã / Depois de amanhã): a janela padrão põe os seus no cabeçalho. */
+  hideQuick?: boolean;
+  /**
+   * PADRÃO DE CALENDÁRIO "IR PARA" (18/11/2026): em DATA ÚNICA o campo do rodapé mostra a data por
+   * extenso ("Quarta-feira, 18 de novembro de 2026"). Informe o rótulo do campo (ex.: "Data").
+   */
+  longDateLabel?: string;
+  /** Regra extra de dia indisponível (ex.: só chegadas reais no guia do hóspede). */
+  isDisabled?: (d: Date) => boolean;
 }) {
   const [month, setMonth] = useState<Date>(() => startOfMonth(value ?? min ?? today));
   const disabled: Matcher[] = [];
   if (min) disabled.push({ before: min });
   if (max) disabled.push({ after: max });
-  const allowed = (d: Date) => !(min && isBefore(d, min)) && !(max && isAfter(d, max));
+  if (isDisabled) disabled.push(isDisabled);
+  const allowed = (d: Date) => !(min && isBefore(d, min)) && !(max && isAfter(d, max)) && !isDisabled?.(d);
 
   const quick: Array<{ key: string; label: string; date: Date }> = [
     { key: "today", label: "Hoje", date: today },
@@ -977,6 +1009,7 @@ export function FilterDateCalendar({
 
   return (
     <>
+      {hideQuick ? null : (
       <div className={`flex gap-1.5 px-3.5 pt-2.5 ${quickNoWrap ? "min-w-0" : "flex-wrap"}`}>
         {quick.map((q, qi) => {
           const ok = allowed(q.date);
@@ -1004,6 +1037,7 @@ export function FilterDateCalendar({
           );
         })}
       </div>
+      )}
 
       <div className="px-4 pb-1 pt-2.5">
         <div className="flex items-center justify-between px-0.5 pb-2 pt-0.5">
@@ -1066,6 +1100,16 @@ export function FilterDateCalendar({
           components={{ DayButton: SingleDayButton }}
         />
       </div>
+      {longDateLabel ? (
+        <div className="px-3.5 pb-3.5 pt-2.5">
+          <div className={`flex min-w-0 flex-col gap-px rounded-[10px] px-2.5 py-2 ${value ? "bg-accent/[0.14]" : "bg-foreground/[0.06]"}`}>
+            <span className={`text-[9.5px] font-bold uppercase tracking-[0.04em] ${value ? "text-accent" : "text-muted-foreground"}`}>
+              {longDateLabel}
+            </span>
+            <span className="truncate text-[13px] font-bold text-foreground">{value ? longDatePt(value) : "—"}</span>
+          </div>
+        </div>
+      ) : null}
     </>
   );
 }

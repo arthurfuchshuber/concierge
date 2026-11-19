@@ -1,12 +1,11 @@
 import { useState } from "react";
-import { CreditCard, FileText, Lock, ShieldCheck } from "lucide-react";
+import { CreditCard, FileText, Info, Lock } from "lucide-react";
 import { PANEL_SHELL } from "@/components/dashboard/panel-chrome";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import type { PaymentMethodSummary } from "@/lib/billing/billing.functions";
-import { Tag, SAGE } from "@/components/admin-pages/admin-mobile-ui";
+import { Tag } from "@/components/admin-pages/admin-mobile-ui";
 import { PRICE_BANDS } from "@/components/pricing/ListingPricing";
 import { ImoveisCobradosDialog } from "./ImoveisCobradosDialog";
-import { brl, fmtDate, type buildAssinatura } from "./assinatura-data";
+import { brl, type buildAssinatura } from "./assinatura-data";
 import { CardCheckTag, IsencaoBanner, IsentaPill } from "./AssinaturaIsencao";
 
 /**
@@ -21,11 +20,14 @@ export function AssinaturaMobile({
   paymentMethod,
   onOpenPortal,
   busy = false,
+  readOnly = false,
 }: {
   view: ReturnType<typeof buildAssinatura>;
   paymentMethod: PaymentMethodSummary | null;
   onOpenPortal: () => void;
   busy?: boolean;
+  /** Visão do membro (18/11/2026): tudo à mostra, mas só o titular altera plano e cartão. */
+  readOnly?: boolean;
 }) {
   const [aba, setAba] = useState<Aba>("plano");
   const [janela, setJanela] = useState(false);
@@ -33,7 +35,10 @@ export function AssinaturaMobile({
   const tierIdx = view.bandIdx;
   const cap = view.bandCap ?? Math.max(qtd, 50);
   const total = view.monthly;
-  const proxima = view.nextLabel;
+  const pct = view.bandCap ? Math.min(100, (view.qtd / view.bandCap) * 100) : 100;
+  const openJanela = () => {
+    if (!readOnly) setJanela(true);
+  };
 
   const brand = (paymentMethod?.brand ?? "").toUpperCase();
   const abas: { key: Aba; label: string }[] = [
@@ -47,7 +52,13 @@ export function AssinaturaMobile({
 
   return (
     <div className="flex flex-col gap-3 lg:hidden">
-      {view.exempt ? <IsencaoBanner view={view} busy={busy} onUpdateCard={onOpenPortal} /> : null}
+      {readOnly ? (
+        <div className="flex min-w-0 items-center gap-2 rounded-[10px] bg-card px-3 py-2.5 text-[12px] font-medium text-muted-foreground shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_12%,transparent)]">
+          <Lock className="size-3.5 shrink-0 text-[var(--faint)]" strokeWidth={2} />
+          <span className="min-w-0">Somente o titular da conta pode alterar plano e cartão.</span>
+        </div>
+      ) : null}
+      {view.exempt ? <IsencaoBanner view={view} busy={busy} onUpdateCard={onOpenPortal} compact readOnly={readOnly} /> : null}
       {/* Um cartão só: valor, abas em texto e o conteúdo da aba */}
       <section className={`${PANEL_SHELL} px-4 pb-3.5 pt-[18px]`}>
         <div className="pb-[18px] pt-1.5 text-center">
@@ -60,23 +71,11 @@ export function AssinaturaMobile({
               <Tag>Condição Especial Negociada</Tag>
             </div>
           ) : null}
-          <div className="mt-2.5 text-[12.5px] text-[var(--faint)]">
-            {view.courtesyUntil ? (
-              <>
-                <span className="whitespace-nowrap">
-                  Carência até <span className="font-semibold text-muted-foreground tabular-nums">{fmtDate(view.courtesyUntil)}</span> ·
-                </span>{" "}
-                <span className="whitespace-nowrap">
-                  Próxima cobrança em <span className="font-semibold text-muted-foreground tabular-nums">{proxima}</span>
-                </span>
-              </>
-            ) : view.paused ? (
-              <>Sem anúncios ativos · cobrança pausada</>
-            ) : (
-              <>
-                Próxima cobrança em <span className="font-semibold text-muted-foreground tabular-nums">{proxima}</span>
-              </>
-            )}
+          {/* Mockup de 18/11/2026: a quantidade de anúncios ativos no lugar da próxima cobrança. */}
+          <div className="mt-2.5 text-[12.5px] text-[var(--faint)] tabular-nums">
+            {qtd === 0
+              ? "Nenhum anúncio ativo em sua conta."
+              : `${qtd} ${qtd === 1 ? "anúncio ativo" : "anúncios ativos"} em sua conta.`}
           </div>
         </div>
 
@@ -107,11 +106,11 @@ export function AssinaturaMobile({
           role="button"
           tabIndex={0}
           aria-label="Ver imóveis cobrados"
-          onClick={() => setJanela(true)}
+          onClick={openJanela}
           onKeyDown={(e) => {
             if (e.key === "Enter" || e.key === " ") {
               e.preventDefault();
-              setJanela(true);
+              openJanela();
             }
           }}
           className="flex min-w-0 cursor-pointer items-center gap-2.5 py-[13px] transition-colors active:bg-foreground/[0.04]"
@@ -142,11 +141,11 @@ export function AssinaturaMobile({
                       role: "button",
                       tabIndex: 0,
                       "aria-label": "Ver imóveis cobrados",
-                      onClick: () => setJanela(true),
+                      onClick: openJanela,
                       onKeyDown: (e: React.KeyboardEvent) => {
                         if (e.key === "Enter" || e.key === " ") {
                           e.preventDefault();
-                          setJanela(true);
+                          openJanela();
                         }
                       },
                     }
@@ -172,69 +171,61 @@ export function AssinaturaMobile({
               </div>
             );
           })}
+          {/* Barra de meta (a mesma do computador), discreta e NUNCA em conta isenta (18/11/2026). */}
+          {!view.exempt ? (
+            <div className="pb-1 pt-1.5">
+              <div className="h-[3px] overflow-hidden rounded-full bg-foreground/[0.07]">
+                <div className="h-full rounded-full bg-[linear-gradient(90deg,#7c1ad8,#e82dae)]" style={{ width: `${pct}%` }} />
+              </div>
+              {view.nextBand && view.toNext > 0 ? (
+                <div className="mt-2.5 flex items-start gap-2 text-[12px] leading-[1.45]">
+                  <Info className="mt-0.5 size-[13px] shrink-0 text-[var(--faint)]" strokeWidth={2} />
+                  <span>
+                    Faltam <b>{view.toNext} {view.toNext === 1 ? "imóvel" : "imóveis"}</b> para garantir{" "}
+                    <b>{view.nextBand.note}</b>.
+                  </span>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       )}
 
       {aba === "cartao" && (
-        <div className="py-4">
+        <div className="pb-1 pt-4">
           {paymentMethod ? (
-            <div className="flex min-w-0 items-center gap-2.5">
-              <span className="inline-flex h-7 shrink-0 items-center rounded-[7px] bg-foreground px-[9px] text-[10.5px] font-extrabold tracking-[0.06em] text-background">
-                {brand || "CARTÃO"}
-              </span>
-              <div className="min-w-0 flex-1">
-                <div className="truncate text-[13.5px] font-bold leading-[1.3] tabular-nums">
-                  {brand ? brand.charAt(0) + brand.slice(1).toLowerCase() : "Cartão"} •••• {paymentMethod.last4 ?? "----"}
-                </div>
-                {view.exempt ? (
-                  <div className="mt-1">
-                    <CardCheckTag view={view} />
-                  </div>
-                ) : null}
-                {paymentMethod.expiryMonth && paymentMethod.expiryYear ? (
-                  <p className="text-[12px] font-medium leading-[1.45] text-muted-foreground">
-                    Expira em {String(paymentMethod.expiryMonth).padStart(2, "0")}/{paymentMethod.expiryYear}
-                  </p>
-                ) : null}
+            /* Mockup de 18/11/2026: o cartão num quadrante claro com sombra leve. */
+            <div className="rounded-[14px] bg-card px-[18px] py-4 shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_7%,transparent),0_1px_2px_rgba(40,25,10,.06),0_4px_10px_rgba(40,25,10,.06)]">
+              <div className="flex min-w-0 items-center justify-between gap-2">
+                <span className="text-[15px] font-extrabold tracking-[0.08em]">{brand || "CARTÃO"}</span>
+                {view.exempt ? <CardCheckTag view={view} /> : null}
               </div>
-              <Popover>
-                <PopoverTrigger asChild>
+              <div className="mt-5 text-[12px] font-bold tracking-[0.18em] tabular-nums">
+                •••• •••• •••• <span className="text-[13px] tracking-[0.04em]">{paymentMethod.last4 ?? "----"}</span>
+              </div>
+              <div className="mt-3 flex min-w-0 items-center justify-between gap-2">
+                <span className="min-w-0 truncate text-[12px] font-medium text-muted-foreground tabular-nums">
+                  {paymentMethod.expiryMonth && paymentMethod.expiryYear
+                    ? `Expira em ${String(paymentMethod.expiryMonth).padStart(2, "0")}/${paymentMethod.expiryYear}`
+                    : ""}
+                </span>
+                {readOnly ? null : (
                   <button
                     type="button"
-                    aria-label="Segurança do Cartão"
-                    title="Segurança do Cartão"
-                    className="grid size-5 shrink-0 cursor-pointer place-items-center rounded-md text-[var(--faint)] data-[state=open]:bg-foreground/10 data-[state=open]:text-foreground"
+                    onClick={onOpenPortal}
+                    disabled={busy}
+                    className="inline-flex h-7 shrink-0 cursor-pointer items-center gap-1.5 rounded-[9px] bg-foreground/[0.05] px-3 text-[11.5px] font-medium text-muted-foreground"
                   >
-                    <Lock className="size-[14px]" strokeWidth={2} />
+                    <CreditCard className="size-3.5" strokeWidth={2} />
+                    Trocar cartão
                   </button>
-                </PopoverTrigger>
-                <PopoverContent align="end" className="w-[352px] max-w-[calc(100vw-24px)] p-0">
-                  <div className="flex h-12 items-center px-4 font-display text-[14px] font-bold">Dados do Cartão Protegidos</div>
-                  <div className="flex flex-col gap-2.5 px-4 pb-4">
-                    <p className="text-[12.5px] font-medium leading-[1.45] text-muted-foreground">
-                      Os dados do cartão ficam armazenados com segurança no provedor de pagamento — nunca passam pelos servidores da ConciergeIA.
-                    </p>
-                    <div className="flex items-center gap-2 text-[11.5px] font-medium text-[var(--faint)]">
-                      <ShieldCheck className="size-3.5 shrink-0" style={{ color: SAGE }} strokeWidth={2} />
-                      Conexão criptografada · Visa, Mastercard e Amex
-                    </div>
-                  </div>
-                </PopoverContent>
-              </Popover>
-              <button
-                type="button"
-                aria-label="Trocar Cartão"
-                title="Trocar Cartão"
-                onClick={onOpenPortal}
-                className="flex shrink-0 cursor-pointer items-center text-muted-foreground"
-              >
-                <CreditCard className="size-4" strokeWidth={2} />
-              </button>
+                )}
+              </div>
             </div>
           ) : (
-            <div className="flex flex-col items-center gap-3">
+            <div className="flex flex-col items-center gap-3 py-2">
               <p className="text-center text-[12px] text-[var(--faint)]">Nenhum cartão cadastrado.</p>
-              {view.exempt ? (
+              {view.exempt && !readOnly ? (
                 <button type="button" onClick={onOpenPortal} disabled={busy} className="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-full bg-foreground/[0.07] px-4 text-[12.5px] font-bold">
                   <CreditCard className="size-3.5" strokeWidth={2} />
                   Cadastrar cartão
@@ -242,11 +233,16 @@ export function AssinaturaMobile({
               ) : null}
             </div>
           )}
+          <div className="mt-3.5 flex items-center justify-center gap-1.5 text-[11.5px] font-medium text-[var(--faint)]">
+            <Lock className="size-3.5 shrink-0" strokeWidth={2} />
+            Dados protegidos pelo provedor de pagamento
+          </div>
         </div>
       )}
 
       {aba === "extrato" && (
-        <div>
+        /* O quadrante termina numa linha fixa logo acima do menu inferior; mais meses rolam aqui dentro. */
+        <div className="sg-elegant-scroll -mr-4 max-h-[max(220px,calc(100dvh-500px))] overflow-y-auto overscroll-contain pr-4">
           {faturas.length === 0 ? (
             <p className="py-6 text-center text-[12px] text-[var(--faint)]">Nenhum pagamento registrado ainda.</p>
           ) : (
@@ -259,12 +255,8 @@ export function AssinaturaMobile({
                     <p className="text-[11.5px] font-medium leading-[1.45] tabular-nums text-[var(--faint)]">{f.sub}</p>
                   </div>
                 </div>
+                {/* Recibo e selo "ISENTA" à esquerda do valor; o valor alinhado à direita. */}
                 {f.riscada ? <IsentaPill /> : null}
-                <span
-                  className={`whitespace-nowrap font-display text-[14px] font-bold tabular-nums ${f.riscada ? "line-through opacity-55" : ""}`}
-                >
-                  {f.valor}
-                </span>
                 {f.url ? (
                   <a
                     href={f.url}
@@ -277,6 +269,11 @@ export function AssinaturaMobile({
                     <FileText className="size-4" strokeWidth={2} />
                   </a>
                 ) : null}
+                <span
+                  className={`min-w-[78px] whitespace-nowrap text-right font-display text-[14px] font-bold tabular-nums ${f.riscada ? "line-through opacity-55" : ""}`}
+                >
+                  {f.valor}
+                </span>
               </div>
             ))
           )}

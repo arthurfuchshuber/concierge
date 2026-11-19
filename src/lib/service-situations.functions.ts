@@ -201,7 +201,6 @@ export const getServiceExtras = createServerFn({ method: "GET" })
   .inputValidator((i: unknown) => ExtrasInput.parse(i ?? {}))
   .handler(async ({ data, context }): Promise<ExtrasStats> => {
     const { accessiblePropertyIds } = await import("@/lib/dashboard.functions");
-    const owner = await accountOwner(context, data.ownerId);
     const db = context.supabase as unknown as AnyClient;
     let propIds = await accessiblePropertyIds(context.supabase as never, data.ownerId ?? null, context.userId);
     if (data.propertyIds) {
@@ -209,7 +208,9 @@ export const getServiceExtras = createServerFn({ method: "GET" })
       propIds = propIds.filter((id) => allowed.has(id));
     }
     const empty: ExtrasStats = { items: [], names: {} };
+    // Sem imóvel nos filtros: devolve vazio já, antes de qualquer outra consulta (nunca `.in("property_id", [])`).
     if (propIds.length === 0) return empty;
+    const owner = await accountOwner(context, data.ownerId);
 
     const day0 = data.rangeStart ?? todayISO();
     const day1 = data.rangeEnd ?? day0;

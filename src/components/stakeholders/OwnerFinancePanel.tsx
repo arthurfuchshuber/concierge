@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { DateField } from "@/components/dashboard/CalendarWindow";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { ArrowDownLeft, ArrowUpRight, Check, Coins, Filter, Loader2, Plus } from "lucide-react";
@@ -484,7 +485,7 @@ function EntryWindow({
           </label>
           <label className="grid grid-cols-[minmax(0,1fr)] gap-1.5">
             <span className="ds-eyebrow">Vencimento</span>
-            <Input type="date" value={due} onChange={(e) => setDue(e.target.value)} />
+            <DateField value={due} onChange={setDue} title="Escolher Vencimento" />
           </label>
         </div>
 

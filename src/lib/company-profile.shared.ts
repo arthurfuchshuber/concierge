@@ -26,10 +26,9 @@ export type CompanyFieldKey =
   | "taxRegime"
   | "municipalRegistration";
 
-/** Campos que a consulta preenche (e, quando vêm preenchidos, bloqueia). A inscrição municipal nunca vem da Receita. */
+/** Campos que a consulta preenche (e, quando vêm preenchidos, bloqueia). O nome fantasia fica de fora: é o nome comercial de exibição e o titular pode ajustá-lo. A inscrição municipal nunca vem da Receita. */
 export const RECEITA_FIELDS: CompanyFieldKey[] = [
   "legalName",
-  "tradeName",
   "email",
   "phone",
   "cep",

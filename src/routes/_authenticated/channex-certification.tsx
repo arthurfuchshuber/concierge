@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { DateField } from "@/components/dashboard/CalendarWindow";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -199,8 +200,8 @@ function ChannexConsole() {
         <p className="text-xs text-muted-foreground">Campos vazios não são alterados. Todas as linhas saem juntas em uma única chamada por tipo.</p>
         {lines.map((l, i) => (
           <div key={i} className="grid grid-cols-2 gap-2 rounded-lg bg-muted/40 p-3 sm:grid-cols-5">
-            <label className="text-xs">De<Input type="date" value={l.dateFrom} onChange={(e) => setLine(i, { dateFrom: e.target.value })} /></label>
-            <label className="text-xs">Até<Input type="date" value={l.dateTo} onChange={(e) => setLine(i, { dateTo: e.target.value })} /></label>
+            <label className="text-xs">De<DateField value={l.dateFrom} onChange={(v) => setLine(i, { dateFrom: v })} title="Escolher Data Inicial" /></label>
+            <label className="text-xs">Até<DateField value={l.dateTo} onChange={(v) => setLine(i, { dateTo: v })} title="Escolher Data Final" /></label>
             <label className="text-xs">Disponib.<Input inputMode="numeric" value={l.availability} onChange={(e) => setLine(i, { availability: e.target.value })} /></label>
             <label className="text-xs">Preço<Input inputMode="decimal" value={l.rate} onChange={(e) => setLine(i, { rate: e.target.value })} /></label>
             <label className="text-xs">Estadia mín.<Input inputMode="numeric" value={l.min_stay} onChange={(e) => setLine(i, { min_stay: e.target.value })} /></label>
@@ -248,8 +249,8 @@ function ChannexConsole() {
         <section className="space-y-3 rounded-xl border p-4">
           <h2 className="font-medium">Reserva manual (reduz disponibilidade)</h2>
           <div className="grid grid-cols-2 gap-2">
-            <label className="text-xs">Checkin<Input type="date" value={booking.checkin} onChange={(e) => setBooking({ ...booking, checkin: e.target.value })} /></label>
-            <label className="text-xs">Checkout<Input type="date" value={booking.checkout} onChange={(e) => setBooking({ ...booking, checkout: e.target.value })} /></label>
+            <label className="text-xs">Checkin<DateField value={booking.checkin} onChange={(v) => setBooking({ ...booking, checkin: v })} title="Escolher Check-in" /></label>
+            <label className="text-xs">Checkout<DateField value={booking.checkout} onChange={(v) => setBooking({ ...booking, checkout: v })} title="Escolher Check-out" /></label>
           </div>
           <Button size="sm" disabled={manual.isPending} onClick={() => manual.mutate()}>
             {manual.isPending && <Loader2 className="mr-1 size-4 animate-spin" />} Registrar reserva

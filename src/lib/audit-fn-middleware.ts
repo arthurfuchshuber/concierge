@@ -29,15 +29,22 @@ export function isReadCall(name: string): boolean {
   return READ_NAME.test(name);
 }
 
-function subFromToken(token: string | null): { id: string | null; email: string | null } {
-  if (!token) return { id: null, email: null };
+const actorCache = new Map<string, { id: string | null; email: string | null; until: number }>();
+
+// Verifies the bearer token signature before trusting its claims as the audit actor.
+async function subFromToken(token: string | null): Promise<{ id: string | null; email: string | null }> {
+  const raw = token?.replace(/^Bearer\s+/i, "").trim();
+  if (!raw || raw.split(".").length !== 3) return { id: null, email: null };
+  const hit = actorCache.get(raw);
+  if (hit && hit.until > Date.now()) return { id: hit.id, email: hit.email };
   try {
-    const part = token.replace(/^Bearer\s+/i, "").split(".")[1];
-    if (!part) return { id: null, email: null };
-    const json = JSON.parse(
-      Buffer.from(part.replace(/-/g, "+").replace(/_/g, "/"), "base64").toString("utf-8"),
-    ) as { sub?: string; email?: string };
-    return { id: json.sub ?? null, email: json.email ?? null };
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data, error } = await supabaseAdmin.auth.getClaims(raw);
+    const claims = !error ? (data?.claims as { sub?: string; email?: string } | undefined) : undefined;
+    const out = { id: claims?.sub ?? null, email: claims?.email ?? null };
+    if (actorCache.size > 2000) actorCache.clear();
+    actorCache.set(raw, { ...out, until: Date.now() + 5 * 60_000 });
+    return out;
   } catch {
     return { id: null, email: null };
   }
@@ -75,7 +82,7 @@ async function record(
 ): Promise<void> {
   try {
     const { getRequestHeader, getRequestIP } = await import("@tanstack/react-start/server");
-    const actor = subFromToken(getRequestHeader("authorization") ?? null);
+    const actor = await subFromToken(getRequestHeader("authorization") ?? null);
     let ip: string | null = null;
     try {
       ip = getRequestIP({ xForwardedFor: true }) ?? null;

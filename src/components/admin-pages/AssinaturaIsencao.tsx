@@ -14,9 +14,43 @@ const INK = "#2b2418";
 type View = ReturnType<typeof buildAssinatura>;
 
 /** Faixa de topo: aviso de isenção (cartão ok) ou alerta de cartão (recusado ou ausente). */
-export function IsencaoBanner({ view, busy, onUpdateCard }: { view: View; busy: boolean; onUpdateCard: () => void }) {
+export function IsencaoBanner({
+  view,
+  busy,
+  onUpdateCard,
+  compact = false,
+  readOnly = false,
+}: {
+  view: View;
+  busy: boolean;
+  onUpdateCard: () => void;
+  /** Celular (mockup de 18/11/2026): título e o aviso curto em duas linhas. */
+  compact?: boolean;
+  /** Membro: vê o aviso, mas o botão de cartão é só do titular. */
+  readOnly?: boolean;
+}) {
   const status = view.cardCheck.status;
   const ok = status === "ok";
+  if (ok && compact) {
+    return (
+      <div
+        role="status"
+        className="flex min-w-0 items-start gap-2.5 rounded-[10px] px-3 py-2.5"
+        style={{
+          background: `color-mix(in oklab, ${OK} 12%, var(--surface-elevated))`,
+          boxShadow: `inset 0 0 0 1px color-mix(in oklab, ${OK} 70%, transparent)`,
+        }}
+      >
+        <Gift className="mt-px size-[15px] shrink-0" strokeWidth={2.2} style={{ color: "#b8921c" }} aria-hidden="true" />
+        <div className="min-w-0">
+          <div className="text-[13px] font-bold leading-tight">Conta isenta pelo ConciergeIA</div>
+          <div className="mt-0.5 text-[11.5px] font-medium leading-tight text-muted-foreground">
+            Mantenha um cartão válido e ativo.
+          </div>
+        </div>
+      </div>
+    );
+  }
   /* Mockup "faixa em uma linha" (17/11/2026): com o cartão em dia a faixa é UMA linha só — ícone, título e o
      aviso ao lado, sem selo "ISENTA" (as faturas já mostram o selo). Só o alerta de cartão segue em bloco. */
   if (ok) {
@@ -46,7 +80,7 @@ export function IsencaoBanner({ view, busy, onUpdateCard }: { view: View; busy: 
   const sub = ok
     ? `Você não paga mensalidade. Mantenha um cartão válido: conferimos todo dia 20 (próxima em ${fmtDayMonth(view.nextCardCheckAt)}).`
     : "Mesmo isenta, a conta precisa de um cartão válido. Atualize o cartão para regularizar.";
-  const action = ok ? (
+  const action = readOnly && !ok ? null : ok ? (
     <span
       className="shrink-0 rounded-full text-[10.5px] font-extrabold tracking-[0.06em]"
       style={{ background: accent, color: INK, padding: "4px 11px" }}

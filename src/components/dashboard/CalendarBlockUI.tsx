@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ptBR } from "date-fns/locale";
 import { Loader2, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -180,8 +180,11 @@ function CalendarPickWindow({
   );
   return (
     <Dialog open={open} onOpenChange={(v) => (!v ? onClose() : undefined)}>
-      <DialogContent aria-describedby={undefined} onOpenAutoFocus={(e) => e.preventDefault()} overlayClassName="bg-background/45 backdrop-blur-[1.5px]" className="w-[280px] max-w-[280px] gap-0 p-4 sm:p-4">
-        <DialogTitle className="sr-only">{title}</DialogTitle>
+      <DialogContent aria-describedby={undefined} onOpenAutoFocus={(e) => e.preventDefault()} overlayClassName="bg-background/45 backdrop-blur-[1.5px]" className="w-[292px] max-w-[292px] gap-0 overflow-x-hidden p-4 sm:p-4">
+        {/* Padrão das janelas de calendário ("Ir para", 18/11/2026): título visível no cabeçalho, ao lado do X. */}
+        <DialogTitle className="-mx-4 -mt-4 flex min-h-12 items-center border-b border-[var(--panel-div)] py-1.5 pl-4 pr-14 font-display text-[14px] font-bold leading-tight text-foreground">
+          <span className="truncate">{title}</span>
+        </DialogTitle>
         <DialogDescription className="sr-only">Toque num dia para escolher.</DialogDescription>
         <Calendar
           mode="multiple"
@@ -199,7 +202,7 @@ function CalendarPickWindow({
             onPick(dateToIso(d));
           }}
           classNames={{ disabled: "text-foreground opacity-35" }}
-          className="mt-4 bg-transparent p-3 pointer-events-auto"
+          className="mt-4 bg-transparent px-1.5 py-2 pointer-events-auto"
         />
         <div className="mt-3 grid grid-cols-2 gap-2">
           {field("from", "Início", from)}
@@ -285,6 +288,14 @@ export function CalendarBlockDialog({
   }, [open]);
   const occupied = useMemo(() => occupiedNightSet(occupiedStays ?? []), [occupiedStays]);
   const win = bookingWindowBounds(todayISO, bookingWindow);
+  /* Edição: se o bloqueio original começou antes de hoje, a entrada dele continua escolhível. */
+  const origFrom = useRef<string | null>(null);
+  useEffect(() => {
+    if (open) origFrom.current = from;
+    // só ao abrir: trocar a entrada no calendário não muda o início original
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+  const firstNight = edit && origFrom.current && origFrom.current < win.firstNight ? origFrom.current : win.firstNight;
   const n = blockNights(from, to);
   const nights = `${n} ${n === 1 ? "noite" : "noites"}`;
 
@@ -293,7 +304,7 @@ export function CalendarBlockDialog({
       if (!releaseBlock) return false;
       return which === "from" ? canPickReleaseFrom(releaseBlock, todayISO, iso) : canPickReleaseTo(releaseBlock, from, iso);
     }
-    return which === "from" ? canPickBlockFrom(occupied, win.firstNight, iso, win.lastNight) : canPickBlockTo(occupied, from, iso, win.lastTo);
+    return which === "from" ? canPickBlockFrom(occupied, firstNight, iso, win.lastNight) : canPickBlockTo(occupied, from, iso, win.lastTo);
   };
   /** Primeiro e último mês que têm algum dia utilizável — é o que o seletor de mês/ano oferece. */
   const bounds = (which: Picking): { min: Date; max: Date } => {
@@ -303,7 +314,7 @@ export function CalendarBlockDialog({
       lo = which === "from" ? releaseFirstNight(releaseBlock, todayISO) : addDaysISO(from, 1);
       hi = which === "from" ? addDaysISO(releaseBlock.to, -1) : releaseBlock.to;
     } else if (which === "from") {
-      lo = edit && from < win.firstNight ? from : win.firstNight;
+      lo = firstNight;
       hi = win.lastNight;
     } else {
       lo = addDaysISO(from, 1);
@@ -430,7 +441,7 @@ export function CalendarBlockDialog({
         picking={picking}
         from={from}
         to={to}
-        title={release ? "Escolher datas a liberar" : picking === "from" ? "Escolher data de entrada" : "Escolher data de saída"}
+        title={release ? "Escolher Datas a Liberar" : picking === "from" ? "Escolher Data de Entrada" : "Escolher Data de Saída"}
         min={bounds(picking).min}
         max={bounds(picking).max}
         occupied={occupied}

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { DateField } from "@/components/dashboard/CalendarWindow";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
@@ -136,12 +137,12 @@ export function CompleteProfileDialog() {
 
           {missing.birth && (
             <Field label="Data de nascimento" required>
-              <input
-                type="date"
+              <DateField
                 className="input"
                 value={birthDate}
+                title="Escolher Nascimento"
                 max={new Date().toISOString().slice(0, 10)}
-                onChange={(e) => setBirthDate(e.target.value)}
+                onChange={setBirthDate}
               />
             </Field>
           )}

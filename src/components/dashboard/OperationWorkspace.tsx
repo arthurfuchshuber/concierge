@@ -51,6 +51,7 @@ import {
   type DayDetailSource,
 } from "@/components/dashboard/CleaningDayDetail";
 import { FINANCE_WINDOW_CLASS, WIDE_WINDOW_CLASS, windowTitle } from "@/components/dashboard/wide-window";
+import { WINDOW_HEADER_CLASS, WINDOW_SUBTITLE_CLASS, WINDOW_TITLE_CLASS } from "@/components/dashboard/window-header";
 import { cleaningAdvanceDecision } from "@/lib/cleaning-advance";
 import { CleaningProviderAvatar, useCleaningBoard } from "@/components/dashboard/CleaningProviderAvatar";
 import { PropertyAccessButton } from "@/components/dashboard/PropertyAccessButton";
@@ -150,7 +151,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Calendar as RangeCalendar } from "@/components/ui/calendar";
+import { CalendarWindow } from "@/components/dashboard/CalendarWindow";
 import { ClampName } from "@/components/ui/clamp-name";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from "@/components/ui/command";
@@ -3270,7 +3271,9 @@ export function OperationWorkspace({ view }: { view: OperationView }) {
                 onChange={setPeriodRange}
                 min={view === "limpeza" ? cleaningDemandBounds?.min : null}
                 max={null}
-                defaultChip={view === "limpeza" ? "Últimos 7 dias" : undefined}
+                /* Financeiro/Serviços (mockup Fin-13, 18/11/2026): só "Próximos 7 dias" e "Este mês",
+                   na linha do título, como o "Ir para". O padrão da página segue no atalho "7 Dias". */
+                presets={view === "limpeza" ? ["next7", "month"] : undefined}
                 /* Atalho do padrão da página (09/11/2026): Serviços = "7 Dias"
                    (hoje + 6 anteriores); Kanban = "Hoje". */
                 shortcut={{
@@ -4841,9 +4844,9 @@ function KpiCard({
       >
         {/* JANELA PADRÃO (29/10/2026): sem ícone no cabeçalho, título 14px
             negrito e subtítulo 12px em caixa normal, recuo de 16px. */}
-        <DialogHeader className="shrink-0 border-b border-border/40 px-4 pb-2.5 pt-3 pr-12 text-left">
-          <DialogTitle className="truncate text-sm font-bold leading-5 text-foreground">{windowTitle(label)}</DialogTitle>
-          <div className="text-xs leading-4 text-muted-foreground">
+        <DialogHeader className={WINDOW_HEADER_CLASS}>
+          <DialogTitle className={WINDOW_TITLE_CLASS}>{windowTitle(label)}</DialogTitle>
+          <div className={WINDOW_SUBTITLE_CLASS}>
             {rangeLabel} · {displayRows.length} {displayRows.length === 1 ? "hóspede" : "hóspedes"}
           </div>
           {/* Botão de print (câmera) removido POR ENQUANTO (pedido explícito,
@@ -5082,11 +5085,11 @@ function FreePropertiesCard({
       <DialogContent className={WIDE_WINDOW_CLASS}>
         {/* JANELA PADRÃO (29/10/2026): título 14px negrito com iniciais
             maiúsculas, subtítulo 12px com singular/plural, recuo de 16px. */}
-        <DialogHeader className="shrink-0 border-b border-border/40 px-4 pb-2.5 pt-3 pr-12 text-left">
-          <DialogTitle className="truncate text-sm font-bold leading-5 text-foreground">
+        <DialogHeader className={WINDOW_HEADER_CLASS}>
+          <DialogTitle className={WINDOW_TITLE_CLASS}>
             {windowTitle(`Imóveis livres ${isToday ? "hoje" : dayLabel}`)}
           </DialogTitle>
-          <div className="text-xs leading-4 text-muted-foreground">
+          <div className={WINDOW_SUBTITLE_CLASS}>
             {isToday ? "Hoje" : dayLabel} · {properties.length} {properties.length === 1 ? "imóvel" : "imóveis"}
           </div>
         </DialogHeader>
@@ -5158,8 +5161,8 @@ function CleaningBreakdownContent({ label, breakdown }: { label: string; breakdo
         <ul>
           {sorted.map((item) => {
             return (
-              <li key={item.propertyId} className="min-w-0 border-t border-border/60 py-3">
-                <div className="min-w-0">
+              <li key={item.propertyId} className="flex min-w-0 items-start justify-between gap-3 border-t border-border/60 py-3">
+                <div className="min-w-0 flex-1">
                   {/* Regra global (29/10/2026): título do imóvel primeiro, proprietário + chat logo abaixo; título em 1 linha. */}
                   <ClampName text={item.propertyName} className="text-[12.5px] font-bold leading-snug" />
                   <OwnerLine
@@ -5168,11 +5171,8 @@ function CleaningBreakdownContent({ label, breakdown }: { label: string; breakdo
                     country={item.ownerPhoneCountry ?? null}
                     phonePosition="adjacent"
                   />
-                  <p className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[11.5px] font-semibold text-foreground/80">
-                    <span className="shrink-0">Valor do Serviço:</span>
-                    <span>{centsToBRL(item.totalCents)}</span>
-                  </p>
                 </div>
+                <span className="shrink-0 font-display text-[13px] font-bold tabular-nums text-foreground">{centsToBRL(item.totalCents)}</span>
               </li>
             );
           })}
@@ -5280,9 +5280,9 @@ function StatDisplayCard({
         <DialogContent aria-describedby={undefined} className={FINANCE_WINDOW_CLASS}>
           {/* Cabeçalho universal de janela ampla (07/11/2026): sem ícone, título
               14px e subtítulo 12px; o "X" oficial fica no canto. */}
-          <DialogHeader className="shrink-0 border-b border-border/40 px-4 pb-2.5 pt-3 pr-12 text-left sm:mx-6 sm:mt-6">
-            <DialogTitle className="truncate text-sm font-bold leading-5 text-foreground">{windowTitle(label)}</DialogTitle>
-            <div className="text-xs leading-4 text-muted-foreground">
+          <DialogHeader className={cn(WINDOW_HEADER_CLASS, "sm:mx-6")}>
+            <DialogTitle className={WINDOW_TITLE_CLASS}>{windowTitle(label)}</DialogTitle>
+            <div className={WINDOW_SUBTITLE_CLASS}>
               {value} · {breakdown!.length} {breakdown!.length === 1 ? "imóvel" : "imóveis"}
             </div>
           </DialogHeader>
@@ -9427,15 +9427,15 @@ function EngagementBreakdownDialog({
             maiúsculas ("Instruções Check-In" / "Senhas de Acesso" — sem a
             palavra "Viram"), subtítulo 12px em caixa normal concordando em
             singular/plural, recuo de 16px nas laterais. */}
-        <DialogHeader className="border-b border-border/40 px-4 pb-2.5 pt-3 pr-12 text-left">
+        <DialogHeader className={WINDOW_HEADER_CLASS}>
           {/* pr-12 no header: reserva espaço pro botão "X" de fechar do Dialog. */}
           <div className="flex items-center justify-between gap-3">
-            <DialogTitle className="min-w-0 truncate text-sm font-bold leading-5 text-foreground">{windowTitle(engagementWindowTitle(label))}</DialogTitle>
+            <DialogTitle className={cn("min-w-0", WINDOW_TITLE_CLASS)}>{windowTitle(engagementWindowTitle(label))}</DialogTitle>
             <span className="shrink-0 rounded-full bg-emerald-500/15 px-2.5 py-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
               {pct}%
             </span>
           </div>
-          <div className="text-xs leading-4 text-muted-foreground">
+          <div className={WINDOW_SUBTITLE_CLASS}>
             {value} de {total} {total === 1 ? "check-in" : "check-ins"}
           </div>
           {todayOnly && (
@@ -11149,71 +11149,44 @@ function DateEditor({
   valueClassName?: string;
 }) {
   const [open, setOpen] = useState(false);
-  const [pending, setPending] = useState<string | null>(null);
-  const shown = pending ?? value;
+  const shown = value;
   const blank = !shown || (!!blankWhen && shown === blankWhen);
   const selected = shown ? parseISODateLocal(shown) : undefined;
-  const minDate = min ? parseISODateLocal(min) : undefined;
-  const maxDate = max ? parseISODateLocal(max) : undefined;
-  const disabledMatcher =
-    minDate && maxDate
-      ? [{ before: minDate }, { after: maxDate }]
-      : minDate
-        ? { before: minDate }
-        : maxDate
-          ? { after: maxDate }
-          : undefined;
 
-  function commitPending() {
-    if (pending !== null && pending !== value) onChange(pending);
-    setPending(null);
-  }
-
+  // Calendário padrão do sistema (janela "Ir para", 18/11/2026): tocar no dia escolhe e fecha; só então
+  // a nova data é gravada — o card não "pula" de lista no meio da escolha.
   return (
-    <Popover
-      open={open}
-      onOpenChange={(next) => {
-        if (!next) commitPending();
-        setOpen(next);
-      }}
-    >
-      <PopoverTrigger asChild>
-        <button
-          type="button"
-          disabled={disabled}
-          onClick={(e) => e.stopPropagation()}
-          className={`relative inline-flex items-center cursor-pointer rounded hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:cursor-not-allowed disabled:hover:text-inherit ${blank ? "text-muted-foreground" : ""}`}
-          title="Clique para corrigir a data"
-        >
-          <span className={`tabular-nums ${valueClassName ?? ""}`}>
-            {blank ? (placeholder ?? "—") : fmtDateBR(shown)}
-          </span>
-        </button>
-      </PopoverTrigger>
-      <PopoverContent align="start" className="w-auto p-0" onClick={(e) => e.stopPropagation()}>
-        <RangeCalendar
-          mode="single"
-          locale={ptBR}
-          selected={selected}
-          defaultMonth={selected ?? minDate}
-          disabled={disabledMatcher}
-          onSelect={(d) => {
-            if (!d) return;
-            setPending(dateToISOLocal(d));
-          }}
-          className="p-3"
-        />
-        <div className="flex items-center justify-end border-t border-border p-2">
-          <button
-            type="button"
-            onClick={() => setOpen(false)}
-            className="rounded-md px-2.5 py-1 text-[11px] font-semibold text-primary hover:bg-primary/10"
-          >
-            Concluir
-          </button>
-        </div>
-      </PopoverContent>
-    </Popover>
+    <>
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={(e) => {
+          e.stopPropagation();
+          setOpen(true);
+        }}
+        className={`relative inline-flex items-center cursor-pointer rounded hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:cursor-not-allowed disabled:hover:text-inherit ${blank ? "text-muted-foreground" : ""}`}
+        title="Clique para corrigir a data"
+      >
+        <span className={`tabular-nums ${valueClassName ?? ""}`}>
+          {blank ? (placeholder ?? "—") : fmtDateBR(shown)}
+        </span>
+      </button>
+      {/* A janela vive num portal: os cliques nela não podem chegar ao cartão. */}
+      <span className="contents" onClick={(e) => e.stopPropagation()}>
+      <CalendarWindow
+        open={open}
+        onOpenChange={setOpen}
+        title="Corrigir Data"
+        value={selected}
+        min={min ? parseISODateLocal(min) : undefined}
+        max={max ? parseISODateLocal(max) : undefined}
+        onPick={(d) => {
+          const iso = dateToISOLocal(d);
+          if (iso !== value) onChange(iso);
+        }}
+      />
+      </span>
+    </>
   );
 }
 
@@ -11754,17 +11727,38 @@ function PredictedEditor({
           className={`${FILTER_PANEL_CLASS_ELEVATED} w-[300px]`}
           onClick={(e) => e.stopPropagation()}
         >
+          {/* Padrão "Ir para" (18/11/2026): os botões rápidos desta janela ficam ao lado do título. */}
           <FilterScreenHeader
             icon={CalendarRange}
-            title="Data prevista"
+            title="Data Prevista"
             onBack={() => setView("summary")}
-            right={
-              active ? (
-                <span className={`rounded-full px-2 py-[3px] text-[10.5px] font-bold ${kindPillClass(active.kind)}`}>
-                  {active.label}
-                </span>
-              ) : undefined
-            }
+            shortcuts={(() => {
+              const today = parseISODateLocal(todayISOSaoPaulo());
+              const quick = [
+                { label: "Hoje", d: today },
+                { label: "Amanhã", d: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1) },
+              ];
+              return quick.map((q) => {
+                const ok = !(minDate && q.d < minDate) && !(maxDate && q.d > maxDate);
+                const iso = dateToISOLocal(q.d);
+                const on = !!selected && dateToISOLocal(selected) === iso;
+                return (
+                  <button
+                    key={q.label}
+                    type="button"
+                    disabled={!ok}
+                    onClick={() =>
+                      setPending((prev) => ({ ...prev, [editing]: { ...prev[editing], date: iso } }))
+                    }
+                    className={`whitespace-nowrap rounded-full px-2 py-[5px] text-[11px] font-semibold transition-colors disabled:opacity-40 ${
+                      on ? "bg-accent/[0.14] text-accent" : "bg-foreground/[0.06] text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {q.label}
+                  </button>
+                );
+              });
+            })()}
           />
           {activeJanela && (
             <div className="px-3.5 pt-2.5">
@@ -11783,6 +11777,7 @@ function PredictedEditor({
               reabre sempre no mês do dia escolhido do lado em edição. */}
           <FilterDateCalendar
             key={`${editing}-${activeDate}`}
+            hideQuick
             value={selected}
             today={parseISODateLocal(todayISOSaoPaulo())}
             min={minDate}

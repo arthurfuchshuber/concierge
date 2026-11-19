@@ -1,23 +1,10 @@
-import { useRef, useState } from "react";
-import { ArrowRight, ChevronRight, X } from "lucide-react";
-import { CORNER_CLOSE_CLASS } from "@/components/ui/corner-close";
+import { useState } from "react";
+import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useServerFn } from "@tanstack/react-start";
-import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { centsToReaisInput, parseReaisInputToCents } from "@/components/ui/money-input";
-import { CleaningProviderAvatar, useCleaningProviderName } from "@/components/dashboard/CleaningProviderAvatar";
-import { EDIT_BTN, EDIT_INPUT } from "@/components/dashboard/edit-frame";
-import { FINANCE_WINDOW_CLASS, windowTitle } from "@/components/dashboard/wide-window";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { setCleaningPriceOverride, setCleaningType } from "@/lib/cleaning-price.functions";
+import { useCleaningProviderControl } from "@/components/dashboard/CleaningProviderAvatar";
+import { EditProviderWindow } from "@/components/dashboard/FinanceEditWindows";
+import { FINANCE_WINDOW_CLASS } from "@/components/dashboard/wide-window";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { WINDOW_HEADER_CLASS, WINDOW_SUBTITLE_CLASS, WINDOW_TITLE_CLASS } from "./window-header";
 import { FinanceEntryDetail, type FinanceEntry } from "@/components/dashboard/FinanceEntryDetail";
@@ -122,56 +109,152 @@ function PropertyCell({
   phone = null,
   country = null,
   children,
-  onOpen,
 }: {
   name: string;
   owner: string | null;
   phone?: string | null;
   country?: string | null;
   children?: React.ReactNode;
-  /** Abre o detalhe do lançamento na mesma janela (linha clicável + seta). */
-  onOpen?: () => void;
 }) {
   return (
-    <td
-      className={cn(TD, onOpen && "relative cursor-pointer pr-[34px] active:bg-foreground/[0.05]")}
+    <td className={TD}>
+      <ClampName text={name} className="font-bold" />
+      <OwnerLine name={owner} phone={phone} country={country} phonePosition="adjacent" />
+      {children}
+    </td>
+  );
+}
+
+/** Etiqueta neutra dos cartões (tipo da limpeza, situação do serviço extra). */
+const TAG =
+  "shrink-0 whitespace-nowrap rounded-[6px] bg-card px-2 py-0.5 text-[11.5px] font-medium text-foreground/75 shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_9%,transparent)]";
+
+/** "18/11 · 15:58" no fuso de São Paulo. */
+function whenShort(iso: string | null): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  const day = d.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "2-digit" });
+  return `${day} · ${timeSP(iso)}`;
+}
+
+/**
+ * CARTÃO DE LANÇAMENTO (mockups Fin-01 a Fin-04): altura fixa por tipo para a lista sempre parar numa linha
+ * inteira (anti-corte). Clicar em qualquer lugar, menos nos botões, abre o detalhe na mesma janela.
+ */
+function EntryRow({
+  name,
+  owner,
+  value,
+  onOpen,
+  extra,
+  children,
+}: {
+  name: string;
+  owner: string | null;
+  value: string;
+  onOpen?: () => void;
+  extra?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      data-clip-row=""
+      role={onOpen ? "button" : undefined}
+      tabIndex={onOpen ? 0 : undefined}
       onClick={
         onOpen
           ? (e) => {
-              if ((e.target as HTMLElement).closest("button, a, input, [role=button]")) return;
+              // Cliques que vêm de uma janela aberta por cima (portal) não abrem o detalhe.
+              if (!e.currentTarget.contains(e.target as Node)) return;
+              if ((e.target as HTMLElement).closest("button, a, input")) return;
               onOpen();
             }
           : undefined
       }
-      onKeyDown={
-        onOpen
-          ? (e) => {
-              if (e.key === "Enter" && e.target === e.currentTarget) onOpen();
-            }
-          : undefined
-      }
-      tabIndex={onOpen ? 0 : undefined}
+      onKeyDown={onOpen ? (e) => e.key === "Enter" && e.target === e.currentTarget && onOpen() : undefined}
+      className={cn(
+        "snap-start border-b border-border/60 px-4 py-3.5 outline-none last:border-b-0",
+        onOpen && "cursor-pointer active:bg-foreground/[0.04] focus-visible:bg-foreground/[0.04]",
+      )}
     >
-      {onOpen ? (
-        /* Mockup det-lanc-a: nome 14.5px, proprietário 13px com ícone de 15px, seta no meio da linha, à direita. */
-        <>
-          <ClampName text={name} className="min-w-0 text-[14.5px] font-bold leading-[1.25]" />
-          <ChevronRight
-            className="pointer-events-none absolute right-3.5 top-1/2 size-3.5 -translate-y-1/2 text-foreground/45"
-            strokeWidth={2.2}
-            aria-hidden
-          />
-        </>
-      ) : (
-        <ClampName text={name} className="font-bold" />
-      )}
-      {onOpen ? (
-        <OwnerLine name={owner} phone={phone} country={country} phonePosition="adjacent" size={15} className="mt-[3px] !text-[13px]" />
-      ) : (
-        <OwnerLine name={owner} phone={phone} country={country} phonePosition="adjacent" />
-      )}
-      {children}
-    </td>
+      <div className="flex min-w-0 items-baseline justify-between gap-2.5">
+        <span className="min-w-0 truncate text-[14px] font-bold leading-5 text-foreground" title={name}>
+          {name}
+        </span>
+        <span className="shrink-0 whitespace-nowrap font-display text-[13.5px] font-bold tabular-nums tracking-[-0.2px] text-foreground">
+          {value}
+        </span>
+      </div>
+      {owner ? (
+        <div className="mt-[3px] truncate text-[12.5px] font-medium leading-4 text-muted-foreground" title={owner}>
+          {owner}
+        </div>
+      ) : null}
+      <div className="mt-[7px] flex min-h-[22px] min-w-0 items-center gap-2 text-[12px] font-medium text-muted-foreground">
+        {children}
+      </div>
+      {extra}
+    </div>
+  );
+}
+
+/**
+ * Etiqueta do prestador (mockup Fin-01): nome em azul com a seta; quem pode alterar toca e abre a janela
+ * "Alterar Prestador" (5 opções à vista + busca). Sem permissão, só a etiqueta.
+ */
+function ProviderTag({
+  propertyId,
+  logId,
+  reservationId,
+  propertyName,
+  ownerName,
+  canEdit,
+}: {
+  propertyId: string;
+  logId: string;
+  reservationId: string | null;
+  propertyName: string;
+  ownerName: string | null;
+  canEdit: boolean;
+}) {
+  const ctl = useCleaningProviderControl(propertyId, logId, reservationId);
+  const [open, setOpen] = useState(false);
+  const tag =
+    "inline-flex min-w-0 items-center gap-1 rounded-[6px] bg-[color-mix(in_oklab,var(--cleaning-soft)_45%,transparent)] py-0.5 pl-2 pr-1.5 text-[11.5px] font-semibold text-[var(--cleaning-soft-foreground)] dark:text-[var(--cleaning-soft)]";
+  const label = <span className="min-w-0 truncate">{ctl.currentName ?? "Sem prestador"}</span>;
+  if (!canEdit || !ctl.editable) return <span className={cn(tag, "pr-2")}>{label}</span>;
+  return (
+    <>
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          setOpen(true);
+        }}
+        title="Alterar prestador"
+        className={tag}
+      >
+        {label}
+        <ChevronDown className="size-2.5 shrink-0" strokeWidth={2.6} />
+      </button>
+      <EditProviderWindow
+        open={open}
+        onOpenChange={setOpen}
+        ctx={{ property: propertyName, owner: ownerName }}
+        subtitle="Escolha quem executou a limpeza"
+        providers={ctl.providers}
+        currentId={ctl.currentId}
+        onSave={async (id) => {
+          try {
+            await ctl.set(id);
+            toast.success("Prestador alterado.");
+          } catch (e) {
+            toast.error(e instanceof Error ? e.message : "Não foi possível alterar o prestador.");
+            throw e;
+          }
+        }}
+      />
+    </>
   );
 }
 
@@ -188,167 +271,8 @@ function BottomRow({ children, value }: { children: React.ReactNode; value: Reac
   return (
     <div data-bottom-row="" className={`mt-0.5 flex min-w-0 items-center justify-between gap-2 ${LINE}`}>
       <span className="flex min-w-0 items-center gap-1.5">{children}</span>
-      <span className="ml-auto flex shrink-0 items-center gap-1 text-[11.5px] font-semibold tabular-nums">{value}</span>
+      <span className="ml-auto flex shrink-0 items-center gap-1 whitespace-nowrap text-[11.5px] font-bold tabular-nums text-foreground">{value}</span>
     </div>
-  );
-}
-
-const sameName = (a: string | null | undefined, b: string | null | undefined) => {
-  const n = (s: string) => s.normalize("NFD").replace(/\p{Diacritic}/gu, "").replace(/\s+/g, " ").trim().toLowerCase();
-  return !!a && !!b && n(a) === n(b);
-};
-
-/**
- * Texto da ação (07/11/2026): data · hora e quem concluiu no sistema. Se quem
- * concluiu é o próprio prestador atribuído, o nome NÃO se repete — o botão de
- * iniciais ao lado já diz quem foi. Pessoas diferentes (ou prestador "?"):
- * o nome de quem concluiu aparece por extenso.
- */
-function actionText(
-  concludedAt: string | null,
-  doneByName: string | null,
-  providerName: string | null,
-): string {
-  const who = sameName(doneByName, providerName) ? null : doneByName;
-  return [dateSP(concludedAt), timeSP(concludedAt), who].filter(Boolean).join(" · ");
-}
-
-function ActionText({ text }: { text: string }) {
-  if (!text) return null;
-  return (
-    <span className="min-w-0 truncate" title={text}>
-      {text}
-    </span>
-  );
-}
-
-/** Ação de uma limpeza com prestador: compara quem concluiu com o prestador. */
-function CleaningAction({
-  propertyId,
-  logId,
-  reservationId,
-  concludedAt,
-  doneByName,
-  canEdit,
-}: {
-  propertyId: string;
-  logId: string;
-  reservationId: string | null;
-  concludedAt: string | null;
-  doneByName: string | null;
-  canEdit: boolean;
-}) {
-  const provider = useCleaningProviderName(propertyId, logId, reservationId);
-  return (
-    <>
-      <ActionText text={actionText(concludedAt, doneByName, provider)} />
-      <CleaningProviderAvatar
-        propertyId={propertyId}
-        logId={logId}
-        reservationId={reservationId}
-        look={canEdit ? "raised" : "plain"}
-      />
-    </>
-  );
-}
-
-function TypeLabel({ type, pending }: { type: "normal" | "completa" | null; pending?: boolean }) {
-  if (!type) return <span className="text-muted-foreground">—</span>;
-  return (
-    <>
-      <span
-        className={`block font-semibold whitespace-nowrap ${type === "completa" ? "text-foreground" : "text-muted-foreground"}`}
-      >
-        {type === "completa" ? "Completa" : "Normal"}
-      </span>
-      {pending && (
-        <span className="mt-0.5 block text-[9.5px] font-extrabold text-amber-500 dark:text-amber-400">
-          em análise
-        </span>
-      )}
-    </>
-  );
-}
-
-/**
- * Janela "Confirmar alteração?" (mockup aprovado): só o nome da propriedade e
- * dois blocos — De (valor antigo riscado) → Para (valor novo).
- */
-function ConfirmChange({
-  open,
-  onOpenChange,
-  property,
-  from,
-  to,
-  busy,
-  onConfirm,
-}: {
-  open: boolean;
-  onOpenChange: (v: boolean) => void;
-  property: string;
-  from: string;
-  to: string;
-  busy: boolean;
-  onConfirm: () => void;
-}) {
-  const btn = "h-9 flex-1 rounded-[10px] border text-[12px] transition-colors disabled:opacity-50";
-  return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent className="w-[calc(100vw-2rem)] gap-3 p-4 sm:max-w-sm">
-        <AlertDialogCancel
-          aria-label="Fechar"
-          disabled={busy}
-          className={cn(CORNER_CLOSE_CLASS, "rounded-none rounded-bl-[12px] rounded-tr-[calc(var(--win-radius,12px)-1px)] border-0 p-0")}
-        >
-          <X className="size-[13px]" strokeWidth={1.8} />
-        </AlertDialogCancel>
-        <AlertDialogTitle className="pr-8 font-display text-[14px] font-bold leading-tight text-white">
-          Confirmar alteração?
-        </AlertDialogTitle>
-        <AlertDialogDescription asChild>
-          <div className="min-w-0 space-y-2">
-            <p className="break-words text-[12.5px] font-bold text-foreground">{property}</p>
-            <div className="flex min-w-0 items-center gap-2">
-              <div
-                className="min-w-0 flex-1 rounded-[10px] border px-3 py-2"
-                style={{ background: "rgba(255,255,255,.04)", borderColor: "rgba(255,255,255,.05)" }}
-              >
-                <p className="text-[10.5px] font-semibold uppercase text-muted-foreground">De</p>
-                <p className="truncate text-[15px] font-semibold line-through opacity-70">{from}</p>
-              </div>
-              <ArrowRight className="size-4 shrink-0 text-muted-foreground" />
-              <div
-                className="min-w-0 flex-1 rounded-[10px] border px-3 py-2"
-                style={{ background: "rgba(255,255,255,.10)", borderColor: "rgba(255,255,255,.12)" }}
-              >
-                <p className="text-[10.5px] font-semibold uppercase text-muted-foreground">Para</p>
-                <p className="truncate text-[15px] font-bold text-white">{to}</p>
-              </div>
-            </div>
-          </div>
-        </AlertDialogDescription>
-        <div className="flex gap-2">
-          <AlertDialogCancel
-            disabled={busy}
-            className={`${btn} font-semibold text-muted-foreground`}
-            style={{ background: "rgba(255,255,255,.04)", borderColor: "rgba(255,255,255,.05)" }}
-          >
-            Cancelar
-          </AlertDialogCancel>
-          <AlertDialogAction
-            disabled={busy}
-            className={`${btn} font-bold text-white`}
-            style={{ background: "rgba(255,255,255,.10)", borderColor: "rgba(255,255,255,.12)" }}
-            onClick={(e) => {
-              e.preventDefault();
-              onConfirm();
-            }}
-          >
-            Confirmar
-          </AlertDialogAction>
-        </div>
-      </AlertDialogContent>
-    </AlertDialog>
   );
 }
 
@@ -480,81 +404,59 @@ export function CleaningDayDetailContent({
             : rows.length > 0
               ? cleaningWord
               : `${xrows.length} ${xrows.length === 1 ? "serviço concluído" : "serviços concluídos"}`;
+      // MOCKUPS Fin-01 a Fin-04 (18/11/2026): um cartão por lançamento — título + valor, proprietário e,
+      // embaixo, data · hora com as etiquetas (tipo e prestador na limpeza; situação no serviço extra,
+      // com a descrição numa linha própria). Tocar em qualquer lugar do cartão (fora dos botões) abre o
+      // detalhe na mesma janela; os campos alteráveis são editados lá.
       body = total_ > 0 && (
-        <>
-          {rows.length > 0 && (
-        <table className="w-full table-fixed border-collapse tabular-nums">
-          <tbody>
-            {rows.map((r) => (
-              <tr key={r.id} className="snap-start">
-                <PropertyCell
-                  name={r.propertyName}
-                  owner={r.ownerName}
-                  phone={r.ownerPhone}
-                  country={r.ownerPhoneCountry}
-                  onOpen={onEntryChange ? () => onEntryChange({ kind: "cleaning", item: r }) : undefined}
-                >
-                  <TypeToggle
-                    statusId={r.id}
-                    type={r.cleaningType}
-                    pending={r.pending}
-                    title={r.propertyName}
-                    canEdit={canEdit}
-                  />
-                  <BottomRow
-                    value={
-                      <EditablePrice statusId={r.id} cents={r.priceCents} title={r.propertyName} canEdit={canEdit} />
-                    }
-                  >
-                    {r.logId || r.reservationId ? (
-                      <CleaningAction
-                        propertyId={r.propertyId}
-                        logId={r.logId ?? ""}
-                        reservationId={r.reservationId}
-                        concludedAt={r.concludedAt}
-                        doneByName={r.doneByName}
-                        canEdit={canEdit}
-                      />
-                    ) : (
-                      <ActionText text={actionText(r.concludedAt, r.doneByName, null)} />
-                    )}
-                  </BottomRow>
-                </PropertyCell>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-          )}
-          {xrows.length > 0 && (
-            <table className="w-full table-fixed border-collapse tabular-nums">
-              <tbody>
-                {xrows.map((r) => (
-                  <tr key={r.id} className="snap-start">
-                    <PropertyCell
-                      name={r.propertyName}
-                      owner={r.ownerName}
-                      phone={r.ownerPhone}
-                      country={r.ownerPhoneCountry}
-                      onOpen={onEntryChange ? () => onEntryChange({ kind: "extra", item: r }) : undefined}
-                    >
-                      {/* Mockup det-lanc-a: situação 12.5px, título 11.5px apagado, data · hora e valor em negrito. */}
-                      <span className="mt-[5px] block truncate text-[12.5px] text-muted-foreground" title={`${r.situationName}: ${r.title}`}>
-                        Situação: {r.situationName}
-                      </span>
-                      <span className="block truncate text-[11.5px] text-[var(--faint)]" title={r.title}>
-                        {r.title}
-                      </span>
-                      <span className="mt-1 flex min-w-0 items-center justify-between gap-2 text-[12.5px] text-muted-foreground">
-                        <span className="min-w-0 truncate">{[dateSP(r.concludedAt), timeSP(r.concludedAt)].filter(Boolean).join(" · ")}</span>
-                        <span className="shrink-0 whitespace-nowrap font-bold tabular-nums text-foreground">{brl(r.priceCents ?? 0)}</span>
-                      </span>
-                    </PropertyCell>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </>
+        <div className="-mx-4">
+          {rows.map((r) => (
+            <EntryRow
+              key={r.id}
+              name={r.propertyName}
+              owner={r.ownerName}
+              value={brl(r.priceCents)}
+              onOpen={onEntryChange ? () => onEntryChange({ kind: "cleaning", item: r }) : undefined}
+            >
+              <span className="whitespace-nowrap">{whenShort(r.concludedAt)}</span>
+              {r.cleaningType ? <span className={TAG}>{r.cleaningType === "completa" ? "Completa" : "Normal"}</span> : null}
+              {r.pending ? (
+                <span className="shrink-0 text-[9.5px] font-extrabold text-amber-500 dark:text-amber-400">em análise</span>
+              ) : null}
+              {r.logId || r.reservationId ? (
+                <ProviderTag
+                  propertyId={r.propertyId}
+                  logId={r.logId ?? ""}
+                  reservationId={r.reservationId}
+                  propertyName={r.propertyName}
+                  ownerName={r.ownerName}
+                  canEdit={canEdit}
+                />
+              ) : null}
+            </EntryRow>
+          ))}
+          {xrows.map((r) => (
+            <EntryRow
+              key={r.id}
+              name={r.propertyName}
+              owner={r.ownerName}
+              value={brl(r.priceCents ?? 0)}
+              onOpen={onEntryChange ? () => onEntryChange({ kind: "extra", item: r }) : undefined}
+              extra={
+                r.title ? (
+                  <div className="mt-[5px] truncate text-[12px] leading-4 text-[var(--faint)]" title={r.title}>
+                    {r.title}
+                  </div>
+                ) : null
+              }
+            >
+              <span className="whitespace-nowrap">{whenShort(r.concludedAt)}</span>
+              <span className={cn(TAG, "min-w-0 truncate")} title={r.situationName}>
+                {r.situationName}
+              </span>
+            </EntryRow>
+          ))}
+        </div>
       );
     } else {
       // Uma linha por imóvel, do maior valor para o menor. O tipo resume o
@@ -688,9 +590,9 @@ export function CleaningDayDetailContent({
       {/* CABEÇALHO UNIVERSAL DE JANELA AMPLA (07/11/2026, referência: "Check-ins
           amanhã"): sem ícone, título 14px negrito em 1 linha e subtítulo 12px;
           o `pr-14` deixa o "X" oficial (canto superior direito) livre. */}
-      <DialogHeader className={WINDOW_HEADER_CLASS}>
+      <DialogHeader className={cn(WINDOW_HEADER_CLASS, "sm:mx-6")}>
         <DialogTitle className={WINDOW_TITLE_CLASS} title={heading}>
-          {windowTitle(heading)}
+          {heading}
         </DialogTitle>
         <p className={WINDOW_SUBTITLE_CLASS}>{subtitle}</p>
       </DialogHeader>
@@ -699,7 +601,13 @@ export function CleaningDayDetailContent({
       {/* Rolagem NATIVA (sem JS mexendo na altura): o iOS não congela e o rodapé nunca sai da tela.
           Anti-corte: `snap-start` nas linhas faz a lista parar numa linha inteira. */}
       {body && (
-        <div className="sg-elegant-scroll min-h-0 flex-1 snap-y snap-proximity overflow-y-auto overscroll-contain touch-pan-y px-4 pb-1 pt-2.5 sm:mx-6 [scrollbar-gutter:stable]">
+        <div
+          className={cn(
+            "sg-elegant-scroll min-h-0 flex-1 snap-y snap-proximity overflow-y-auto overscroll-contain touch-pan-y px-4 sm:mx-6 [scrollbar-gutter:stable] [&>table:first-of-type>tbody>tr:first-child>td]:border-t-0",
+            // Cartões dos lançamentos (Fin-01..04) encostam no cabeçalho e no rodapé.
+            source.mode === "done" ? "py-0" : "pb-1 pt-2.5",
+          )}
+        >
           {body}
         </div>
       )}
@@ -709,193 +617,5 @@ export function CleaningDayDetailContent({
         </div>
       )}
     </div>
-  );
-}
-
-/** Troca normal ↔ completa com confirmação. */
-function TypeToggle({
-  statusId,
-  type,
-  pending,
-  title,
-  canEdit,
-}: {
-  statusId: string;
-  type: "normal" | "completa" | null;
-  pending?: boolean;
-  title: string;
-  canEdit: boolean;
-}) {
-  const [target, setTarget] = useState<"normal" | "completa" | null>(null);
-  const [busy, setBusy] = useState(false);
-  const save = useServerFn(setCleaningType);
-  const qc = useQueryClient();
-  if (!type) return <TypeLabel type={type} pending={pending} />;
-  const typeText = type === "completa" ? "Completa" : "Normal";
-  // Rótulo no mesmo estilo da linha do proprietário; só o DADO é botão.
-  const labelCls = "mt-0.5 flex min-w-0 items-center gap-1.5 text-[11.5px] font-semibold text-foreground/80";
-  const next = type === "completa" ? "normal" : "completa";
-  async function doSave() {
-    if (!target) return;
-    setBusy(true);
-    try {
-      await save({ data: { statusId, type: target } });
-      toast.success(`Limpeza de ${title} alterada para ${target === "completa" ? "completa" : "normal"}.`);
-      setTarget(null);
-      void qc.invalidateQueries();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Não foi possível alterar o tipo.");
-    } finally {
-      setBusy(false);
-    }
-  }
-  const emAnalise = pending && (
-    <span className="mt-0.5 block text-[9.5px] font-extrabold text-amber-500 dark:text-amber-400">em análise</span>
-  );
-  if (!canEdit) {
-    return (
-      <>
-        <span className={labelCls} title={`Tipo da Limpeza: ${typeText}`}>
-          <span className="min-w-0 truncate">Tipo da Limpeza: {typeText}</span>
-        </span>
-        {emAnalise}
-      </>
-    );
-  }
-  return (
-    <>
-      <span className={labelCls}>
-        <span className="shrink-0">Tipo da Limpeza:</span>
-        <button
-          type="button"
-          onClick={() => setTarget(next)}
-          title={`Mudar para ${next === "completa" ? "Completa" : "Normal"}`}
-          className={EDIT_BTN}
-        >
-          {typeText}
-        </button>
-      </span>
-      {emAnalise}
-      <ConfirmChange
-        open={!!target}
-        onOpenChange={(v) => !v && setTarget(null)}
-        property={title}
-        from={typeText}
-        to={next === "completa" ? "Completa" : "Normal"}
-        busy={busy}
-        onConfirm={() => void doSave()}
-      />
-    </>
-  );
-}
-
-/**
- * Valor clicável (07/11/2026): ao tocar, vira um campo na MESMA posição e
- * altura, já com foco — sem botões "Cancelar"/"OK", que espremiam a data no
- * celular. Enter ou sair do campo grava: valor alterado abre o "Confirmar
- * alteração?" (De → Para); valor igual ou Escape descarta sem perguntar.
- */
-function EditablePrice({
-  statusId,
-  cents,
-  title,
-  canEdit,
-}: {
-  statusId: string;
-  cents: number | null;
-  title: string;
-  canEdit: boolean;
-}) {
-  const [editing, setEditing] = useState(false);
-  const [text, setText] = useState("");
-  const [confirm, setConfirm] = useState(false);
-  const [busy, setBusy] = useState(false);
-  // Escape descarta: o blur que vem logo depois não pode gravar.
-  const discarded = useRef(false);
-  const save = useServerFn(setCleaningPriceOverride);
-  const qc = useQueryClient();
-  const value = parseReaisInputToCents(text);
-
-  function close() {
-    setConfirm(false);
-    setEditing(false);
-  }
-
-  function commit() {
-    if (discarded.current || confirm) return;
-    if (value == null || value === cents) close();
-    else setConfirm(true);
-  }
-
-  async function doSave() {
-    if (value == null) return;
-    setBusy(true);
-    try {
-      await save({ data: { statusId, cents: value, reason: null } });
-      toast.success(`Valor de ${title} alterado para ${brl(value)}.`);
-      close();
-      void qc.invalidateQueries();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Não foi possível alterar o valor.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  // Sem permissão: valor em texto simples, sem moldura e sem toque.
-  if (!canEdit) return <span className="whitespace-nowrap">{brl(cents)}</span>;
-  if (!editing) {
-    return (
-      <button
-        type="button"
-        onClick={() => {
-          discarded.current = false;
-          setText(centsToReaisInput(cents));
-          setEditing(true);
-        }}
-        title="Alterar valor"
-        className={`${EDIT_BTN} whitespace-nowrap tabular-nums`}
-      >
-        {brl(cents)}
-      </button>
-    );
-  }
-  return (
-    <>
-      <input
-        autoFocus
-        aria-label={`Valor de ${title}`}
-        inputMode="decimal"
-        value={text}
-        disabled={busy}
-        onFocus={(e) => e.currentTarget.select()}
-        onChange={(e) => setText(e.target.value)}
-        onBlur={commit}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") {
-            e.preventDefault();
-            commit();
-          }
-          if (e.key === "Escape") {
-            e.preventDefault();
-            discarded.current = true;
-            close();
-          }
-        }}
-        className={EDIT_INPUT}
-      />
-      <ConfirmChange
-        open={confirm}
-        onOpenChange={(v) => {
-          // Cancelar (ou fechar) a confirmação descarta a edição.
-          if (!v) close();
-        }}
-        property={title}
-        from={brl(cents)}
-        to={brl(value)}
-        busy={busy}
-        onConfirm={() => void doSave()}
-      />
-    </>
   );
 }

@@ -59,12 +59,12 @@ describe("DialogContent — X oficial", () => {
   });
 });
 
-describe("windowTitle — sentence case", () => {
-  it("só a primeira letra maiúscula", () => {
-    expect(windowTitle("Check-ins Pendentes")).toBe("Check-ins pendentes");
-    expect(windowTitle("Checkouts PENDENTES")).toBe("Checkouts pendentes");
-    expect(windowTitle("Fila de Limpeza")).toBe("Fila de limpeza");
-    expect(windowTitle("  Imóveis livres hoje ")).toBe("Imóveis livres hoje");
+describe("windowTitle — iniciais maiúsculas", () => {
+  it("iniciais maiúsculas, ligações minúsculas", () => {
+    expect(windowTitle("check-ins pendentes")).toBe("Check-ins Pendentes");
+    expect(windowTitle("Checkouts PENDENTES")).toBe("Checkouts Pendentes");
+    expect(windowTitle("FILA DE LIMPEZA")).toBe("Fila de Limpeza");
+    expect(windowTitle("  Imóveis livres hoje ")).toBe("Imóveis Livres Hoje");
   });
 });
 

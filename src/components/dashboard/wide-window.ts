@@ -15,8 +15,24 @@ export const WIDE_WINDOW_CLASS =
  */
 export const FINANCE_WINDOW_CLASS = `${WIDE_WINDOW_CLASS} sm:!p-0`;
 
-/** Título de janela em "sentence case" ("Check-ins Pendentes" → "Check-ins pendentes"). */
+/** Palavras de ligação que ficam minúsculas no meio de um título ("Fila de Limpeza"). */
+const TITLE_CONNECTORS = new Set([
+  "a", "à", "ao", "aos", "as", "às", "com", "da", "das", "de", "do", "dos", "e", "em", "na", "nas", "no", "nos", "o", "os", "ou", "para", "pela", "pelas", "pelo", "pelos", "por",
+]);
+
+/**
+ * TÍTULO DE JANELA COM AS INICIAIS MAIÚSCULAS (regra de 18/11/2026, vale para todas as janelas):
+ * "check-ins pendentes" → "Check-ins Pendentes", "FILA DE LIMPEZA" → "Fila de Limpeza". As palavras de
+ * ligação (de, da, do, e, em…) ficam minúsculas, menos quando abrem o título.
+ */
 export function windowTitle(text: string): string {
-  const t = text.trim();
-  return t.charAt(0).toUpperCase() + t.slice(1).toLowerCase();
+  return text
+    .trim()
+    .split(/\s+/)
+    .map((w, i) => {
+      const low = w.toLowerCase();
+      if (i > 0 && TITLE_CONNECTORS.has(low)) return low;
+      return low.charAt(0).toUpperCase() + low.slice(1);
+    })
+    .join(" ");
 }

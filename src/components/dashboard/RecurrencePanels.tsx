@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { DateField } from "@/components/dashboard/CalendarWindow";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Check, ChevronRight, CircleAlert, Loader2, Pause, Play, Repeat } from "lucide-react";
@@ -548,14 +549,14 @@ function EditView({ s, onDone }: { s: RecurrenceSummary; onDone: () => void }) {
             </select>
           </div>
         </div>
-        <label className="grid gap-1.5">
+        <div className="grid gap-1.5">
           <span className="ds-eyebrow text-muted-foreground">Próxima</span>
-          <input type="date" value={next} onChange={(e) => e.target.value && setNext(e.target.value)} className={field} />
-        </label>
-        <label className="grid gap-1.5">
+          <DateField value={next} onChange={(v) => v && setNext(v)} title="Escolher Próxima Data" className={field} />
+        </div>
+        <div className="grid gap-1.5">
           <span className="ds-eyebrow text-muted-foreground">Termina em (opcional)</span>
-          <input type="date" value={ends} min={next} onChange={(e) => setEnds(e.target.value)} className={field} />
-        </label>
+          <DateField value={ends} min={next} onChange={setEnds} title="Escolher Data Final" className={field} clearable />
+        </div>
         <div className="flex items-center gap-3 rounded-[0.6rem] border border-border/50 bg-secondary/30 px-3.5 py-3">
           <span className="min-w-0 flex-1 text-[13px] font-semibold">Entra no checklist de limpeza</span>
           <Switch checked={checklist} onCheckedChange={setChecklist} />

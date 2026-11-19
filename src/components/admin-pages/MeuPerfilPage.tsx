@@ -8,7 +8,7 @@ import {
   removeMyAvatar,
   requestEmailChange,
 } from "@/lib/profile.functions";
-import { Camera, Check, Clock, Loader2, Trash2, Mail, Lock, CalendarDays } from "lucide-react";
+import { Camera, Check, Clock, Loader2, Trash2, Mail, Lock } from "lucide-react";
 import { PANEL_SHELL } from "@/components/dashboard/panel-chrome";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ActionButton } from "@/components/admin-pages/admin-mobile-ui";
@@ -18,9 +18,15 @@ import { useImpersonation } from "@/hooks/useImpersonation";
 import { useAutosave } from "@/hooks/useAutosave";
 import { UField, UHAIR, UINPUT, UINPUT_BARE, UROW } from "@/components/admin-pages/profile-fields";
 import { CompanySection } from "@/components/admin-pages/CompanySection";
+import { DateField } from "@/components/dashboard/CalendarWindow";
+import { useMyPermissions } from "@/hooks/useMyPermissions";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
 
 
 export function MeuPerfilPage() {
+  // Dados da empresa são da conta: só o titular (ou o admin do SaaS) altera (18/11/2026).
+  const { isOwner } = useMyPermissions();
+  const { isAdmin } = useIsAdmin();
   const getFn = useServerFn(getMyProfile);
   const updateFn = useServerFn(updateMyProfile);
   const uploadFn = useServerFn(uploadMyAvatar);
@@ -28,7 +34,6 @@ export function MeuPerfilPage() {
   const emailFn = useServerFn(requestEmailChange);
   const qc = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
-  const birthRef = useRef<HTMLInputElement>(null);
   const { impersonation } = useImpersonation();
   const accountOwnerId = impersonation?.userId ?? null;
 
@@ -271,17 +276,15 @@ export function MeuPerfilPage() {
             </UField>
             {/* Mockup: o ícone do calendário fica dentro da linha; tocar em qualquer ponto abre o seletor. */}
             <UField label="Nascimento" required>
-              <div className={`${UROW} relative`}>
-                <input
-                  ref={birthRef}
-                  type="date"
-                  value={birthDate}
-                  max={new Date().toISOString().slice(0, 10)}
-                  onChange={(e) => setBirthDate(e.target.value)}
-                  className={`${UINPUT_BARE} [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-0`}
-                />
-                <CalendarDays className="pointer-events-none size-3.5 shrink-0 text-[var(--faint)]" />
-              </div>
+              {/* Calendário padrão do sistema (janela "Ir para", 18/11/2026) no lugar do seletor nativo. */}
+              <DateField
+                value={birthDate}
+                onChange={setBirthDate}
+                title="Escolher Nascimento"
+                max={new Date().toISOString().slice(0, 10)}
+                ariaLabel="Nascimento"
+                className={`${UROW} rounded-none border-x-0 border-t-0 bg-transparent px-0 shadow-none`}
+              />
             </UField>
           </div>
           <UField label="Cargo" optional>
@@ -373,7 +376,7 @@ export function MeuPerfilPage() {
       </section>
 
       {/* Somos uma Empresa (CNPJ): chave + quadrante Empresa (mockups 17/11/2026). */}
-      <CompanySection ownerId={accountOwnerId} />
+      <CompanySection ownerId={accountOwnerId} readOnly={!(isOwner || isAdmin)} />
 
       {/* O "Salvo" saiu a pedido; só aparece o que exige atenção. */}
       {autosave.status === "saving" ? (

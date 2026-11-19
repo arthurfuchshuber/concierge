@@ -142,8 +142,10 @@ export function maxBlockEnd(occupied: ReadonlySet<string>, from: string, lastTo?
 }
 
 /**
- * PRAZO DO ANÚNCIO (29/10/2026): só se escolhe entre "hoje + antecedência mínima" e "hoje + janela máxima de
- * reservas". Com mais de um anúncio no imóvel vale o MENOR mínimo e o MAIOR máximo. Sem dado, usa o padrão.
+ * PRAZO DO ANÚNCIO: o bloqueio manual é uma ação administrativa do anfitrião (manutenção, uso próprio, venda
+ * direta), então a antecedência mínima de reserva do HÓSPEDE (`minDays` / `booking_lead_time`) NUNCA restringe
+ * o início: a primeira noite escolhível é sempre HOJE. O anúncio só limita o fim, pela janela máxima de reservas
+ * (`maxDays`). Com mais de um anúncio no imóvel vale o MAIOR máximo. Sem dado, usa o padrão.
  */
 const DEFAULT_BOOKING_WINDOW_DAYS = 270;
 const MAX_BOOKING_WINDOW_DAYS = 730;
@@ -151,11 +153,10 @@ const MAX_BOOKING_WINDOW_DAYS = 730;
 export type BookingWindow = { minDays: number | null; maxDays: number | null };
 
 export function bookingWindowBounds(todayISO: string, w?: BookingWindow | null): { firstNight: string; lastNight: string; lastTo: string } {
-  const minDays = Math.max(0, Math.floor(w?.minDays ?? 0));
   const maxRaw = w?.maxDays != null && w.maxDays > 0 ? w.maxDays : DEFAULT_BOOKING_WINDOW_DAYS;
-  const maxDays = Math.max(minDays, Math.min(MAX_BOOKING_WINDOW_DAYS, Math.floor(maxRaw)));
+  const maxDays = Math.min(MAX_BOOKING_WINDOW_DAYS, Math.floor(maxRaw));
   const lastNight = addDaysISO(todayISO, maxDays);
-  return { firstNight: addDaysISO(todayISO, minDays), lastNight, lastTo: addDaysISO(lastNight, 1) };
+  return { firstNight: todayISO, lastNight, lastTo: addDaysISO(lastNight, 1) };
 }
 
 /** Menor mínimo e maior máximo entre vários anúncios (ignora o que não tem dado). */

@@ -72,14 +72,17 @@ export function ClientSwitcher() {
       <PopoverTrigger asChild>
         <button
           type="button"
-          className={`w-full flex items-center gap-2 px-3 py-2.5 rounded-md text-sm border transition-colors text-left ${
+          className={`w-full min-w-0 flex items-center gap-2 px-3 py-2.5 rounded-md text-sm border transition-colors text-left ${
             impersonation
               ? "border-accent/40 bg-accent/10 hover:bg-accent/15"
               : "border-border bg-secondary/40 hover:bg-secondary"
           }`}
         >
           <Users className="size-4 shrink-0" />
-          <span className={`flex-1 break-words leading-tight ${impersonation ? "text-foreground font-medium" : "text-foreground/80"}`}>
+          <span
+            title={label}
+            className={`flex-1 min-w-0 truncate leading-tight ${impersonation ? "text-foreground font-medium" : "text-foreground/80"}`}
+          >
             {label}
           </span>
           {impersonation ? (
@@ -88,7 +91,7 @@ export function ClientSwitcher() {
               tabIndex={0}
               onClick={exit}
               aria-label="Sair da visualização"
-              className="size-5 grid place-items-center rounded text-muted-foreground hover:text-foreground hover:bg-background/60"
+              className="size-5 shrink-0 grid place-items-center rounded text-muted-foreground hover:text-foreground hover:bg-background/60"
             >
               <X className="size-3.5" />
             </span>

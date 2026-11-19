@@ -32,7 +32,7 @@ export { AssinaturaPage };
  * Administrativo › Assinatura (Stripe, cobrança por anúncio conectado ativo).
  * Celular e desktop seguem os mockups aprovados; os números vêm de `getAccountBilling`.
  */
-function AssinaturaPage({ embedded = false }: { embedded?: boolean } = {}) {
+function AssinaturaPage({ embedded = false, readOnly = false }: { embedded?: boolean; readOnly?: boolean } = {}) {
   // `isPending` (e não `isLoading`) também cobre o intervalo em que a consulta espera a sessão: até lá `info` não é real.
   const { info, refetch, isPending, isError } = useSubscription();
   const { impersonation } = useImpersonation();
@@ -183,7 +183,7 @@ function AssinaturaPage({ embedded = false }: { embedded?: boolean } = {}) {
         </section>
       ) : showFull ? (
         <>
-          <AssinaturaMobile view={view} paymentMethod={pm} onOpenPortal={openCard} busy={busy} />
+          <AssinaturaMobile view={view} paymentMethod={pm} onOpenPortal={openCard} busy={busy} readOnly={readOnly} />
           <AssinaturaDesktop view={view} paymentMethod={pm} onOpenPortal={openCard} busy={busy} />
           <CardSetupDialog
             open={cardOpen}
@@ -205,6 +205,7 @@ function AssinaturaPage({ embedded = false }: { embedded?: boolean } = {}) {
             </p>
           </div>
           <PriceBands highlight={view.qtd || undefined} />
+          {readOnly ? null : (
           <button
             type="button"
             onClick={subscribe}
@@ -214,6 +215,7 @@ function AssinaturaPage({ embedded = false }: { embedded?: boolean } = {}) {
             {busy ? <Loader2 className="size-4 animate-spin" /> : <Lock className="size-4" />}
             Cadastrar cartão e assinar
           </button>
+          )}
         </section>
       )}
     </div>
