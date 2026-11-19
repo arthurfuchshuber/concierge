@@ -88,6 +88,14 @@ describe("API do anfitrião — leitura pura", () => {
     expect(checkoutTaskLines(listing.listing.check_out_tasks)).toEqual(["Devolver as chaves", "Jogar o lixo fora", "Deixe a louça na pia"]);
   });
 
+  it("formato real da API: objeto por tipo, com task_detail e is_present", () => {
+    expect(checkoutTaskLines({ RETURN_KEYS: { is_present: true, task_detail: "" }, THROW_TRASH: { is_present: true, task_detail: "No contêiner da rua" }, STRIP_BEDS: { is_present: false, task_detail: "" } })).toEqual(["Devolver as chaves", "Jogar o lixo fora: No contêiner da rua"]);
+  });
+
+  it("estado sem o prefixo em inglês", () => {
+    expect(parseHostListing("1", { listing: { listing: { state: "State of Paraná", city: "Foz" } } })!.state).toBe("Paraná");
+  });
+
   it("coordenada 0,0 ou fora do intervalo é descartada", () => {
     expect(parseHostListing("1", { listing: { listing: { lat: 0, lng: 0, city: "X" } } })!.lat).toBeNull();
     expect(parseHostListing("1", { listing: { listing: { lat: 120, lng: 10, city: "X" } } })!.lat).toBeNull();
@@ -106,9 +114,16 @@ describe("API do anfitrião — leitura pura", () => {
     expect(merged[0]!.key).toBe("horarios");
   });
 
-  it("anúncio soberano: qualquer divergência substitui, inclusive edição manual", () => {
-    const p = hostPropertyPatch(h, { lat: -25.4, lng: -54.5, address: "", city: "Minha cidade", checkin_instructions: "manual", gallery_images: [] });
-    expect(p).toMatchObject({ lat: -25.5, lng: -54.58, address: "Rua das Cataratas, 100, Casa 2, CEP 85851-000", city: "Foz do Iguaçu", state: "PR", country: "BR", airbnb_guest_count: 6, checkin_instructions: "Após o portão, siga à esquerda." });
+  it("anúncio soberano nos dados cadastrais; instruções do guia escritas pela equipe são preservadas", () => {
+    const p = hostPropertyPatch(h, { lat: -25.4, lng: -54.5, address: "", city: "Minha cidade", checkin_instructions: "manual", checkout_instructions: "guia da equipe", gallery_images: [] });
+    expect(p).toMatchObject({ lat: -25.5, lng: -54.58, address: "Rua das Cataratas, 100, Casa 2, CEP 85851-000", city: "Foz do Iguaçu", state: "PR", country: "BR", airbnb_guest_count: 6 });
+    expect(p).not.toHaveProperty("checkin_instructions");
+    expect(p).not.toHaveProperty("checkout_instructions");
+  });
+
+  it("instruções vazias são preenchidas pelo anúncio", () => {
+    const p = hostPropertyPatch(h, { checkin_instructions: "", checkout_instructions: null });
+    expect(p["checkin_instructions"]).toBe("Após o portão, siga à esquerda.");
     expect(p["checkout_instructions"]).toContain("• Devolver as chaves");
     expect(p["hero_image_url"]).toBe("https://a0.muscache.com/a.jpg");
   });

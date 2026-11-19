@@ -147,7 +147,14 @@ function list(raw: unknown, key: string): Array<Record<string, any>> {
 
 /** Tarefas de saída do anúncio em português (texto livre do anfitrião vem junto). */
 export function checkoutTaskLines(tasks: unknown): string[] {
-  const arr = Array.isArray(tasks) ? tasks : tasks && typeof tasks === "object" ? Object.values(tasks as object) : [];
+  // A API devolve um objeto { RETURN_KEYS: { is_present, task_detail } }: a chave É o tipo da tarefa.
+  const arr = Array.isArray(tasks)
+    ? tasks
+    : tasks && typeof tasks === "object"
+      ? Object.entries(tasks as Record<string, unknown>)
+          .filter(([, v]) => !(v && typeof v === "object" && (v as Record<string, unknown>).is_present === false))
+          .map(([k, v]) => ({ ...(v && typeof v === "object" ? (v as object) : {}), type: k }))
+      : [];
   const out: string[] = [];
   for (const t of arr) {
     if (typeof t === "string") {
@@ -158,7 +165,7 @@ export function checkoutTaskLines(tasks: unknown): string[] {
     if (!t || typeof t !== "object") continue;
     const o = t as Record<string, unknown>;
     const k = String(o.type ?? o.task_type ?? o.name ?? "").trim().toUpperCase();
-    const det = str(o.details ?? o.additional_text ?? o.description ?? o.text);
+    const det = str(o.task_detail ?? o.details ?? o.additional_text ?? o.description ?? o.text);
     const free = k === "ADDITIONAL_REQUESTS" || k === "OTHER" || k === "OTHER_REQUESTS";
     const label = k && !(free && det) ? (CHECKOUT_TASK_LABEL[k] ?? humanize(k)) : null;
     const line = [label, det].filter(Boolean).join(": ");
@@ -246,7 +253,7 @@ export function parseHostListing(
     street: str(l.street),
     apt: str(l.apt),
     city: str(l.city),
-    state: str(l.state),
+    state: str(l.state)?.replace(/^(state|estado) (of|de|do) /i, "") ?? null,
     zipcode: str(l.zipcode),
     countryCode: str(l.country_code)?.toUpperCase() ?? null,
     lat: coords ? lat : null,
@@ -399,8 +406,12 @@ export function hostPropertyPatch(h: HostListing, cur: HostCurrent): Record<stri
   set("city", h.city?.slice(0, 120));
   set("state", h.state?.slice(0, 120));
   set("country", h.countryCode?.slice(0, 8));
-  set("checkin_instructions", h.directions?.slice(0, 10_000));
-  set("checkout_instructions", checkoutInstructionsText(h)?.slice(0, 10_000));
+  // Instruções de chegada/saída: o texto do guia escrito pela equipe é mais rico que as tarefas
+  // padrão do Airbnb; só preenche quando vazio (as tarefas sempre entram como fato do dossiê).
+  const blank = (v: unknown) => v == null || (typeof v === "string" && !v.trim());
+  if (blank(cur.checkin_instructions) && h.directions) p["checkin_instructions"] = h.directions.slice(0, 10_000);
+  const co = checkoutInstructionsText(h);
+  if (blank(cur.checkout_instructions) && co) p["checkout_instructions"] = co.slice(0, 10_000);
   if (h.personCapacity != null && h.personCapacity > 0) set("airbnb_guest_count", Math.min(200, Math.round(h.personCapacity)));
   if (h.bedrooms != null && h.bedrooms >= 0) set("airbnb_bedroom_count", Math.min(200, Math.round(h.bedrooms)));
   if (h.beds != null && h.beds >= 0) set("airbnb_bed_count", Math.min(200, Math.round(h.beds)));
