@@ -234,12 +234,17 @@ export const getOwnerLooseDocFile = createServerFn({ method: "POST" })
     // RLS garante que só a conta (ou membro) enxerga o registro.
     const { data: doc } = await supabase
       .from("owner_loose_documents")
-      .select("storage_path")
+      .select("storage_path, account_owner_id, stakeholder_id")
       .eq("id", data.id)
       .maybeSingle();
     if (!doc) throw new Error("Documento não encontrado.");
+    // O caminho gravado na linha é editável: só baixa se estiver na pasta da própria conta/ficha.
+    const expectedPrefix = `${doc.account_owner_id}/${doc.stakeholder_id}/`;
+    const path = String(doc.storage_path ?? "");
+    if (!path.startsWith(expectedPrefix) || !/^[0-9a-f-]{36}\.pdf$/i.test(path.slice(expectedPrefix.length)))
+      throw new Error("Arquivo indisponível.");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const dl = await supabaseAdmin.storage.from(BUCKET).download(doc.storage_path as string);
+    const dl = await supabaseAdmin.storage.from(BUCKET).download(path);
     if (dl.error || !dl.data) throw new Error("Arquivo indisponível.");
     const base64 = Buffer.from(await dl.data.arrayBuffer()).toString("base64");
     return { base64 };

@@ -632,8 +632,18 @@ export const getClicksignDocumentFile = createServerFn({ method: "POST" })
     }
 
     if (!url) throw new Error("Documento sem arquivo disponível.");
+    // Os links salvos ficam numa linha editável: só baixa de hosts da Clicksign/armazenamento dela, por https.
+    let host = "";
+    try {
+      const u = new URL(url);
+      if (u.protocol === "https:") host = u.hostname.toLowerCase();
+    } catch {
+      /* inválido */
+    }
+    const allowed = /(^|\.)clicksign\.com$/.test(host) || /^[a-z0-9.-]+\.s3[a-z0-9.-]*\.amazonaws\.com$/.test(host);
+    if (!allowed) throw new Error("Documento sem arquivo disponível.");
 
-    const res = await fetch(url);
+    const res = await fetch(url, { redirect: "error" });
     if (!res.ok) throw new Error(`Não foi possível baixar o documento (${res.status}).`);
     const buf = new Uint8Array(await res.arrayBuffer());
     let binary = "";

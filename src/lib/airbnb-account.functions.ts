@@ -50,6 +50,11 @@ async function ctx(
   return { accountId, admin: supabaseAdmin };
 }
 
+/** Desconectar/reativar uma conta do Airbnb arquiva ou devolve imóveis: só o titular da conta pode. */
+function assertAccountOwner(userId: string, accountId: string) {
+  if (userId !== accountId) throw new Error("Somente o titular da conta pode desconectar ou reativar contas do Airbnb.");
+}
+
 /** Todos os anúncios dos canais do Airbnb já conectados à conta. */
 type Admin = Awaited<ReturnType<typeof ctx>>["admin"];
 
@@ -318,6 +323,7 @@ export const checkAirbnbReconnection = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => Base.extend({ channelId: z.string().min(8).max(64) }).parse(i))
   .handler(async ({ data, context }) => {
     const { accountId, admin } = await ctx(context.supabase, context.userId, data.accountOwnerId);
+    assertAccountOwner(context.userId, accountId);
     const { registry, accountAuthorized, reactivate } =
       await import("@/lib/airbnb-accounts.server");
     const mine = await registry(admin, accountId, true);
@@ -347,6 +353,7 @@ export const disconnectAirbnbAccount = createServerFn({ method: "POST" })
   .inputValidator((i: unknown) => Base.extend({ channelId: z.string().min(8).max(64) }).parse(i))
   .handler(async ({ data, context }) => {
     const { accountId, admin } = await ctx(context.supabase, context.userId, data.accountOwnerId);
+    assertAccountOwner(context.userId, accountId);
     const { disconnect } = await import("@/lib/airbnb-accounts.server");
     return disconnect(admin, accountId, data.channelId);
   });

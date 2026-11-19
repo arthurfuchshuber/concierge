@@ -802,6 +802,9 @@ export const enrichFromMapsLink = createServerFn({ method: "POST" })
     // guia, pacote Sigma ou curadoria manual), não geramos nem inserimos
     // nenhum ponto novo — apenas devolvemos os dados de endereço/imagens.
     if (data.propertyId) {
+      // Só consulta o vínculo de imóvel que o usuário enxerga (RLS do próprio usuário).
+      const { data: own } = await context.supabase.from("properties").select("id").eq("id", data.propertyId).maybeSingle();
+      if (!own) throw new Error("Imóvel não encontrado.");
       const linkReason = await detectLinkedRecommendations(data.propertyId);
       if (linkReason) {
         return {
