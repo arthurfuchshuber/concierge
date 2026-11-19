@@ -214,6 +214,29 @@ export async function syncChannexEntities(opts: { force?: boolean; source?: stri
     }
   }
 
+  // LOCALIZAÇÃO QUE FALTA NO IMÓVEL (19/11/2026, casos Nailton e Kelvin): sem país o sistema não acha o fuso do
+  // imóvel e a IA fica sem fase da estadia (D9 nega). A propriedade da Channex traz país/estado/cidade; só
+  // preenche o que está VAZIO no imóvel (nunca sobrescreve o cadastro). Coordenadas da Channex não entram: em
+  // unidades criadas sem endereço vêm valores sem sentido.
+  try {
+    const { data: links } = await admin
+      .from("property_listing_raw_data")
+      .select("property_id, channex_property_id")
+      .not("channex_property_id", "is", null);
+    const byProp = new Map<string, string>();
+    for (const r of (links ?? []) as Array<{ property_id: string; channex_property_id: string }>) byProp.set(r.property_id, r.channex_property_id);
+    if (byProp.size) {
+      const { data: props } = await admin.from("properties").select("id, city, state, country").in("id", [...byProp.keys()]);
+      for (const pr of (props ?? []) as Array<{ id: string; city: string | null; state: string | null; country: string | null }>) {
+        const cx = properties.find((p) => p.id === byProp.get(pr.id));
+        const patch = missingLocationPatch(pr, cx?.attributes ?? null);
+        if (patch) await admin.from("properties").update(patch).eq("id", pr.id);
+      }
+    }
+  } catch (e) {
+    console.error("[channex-entity-sync] localização do imóvel", e instanceof Error ? e.message : e);
+  }
+
   // Anúncios alterados → atualiza dados do imóvel e reindexa a IA (sem raspar página pública).
   // Vale para qualquer cliente: o imóvel vem de `property_listing_raw_data` (anúncio → imóvel).
   // O piloto fixo (por slug) fica só como reserva para o que ainda não está nessa tabela.
@@ -312,4 +335,22 @@ export async function syncChannexEntities(opts: { force?: boolean; source?: stri
   const { healMissingMessagesApps } = await import("@/lib/channex-messages-app.server");
   await healMissingMessagesApps(admin).catch((e) => console.error("[entity-sync] messages heal", e));
   return { entities: recs.length, changed: changedRecs.length, renamedRoomTypes: renamed, listingsUpdated };
+}
+
+/** País/estado/cidade da propriedade da Channex que faltam no imóvel (pura). Só campos vazios; nada a mudar ⇒ null. */
+export function missingLocationPatch(
+  prop: { city: string | null; state: string | null; country: string | null },
+  cx: { city?: unknown; state?: unknown; country?: unknown } | null,
+): { city?: string; state?: string; country?: string } | null {
+  if (!cx) return null;
+  const val = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim().slice(0, 80) : null);
+  const empty = (v: string | null) => !v || !v.trim();
+  const patch: { city?: string; state?: string; country?: string } = {};
+  const country = val(cx.country);
+  const state = val(cx.state);
+  const city = val(cx.city);
+  if (empty(prop.country) && country) patch.country = country;
+  if (empty(prop.state) && state) patch.state = state;
+  if (empty(prop.city) && city) patch.city = city;
+  return Object.keys(patch).length ? patch : null;
 }
