@@ -277,8 +277,7 @@ export function mergeHostFacts<T extends { key: string }>(facts: T[], h: HostLis
   return [...facts.filter((f) => !keys.has(f.key)), ...extra];
 }
 
-const blank = (v: unknown) => v == null || (typeof v === "string" && !v.trim());
-const isAirbnbPhoto = (u: unknown) => typeof u === "string" && /(^|\.)muscache\.com\//.test(u.replace(/^https?:\/\//, ""));
+const same = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
 
 export type HostCurrent = {
   lat?: number | null;
@@ -291,42 +290,46 @@ export type HostCurrent = {
   checkout_instructions?: string | null;
   hero_image_url?: string | null;
   gallery_images?: string[] | null;
+  airbnb_guest_count?: number | null;
+  airbnb_bedroom_count?: number | null;
+  airbnb_bed_count?: number | null;
+  airbnb_bathroom_count?: number | null;
+  airbnb_rooms_beds?: unknown;
 };
 
 /**
- * Patch de `properties`. Localização e instruções: só preenche o que está vazio.
- * Capacidade/cômodos: o anúncio é soberano. Fotos: substitui a galeria quando ela
- * só tem fotos do próprio Airbnb (ou nenhuma); galeria curada à mão (fotos no
- * armazenamento do sistema) é preservada.
+ * Patch de `properties` — o ANÚNCIO É SOBERANO (regra do proprietário, 19/11/2026): todo dado
+ * que a API informa substitui o do sistema sempre que houver QUALQUER divergência, inclusive
+ * edições manuais. Fotos: uma única divergência (foto, quantidade ou ordem) substitui a galeria
+ * inteira pelas fotos do anúncio, e a capa passa a ser a 1ª. Dado ausente na API não apaga o salvo.
+ * Só entram no patch os campos que realmente mudaram.
  */
 export function hostPropertyPatch(h: HostListing, cur: HostCurrent): Record<string, unknown> {
   const p: Record<string, unknown> = {};
-  if (h.lat != null && h.lng != null && (cur.lat == null || cur.lng == null)) {
-    p["lat"] = h.lat;
-    p["lng"] = h.lng;
+  const set = (k: keyof HostCurrent, v: unknown) => {
+    if (v == null || (typeof v === "string" && !v.trim())) return;
+    if (!same(cur[k], v)) p[k] = v;
+  };
+  if (h.lat != null && h.lng != null) {
+    set("lat", h.lat);
+    set("lng", h.lng);
+    if ("lat" in p || "lng" in p) { p["lat"] = h.lat; p["lng"] = h.lng; }
   }
-  const addr = composeAddress(h);
-  if (addr && blank(cur.address)) p["address"] = addr.slice(0, 500);
-  if (h.city && blank(cur.city)) p["city"] = h.city.slice(0, 120);
-  if (h.state && blank(cur.state)) p["state"] = h.state.slice(0, 120);
-  if (h.countryCode && blank(cur.country)) p["country"] = h.countryCode.slice(0, 8);
-  if (h.directions && blank(cur.checkin_instructions)) p["checkin_instructions"] = h.directions.slice(0, 10_000);
-  const co = checkoutInstructionsText(h);
-  if (co && blank(cur.checkout_instructions)) p["checkout_instructions"] = co.slice(0, 10_000);
-  if (h.personCapacity != null && h.personCapacity > 0) p["airbnb_guest_count"] = Math.min(200, Math.round(h.personCapacity));
-  if (h.bedrooms != null && h.bedrooms >= 0) p["airbnb_bedroom_count"] = Math.min(200, Math.round(h.bedrooms));
-  if (h.beds != null && h.beds >= 0) p["airbnb_bed_count"] = Math.min(200, Math.round(h.beds));
-  if (h.bathrooms != null && h.bathrooms >= 0) p["airbnb_bathroom_count"] = Math.min(200, h.bathrooms);
-  if (h.rooms.length) p["airbnb_rooms_beds"] = h.rooms;
+  set("address", composeAddress(h)?.slice(0, 500));
+  set("city", h.city?.slice(0, 120));
+  set("state", h.state?.slice(0, 120));
+  set("country", h.countryCode?.slice(0, 8));
+  set("checkin_instructions", h.directions?.slice(0, 10_000));
+  set("checkout_instructions", checkoutInstructionsText(h)?.slice(0, 10_000));
+  if (h.personCapacity != null && h.personCapacity > 0) set("airbnb_guest_count", Math.min(200, Math.round(h.personCapacity)));
+  if (h.bedrooms != null && h.bedrooms >= 0) set("airbnb_bedroom_count", Math.min(200, Math.round(h.bedrooms)));
+  if (h.beds != null && h.beds >= 0) set("airbnb_bed_count", Math.min(200, Math.round(h.beds)));
+  if (h.bathrooms != null && h.bathrooms >= 0) set("airbnb_bathroom_count", Math.min(200, h.bathrooms));
+  if (h.rooms.length) set("airbnb_rooms_beds", h.rooms);
   if (h.photos.length) {
-    const gallery = (cur.gallery_images ?? []).filter(Boolean);
-    const onlyAirbnb = gallery.every(isAirbnbPhoto);
-    if (onlyAirbnb) {
-      p["gallery_images"] = h.photos.slice(0, 100).map((x) => x.url);
-      if (blank(cur.hero_image_url) || isAirbnbPhoto(cur.hero_image_url)) p["hero_image_url"] = h.photos[0]!.url;
-    } else if (blank(cur.hero_image_url)) {
-      p["hero_image_url"] = h.photos[0]!.url;
-    }
+    const urls = h.photos.slice(0, 100).map((x) => x.url);
+    set("gallery_images", urls);
+    set("hero_image_url", urls[0]);
   }
   return p;
 }

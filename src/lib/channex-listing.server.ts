@@ -299,10 +299,10 @@ export async function applyListingToProperty(args: {
       .eq("id", args.propertyId)
       .maybeSingle();
     const c = cur as { airbnb_cancellation_policy?: string | null; airbnb_house_rules?: string | null } | null;
-    const blank = (t?: string | null) => !t || !t.trim() || /^Adicione as datas de viagem/i.test(t.trim());
-    if (st.cancellation_policy_label && blank(c?.airbnb_cancellation_policy)) patch["airbnb_cancellation_policy"] = st.cancellation_policy_label;
+    // Anúncio soberano (19/11/2026): divergência substitui, mesmo texto já preenchido.
+    if (st.cancellation_policy_label && c?.airbnb_cancellation_policy !== st.cancellation_policy_label) patch["airbnb_cancellation_policy"] = st.cancellation_policy_label;
     const hr = houseRulesText(st.house_rules);
-    if (hr && blank(c?.airbnb_house_rules)) patch["airbnb_house_rules"] = hr;
+    if (hr && c?.airbnb_house_rules !== hr) patch["airbnb_house_rules"] = hr;
   }
   if (args.pub) {
     patch["airbnb_description_full"] = args.pub.descriptions.join("\n\n").slice(0, 20_000);
@@ -320,19 +320,16 @@ export async function applyListingToProperty(args: {
     if (pb.roomsBeds?.length) patch["airbnb_rooms_beds"] = pb.roomsBeds.slice(0, 30);
     if (pb.houseRules) patch["airbnb_house_rules"] = pb.houseRules.slice(0, 10_000);
     if (pb.safety) patch["airbnb_safety_info"] = pb.safety.slice(0, 5_000);
-    if (pb.spaceType) {
-      const { data: cur } = await supabaseAdmin.from("properties").select("short_description").eq("id", args.propertyId).maybeSingle();
-      if (!String((cur as { short_description?: string | null } | null)?.short_description ?? "").trim()) patch["short_description"] = pb.spaceType.slice(0, 200);
-    }
+    if (pb.spaceType) patch["short_description"] = pb.spaceType.slice(0, 200);
     patch["airbnb_listing_last_synced_at"] = new Date().toISOString();
   }
   {
-    // Campos nativos (19/11/2026): a API do anfitrião preenche localização, instruções vazias,
-    // capacidade, cômodos e a galeria COMPLETA. Sem ela, a capa pública só preenche o que está
-    // vazio — a galeria nunca é mais reduzida a 1 foto.
+    // Campos nativos (19/11/2026): o anúncio é SOBERANO — localização, instruções, capacidade,
+    // cômodos e galeria completa substituem o do sistema em qualquer divergência (uma foto
+    // diferente troca a galeria inteira). Sem fotos da API, a capa pública só preenche o vazio.
     const { data: curRow } = await supabaseAdmin
       .from("properties")
-      .select("lat, lng, address, city, state, country, checkin_instructions, checkout_instructions, hero_image_url, gallery_images")
+      .select("lat, lng, address, city, state, country, checkin_instructions, checkout_instructions, hero_image_url, gallery_images, airbnb_guest_count, airbnb_bedroom_count, airbnb_bed_count, airbnb_bathroom_count, airbnb_rooms_beds")
       .eq("id", args.propertyId)
       .maybeSingle();
     const cur = (curRow ?? {}) as HostCurrent;

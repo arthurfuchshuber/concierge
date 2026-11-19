@@ -85,29 +85,29 @@ describe("API do anfitrião — leitura pura", () => {
     expect(merged[0]!.key).toBe("horarios");
   });
 
-  it("preenche só o que está vazio e não sobrescreve edição manual", () => {
-    const p = hostPropertyPatch(h, { lat: null, lng: null, address: "", city: "Minha cidade", checkin_instructions: "manual", gallery_images: [] });
-    expect(p).toMatchObject({ lat: -25.5, lng: -54.58, address: "Rua das Cataratas, 100, Casa 2, CEP 85851-000", state: "PR", country: "BR", airbnb_guest_count: 6 });
-    expect(p).not.toHaveProperty("city");
-    expect(p).not.toHaveProperty("checkin_instructions");
+  it("anúncio soberano: qualquer divergência substitui, inclusive edição manual", () => {
+    const p = hostPropertyPatch(h, { lat: -25.4, lng: -54.5, address: "", city: "Minha cidade", checkin_instructions: "manual", gallery_images: [] });
+    expect(p).toMatchObject({ lat: -25.5, lng: -54.58, address: "Rua das Cataratas, 100, Casa 2, CEP 85851-000", city: "Foz do Iguaçu", state: "PR", country: "BR", airbnb_guest_count: 6, checkin_instructions: "Após o portão, siga à esquerda." });
     expect(p["checkout_instructions"]).toContain("• Devolver as chaves");
+    expect(p["hero_image_url"]).toBe("https://a0.muscache.com/a.jpg");
+  });
+
+  it("uma foto divergente substitui a galeria inteira pelas do anúncio", () => {
+    const own = "https://x.supabase.co/storage/v1/object/sign/property-images/p/1.jpg";
+    const p = hostPropertyPatch(h, { gallery_images: [own, "https://a0.muscache.com/b.jpg"], hero_image_url: own });
     expect(p["gallery_images"]).toEqual(["https://a0.muscache.com/a.jpg", "https://a0.muscache.com/b.jpg"]);
     expect(p["hero_image_url"]).toBe("https://a0.muscache.com/a.jpg");
   });
 
-  it("coordenadas já gravadas não são trocadas", () => {
-    expect(hostPropertyPatch(h, { lat: -25.4, lng: -54.5 })).not.toHaveProperty("lat");
+  it("ordem diferente também é divergência", () => {
+    const p = hostPropertyPatch(h, { gallery_images: ["https://a0.muscache.com/b.jpg", "https://a0.muscache.com/a.jpg"] });
+    expect(p["gallery_images"]).toEqual(["https://a0.muscache.com/a.jpg", "https://a0.muscache.com/b.jpg"]);
   });
 
-  it("galeria curada à mão (fotos do sistema) é preservada", () => {
-    const own = "https://x.supabase.co/storage/v1/object/sign/property-images/p/1.jpg";
-    const p = hostPropertyPatch(h, { gallery_images: [own, "https://a0.muscache.com/a.jpg"], hero_image_url: own });
-    expect(p).not.toHaveProperty("gallery_images");
-    expect(p).not.toHaveProperty("hero_image_url");
-  });
-
-  it("galeria antiga de 1 foto do Airbnb é substituída pela completa", () => {
-    const p = hostPropertyPatch(h, { gallery_images: ["https://a0.muscache.com/capa.jpg"], hero_image_url: "https://a0.muscache.com/capa.jpg" });
-    expect(p["gallery_images"]).toHaveLength(2);
+  it("tudo igual ao anúncio: nada é regravado; dado ausente na API não apaga o salvo", () => {
+    const full = { ...hostPropertyPatch(h, {}) } as Record<string, unknown>;
+    expect(hostPropertyPatch(h, full)).toEqual({});
+    const semFotos = parseHostListing("2", { listing: { listing: { city: "X" } } })!;
+    expect(hostPropertyPatch(semFotos, { gallery_images: ["https://a0.muscache.com/z.jpg"], address: "Rua A", city: "X" })).toEqual({});
   });
 });
