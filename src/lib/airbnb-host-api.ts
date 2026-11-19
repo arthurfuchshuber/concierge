@@ -395,6 +395,17 @@ export function fullDescriptionText(h: HostListing): string | null {
   return parts.length ? parts.join("\n\n") : null;
 }
 
+/**
+ * Manual da casa do anúncio vira um campo do próprio Dossiê (seção 3, "Manual da casa", Reserva Ativa),
+ * no mesmo formato dos campos que o usuário cria. Chave fixa: a sincronização atualiza o mesmo campo.
+ */
+export const HOUSE_MANUAL_ENTRY = { fieldKey: "custom:airbnb-manual-da-casa", label: "Manual da casa", section: 3, audience: "G" } as const;
+
+export function houseManualText(h: HostListing | null | undefined): string | null {
+  if (!h) return null;
+  return h.houseManual ?? rawListingField(h, (l) => str(l.house_manual));
+}
+
 /** Onde o "Como chegar" do anúncio se encaixa no Dossiê. */
 export function directionsTarget(v: string | null | undefined): { kind: "maps" | "text"; value: string } | { kind: "none" } {
   const t = (v ?? "").trim();

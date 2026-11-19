@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
 import {
+  HOUSE_MANUAL_ENTRY,
   checkoutInstructionsText,
+  houseManualText,
   checkoutTaskLines,
   composeAddress,
   fullDescriptionText,
@@ -138,6 +140,13 @@ describe("API do anfitrião — leitura pura", () => {
 
   it("tarefa de saída já numerada pelo anfitrião entra sem marcador por cima", () => {
     expect(checkoutInstructionsText({ checkoutTasks: ["1. Retire o veículo.\n2. Feche o portão.", "Jogar o lixo fora"] })).toBe("1. Retire o veículo.\n2. Feche o portão.\n• Jogar o lixo fora");
+  });
+
+  it("manual da casa do anúncio vira o campo Manual da casa do dossiê (seção 3, Reserva Ativa)", () => {
+    const m = parseHostListing("1", { listing: { listing: { ...listing.listing, house_manual: "Toalhas nos armários." } } })!;
+    expect(houseManualText(m)).toBe("Toalhas nos armários.");
+    expect(HOUSE_MANUAL_ENTRY).toMatchObject({ fieldKey: expect.stringMatching(/^custom:/), label: "Manual da casa", section: 3, audience: "G" });
+    expect(houseManualText(h)).toBeNull();
   });
 
   it("instruções vazias são preenchidas pelo anúncio", () => {
