@@ -169,6 +169,13 @@
       "when": 1795096956781,
       "tag": "0023_guard_membership_checks",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1795143211208,
+      "tag": "0024_guard_can_read_permission_catalog",
+      "breakpoints": true
     }
   ]
 }

@@ -1671,6 +1671,14 @@ export const resolveConversationForGuest = createServerFn({ method: "POST" })
     const phone = onlyDigits(data.phone);
     const nameNorm = (data.guestName ?? "").trim().toLowerCase();
 
+    // Segurança: só busca eventos (via admin) de imóveis que o usuário enxerga.
+    const { data: visibleProp } = await supabase
+      .from("properties")
+      .select("id")
+      .eq("id", data.propertyId)
+      .maybeSingle();
+    if (!visibleProp) return { conversationId: null as string | null };
+
     const sessionIds = new Set<string>();
     if (phone || nameNorm) {
       try {
