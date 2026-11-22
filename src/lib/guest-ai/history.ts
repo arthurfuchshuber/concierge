@@ -116,6 +116,12 @@ export type HistoryResult =
       conversationId: string;
       currentMessageId: string;
       entries: HistoryEntry[];
+      /**
+       * Mensagens que a CONTA já enviou depois da atual (resposta automática de reserva confirmada, guia, equipe), antes
+       * de o turno ser gerado (22/11/2026, caso Juliano/Charmosa): o hóspede já as recebeu, então a IA precisa vê-las
+       * para não repetir o conteúdo. Mensagens do hóspede depois da atual nunca entram aqui (são de outro turno/lote).
+       */
+      sentAfter?: HistoryEntry[];
       counts: HistoryCounts;
     }
   | { status: "unavailable"; reason: HistoryUnavailableReason };
@@ -246,11 +252,30 @@ export function normalizeHistory(
     };
   });
 
+  const sentAfter: HistoryEntry[] = [];
+  for (const { row } of kept.slice(idx + 1)) {
+    const speaker = classifySpeaker(row.role, row.sender_type);
+    if (speaker !== "team" && speaker !== "system" && speaker !== "legacy_ai") continue;
+    if (classifyDelivery(row.delivery_status) === "failed") continue;
+    sentAfter.push({
+      ref: `hist:${speaker}:d${sentAfter.length + 1}`,
+      messageId: row.id,
+      speaker,
+      channel: classifyChannel(row.channel),
+      at: String(row.created_at),
+      text: typeof row.content === "string" ? row.content : "",
+      media: mediaOf(row),
+      delivery: classifyDelivery(row.delivery_status),
+      current: false,
+    });
+  }
+
   return {
     status: "available",
     conversationId: scope.conversationId,
     currentMessageId: scope.currentMessageId,
     entries,
+    ...(sentAfter.length ? { sentAfter } : {}),
     counts: {
       loaded: rows.length,
       included: entries.length,

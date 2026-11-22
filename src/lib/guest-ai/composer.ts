@@ -37,7 +37,7 @@ import { calendarFactValue } from "@/lib/guest-ai/calendar-occupancy";
 import type { ComposedPrompt, ConversationContext } from "@/lib/guest-ai/orchestrator/contracts";
 import type { HistoryEntry, HistoryResult, HistoryUnavailableReason } from "./history";
 import { PERSONA_VERSION } from "./persona";
-import { CITY_EVENTS_TAG, CONTEXT_TAG, DOSSIER_TAG, GUEST_PROFILE_TAG, HISTORY_TAG, LIVING_DOCUMENT_TAG, SYSTEM_PROMPT_VERSION, buildSystemPrompt } from "./system-prompt";
+import { CITY_EVENTS_TAG, CONTEXT_TAG, DOSSIER_TAG, GUEST_PROFILE_TAG, HISTORY_TAG, LIVING_DOCUMENT_TAG, SENT_AFTER_TAG, SYSTEM_PROMPT_VERSION, buildSystemPrompt } from "./system-prompt";
 import type { LivingDocumentLoad } from "./learning/learning";
 import type { GuestProfileContext } from "./context/guest-profile";
 import { defaultBudgetConfig, evaluateBudget, type BudgetConfig, type BudgetMetrics, type BudgetOverReason } from "./budget";
@@ -682,6 +682,7 @@ export function composeTurnPrompt(input: ComposeInput, options: ComposeOptions =
   let contextData: ReturnType<typeof buildContextData>;
   let contextJson: string;
   let historyJson: string;
+  let sentAfterJson: string | null = null;
   let dossierJson: string | null = null;
   let profileJson: string | null = null;
   const profileIds: string[] = [];
@@ -716,6 +717,8 @@ export function composeTurnPrompt(input: ComposeInput, options: ComposeOptions =
       }
     }
     historyJson = encodeDataBlock(items);
+    const after = history.sentAfter ?? [];
+    if (after.length) sentAfterJson = encodeDataBlock(after.map((e, i) => historyItem(e, guarded, i > 0 ? after[i - 1]!.text : last.text)));
     const gp = input.guestProfile ?? null;
     if (gp) {
       profileJson = encodeDataBlock({
@@ -764,6 +767,7 @@ export function composeTurnPrompt(input: ComposeInput, options: ComposeOptions =
   const profileBlock = profileJson === null ? null : `<${GUEST_PROFILE_TAG}>\n${profileJson}\n</${GUEST_PROFILE_TAG}>`;
   const eventsBlock = eventsJson === null ? null : `<${CITY_EVENTS_TAG}>\n${eventsJson}\n</${CITY_EVENTS_TAG}>`;
   const livingBlock = livingJson === null ? null : `<${LIVING_DOCUMENT_TAG} total="${livingIds.length}">\n${livingJson}\n</${LIVING_DOCUMENT_TAG}>`;
+  const sentAfterBlock = sentAfterJson === null ? null : `<${SENT_AFTER_TAG} total="${(history.sentAfter ?? []).length}">\n${sentAfterJson}\n</${SENT_AFTER_TAG}>`;
   const historyBlock = `<${HISTORY_TAG} mensagem_atual="${last.ref}" total="${history.entries.length}">\n${historyJson}\n</${HISTORY_TAG}>`;
   const lotIds = new Set(input.batch ? input.batch.messages.map((m) => m.id) : (() => {
     const t: string[] = [];
@@ -790,6 +794,7 @@ export function composeTurnPrompt(input: ComposeInput, options: ComposeOptions =
     ...(profileBlock ? [profileBlock] : []),
     contextBlock,
     historyBlock,
+    ...(sentAfterBlock ? [sentAfterBlock] : []),
     closing,
   ].join("\n\n");
 
@@ -805,6 +810,7 @@ export function composeTurnPrompt(input: ComposeInput, options: ComposeOptions =
       ...(livingBlock ? [{ name: "living_document", chars: livingBlock.length }] : []),
       ...(eventsBlock ? [{ name: "city_events", chars: eventsBlock.length }] : []),
       { name: "history", chars: historyBlock.length },
+      ...(sentAfterBlock ? [{ name: "sent_after", chars: sentAfterBlock.length }] : []),
       { name: "closing", chars: closing.length },
     ],
     options.budget ?? defaultBudgetConfig(),
@@ -815,6 +821,7 @@ export function composeTurnPrompt(input: ComposeInput, options: ComposeOptions =
     ...contextData.fatos.map((f) => f.id),
     ...contextData.chamados_abertos.map((c) => String(c["id"])),
     ...history.entries.map((e) => e.ref),
+    ...(history.sentAfter ?? []).map((e) => e.ref),
     ...dossierIds,
     ...profileIds,
     ...livingIds,
