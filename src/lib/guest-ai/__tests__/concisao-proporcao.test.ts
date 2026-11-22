@@ -15,3 +15,15 @@ describe("persona: concisão, sem repetição, emoção proporcional e sem fecho
     expect(renderPersona()).toContain("Mensagem curta é o padrão");
   });
 });
+
+import { buildSystemPrompt } from "../system-prompt";
+describe("objeto esquecido após a saída (22/11/2026, caso Alana)", () => {
+  const sys = buildSystemPrompt("airbnb");
+  it("resposta curta em primeira pessoa, encaminha, sem interrogatório", () => {
+    expect(sys).toMatch(/objeto esquecido no imóvel depois da saída/);
+    expect(sys).toMatch(/Não interrogue antes \(cor, modelo, detalhes\)/);
+  });
+  it("persona proíbe abrir devolvendo o relato", () => {
+    expect(renderPersona()).toMatch(/não abra devolvendo o relato da pessoa/);
+  });
+});

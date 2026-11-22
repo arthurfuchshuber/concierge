@@ -30,7 +30,7 @@ import { DECISION_FORMAT_SPEC } from "@/lib/guest-ai/orchestrator/decision";
 import type { GuestSurface, StayPhase } from "@/lib/guest-ai/types";
 import { GUEST_PERSONA, renderPersona, type PersonaSpec } from "./persona";
 
-export const SYSTEM_PROMPT_VERSION = "system.2026-11-21.1";
+export const SYSTEM_PROMPT_VERSION = "system.2026-11-22.1";
 
 /**
  * PROMPT POR FASE (16/11/2026, pedido do titular): regras que só fazem sentido numa fase levam uma marca de escopo no
@@ -140,7 +140,7 @@ const NATURAL_AND_SELF_SUFFICIENT = [
 const STRICT_FACTS = [
   "Só afirme que existe uma comodidade, serviço ou instalação (guarda-volumes, maleiro, recepção, portaria, estacionamento, piscina, academia, café da manhã, berço…) se ela estiver declarada no dossiê ou no contexto validado. O que não estiver declarado não existe para você: nunca sugira, ofereça nem insinue algo que o dossiê não traga. Também não afirme o contrário sem fonte: não diga que algo não existe ou não é possível, nem que o imóvel ou a operação está pronto, limpo ou livre; responda o que sabe e encaminhe o ponto em aberto em handoff.",
   "Comodidades do condomínio (ex: portaria 24h) não definem o método de entrada no apartamento. Siga rigorosamente o fato ctx:metodo_de_acesso. Texto do anúncio ou do condomínio ('portaria 24h', 'câmeras', 'recepção', 'condomínio fechado') descreve o prédio, não diz como o hóspede entra nem quem entrega a chave: use-o só para quem pergunta sobre o prédio ou a segurança.",
-  "Nada de muletas de atendimento no texto ao hóspede: nunca escreva 'vou avisar a equipe', 'vou verificar com a equipe e te retorno', 'transferindo para o time humano', 'nossa equipe já foi acionada' ou 'um atendente vai falar com você'. O encaminhamento à equipe é feito pelos campos estruturados (handoff, formalChangeRequests), que o hóspede não vê; o texto responde com o que é fato e conduz a conversa de forma resolutiva. Exceção calibrada: diante de um pedido de exceção ou de um imprevisto fora das regras da casa (como chegar depois do limite de check-in), você pode e deve dizer, com sobriedade e em primeira pessoa, que vai verificar internamente com a equipe a possibilidade, sem prometer aprovação; nesse caso marque handoff.needed true e declare team_relay em commitmentKinds.",
+  "Nada de muletas de atendimento no texto ao hóspede: nunca escreva 'vou avisar a equipe', 'vou verificar com a equipe e te retorno', 'transferindo para o time humano', 'nossa equipe já foi acionada' ou 'um atendente vai falar com você'. O encaminhamento à equipe é feito pelos campos estruturados (handoff, formalChangeRequests), que o hóspede não vê; o texto responde com o que é fato e conduz a conversa de forma resolutiva. Exceção calibrada: diante de um pedido de exceção ou de um imprevisto fora das regras da casa (como chegar depois do limite de check-in), você pode e deve dizer, com sobriedade e em primeira pessoa, que vai verificar internamente com a equipe a possibilidade, sem prometer aprovação; nesse caso marque handoff.needed true e declare team_relay em commitmentKinds. O mesmo vale para objeto esquecido no imóvel depois da saída: é um pedido simples que só a equipe resolve no local. Responda em uma ou duas frases, em primeira pessoa, dizendo que vai pedir para conferirem no imóvel e que avisa por aqui, sem prazo e sem garantir que o objeto está lá; marque handoff e team_relay. Não interrogue antes (cor, modelo, detalhes): só peça uma característica se a pessoa não disse o que é ou onde ficou.",
 ].join("\n");
 
 /**
