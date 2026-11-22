@@ -1036,7 +1036,7 @@ function CategoryPendingDialog({
           <DialogTitle className="truncate text-sm font-bold leading-5">
             {meta?.short ?? "Pendências"}
           </DialogTitle>
-          <div className="sg-win-sub !mt-0 text-xs leading-4 text-muted-foreground">
+          <div className="sg-win-sub text-xs leading-4 text-muted-foreground">
             {q.isLoading
               ? "Carregando…"
               : `${total} ${total === 1 ? "pendência" : "pendências"} · ${ownerCount} ${
@@ -1126,7 +1126,7 @@ function CategoryPendingDialog({
             ))
           )}
         </div>
-        <div aria-hidden className="mx-4 mt-2 h-3 shrink-0 border-t border-[var(--panel-div)]" />
+        <div aria-hidden className="mx-4 mt-2 h-3 shrink-0 border-t border-[var(--panel-div)] max-lg:hidden" />
       </DialogContent>
     </Dialog>
   );
@@ -1929,7 +1929,7 @@ function MoreRecordsBody({
           ) : null}
         </div>
       </div>
-      <div className="flex shrink-0 items-center justify-end gap-3 px-4 pb-3.5 pt-2.5">
+      <div className="flex shrink-0 items-center justify-end gap-3 px-4 pb-3.5 pt-2.5 max-lg:px-[14px]">
         {/* Mesma etiqueta do chip de registros do cartão (câmera + número). */}
         <span className="inline-flex h-[26px] shrink-0 items-center gap-1.5 rounded-full border border-foreground/25 bg-foreground/[0.11] px-2.5 text-[12px] font-bold tabular-nums text-foreground">
           <Camera className="size-3.5 text-foreground/70" />

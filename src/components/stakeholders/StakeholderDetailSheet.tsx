@@ -812,7 +812,7 @@ export function StakeholderDetailSheet({
     );
 
     return (
-      <div className="flex w-full min-w-0 flex-col overflow-x-hidden px-4 pb-7 pt-4 sm:px-7 sm:pt-7">
+      <div data-ficha-body className="flex w-full min-w-0 flex-col overflow-x-hidden px-4 pb-7 pt-4 sm:px-7 sm:pt-7">
         {/* Topo da janela "como página" (mockup aprovado, 22/10/2026): data dourada + "Voltar" à
             direita (celular/tablet) ou "X" de canto (computador), depois a etiqueta e o nome. */}
         <DialogDateRow className="mb-1.5" />

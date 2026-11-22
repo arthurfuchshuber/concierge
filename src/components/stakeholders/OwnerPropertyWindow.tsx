@@ -415,7 +415,7 @@ export function OwnerPropertyWindow({
         <DialogDescription className="sr-only">
           Informações públicas e confidenciais do imóvel.
         </DialogDescription>
-        <div className="flex w-full min-w-0 flex-col gap-6 px-4 pb-7 pt-4 sm:px-7 sm:pt-7">
+        <div data-ficha-body className="flex w-full min-w-0 flex-col gap-6 px-4 pb-7 pt-4 sm:px-7 sm:pt-7">
           <div className="grid gap-1.5">
             <DialogDateRow />
             <p className="ds-eyebrow text-[10.5px] leading-[22px] tracking-[0.2em] text-[color:var(--faint)]">

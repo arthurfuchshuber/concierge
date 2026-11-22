@@ -1096,7 +1096,7 @@ export function ReservationRecordsDialog({
             )}
           </div>
 
-          <div className="border-t border-border/50 px-3 pb-3 pt-2.5">
+          <div className="border-t border-border/50 px-3 pb-3 pt-2.5 max-lg:px-[14px]">
             <input
               ref={photoInputRef}
               type="file"

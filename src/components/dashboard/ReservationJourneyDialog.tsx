@@ -428,7 +428,7 @@ export function ReservationJourneyDialog({
              FLUXO EM BLOCO, não grid (bug de 02/11/2026): numa grid com altura limitada, a linha de um item com
              `overflow-hidden` (o cartão do momento) tem mínimo 0 e encolhia até a linha do Hóspede quando o conteúdo
              passava da tela — o Histórico subia colado ao corte. Em bloco, cada parte tem sempre a altura natural. */
-          <div className="sg-elegant-scroll block min-h-0 min-w-0 flex-1 snap-y snap-proximity overflow-y-auto overscroll-contain px-4 pb-4 pt-[18px]">
+          <div data-cover-body className="sg-elegant-scroll block min-h-0 min-w-0 flex-1 snap-y snap-proximity overflow-y-auto overscroll-contain px-4 pb-4 pt-[18px]">
             <div data-clip-row className="snap-start">
               <Stepper status={status} />
             </div>

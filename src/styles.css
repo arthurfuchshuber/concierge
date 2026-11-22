@@ -1693,6 +1693,7 @@ html[data-kb] [role="dialog"]:not([data-page-like]) [data-window-foot] {
      o conteúdo a 24px do cabeçalho e os itens das listas como os cards da página (10px entre eles). */
   [role="dialog"].sg-tela-cheia {
     background: var(--background);
+    gap: 0;
   }
   [role="dialog"].sg-tela-cheia > div.absolute.top-0.h-px,
   [role="dialog"].sg-tela-cheia > [data-window-close],
@@ -1726,7 +1727,7 @@ html[data-kb] [role="dialog"]:not([data-page-like]) [data-window-foot] {
     line-height: 1.45;
     color: var(--muted-foreground);
   }
-  [role="dialog"].sg-tela-cheia .sg-win-head > .sg-win-sub ~ * {
+  [role="dialog"].sg-tela-cheia .sg-win-head > * + * {
     margin-top: var(--ds-heading-gap, 6px);
   }
   /* Conteúdo logo depois do cabeçalho: 24px abaixo, 14px nas laterais (a margem e não o padding de cima,
@@ -1735,6 +1736,11 @@ html[data-kb] [role="dialog"]:not([data-page-like]) [data-window-foot] {
     margin: 24px 0 0;
     padding: 0 14px 16px;
     scrollbar-gutter: auto;
+    background: transparent;
+  }
+  /* Listas dos KPIs: 10px entre os cards, como na página. */
+  [role="dialog"].sg-tela-cheia .sg-win-head + .sg-elegant-scroll .flex-col.gap-4 {
+    gap: 10px;
   }
   [role="dialog"].sg-tela-cheia .sg-win-head + .mx-4 {
     margin: 24px 14px 0;
@@ -1766,8 +1772,25 @@ html[data-kb] [role="dialog"]:not([data-page-like]) [data-window-foot] {
   }
   /* Janelas com foto: a foto vira um card logo abaixo da data; abas e lista nas margens da página. */
   [role="dialog"].sg-tela-cheia[data-cover] [data-tela-cheia-top] + * {
-    margin: 10px 14px 0;
+    margin: 16px 14px 0;
     border-radius: 12px;
+  }
+  [role="dialog"].sg-tela-cheia[data-cover] [data-tela-cheia-top] + * + .px-4 {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+  [role="dialog"].sg-tela-cheia [data-cover-body] {
+    margin-top: 24px;
+    padding: 0 14px 16px;
+    scrollbar-gutter: auto;
+  }
+  /* Fichas (proprietário/imóvel): conteúdo 6px abaixo da data e 14px nas laterais. */
+  [role="dialog"].sg-tela-cheia [data-ficha-body] {
+    padding: 6px 14px 28px;
+  }
+  [role="dialog"].sg-tela-cheia:has([data-ficha-body]) > .sg-elegant-scroll,
+  [role="dialog"].sg-tela-cheia:has([data-ficha-body]) {
+    scrollbar-gutter: auto;
   }
   [role="dialog"].sg-tela-cheia [data-cover-tabs] {
     border-bottom: 0;
