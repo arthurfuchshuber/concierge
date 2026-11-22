@@ -1670,8 +1670,15 @@ html[data-kb] [role="dialog"]:not([data-page-like]) [data-window-foot] {
     border-radius: 0 !important;
     border-width: 0 !important;
     box-shadow: none !important;
-    padding-top: env(safe-area-inset-top, 0px);
     padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  /* CABEÇALHO FIXO (pedido explícito, 22/11/2026: "não é possível torná-los fixos como se estivéssemos
+     clicando nas opções da barra de menu?"): a janela de tela cheia abre e fecha SEM animação (nada de
+     esmaecer/aproximar), e a barra do sistema que ela repete fica exatamente no lugar da barra da página
+     (sem recuo extra no topo) — a troca parece a de uma página do menu: a barra fica parada, só o conteúdo muda. */
+  [role="dialog"].sg-tela-cheia,
+  [role="dialog"].sg-tela-cheia[data-state] {
+    animation: none !important;
   }
   html[data-kb] [role="dialog"].sg-tela-cheia:not([data-page-like]) {
     top: calc(var(--vv-dock-bottom, 100dvh) + 8px - var(--vv-h, 100dvh)) !important;
