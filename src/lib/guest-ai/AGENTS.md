@@ -373,3 +373,5 @@ Ordem de execução no builder: validar escopo → estado → D9 → se negado, 
 - **Concisão, sem repetição, emoção proporcional e sem fecho (titular, 20/11/2026, caso Alana/Residencial):** princípios `short_by_default`, `no_restating`, `proportional_emotion` e `no_wrap_up` na persona; alerta público genérico (Defesa Civil, chuva) não é emergência de pessoas. Só descrições de comportamento, nenhuma frase pronta.
 
 - **Aviso de previsão (chegada ou saída) = só agradecer (titular, 21/11/2026, caso Roberto/Studio 101):** uma frase curta de agradecimento; sem repetir o horário, sem "combinada/anotada", sem retomar instruções, sem pedir confirmação e sem votos antecipados. Prompt `system.2026-11-21.1`.
+
+- **Objeto esquecido após a saída (titular, 22/11/2026, caso Alana):** uma ou duas frases em primeira pessoa (vou pedir para conferirem no imóvel e aviso por aqui), sem prazo, sem garantir, handoff + team_relay; sem interrogar cor/modelo antes. Persona: não abrir devolvendo o relato ("compreendo a situação de…").
