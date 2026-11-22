@@ -884,6 +884,17 @@ dd {
   font-size: 15px;
   line-height: 1.25;
 }
+/* INFORMAÇÃO EDITÁVEL (opção A aprovada em 22/11/2026): o próprio dado ganha um sublinhado pontilhado
+   discreto; tocar nele abre a edição. Nada de lápis, botão "Editar" ou cor especial para dizer que edita. */
+@utility ds-editable {
+  text-decoration-line: underline;
+  text-decoration-style: dotted;
+  text-decoration-thickness: 1.5px;
+  text-decoration-color: color-mix(in oklab, var(--foreground) 32%, transparent);
+  text-underline-offset: 4px;
+  text-decoration-skip-ink: none;
+  cursor: pointer;
+}
 @utility ds-card-title {
   font-family: var(--font-display);
   font-weight: 700;
@@ -1635,6 +1646,43 @@ html[data-kb] [role="dialog"]:not([data-page-like]) {
 /* Teclado aberto: o rodapé (botões) some e o campo em edição fica colado no teclado; ao fechar, volta. */
 html[data-kb] [role="dialog"]:not([data-page-like]) [data-window-foot] {
   display: none !important;
+}
+
+/* TELA CHEIA NO CELULAR (pedido explícito, 22/11/2026 — mockups "TelaCheia-01/02"): janelas com informação
+   ELÁSTICA (`TELA_CHEIA_CLASS`, ver src/lib/tela-cheia.ts) ocupam o aparelho inteiro abaixo de `lg`: sem margem,
+   sem raio, sem sombra, sem fio de luz; o "X"/"‹ Voltar" de canto fica reto no canto (raio 0). Com teclado aberto
+   a janela ocupa só a área visível acima dele. A anticorte continua (useAntiClipWindow / useWholeCardsMaxHeight). */
+@media (max-width: 1023.98px) {
+  [role="dialog"].sg-tela-cheia,
+  html[data-kb] [role="dialog"].sg-tela-cheia:not([data-page-like]) {
+    --win-radius: 0px;
+    left: 0 !important;
+    top: 0 !important;
+    /* Sem `transform` aqui: o Lightning CSS funde `translate` + `transform` num `transform` só e o
+       `translate` das bases (-50% -50%) continuaria valendo. */
+    translate: none !important;
+    --tw-translate-x: 0px !important;
+    --tw-translate-y: 0px !important;
+    width: 100vw !important;
+    max-width: none !important;
+    height: var(--vv-h, 100dvh) !important;
+    max-height: none !important;
+    border-radius: 0 !important;
+    border-width: 0 !important;
+    box-shadow: none !important;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  html[data-kb] [role="dialog"].sg-tela-cheia:not([data-page-like]) {
+    top: calc(var(--vv-dock-bottom, 100dvh) + 8px - var(--vv-h, 100dvh)) !important;
+  }
+  [role="dialog"].sg-tela-cheia::before {
+    display: none;
+  }
+  [role="dialog"].sg-tela-cheia > [data-window-close],
+  [role="dialog"].sg-tela-cheia > [data-window-back] {
+    border-top-right-radius: 0 !important;
+  }
 }
 
 /* Ponto de atraso na borda superior do card (Kanban) — mockup A, 18/10/2026. */

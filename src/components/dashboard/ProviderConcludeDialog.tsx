@@ -161,18 +161,16 @@ export function ProviderConcludeDialog({
                         className="h-5 w-full border-0 bg-transparent p-0 text-[12.5px] font-bold shadow-none focus-visible:ring-0"
                       />
                     ) : (
-                      <span className="block truncate text-[12.5px] font-bold">{money(cents)}</span>
+                      <button
+                        type="button"
+                        aria-label="Editar valor"
+                        onClick={() => setEditing(true)}
+                        className="block max-w-full truncate text-left text-[12.5px] font-bold"
+                      >
+                        <span className="ds-editable">{money(cents)}</span>
+                      </button>
                     )}
                   </div>
-                  <button
-                    type="button"
-                    aria-label="Editar valor"
-                    onClick={() => setEditing(true)}
-                    className="inline-flex flex-none"
-                    style={{ color: AMBER }}
-                  >
-                    <Pencil className="size-3.5" />
-                  </button>
                 </label>
                 {changed && (
                   <div

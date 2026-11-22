@@ -1,4 +1,5 @@
 import * as React from "react";
+import { inTelaCheia } from "@/lib/tela-cheia";
 
 /**
  * REGRA GLOBAL DE JANELAS (pedido explícito, 09/10/2026): "toda e qualquer
@@ -114,11 +115,15 @@ function fitScroller(el: HTMLElement) {
       : Math.max(0, el.scrollHeight - fit);
     fit += Math.min(pad, room);
   }
+  // Tela cheia (celular): o espaço que sobra depois do último card inteiro fica ENTRE a lista e o rodapé,
+  // que continua colado na borda de baixo do aparelho.
+  el.style.marginBottom = "";
   if (fit > 0 && fit < avail) {
     // A janela inteira rola (ela mesma é a área): `height` com `max-height`
     // continua respeitando o teto de 75%.
     el.style.flex = own.display === "flex" || el.parentElement ? "none" : "";
     el.style.height = `${Math.ceil(fit)}px`;
+    if (inTelaCheia(el) && el.parentElement && getComputedStyle(el.parentElement).display === "flex") el.style.marginBottom = "auto";
   }
   if (el.scrollTop !== keepTop) el.scrollTop = keepTop;
 }

@@ -144,11 +144,18 @@ export function SearchField<R extends { code: string; description: string }>({
 export function InfoBox({ children }: { children: ReactNode }) {
   return <div className="grid gap-2 rounded-[12px] border border-border bg-[var(--card-surface)] p-3 text-[12px] leading-[1.5]">{children}</div>;
 }
-export function Kv({ k, v }: { k: string; v: string }) {
+export function Kv({ k, v, onEdit }: { k: string; v: string; onEdit?: () => void }) {
   return (
     <div className="flex min-w-0 justify-between gap-3">
       <span className="shrink-0 text-muted-foreground">{k}</span>
-      <span className="min-w-0 truncate font-semibold">{v}</span>
+      {onEdit ? (
+        /* Dado editável: o próprio valor sublinhado pontilhado abre a edição (22/11/2026). */
+        <button type="button" onClick={onEdit} aria-label={`Editar ${k}: ${v}`} className="min-w-0 truncate text-right font-semibold">
+          <span className="ds-editable">{v}</span>
+        </button>
+      ) : (
+        <span className="min-w-0 truncate font-semibold">{v}</span>
+      )}
     </div>
   );
 }

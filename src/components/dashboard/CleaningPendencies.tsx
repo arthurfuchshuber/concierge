@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { TELA_CHEIA_CLASS } from "@/lib/tela-cheia";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { ArrowRight, Camera, Check, Clock, Repeat, TriangleAlert } from "lucide-react";
@@ -251,7 +252,7 @@ function CleaningPendenciesWindow({
       <Dialog open onOpenChange={(v) => !v && onClose()}>
         <DialogContent
           aria-describedby={undefined}
-          className="flex max-h-[min(90dvh,calc(100dvh_-_var(--kb-inset,0px)_-_3rem))] w-[min(372px,calc(100vw-2rem))] flex-col gap-0 overflow-hidden p-0"
+          className={cn("flex max-h-[min(90dvh,calc(100dvh_-_var(--kb-inset,0px)_-_3rem))] w-[min(372px,calc(100vw-2rem))] flex-col gap-0 overflow-hidden p-0", TELA_CHEIA_CLASS)}
           cover
           /* Mockup real-limpeza-pend: a lista também mostra "‹ Voltar" (volta ao quadro); no detalhe, volta à lista. */
           onBack={detail ? () => setView({ kind: "list" }) : onClose}

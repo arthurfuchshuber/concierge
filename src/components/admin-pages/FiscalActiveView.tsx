@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { AlertTriangle, Check, Loader2, MoreHorizontal, Pencil, Plus, Trash2, Upload } from "lucide-react";
+import { AlertTriangle, Check, Loader2, MoreHorizontal, Plus, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { fiscalDeactivate, fiscalPreferencesSave, fiscalServiceDelete, fiscalServiceSave, fiscalServicesList } from "@/lib/fiscal/fiscal.functions";
 import { ActionSquare, IntegrationShell, PrimaryAction, SegmentedToggle, StatusTag } from "@/components/admin-pages/integration-window";
@@ -88,7 +88,6 @@ export function FiscalActiveView({ company, tab, setTab, setView, openService }:
     tab === "empresa" ? (
       <>
         <PrimaryAction icon={<Upload />} onClick={() => setView("replace")}>Substituir certificado</PrimaryAction>
-        <ActionSquare label="Editar dados" onClick={() => setView("edit")}><Pencil /></ActionSquare>
         {menu}
       </>
     ) : tab === "servicos" ? (
@@ -121,11 +120,11 @@ export function FiscalActiveView({ company, tab, setTab, setView, openService }:
               </div>
               <InfoBox>
                 <Kv k="CNPJ" v={fmtCnpj(company.taxId)} />
-                <Kv k="Razão social" v={company.legalName} />
-                <Kv k="Nome fantasia" v={company.tradeName ?? "—"} />
-                <Kv k="Inscrição municipal" v={company.municipalRegistration ?? "—"} />
-                <Kv k="E-mail" v={company.email ?? "—"} />
-                <Kv k="Simples Nacional" v={simplesLabel(company.simples)} />
+                <Kv onEdit={() => setView("edit")} k="Razão social" v={company.legalName} />
+                <Kv onEdit={() => setView("edit")} k="Nome fantasia" v={company.tradeName ?? "—"} />
+                <Kv onEdit={() => setView("edit")} k="Inscrição municipal" v={company.municipalRegistration ?? "—"} />
+                <Kv onEdit={() => setView("edit")} k="E-mail" v={company.email ?? "—"} />
+                <Kv onEdit={() => setView("edit")} k="Simples Nacional" v={simplesLabel(company.simples)} />
               </InfoBox>
             </>
           ) : tab === "servicos" ? (
@@ -149,10 +148,11 @@ export function FiscalActiveView({ company, tab, setTab, setView, openService }:
                     <div key={s.id} data-clip-row className="flex min-w-0 items-center gap-2.5 rounded-[12px] border border-border bg-[var(--card-surface)] px-3 py-2.5">
                       <span className="grid size-4 shrink-0 place-items-center text-emerald-600">{s.isDefault ? <Check className="size-3.5" aria-label="Serviço padrão" /> : null}</span>
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate text-[12.5px] font-bold">{s.description}</span>
+                        <button type="button" onClick={() => openService(s)} aria-label="Editar serviço" className="block max-w-full truncate text-left text-[12.5px] font-bold">
+                          <span className="ds-editable">{s.description}</span>
+                        </button>
                         <span className="block truncate text-[11.5px] text-muted-foreground">{fmtNationalCode(s.nationalCode)} · {iss}</span>
                       </span>
-                      <ActionSquare label="Editar serviço" onClick={() => openService(s)}><Pencil /></ActionSquare>
                       <ActionSquare label="Excluir serviço" onClick={() => setToDelete(s)}><Trash2 /></ActionSquare>
                     </div>
                   ))}

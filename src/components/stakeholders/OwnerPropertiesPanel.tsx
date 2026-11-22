@@ -18,7 +18,6 @@ import {
   Lock,
   MapPin,
   MoreHorizontal,
-  Pencil,
   RefreshCw,
   Search,
   Unlink,
@@ -441,7 +440,7 @@ export function OwnerPropertiesPanel({
                                 params={{ id: p.id }}
                                 className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] transition-colors hover:bg-secondary"
                               >
-                                <Pencil className="size-3.5 text-muted-foreground" /> Editar imóvel
+                                <span aria-hidden className="size-3.5" /> Editar imóvel
                               </Link>
                               <MenuItem
                                 icon={<Link2 className="size-3.5 text-muted-foreground" />}

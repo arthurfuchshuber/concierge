@@ -1,4 +1,6 @@
 import { OwnerLine } from "@/components/dashboard/OwnerLine";
+import { cn } from "@/lib/utils";
+import { TELA_CHEIA_CLASS } from "@/lib/tela-cheia";
 import { SearchActionRow } from "./SearchActionRow";
 import { searchScore } from "@/lib/search-score";
 import { forwardRef, useEffect, useMemo, useRef, useState } from "react";
@@ -13,7 +15,6 @@ import {
   FileText,
   Loader2,
   Mic,
-  Pencil,
   LayoutGrid,
   SlidersHorizontal,
   Filter,
@@ -1029,7 +1030,7 @@ function CategoryPendingDialog({
     <Dialog open={!!category} onOpenChange={(v) => !v && onClose()}>
       <DialogContent
         aria-describedby={undefined}
-        className="flex max-h-[min(90dvh,calc(100dvh_-_var(--kb-inset,0px)_-_3rem))] w-[calc(100vw-2rem)] flex-col gap-0 overflow-hidden p-0 sm:w-full sm:max-w-md"
+        className={cn("flex max-h-[min(90dvh,calc(100dvh_-_var(--kb-inset,0px)_-_3rem))] w-[calc(100vw-2rem)] flex-col gap-0 overflow-hidden p-0 sm:w-full sm:max-w-md", TELA_CHEIA_CLASS)}
       >
         <DialogHeader className="shrink-0 px-4 pb-2.5 pr-12 pt-3 text-left">
           <DialogTitle className="truncate text-sm font-bold leading-5">
@@ -1756,7 +1757,7 @@ function PropertyCard({
                   onOpenChange={(v) => v !== pendingOpen && onTogglePending()}
                 >
                   <DialogContent
-                    className="max-h-[90dvh] w-[min(372px,calc(100vw-2rem))] gap-0 overflow-x-hidden overflow-y-auto p-0"
+                    className={cn("max-h-[90dvh] w-[min(372px,calc(100vw-2rem))] gap-0 overflow-x-hidden overflow-y-auto p-0", TELA_CHEIA_CLASS)}
                     aria-describedby={undefined}
                   >
                     <PendingPopoverBody group={group} onOpen={onOpen} onResolve={onResolve} />
@@ -1851,7 +1852,7 @@ function PropertyCard({
               volta para esta lista. */}
           <Dialog open={moreOpen} onOpenChange={setMoreOpen}>
             <DialogContent cover
-              className="flex max-h-[90dvh] w-[min(372px,calc(100vw-2rem))] flex-col gap-0 overflow-hidden p-0"
+              className={cn("flex max-h-[90dvh] w-[min(372px,calc(100vw-2rem))] flex-col gap-0 overflow-hidden p-0", TELA_CHEIA_CLASS)}
               aria-describedby={undefined}
             >
               <MoreRecordsBody
@@ -2662,21 +2663,27 @@ function RecordViewerBody({
                   }}
                 />
               )}
-              <div className="min-w-0 flex-1">
+              {/* Título e descrição editáveis tocando no próprio texto (sublinhado pontilhado, 22/11/2026). */}
+              <button
+                type="button"
+                onClick={() => setEditing(true)}
+                aria-label="Editar título e descrição"
+                className="min-w-0 flex-1 text-left"
+              >
                 <p
                   className={`truncate text-[13.5px] font-bold leading-[18px] ${
                     hasTitle(record) ? "text-foreground" : "italic text-muted-foreground"
                   }`}
                   title={title}
                 >
-                  {title}
+                  <span className="ds-editable">{title}</span>
                 </p>
                 {description && (
                   <p className="mt-1 whitespace-pre-wrap break-words text-[12.5px] leading-[18px] text-foreground/85">
-                    {description}
+                    <span className="ds-editable">{description}</span>
                   </p>
                 )}
-              </div>
+              </button>
             </div>
           )}
 
@@ -2735,15 +2742,6 @@ function RecordViewerBody({
             </button>
           )}
           {!pending && <span className="flex-1" />}
-          <button
-            type="button"
-            onClick={() => setEditing(true)}
-            aria-label="Editar título e descrição"
-            title="Editar título e descrição"
-            className="grid size-[25px] shrink-0 place-items-center rounded-[6px] border-0 bg-[var(--action-sq-bg)] text-foreground transition-colors hover:bg-primary/[0.08]"
-          >
-            <Pencil className="size-[13px]" />
-          </button>
           {playable.length > 0 && (
             <button
               type="button"

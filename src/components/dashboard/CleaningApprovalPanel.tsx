@@ -1,4 +1,6 @@
 import { useQuery, useQueryClient, type QueryKey } from "@tanstack/react-query";
+import { cn } from "@/lib/utils";
+import { TELA_CHEIA_CLASS } from "@/lib/tela-cheia";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
 import { Clock3 } from "lucide-react";
@@ -183,7 +185,7 @@ export function CleaningApprovalPanel({
       <Dialog open={!!win && items.length > 0} onOpenChange={(v) => !v && setWin(null)}>
         <DialogContent
           aria-describedby={undefined}
-          className={FINANCE_WINDOW_CLASS}
+          className={cn(FINANCE_WINDOW_CLASS, TELA_CHEIA_CLASS)}
           onBack={subBack ?? (openItem ? () => setWin((w) => (w ? { ...w, detail: null } : w)) : undefined)}
         >
           {openItem ? (

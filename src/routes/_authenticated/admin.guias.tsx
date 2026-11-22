@@ -49,7 +49,6 @@ import { Input } from "@/components/ui/input";
 import {
   Plus,
   ExternalLink,
-  Pencil,
   Trash2,
   Lock,
   Globe,
@@ -1048,8 +1047,7 @@ function Dashboard() {
                                     params={{ id: p.id }}
                                     className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] hover:bg-secondary transition-colors"
                                   >
-                                    <Pencil className="size-3.5 text-muted-foreground" /> Editar
-                                    guia
+                                    Editar guia
                                   </Link>
                                   <button
                                     type="button"

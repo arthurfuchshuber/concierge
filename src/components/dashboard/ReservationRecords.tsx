@@ -1,4 +1,6 @@
 import { OwnerLine } from "@/components/dashboard/OwnerLine";
+import { cn } from "@/lib/utils";
+import { TELA_CHEIA_CLASS } from "@/lib/tela-cheia";
 import { ClampName } from "@/components/ui/clamp-name";
 import { enfileirarSituacao } from "@/lib/offline/situation-outbox";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -21,7 +23,6 @@ import {
   Wrench,
   ListChecks,
   MoreVertical,
-  Pencil,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
@@ -564,10 +565,6 @@ function RecordBlock({
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="min-w-[11rem]">
-            <DropdownMenuItem onClick={() => setEditing(true)}>
-              <Pencil className="size-3.5 shrink-0" />
-              Editar
-            </DropdownMenuItem>
             <DropdownMenuItem onClick={() => onDelete(group.items.map((it) => it.id))}>
               <Trash2 className="size-3.5 shrink-0" />
               Excluir registro
@@ -592,12 +589,24 @@ function RecordBlock({
       <div className="flex items-center gap-3 px-2.5 pb-2.5">
         <div className="min-w-0 flex-1 space-y-0.5">
           {body ? (
-            <p className="whitespace-pre-wrap break-words text-[13px] font-semibold leading-snug text-foreground">
-              {body}
-            </p>
-          ) : mediaItems.length === 0 ? (
-            <p className="text-[11px] italic text-muted-foreground">Registro sem conteúdo.</p>
-          ) : null}
+            <button
+              type="button"
+              onClick={() => setEditing(true)}
+              aria-label="Editar registro"
+              className="block w-full whitespace-pre-wrap break-words text-left text-[13px] font-semibold leading-snug text-foreground"
+            >
+              <span className="ds-editable">{body}</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setEditing(true)}
+              aria-label="Editar registro"
+              className="block text-left text-[11px] italic text-muted-foreground"
+            >
+              <span className="ds-editable">{mediaItems.length === 0 ? "Registro sem conteúdo." : "Sem descrição"}</span>
+            </button>
+          )}
           <p className="text-[11px] leading-snug text-foreground/70">
             {head.createdByName ?? "Equipe"}
           </p>
@@ -979,7 +988,7 @@ export function ReservationRecordsDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="w-[calc(100vw-2rem)] overflow-hidden p-0 sm:w-full sm:max-w-md">
+        <DialogContent className={cn("w-[calc(100vw-2rem)] overflow-hidden p-0 sm:w-full sm:max-w-md", TELA_CHEIA_CLASS)}>
           <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
           <DialogHeader className="border-b border-border/40 px-4 pb-2.5 pt-3 pr-12 text-left">
             <DialogTitle className="truncate text-sm font-bold leading-5 text-foreground">

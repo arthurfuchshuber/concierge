@@ -1,3 +1,6 @@
+import { NotebookText } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { TELA_CHEIA_CLASS } from "@/lib/tela-cheia";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
@@ -14,7 +17,6 @@ import {
   LifeBuoy,
   Loader2,
   Lock,
-  Pencil,
   Plus,
   Sparkles,
   User,
@@ -296,14 +298,13 @@ export function OwnerPropertyWindow({
                 className="flex min-h-11 items-center gap-2.5 rounded-[10px] bg-foreground/[0.03] py-0 pl-3 pr-1 shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--foreground)_6%,transparent)]"
               >
                 <b className="flex min-w-0 flex-1 items-center gap-[7px] text-[13px] font-semibold">
-                  <span className="truncate">{s.name}</span>
                   <button
                     type="button"
                     aria-label={`Editar ${s.name}`}
                     onClick={() => setEditing({ slot: s.slot, name: s.name, code: s.code })}
-                    className="text-[color:var(--faint)] hover:text-foreground"
+                    className="min-w-0 truncate text-left"
                   >
-                    <Pencil className="size-[11px]" />
+                    <span className="ds-editable">{s.name}</span>
                   </button>
                 </b>
                 <code className="font-mono text-[13px] font-semibold tracking-[0.14em] text-muted-foreground">
@@ -410,7 +411,7 @@ export function OwnerPropertyWindow({
           (mockup aprovado, 22/10/2026). Fundo preto da página para os cartões "saltarem". */}
       <DialogContent
         pageLike
-        className="max-h-[90dvh] w-[min(94vw,880px)] max-w-none gap-0 overflow-y-auto bg-background p-0 sm:max-w-[880px]"
+        className={cn("max-h-[90dvh] w-[min(94vw,880px)] max-w-none gap-0 overflow-y-auto bg-background p-0 sm:max-w-[880px]", TELA_CHEIA_CLASS)}
       >
         <DialogTitle className="sr-only">{p?.name ?? "Imóvel"}</DialogTitle>
         <DialogDescription className="sr-only">
@@ -453,11 +454,11 @@ export function OwnerPropertyWindow({
                   <Link
                     to="/admin/playbook/$id"
                     params={{ id: p.id }}
-                    aria-label="Editar imóvel"
-                    title="Editar imóvel (Playbook)"
+                    aria-label="Abrir Playbook do imóvel"
+                    title="Abrir Playbook do imóvel"
                     className={`${ACTION_SEGMENT} ${ACTION_BUTTON_TONE} !w-10 !flex-none !px-0`}
                   >
-                    <Pencil className={ACTION_ICON} />
+                    <NotebookText className={ACTION_ICON} />
                   </Link>
                 </div>
               </div>

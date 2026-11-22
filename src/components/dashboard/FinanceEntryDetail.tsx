@@ -230,7 +230,9 @@ export function FinanceEntryDetail({
         className="min-w-0 rounded-l-[12px] py-2.5 pl-3 pr-2.5"
       >
         <div className={FIN_CAP}>{ext ? "Executado por" : "Executada por"}</div>
-        <div className={cn(VAL, !providerName && "font-semibold text-[var(--faint)]")}>{providerName ?? "Não definido"}</div>
+        <div className={cn(VAL, !providerName && "font-semibold text-[var(--faint)]")}>
+          <span className={cn(providerEditable && canEdit && "ds-editable")}>{providerName ?? "Não definido"}</span>
+        </div>
       </Tap>
       <Tap
         onClick={concludedAt ? open("date") : undefined}
@@ -238,14 +240,18 @@ export function FinanceEntryDetail({
         className="min-w-0 rounded-r-[12px] border-l border-foreground/[0.08] py-2.5 pl-3 pr-3 text-right"
       >
         <div className={FIN_CAP}>{ext ? "Concluído em" : "Concluída em"}</div>
-        <div className={VAL}>{fmtWhenFull(concludedAt) ?? "—"}</div>
+        <div className={VAL}>
+          <span className={cn(concludedAt && canEdit && "ds-editable")}>{fmtWhenFull(concludedAt) ?? "—"}</span>
+        </div>
       </Tap>
     </div>
   );
   const detalhe = ext ? (
     <Tap onClick={open("situation")} label="Editar situação" className={FIN_CARD}>
       <div className={FIN_CAP}>Detalhamento da situação</div>
-      <div className={cn(VAL, "whitespace-normal break-words")}>{situationTitle}</div>
+      <div className={cn(VAL, "whitespace-normal break-words")}>
+        <span className={cn(canEdit && "ds-editable")}>{situationTitle}</span>
+      </div>
       {situationDesc ? (
         <p className="mt-0.5 whitespace-pre-wrap break-words text-[12.5px] leading-[1.45] text-muted-foreground">{situationDesc}</p>
       ) : null}
@@ -271,7 +277,9 @@ export function FinanceEntryDetail({
         className={cn(FIN_CARD, editarFotos && "cursor-pointer transition-[filter] active:brightness-95")}
       >
         <div className={cn(FIN_CAP, "mb-2")}>
-          {ext ? "Fotos e vídeos" : "Fotos da conferência"} · {media.length}
+          <span className={cn(editarFotos && "ds-editable")}>
+            {ext ? "Fotos e vídeos" : "Fotos da conferência"} · {media.length}
+          </span>
         </div>
         {media.length > 0 ? (
           <div className="flex gap-2 overflow-x-auto">
@@ -312,7 +320,7 @@ export function FinanceEntryDetail({
         {!ext && canEdit && cleaningType ? (
           <button type="button" onClick={() => setEdit("type")} className="block max-w-full text-left" aria-label="Alterar tipo">
             <DialogTitle className={WINDOW_TITLE_CLASS} title={title}>
-              {title}
+              <span className="ds-editable">{title}</span>
             </DialogTitle>
           </button>
         ) : (
@@ -360,7 +368,7 @@ export function FinanceEntryDetail({
         <span className="text-[10.5px] font-extrabold uppercase tracking-[0.1em] text-muted-foreground">
           {approval ? "Valor pedido" : "Valor"}
         </span>
-        <span className="font-display text-[15px] font-bold tabular-nums text-foreground">{brl(it.priceCents)}</span>
+        <span className={cn("font-display text-[15px] font-bold tabular-nums text-foreground", canEdit && "ds-editable")}>{brl(it.priceCents)}</span>
       </Tap>
       {approval ? <div className="shrink-0 border-t border-border/60 px-4 py-3 sm:mx-6">{approval.footer}</div> : null}
 

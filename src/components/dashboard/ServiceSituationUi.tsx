@@ -8,7 +8,6 @@ import {
   Home,
   Layers,
   Loader2,
-  Pencil,
   Plus,
   Search,
   StickyNote,
@@ -248,23 +247,28 @@ function SituationPickerDialog({
                             <span className="truncate text-[13px] font-semibold leading-[1.3] text-foreground">
                               {s.name}
                             </span>
+                            {/* Situação criada pelo usuário: tocar no detalhe (sublinhado pontilhado) edita;
+                                tocar no resto da linha escolhe (22/11/2026, sem lápis). */}
                             <span className="truncate text-[11px] leading-[1.3] text-muted-foreground">
-                              {s.detail || "Situação personalizada"}
+                              {s.system ? (
+                                s.detail || "Situação personalizada"
+                              ) : (
+                                <span
+                                  className="ds-editable [text-underline-offset:3px]"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onEdit(s);
+                                  }}
+                                >
+                                  {s.detail || "Situação personalizada"}
+                                </span>
+                              )}
                             </span>
                           </span>
                         </button>
-                        {/* Lápis e lixeira SÓ nas situações criadas pelo usuário. */}
+                        {/* Lixeira SÓ nas situações criadas pelo usuário (editar = tocar no detalhe sublinhado). */}
                         {!s.system && (
                           <span className="flex shrink-0 gap-0.5 pr-4">
-                            <button
-                              type="button"
-                              onClick={() => onEdit(s)}
-                              aria-label={`Editar ${s.name}`}
-                              title="Editar"
-                              className="grid size-7 place-items-center rounded-lg text-foreground/60 transition-colors hover:bg-foreground/[0.07] hover:text-foreground"
-                            >
-                              <Pencil className="size-3.5" />
-                            </button>
                             <button
                               type="button"
                               onClick={() => setConfirm(s)}

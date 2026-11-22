@@ -94,7 +94,7 @@ import {
 import { usePresence, useLiveState } from "@/hooks/usePresence";
 import { useRealtimeInvalidate } from "@/hooks/useRealtimeInvalidate";
 import { PresenceAvatars } from "@/components/presence/PresenceAvatars";
-import { Pencil, Check as CheckIcon, X as XIcon, Search, Settings2 } from "lucide-react";
+import { Check as CheckIcon, X as XIcon, Search, Settings2 } from "lucide-react";
 import { friendlyErrorMessage } from "@/lib/friendly-error";
 import { SigmaImportButton, SigmaActiveBanner, SaveAsSigmaPackButton } from "@/components/admin/SigmaImportButton";
 import { getMyPropertySigmaState } from "@/lib/sigma-recommendations.functions";
@@ -3167,18 +3167,17 @@ function InlineCategoryRename({
 
   return (
     <div className="flex items-center gap-1.5 min-w-0">
-      <span className="text-sm font-medium truncate">{currentLabel}</span>
       <button
         type="button"
         onClick={(e) => {
           e.stopPropagation();
           setEditing(true);
         }}
-        className="inline-flex size-6 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-muted opacity-60 hover:opacity-100"
+        className="min-w-0 truncate text-left text-sm font-medium"
         aria-label="Renomear categoria"
         title="Renomear categoria (só neste guia)"
       >
-        <Pencil className="size-3" />
+        <span className="ds-editable">{currentLabel}</span>
       </button>
     </div>
   );

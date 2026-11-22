@@ -46,7 +46,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Trash2, Plus, Lock, ChevronDown, ChevronRight, Loader2, MoveRight, CheckSquare, Pencil, X as XIcon } from "lucide-react";
+import { Trash2, Plus, Lock, ChevronDown, ChevronRight, Loader2, MoveRight, CheckSquare, X as XIcon } from "lucide-react";
 import { toast } from "sonner";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 
@@ -218,7 +218,7 @@ function TaxonomyTree({
         ) : manageMode ? (
           <>
             <span className="inline-flex items-center gap-1.5 text-[11px] uppercase tracking-wide font-medium text-foreground shrink-0">
-              <Pencil className="size-3" /> Editando
+              Editando
             </span>
             <div className="flex items-center gap-0.5 overflow-x-auto -mr-1">
               <Button size="icon" variant="ghost" className="size-7 shrink-0" title="Selecionar várias tags" onClick={() => setSelectMode(true)}>
@@ -240,7 +240,7 @@ function TaxonomyTree({
             <span className="text-[11px] uppercase tracking-wide text-muted-foreground">Escolher tag</span>
             {allowManage && (
               <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => setManageMode(true)}>
-                <Pencil className="size-3" /> Editar
+                Editar
               </Button>
             )}
           </>
@@ -249,7 +249,7 @@ function TaxonomyTree({
 
       {manageMode && (
         <p className="px-3 py-1.5 text-[10.5px] text-muted-foreground bg-muted/30 border-b">
-          Clique no ícone <Pencil className="inline size-2.5" /> para renomear · <MoveRight className="inline size-2.5" /> para mover · <Trash2 className="inline size-2.5" /> para excluir.
+          Toque no nome sublinhado para renomear · <MoveRight className="inline size-2.5" /> para mover · <Trash2 className="inline size-2.5" /> para excluir.
         </p>
       )}
 
@@ -369,8 +369,8 @@ function CategoryRow({
           <InlineRename initial={cat.label} onCommit={commit} onCancel={() => setEditing(false)} />
         ) : (
           <span
-            className="text-[11px] uppercase tracking-wider font-medium truncate"
-            onDoubleClick={(e) => { if (manageMode) { e.stopPropagation(); setEditing(true); } }}
+            className={`text-[11px] uppercase tracking-wider font-medium truncate ${manageMode && !cat.is_protected ? "ds-editable" : ""}`}
+            onClick={(e) => { if (manageMode && !cat.is_protected) { e.stopPropagation(); setEditing(true); } }}
           >
             {cat.label}
           </span>
@@ -380,17 +380,6 @@ function CategoryRow({
       </button>
       {manageMode && (
         <div className="flex items-center gap-0.5">
-          {!editing && (
-            <button
-              type="button"
-              aria-label="Renomear categoria"
-              title="Renomear categoria"
-              onClick={(e) => { e.stopPropagation(); setEditing(true); }}
-              className="p-1 text-muted-foreground hover:text-foreground"
-            >
-              <Pencil className="size-3" />
-            </button>
-          )}
           <button
             type="button"
             aria-label="Adicionar tag nesta categoria"
@@ -483,31 +472,20 @@ function TagRow({
       ) : (
         <button
           type="button"
-          onClick={() => { if (selectMode) onToggleCheck(); else onPick(); }}
-          onDoubleClick={(e) => {
-            if (!manageMode || tag.is_protected) return;
-            e.stopPropagation();
-            setEditing(true);
+          onClick={() => {
+            if (selectMode) onToggleCheck();
+            else if (manageMode && !tag.is_protected) setEditing(true);
+            else onPick();
           }}
-          title={manageMode ? (tag.is_protected ? "Tag padrão do Google — não editável" : "Duplo-clique para renomear") : "Clique para selecionar"}
+          title={manageMode ? (tag.is_protected ? "Tag padrão do Google — não editável" : "Toque para renomear") : "Clique para selecionar"}
           className={`flex-1 text-left text-sm py-1.5 px-1 truncate ${selected ? "font-medium" : ""}`}
         >
-          {tag.label}
+          <span className={manageMode && !selectMode && !tag.is_protected ? "ds-editable" : undefined}>{tag.label}</span>
           {tag.is_protected && <Lock className="inline size-2.5 ml-1 opacity-40" />}
         </button>
       )}
       {manageMode && !editing && !selectMode && (
         <div className="flex items-center gap-0.5">
-          <button
-            type="button"
-            aria-label="Renomear tag"
-            title={tag.is_protected ? "Tag padrão — não editável" : "Renomear tag"}
-            onClick={(e) => { if (tag.is_protected) return; e.stopPropagation(); setEditing(true); }}
-            disabled={tag.is_protected}
-            className="p-1 text-muted-foreground hover:text-foreground disabled:opacity-30"
-          >
-            <Pencil className="size-3" />
-          </button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button type="button" aria-label="Mover" className="p-1 text-muted-foreground hover:text-foreground">

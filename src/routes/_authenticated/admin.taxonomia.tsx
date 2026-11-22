@@ -35,7 +35,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ArrowLeft, ChevronDown, Lock, Pencil, Plus, Trash2, Loader2 } from "lucide-react";
+import { ArrowLeft, ChevronDown, Lock, Plus, Trash2, Loader2 } from "lucide-react";
 import { PageHeader, ActionBar } from "@/components/ds/PageHeader";
 import { toast } from "sonner";
 import { usePresence, useLiveState } from "@/hooks/usePresence";
@@ -125,13 +125,18 @@ function TaxonomyPage() {
                     className="flex-1 flex items-center gap-2 text-left min-w-0"
                   >
                     <ChevronDown className={`size-4 text-muted-foreground transition-transform ${open ? "" : "-rotate-90"}`} />
-                    <span className="ds-card-title truncate">{cat.label}</span>
+                    <span
+                      className="ds-card-title ds-editable truncate"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEditCat(cat);
+                      }}
+                    >
+                      {cat.label}
+                    </span>
                     {cat.is_protected && <Lock className="size-3 text-muted-foreground/60 shrink-0" />}
                     <span className="ds-meta shrink-0">({tags.length})</span>
                   </button>
-                  <Button size="icon" variant="ghost" onClick={() => setEditCat(cat)} aria-label="Editar categoria" title="Editar categoria">
-                    <Pencil className="size-3.5" />
-                  </Button>
                   <Button size="sm" variant="ghost" onClick={() => setNewTagInCat(cat)}>
                     <Plus className="size-3.5" /> tag
                   </Button>
@@ -143,12 +148,16 @@ function TaxonomyPage() {
                     ) : (
                       tags.map((tag) => (
                         <div key={tag.id} className="px-3.5 py-2 flex items-center gap-2">
-                          <span className="ds-body flex-1 truncate">{tag.label}</span>
+                          <button
+                            type="button"
+                            onClick={() => setEditTag(tag)}
+                            aria-label={`Editar tag ${tag.label}`}
+                            className="ds-body min-w-0 flex-1 truncate text-left"
+                          >
+                            <span className="ds-editable">{tag.label}</span>
+                          </button>
                           <code className="ds-meta text-muted-foreground/70">{tag.slug}</code>
                           {tag.is_protected && <Lock className="size-3 text-muted-foreground/60" />}
-                          <Button size="icon" variant="ghost" onClick={() => setEditTag(tag)} aria-label="Editar tag" title="Editar tag">
-                            <Pencil className="size-3.5" />
-                          </Button>
                         </div>
                       ))
                     )}

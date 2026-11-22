@@ -1,6 +1,6 @@
 import { ClampName } from "@/components/ui/clamp-name";
 import { PhoneActionButton } from "@/components/PhoneActionButton";
-import { useState, useEffect, useRef } from "react";
+import { createContext, useContext, useState, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Link } from "@tanstack/react-router";
@@ -800,7 +800,7 @@ export function StakeholderDetailSheet({
             <User className="size-3.5" /> Ver Proprietário
           </DropdownMenuItem>
           <DropdownMenuItem onSelect={onEdit}>
-            <Pencil className="size-3.5" /> Editar cadastro
+            <span aria-hidden className="size-3.5" /> Editar cadastro
           </DropdownMenuItem>
           {clicksignActive && (
             <DropdownMenuItem onSelect={runExtract}>
@@ -1657,7 +1657,10 @@ export function StakeholderDetailSheet({
           className="mt-1 truncate font-display text-[20px] font-bold leading-tight tracking-[-0.01em]"
           title={displayName}
         >
-          {displayName}
+          {/* Nome editável: sublinhado pontilhado abre o cadastro (22/11/2026, sem lápis). */}
+          <button type="button" onClick={onEdit} aria-label="Editar cadastro" className="max-w-full truncate text-left">
+            <span className="ds-editable [text-underline-offset:5px]">{displayName}</span>
+          </button>
         </h2>
 
         {/* Linha 3: metadados à esquerda, ações à direita (espaço antes vazio).
@@ -1701,38 +1704,25 @@ export function StakeholderDetailSheet({
                 <DropdownMenuTrigger asChild>
                   <button
                     type="button"
-                    aria-label="Editar"
-                    title="Editar"
+                    aria-label="Importar dados do contrato"
+                    title="Importar dados do contrato"
                     disabled={extracting}
                     className="grid size-9 place-items-center rounded-[0.3rem] border border-border text-foreground hover:bg-secondary transition-colors disabled:opacity-60"
                   >
                     {extracting ? (
                       <Loader2 className="size-4 animate-spin" />
                     ) : (
-                      <Pencil className="size-4" />
+                      <FileText className="size-4" />
                     )}
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem onSelect={onEdit}>
-                    <Pencil className="size-3.5" /> Editar cadastro
-                  </DropdownMenuItem>
                   <DropdownMenuItem onSelect={runExtract}>
                     <FileText className="size-3.5" /> Importar dados do contrato
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-            ) : (
-              <button
-                type="button"
-                onClick={onEdit}
-                aria-label="Editar cadastro"
-                title="Editar cadastro"
-                className="grid size-9 place-items-center rounded-[0.3rem] border border-border text-foreground hover:bg-secondary transition-colors"
-              >
-                <Pencil className="size-4" />
-              </button>
-            )}
+            ) : null}
             <button
               type="button"
               onClick={() => setDataOpen((o) => !o)}
@@ -1751,6 +1741,7 @@ export function StakeholderDetailSheet({
 
       {/* ---------- Dados pessoais (recolhível, fechado por padrão) ---------- */}
       {dataOpen && (
+        <FieldEditCtx.Provider value={onEdit}>
         <section className={newLayout ? `${PANEL_SHELL} p-4` : "ds-surface bg-card p-4"}>
           <dl className="grid gap-4 sm:grid-cols-2">
             <Field label="Nome completo" value={row.name} copy={row.name} />
@@ -1836,6 +1827,7 @@ export function StakeholderDetailSheet({
             )}
           </dl>
         </section>
+        </FieldEditCtx.Provider>
       )}
 
       <Tabs defaultValue="visao" className="min-w-0 max-w-full">
@@ -2249,7 +2241,7 @@ export function StakeholderDetailSheet({
                               className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-tight text-muted-foreground transition-colors hover:text-foreground"
                               title="Abrir o Playbook (dossiê) do imóvel."
                             >
-                              <Pencil className="size-3.5" /> Editar
+                              Editar
                             </Link>
                             <Link
                               to="/admin/properties/$id"
@@ -2412,6 +2404,9 @@ export function StakeholderDetailSheet({
   );
 }
 
+/** Quem abre o cadastro ao tocar num dado (sublinhado pontilhado = editável). */
+const FieldEditCtx = createContext<(() => void) | null>(null);
+
 function Field({
   label,
   value,
@@ -2425,6 +2420,7 @@ function Field({
   copy?: string | null;
   children?: React.ReactNode;
 }) {
+  const onEdit = useContext(FieldEditCtx);
   if (!children && !value) return null;
   return (
     <div className="min-w-0">
@@ -2433,7 +2429,14 @@ function Field({
         {copy && <CopyButton value={copy} size={11} />}
       </div>
       <dd className={`mt-0.5 text-sm break-words ${mono ? "font-mono tabular-nums" : ""}`}>
-        {children ?? value}
+        {children ??
+          (onEdit ? (
+            <button type="button" onClick={onEdit} className="max-w-full break-words text-left">
+              <span className="ds-editable">{value}</span>
+            </button>
+          ) : (
+            value
+          ))}
       </dd>
     </div>
   );

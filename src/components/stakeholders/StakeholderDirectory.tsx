@@ -1,4 +1,6 @@
 import { useMemo, useState, useEffect } from "react";
+import { cn } from "@/lib/utils";
+import { TELA_CHEIA_CLASS } from "@/lib/tela-cheia";
 import type React from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -14,7 +16,6 @@ import {
   Wrench,
   MapPin,
   Trash2,
-  Pencil,
   Home,
   MessageCircle,
   Filter,
@@ -712,7 +713,7 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
               (880px) com "X" de canto. Fundo preto da página para os cartões "saltarem". */}
           <DialogContent
             pageLike
-            className="w-[min(94vw,880px)] max-w-none sm:max-w-[880px] max-h-[90dvh] overflow-y-auto bg-background p-0 gap-0"
+            className={cn("w-[min(94vw,880px)] max-w-none sm:max-w-[880px] max-h-[90dvh] overflow-y-auto bg-background p-0 gap-0", TELA_CHEIA_CLASS)}
           >
             <DialogTitle className="sr-only">Ficha do proprietário</DialogTitle>
             {detailId && renderDetail()}
@@ -843,7 +844,7 @@ function StakeholderCard({
                   onEdit();
                 }}
               >
-                <Pencil className="size-3.5" />
+                <span aria-hidden className="size-3.5" />
                 Editar
               </DropdownMenuItem>
               <DropdownMenuItem
@@ -994,7 +995,7 @@ function StakeholderCard({
                   onEdit();
                 }}
               >
-                <Pencil className="size-3.5" />
+                <span aria-hidden className="size-3.5" />
                 Editar
               </DropdownMenuItem>
               <DropdownMenuItem

@@ -102,7 +102,7 @@ export function CalendarBlockBar({
           type="button"
           aria-label={release ? "Alterar período do bloqueio" : "Editar datas"}
           onClick={onEditDates}
-          className="min-w-0 flex-1 truncate text-left text-[14px] font-bold underline decoration-dotted underline-offset-4"
+          className="ds-editable min-w-0 flex-1 truncate text-left text-[14px] font-bold"
         >
           {label}
         </button>

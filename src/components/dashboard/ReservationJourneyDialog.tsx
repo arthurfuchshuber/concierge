@@ -13,6 +13,8 @@
  *     REGISTRO / PENDÊNCIA / PREVISÃO / LIMPEZA; registros e pendências abrem ao tocar;
  *   · tudo rola junto abaixo da capa (anticorte global das janelas), altura automática até 90% da tela.
  */
+import { cn } from "@/lib/utils";
+import { TELA_CHEIA_CLASS } from "@/lib/tela-cheia";
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -380,7 +382,7 @@ export function ReservationJourneyDialog({
       {/* Sem `left/top` próprios: o DialogContent já é CENTRALIZADO na tela. */}
       <DialogContent
         cover
-        className="flex max-h-[90dvh] w-[min(420px,calc(100vw-2rem))] flex-col gap-0 overflow-hidden p-0"
+        className={cn("flex max-h-[90dvh] w-[min(420px,calc(100vw-2rem))] flex-col gap-0 overflow-hidden p-0", TELA_CHEIA_CLASS)}
         aria-describedby={undefined}
       >
         <div className="relative h-[140px] shrink-0 overflow-hidden bg-secondary/60">

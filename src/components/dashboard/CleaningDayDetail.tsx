@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { TELA_CHEIA_CLASS } from "@/lib/tela-cheia";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useCleaningProviderControl } from "@/components/dashboard/CleaningProviderAvatar";
@@ -206,7 +207,7 @@ function EntryRow({
 }
 
 /**
- * Etiqueta do prestador (mockup Fin-01): nome em azul, SEM seta (pedido de 18/11/2026); quem pode alterar toca e abre a janela
+ * Etiqueta do prestador (mockup Fin-01): etiqueta neutra, SEM seta; o nome sublinhado pontilhado indica que dá para trocar; quem pode alterar toca e abre a janela
  * "Alterar Prestador" (5 opções à vista + busca). Sem permissão, só a etiqueta.
  */
 function ProviderTag({
@@ -226,10 +227,14 @@ function ProviderTag({
 }) {
   const ctl = useCleaningProviderControl(propertyId, logId, reservationId);
   const [open, setOpen] = useState(false);
-  const tag =
-    "inline-flex min-w-0 items-center gap-1 rounded-[6px] bg-[color-mix(in_oklab,var(--cleaning-soft)_45%,transparent)] px-2 py-0.5 text-[11.5px] font-semibold text-[var(--cleaning-soft-foreground)] dark:text-[var(--cleaning-soft)]";
-  const label = <span className="min-w-0 truncate">{ctl.currentName ?? "Sem prestador"}</span>;
-  if (!canEdit || !ctl.editable) return <span className={tag}>{label}</span>;
+  /* Etiqueta neutra (22/11/2026): a cor azul saiu — quem diz que dá para trocar é o sublinhado pontilhado
+     no próprio nome (`ds-editable`), o padrão único de informação editável. */
+  const tag = cn(TAG, "inline-flex min-w-0 max-w-[60%] items-center");
+  const editable = canEdit && ctl.editable;
+  const label = (
+    <span className={cn("min-w-0 truncate", editable && "ds-editable [text-underline-offset:2px]")}>{ctl.currentName ?? "Sem prestador"}</span>
+  );
+  if (!editable) return <span className={tag}>{label}</span>;
   return (
     <>
       <button
@@ -315,7 +320,7 @@ export function CleaningDayDetailWindow({
     >
       <DialogContent
         aria-describedby={undefined}
-        className={FINANCE_WINDOW_CLASS}
+        className={cn(FINANCE_WINDOW_CLASS, TELA_CHEIA_CLASS)}
         onBack={subBack ?? (entry ? () => setEntry(null) : undefined)}
       >
         {entry ? (

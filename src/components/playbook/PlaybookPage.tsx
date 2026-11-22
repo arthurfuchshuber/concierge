@@ -3,7 +3,7 @@ import { PageDateRow, PAGE_BACK_CLASS } from "@/components/ds/PageDateRow";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowLeft, BookOpen, Check, ChevronDown, Copy, CopyPlus, Eye, EyeOff, Info, KeyRound, Lock, PencilLine, Plus, Printer, Trash2 } from "lucide-react";
+import { ArrowLeft, BookOpen, Check, ChevronDown, Copy, CopyPlus, Eye, EyeOff, Info, KeyRound, Lock, Plus, Printer, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { OwnerLine } from "@/components/dashboard/OwnerLine";
 import { SearchActionRow } from "@/components/dashboard/SearchActionRow";
@@ -415,7 +415,6 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
   const renderNote = (r: PlaybookRow, noteVal: string, className = "mt-3") => (
     <div className={className} onClick={(e) => e.stopPropagation()}>
       <span className="mb-1.5 flex items-center gap-1.5 text-[10px] font-bold uppercase leading-tight tracking-[0.08em] text-muted-foreground">
-        <PencilLine className="size-[11px]" />
         Nota do anfitrião
       </span>
       <textarea
@@ -772,7 +771,22 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
                               <span
                                 className={`min-w-0 flex-1 whitespace-pre-line block ${r.value.length > 600 ? "max-h-[min(60vh,28rem)] overflow-y-auto overscroll-contain pr-1" : ""} ${r.empty ? "italic text-[var(--faint)]" : r.secret ? "font-mono tracking-[0.15em] text-muted-foreground" : "text-foreground"}`}
                               >
-                                {r.secret && shown.includes(r.id) ? r.raw : r.value}
+                                {/* Valor editável: o próprio texto sublinhado pontilhado abre a edição (22/11/2026). */}
+                                {r.edit === "parts" ? (
+                                  <span
+                                    className="ds-editable"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      startEdit(r);
+                                    }}
+                                  >
+                                    {r.secret && shown.includes(r.id) ? r.raw : r.value}
+                                  </span>
+                                ) : r.secret && shown.includes(r.id) ? (
+                                  r.raw
+                                ) : (
+                                  r.value
+                                )}
                               </span>
                             )}
                             {r.secret && !r.empty && !editing ? (
@@ -807,19 +821,7 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
 
                           <div className="flex flex-col items-start gap-2 whitespace-nowrap px-4 py-3">
                             <AudienceChip au={r.au} />
-                            {r.edit === "parts" ? (
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  startEdit(r);
-                                }}
-                                className="inline-flex items-center gap-1 text-[11px] font-bold text-foreground hover:text-foreground/80 print:hidden"
-                              >
-                                <PencilLine className="size-[13px]" />
-                                Editar
-                              </button>
-                            ) : null}
+
                             {!r.empty && !!r.edit && classifyBulkRow(r.id).ok ? (
                               <button
                                 type="button"
@@ -1023,7 +1025,20 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
                       <div className={viewRow.empty ? "italic text-[var(--faint)]" : viewRow.secret ? "font-mono tracking-[0.15em] text-muted-foreground" : "text-foreground"}>
                         {(viewRow.secret && shown.includes(viewRow.id) ? viewRow.raw : viewRow.value).split("\n").map((line, i) => (
                           <p key={i} data-clip-row className={`break-words text-[15px] font-medium leading-[22px] ${i > 0 ? "mt-3.5" : ""}`}>
-                            {line}
+                            {viewRow.edit ? (
+                              <span
+                                className="ds-editable cursor-pointer"
+                                onClick={() => {
+                                  const r = viewRow;
+                                  closeView();
+                                  startEdit(r);
+                                }}
+                              >
+                                {line}
+                              </span>
+                            ) : (
+                              line
+                            )}
                           </p>
                         ))}
                       </div>
@@ -1033,22 +1048,6 @@ export function PlaybookPage({ propertyId }: { propertyId: string }) {
                           {AUD_NAME[viewRow.au]}
                         </span>
                         <p className="mt-1.5 text-[12.5px] leading-[17px] text-muted-foreground">{AUDIENCE_HELP[viewRow.au]}</p>
-                        {viewRow.edit ? (
-                          <div className="mt-3 flex items-center gap-4 print:hidden">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const r = viewRow;
-                                closeView();
-                                startEdit(r);
-                              }}
-                              className="inline-flex flex-none items-center gap-1 text-[13px] font-bold leading-[18px] text-foreground hover:text-foreground/80"
-                            >
-                              <PencilLine className="size-[13px]" />
-                              Editar
-                            </button>
-                          </div>
-                        ) : null}
                       </div>
                     </>
                   ) : null}

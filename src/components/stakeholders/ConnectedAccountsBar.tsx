@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { cn } from "@/lib/utils";
+import { TELA_CHEIA_CLASS } from "@/lib/tela-cheia";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Link2, Plus, Download } from "lucide-react";
@@ -62,7 +64,7 @@ export function ConnectedAccountsBar() {
       </button>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="w-[min(94vw,560px)] max-h-[90dvh] overflow-y-auto gap-3 p-4 sm:max-w-[560px]">
+        <DialogContent className={cn("w-[min(94vw,560px)] max-h-[90dvh] overflow-y-auto gap-3 p-4 sm:max-w-[560px]", TELA_CHEIA_CLASS)}>
           <DialogTitle className="pr-11 font-display text-[18px] font-extrabold">
             Contas Conectadas
           </DialogTitle>

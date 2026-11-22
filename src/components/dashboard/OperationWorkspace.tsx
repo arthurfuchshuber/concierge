@@ -51,6 +51,7 @@ import {
   type DayDetailSource,
 } from "@/components/dashboard/CleaningDayDetail";
 import { FINANCE_WINDOW_CLASS, WIDE_WINDOW_CLASS, windowTitle } from "@/components/dashboard/wide-window";
+import { inTelaCheia, TELA_CHEIA_CLASS } from "@/lib/tela-cheia";
 import { WINDOW_HEADER_CLASS, WINDOW_SUBTITLE_CLASS, WINDOW_TITLE_CLASS } from "@/components/dashboard/window-header";
 import { cleaningAdvanceDecision } from "@/lib/cleaning-advance";
 import { CleaningProviderAvatar, useCleaningBoard } from "@/components/dashboard/CleaningProviderAvatar";
@@ -79,7 +80,6 @@ import {
   CalendarX,
   LogIn,
   LogOut,
-  Pencil,
   StickyNote,
   Check,
   AlertTriangle,
@@ -4475,7 +4475,9 @@ function useWholeCardsMaxHeight(key: unknown, maxItems?: number) {
         }
         chrome += 2; // bordas da janela
       }
-      const cap = Math.max(120, Math.round(window.innerHeight * 0.9) - chrome);
+      // Janela de tela cheia (celular): o teto é a altura do próprio aparelho, não 90%.
+      const full = win ? inTelaCheia(win) : null;
+      const cap = Math.max(120, (full ? full.clientHeight : Math.round(window.innerHeight * 0.9)) - chrome);
       const tops = items.map((i) => absoluteTop(i) - base);
       const bottoms = items.map((i) => absoluteTop(i) + i.offsetHeight - base);
       const total = bottoms[bottoms.length - 1];
@@ -4840,7 +4842,7 @@ function KpiCard({
            relatado, 23/09/2026: "os tooltips saíram do centro"). O `fixed`
            da base já é "positioned" o bastante para o `before:absolute` do
            fio de luz funcionar sem precisar de `relative` extra aqui. */
-        className={WIDE_WINDOW_CLASS}
+        className={cn(WIDE_WINDOW_CLASS, TELA_CHEIA_CLASS)}
       >
         {/* JANELA PADRÃO (29/10/2026): sem ícone no cabeçalho, título 14px
             negrito e subtítulo 12px em caixa normal, recuo de 16px. */}
@@ -5082,7 +5084,7 @@ function FreePropertiesCard({
           lista rola e o anticorte global (`useAntiClipWindow`) encolhe a área
           até o último cartão inteiro. Cada imóvel leva "Proprietário: nome" +
           mensagem e o botão do Maps (regra de todo lugar que cita um anúncio). */}
-      <DialogContent className={WIDE_WINDOW_CLASS}>
+      <DialogContent className={cn(WIDE_WINDOW_CLASS, TELA_CHEIA_CLASS)}>
         {/* JANELA PADRÃO (29/10/2026): título 14px negrito com iniciais
             maiúsculas, subtítulo 12px com singular/plural, recuo de 16px. */}
         <DialogHeader className={WINDOW_HEADER_CLASS}>
@@ -5277,7 +5279,7 @@ function StatDisplayCard({
       />
       ) : (
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent aria-describedby={undefined} className={FINANCE_WINDOW_CLASS}>
+        <DialogContent aria-describedby={undefined} className={cn(FINANCE_WINDOW_CLASS, TELA_CHEIA_CLASS)}>
           {/* Cabeçalho universal de janela ampla (07/11/2026): sem ícone, título
               14px e subtítulo 12px; o "X" oficial fica no canto. */}
           <DialogHeader className={cn(WINDOW_HEADER_CLASS, "sm:mx-6")}>
@@ -9421,7 +9423,7 @@ function EngagementBreakdownDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
-      <DialogContent className={WIDE_WINDOW_CLASS}>
+      <DialogContent className={cn(WIDE_WINDOW_CLASS, TELA_CHEIA_CLASS)}>
         <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-500/60 to-transparent" />
         {/* JANELA PADRÃO (29/10/2026): título 14px negrito com iniciais
             maiúsculas ("Instruções Check-In" / "Senhas de Acesso" — sem a
@@ -10366,7 +10368,7 @@ function ArrivalCard({
                           <button
                             type="button"
                             title={hasValue ? (side.byGuest ? "Informado pelo hóspede · toque para editar" : "Informado pela equipe · toque para editar") : "Toque para informar"}
-                            className="min-w-0 truncate text-left font-semibold underline decoration-dotted decoration-[1px] underline-offset-[3px] transition-opacity hover:opacity-80"
+                            className="ds-editable min-w-0 truncate text-left font-semibold transition-opacity hover:opacity-80"
                           >
                             {hasValue && side.timeValue
                               ? `${isOut ? "Saída" : "Chegada"} prevista ${ddmm} · ${side.timeValue}`
@@ -10489,7 +10491,7 @@ function ArrivalCard({
                       Previsão
                     </span>
                     <span className="block font-display text-[16px] font-bold leading-tight tabular-nums text-amber-500 dark:text-amber-400">
-                      {predictionTime}
+                      <span className="ds-editable [text-underline-offset:3px]">{predictionTime}</span>
                     </span>
                   </>
                 ) : (
@@ -10737,7 +10739,7 @@ function ArrivalCard({
           title="Clique para editar a nota"
         >
           <StickyNote className="size-3.5 mt-0.5 shrink-0" />
-          <span className="whitespace-pre-wrap flex-1">{row.note}</span>
+          <span className="ds-editable whitespace-pre-wrap flex-1">{row.note}</span>
         </button>
       )}
 
@@ -11164,10 +11166,10 @@ function DateEditor({
           e.stopPropagation();
           setOpen(true);
         }}
-        className={`relative inline-flex items-center cursor-pointer rounded hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:cursor-not-allowed disabled:hover:text-inherit ${blank ? "text-muted-foreground" : ""}`}
+        className={`relative inline-flex items-center cursor-pointer rounded focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:cursor-not-allowed ${blank ? "text-muted-foreground" : ""}`}
         title="Clique para corrigir a data"
       >
-        <span className={`tabular-nums ${valueClassName ?? ""}`}>
+        <span className={`tabular-nums ${disabled ? "" : "ds-editable"} ${valueClassName ?? ""}`}>
           {blank ? (placeholder ?? "—") : fmtDateBR(shown)}
         </span>
       </button>

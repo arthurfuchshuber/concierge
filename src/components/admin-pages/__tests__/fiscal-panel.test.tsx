@@ -103,7 +103,7 @@ describe("janela Notas Fiscais (NFS-e)", () => {
       expect(screen.getAllByText(v!).length).toBeGreaterThan(0);
     }
     expect(screen.getByRole("button", { name: "Substituir certificado" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Editar dados" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /^Editar Razão social/ })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Mais Ações" })).toBeTruthy();
   });
 

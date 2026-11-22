@@ -1,4 +1,6 @@
 import { useMemo, useState } from "react";
+import { cn } from "@/lib/utils";
+import { TELA_CHEIA_CLASS } from "@/lib/tela-cheia";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { ChevronDown, ChevronUp, Receipt } from "lucide-react";
@@ -82,7 +84,7 @@ export function ImoveisCobradosDialog({ open, onOpenChange }: { open: boolean; o
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg gap-0 p-0 sm:p-0" onOpenAutoFocus={(e) => e.preventDefault()}>
+      <DialogContent className={cn("max-w-lg gap-0 p-0 sm:p-0", TELA_CHEIA_CLASS)} onOpenAutoFocus={(e) => e.preventDefault()}>
         {/* Cabeçalho universal de janela ampla (07/11/2026): título 14px em 1
             linha, subtítulo 12px e "X" oficial no canto (pr-14). */}
         <DialogHeader className="border-b border-border/40 px-4 pb-2.5 pt-3 pr-12 text-left">

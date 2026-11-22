@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Check, Loader2, Pencil, Plus, Settings2, Trash2, X } from "lucide-react";
+import { Check, Loader2, Plus, Settings2, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -162,13 +162,13 @@ export function PropertyTypeSelect({
                   </>
                 ) : (
                   <>
-                    <span className="flex-1 min-w-0 truncate text-sm">{t.label}</span>
-                    <button aria-label="Editar"
+                    <button
+                      aria-label="Editar"
                       type="button"
                       onClick={() => setEditing({ id: t.id, label: t.label })}
-                      className="text-muted-foreground hover:text-foreground"
+                      className="flex-1 min-w-0 truncate text-left text-sm"
                     >
-                      <Pencil className="size-3.5" />
+                      <span className="ds-editable">{t.label}</span>
                     </button>
                     <button aria-label="Excluir"
                       type="button"

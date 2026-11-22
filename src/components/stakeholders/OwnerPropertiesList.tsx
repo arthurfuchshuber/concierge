@@ -14,7 +14,6 @@ import {
   LogOut,
   MapPin,
   MoreHorizontal,
-  Pencil,
   Plus,
   Link2,
   RefreshCw,
@@ -650,7 +649,7 @@ export function OwnerPropertiesList({
                           params={{ id: p.id }}
                           className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] transition-colors hover:bg-secondary disabled:pointer-events-none disabled:opacity-40"
                         >
-                          <Pencil className="size-3.5 text-muted-foreground" /> Editar imóvel
+                          <span aria-hidden className="size-3.5" /> Editar imóvel
                         </Link>
                         {hasActiveGuide(p) ? (
                           <button

@@ -43,7 +43,6 @@ import {
   MessageCircle,
   MessageSquare,
   Languages,
-  Pencil,
   Trash2,
   MoreVertical,
   Copy,
@@ -1002,7 +1001,7 @@ export function ConversationView({ conversationId, compact, myUserId, stay, owne
                   setActionMsg(null);
                 }}
               >
-                <Pencil className="size-4" /> Editar
+                <span aria-hidden className="size-4" /> Editar
               </button>
             )}
             {actionAllowed.delete && (

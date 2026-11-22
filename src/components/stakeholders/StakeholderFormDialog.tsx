@@ -14,7 +14,6 @@ import {
   KeyRound,
   Eye,
   EyeOff,
-  Pencil,
   NotebookPen,
 } from "lucide-react";
 import {
@@ -870,24 +869,14 @@ export function StakeholderFormDialog({
                         presence.broadcastTyping("doc", raw);
                       }}
                       readOnly={docLocked}
+                      /* Documento travado: tocar no próprio número (sublinhado pontilhado) libera a edição. */
+                      className={docLocked ? "ds-editable cursor-pointer" : undefined}
+                      onClick={docLocked ? () => setDocLocked(false) : undefined}
                       onBlur={() => {
                         presence.broadcastFieldBlur("doc");
                         void handleDocBlur();
                       }}
                       error={errors.doc}
-                      endAdornment={
-                        docLocked ? (
-                          <button
-                            type="button"
-                            onClick={() => setDocLocked(false)}
-                            aria-label={`Editar ${isPJ ? "CNPJ" : "CPF"}`}
-                            title={`Editar ${isPJ ? "CNPJ" : "CPF"}`}
-                            className="grid size-6 place-items-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
-                          >
-                            <Pencil className="size-3.5" />
-                          </button>
-                        ) : undefined
-                      }
                     />
                     <FieldTypingBadge typing={presence.typing["doc"]} />
                   </div>
