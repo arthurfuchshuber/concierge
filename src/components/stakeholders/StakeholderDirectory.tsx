@@ -708,11 +708,9 @@ export function StakeholderDirectory({ kind }: { kind: StakeholderKind }) {
           demais: bottom-sheet no mobile, painel lateral no desktop */}
       {fullScreen ? (
         <Dialog open={!!detailId} onOpenChange={(o) => !o && setDetailId(null)}>
-          {/* Janela "como página" (regra global, 22/10/2026): no tablet/celular fica abaixo do
-              cabeçalho do sistema com "Voltar" no topo direito; no computador, centralizada
-              (880px) com "X" de canto. Fundo preto da página para os cartões "saltarem". */}
+          {/* No computador, centralizada (880px) com "X" de canto. No celular/tablet, TELA CHEIA (pedido explícito,
+              22/11/2026: antes ficava abaixo do cabeçalho do sistema). Fundo da página para os cartões "saltarem". */}
           <DialogContent
-            pageLike
             className={cn("w-[min(94vw,880px)] max-w-none sm:max-w-[880px] max-h-[90dvh] overflow-y-auto bg-background p-0 gap-0", TELA_CHEIA_CLASS)}
           >
             <DialogTitle className="sr-only">Ficha do proprietário</DialogTitle>

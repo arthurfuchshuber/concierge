@@ -406,11 +406,9 @@ export function OwnerPropertyWindow({
 
   return (
     <Dialog open={!!propertyId} onOpenChange={(o) => !o && onClose()}>
-      {/* Janela "como página" CENTRALIZADA no computador (880px, igual à do proprietário) e, no
-          celular/tablet, abaixo do cabeçalho do sistema com "Voltar" no topo direito
-          (mockup aprovado, 22/10/2026). Fundo preto da página para os cartões "saltarem". */}
+      {/* No computador, centralizada (880px) com "X" de canto. No celular/tablet, TELA CHEIA (pedido explícito,
+          22/11/2026: antes ficava abaixo do cabeçalho do sistema). Fundo da página para os cartões "saltarem". */}
       <DialogContent
-        pageLike
         className={cn("max-h-[90dvh] w-[min(94vw,880px)] max-w-none gap-0 overflow-y-auto bg-background p-0 sm:max-w-[880px]", TELA_CHEIA_CLASS)}
       >
         <DialogTitle className="sr-only">{p?.name ?? "Imóvel"}</DialogTitle>

@@ -65,6 +65,9 @@ const DialogContent = React.forwardRef<
   }
 >(({ className, children, hideClose, pageLike, overlayClassName, onBack, cover, ...props }, ref) => {
   const [layerRef, layerNodeRef] = useOverlayLayer("window", useAntiClipWindow(ref));
+  // Janela de TELA CHEIA (`TELA_CHEIA_CLASS`, 22/11/2026) vence a "como página": no celular ela ocupa o
+  // aparelho inteiro, então as classes de página (abaixo do cabeçalho, 10px nas laterais) não entram.
+  if (pageLike && /(^|\s)sg-tela-cheia(\s|$)/.test(className ?? "")) pageLike = false;
   const wrapBody = !ownsScroll(className);
   const split = splitWindowChildren(children);
   return (
