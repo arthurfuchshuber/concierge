@@ -110,8 +110,10 @@ describe("responder só ao que foi dito e fatos sem fonte (16/11/2026, caso Iliz
 describe("aviso de chegada sem despejo (16/11/2026, caso Ricardo)", () => {
   it("acolhe e confirma a previsão, sem casa pronta, instruções já passadas nem pedido de aviso", () => {
     const sys = buildSystemPrompt("airbnb");
-    expect(sys).toMatch(/breve e calorosa, acolhendo e confirmando a previsão/);
-    expect(sys).toMatch(/Não acrescente o que não foi pedido \(casa pronta, instruções já passadas, pedido de aviso ao entrar\)/);
+    expect(sys).toMatch(/frase curta de agradecimento pelo aviso, e só/);
+    expect(sys).not.toMatch(/confirmando a previsão/);
+    expect(sys).toMatch(/Previsão de saída informada pelo hóspede/);
+    expect(sys).toMatch(/não acrescente o que não foi pedido \(casa pronta, instruções já passadas, pedido de aviso ao entrar, votos de viagem\)/);
     expect(sys).toMatch(/Oriente o acesso só se ele perguntar ou se o histórico mostrar que ainda não tem o que precisa para entrar/);
     expect(sys).not.toMatch(/deixando claro que a casa está esperando por eles/);
   });
