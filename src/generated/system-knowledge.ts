@@ -11,7 +11,7 @@ export type GeneratedSystemDoc = {
   content_hash: string;
 };
 
-export const GENERATED_AT = "2026-11-22T18:00:55.069Z";
+export const GENERATED_AT = "2026-11-22T18:16:57.659Z";
 
 export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
   {
@@ -6198,7 +6198,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "921b94e2b28e53f61ef460f4945f7be2"
   },
   {
-    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:47760",
+    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:47771",
     "kind": "rule",
     "title": "Regra em RecordsWorkspace.tsx",
     "content": "Contador/filtro de uma categoria. Mesma casca dos KPIs da Operacional.\n\nA COR DO NÚMERO É UM SEMÁFORO, NÃO UMA ETIQUETA (pedido explícito,\n10/09/2026): zerado é BRANCO em todas as categorias — não há nada ali, nada\na sinalizar. Acima de zero, a cor diz o quanto aquilo pesa: manutenção e\ndano em vermelho (é trabalho parado), esquecidos e outros em âmbar (é\natenção), auditoria de limpeza no violeta de sempre (é rotina, não alarme)\ne \"Todos\" sempre branco, porque somar tudo não é sinal de nada.\n\nCartão zerado NÃO é mais esmaecido — todos têm a mesma tonalidade.",
@@ -6207,7 +6207,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "0d8acd5693abba2abe9b8f2962b36ba3"
   },
   {
-    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:54974",
+    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:54985",
     "kind": "rule",
     "title": "Regra em RecordsWorkspace.tsx",
     "content": "O CARTÃO DO IMÓVEL EM DOIS ANDARES (mockup B, aprovado 10/09/2026).\n\nAntes era uma fileira de quadrados cinzentos com um ponto de 6px: um dano\nsem conserto e uma foto de auditoria eram visualmente o mesmo quadrado. O\ncartão passa a admitir que há duas naturezas ali dentro —\n\n A RESOLVER o que abriu pendência e ela ainda está de pé (dano,\n manutenção, objeto esquecido). Vira LINHA, com título\n legível, porque é trabalho e trabalho precisa de nome.\n REGISTROS o resto. Continua miniatura, porque é prova.\n\nSem nada em aberto o primeiro andar não existe e o cartão fica igual ao de\nantes — a mesma regra de sempre: o aviso só aparece quando há aviso.",
@@ -6216,7 +6216,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "1bede5e40def9ea40c009fa805397bcc"
   },
   {
-    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:55701",
+    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:55712",
     "kind": "rule",
     "title": "Regra em RecordsWorkspace.tsx",
     "content": "A FAIXA LATERAL DO CARTÃO DO IMÓVEL (pedido explícito, 10/09/2026).\n\nMesma barra de 3px dos cards do Kanban, mas dizendo outra coisa: aqui ela\nresponde \"o que mais tem neste imóvel?\" antes de a pessoa ler qualquer\nlinha. A cor é a da CATEGORIA MAIS FREQUENTE entre os registros daquele\nimóvel, com UMA exceção pedida pelo cliente:\n\n \"só nunca usar a cor da auditoria de limpeza quando tiver registro de\n outras categorias junto. só usar a cor da auditoria da limpeza quando só\n tiver isso no imóvel\"\n\nFaz sentido: auditoria é ROTINA — todo imóvel limpo gera vídeo, então ela\nganharia quase sempre na contagem e a faixa viraria uma fileira roxa que não\ninforma nada. Tirando-a da disputa, a faixa passa a mostrar o que exige\natenção; roxo então significa exatamente \"aqui só há prova de limpeza, nada\npendente\".\n\nEmpate: vence a mais grave — dano, depois manutenção, depois esquecidos,\ndepois outros.",
@@ -6225,7 +6225,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "ac3013773b1e44cf4e096d38a8c66d5a"
   },
   {
-    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:56667",
+    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:56678",
     "kind": "rule",
     "title": "Regra em RecordsWorkspace.tsx",
     "content": "O DEGRADÊ MORA DENTRO DA BARRA (pedido explícito, 10/09/2026).\n\nA primeira tentativa deixava a cor sangrar para dentro do cartão e o\ncliente cortou na hora: \"eu não quero que a cor vaze para o quadrante, eu\nsó quero que o efeito da barra conceda uma leveza na cor, sem torná-la\ngritante\".\n\nEntão a faixa continua sendo SÓ a faixa — nada invade o conteúdo. O que\nmudou é que ela deixou de ser um bloco chapado: cheia na quina de fora e\ndissolvendo até quase transparente do lado de dentro. De longe continua\ndizendo a cor; de perto é um fio de luz, não um adesivo.\n\nDois botões de ajuste, se quiser calibrar: a LARGURA (`w-[4px]`) e a\nOPACIDADE das duas pontas do degradê.",
@@ -6441,7 +6441,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "d8d103f972a9c212fdf3caff1c946ead"
   },
   {
-    "doc_key": "rule:src/components/ui/dialog.tsx:1872",
+    "doc_key": "rule:src/components/ui/dialog.tsx:2001",
     "kind": "rule",
     "title": "Regra em dialog.tsx",
     "content": "JANELA \"COMO PÁGINA\" (regra global, 22/10/2026): no tablet e no celular (abaixo de `lg`) a\njanela NÃO é tela cheia — fica logo abaixo do cabeçalho do sistema (60px + 20px de respiro),\ncom 10px nas laterais, sem \"X\": quem fecha é o \"Voltar\" no canto superior direito, na mesma\nlinha da data (`DialogDateRow`). No computador (lg+) segue centralizada, com o \"X\" de canto.\nJanelas pequenas (confirmações, menus, passos) NÃO usam esta prop e mantêm o \"X\".",
@@ -6450,7 +6450,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "bfd4a5d88d8cf5ea3dff86d396221039"
   },
   {
-    "doc_key": "rule:src/components/ui/dialog.tsx:2537",
+    "doc_key": "rule:src/components/ui/dialog.tsx:2666",
     "kind": "rule",
     "title": "Regra em dialog.tsx",
     "content": "\"VOLTAR\" DE CANTO (11/11/2026, regra do sistema inteiro): quando a ação da janela é voltar (detalhe →\nlista na MESMA janela), informe `onBack`. A aba do canto superior direito vira \"‹ Voltar\" no lugar do\n\"X\" (o cabeçalho reserva `pr-24`). Sem `onBack`, o \"X\" de sempre.",
@@ -9274,6 +9274,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/tela-cheia.ts",
     "audience": [],
     "content_hash": "9d3fffbd67a92d9b0240b59a7d358147"
+  },
+  {
+    "doc_key": "rule:TelaCheiaTop",
+    "kind": "rule",
+    "title": "Regra — TelaCheiaTop",
+    "content": "TOPO DA JANELA DE TELA CHEIA NO CELULAR (mockup \"TelaCheia-01/02\" opção A, aprovado em 22/11/2026: \"sempre\no botão voltar, e exatamente nessa posição\"). Repete o cabeçalho do sistema (menu, marca e tema) e, logo\nabaixo, a data dourada com o \"‹ Voltar\" à direita — o título e o subtítulo da própria janela vêm em seguida,\nno tamanho do título de página (ver `.sg-tela-cheia` em styles.css). Só aparece abaixo de `lg`.\n\"‹ Voltar\" volta uma camada (`onBack`) ou fecha a janela. O menu fecha a janela e abre o menu lateral.",
+    "source_path": "src/components/ui/tela-cheia-top.tsx",
+    "audience": [],
+    "content_hash": "8171d574f17ee15a3ee69131c24c69d5"
   },
   {
     "doc_key": "rule:TelemetryLearningTools",

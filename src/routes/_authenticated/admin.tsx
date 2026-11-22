@@ -3,6 +3,7 @@ import { StageOutboxRunner } from "@/components/dashboard/StageOutboxRunner";
 import { createFileRoute, Outlet, Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { LogOut, LayoutDashboard, Settings2, Menu, Users, Shield, Activity, Star, Headphones, Wrench, Home, Contact, Cpu, ChevronsLeft, ChevronsRight, Plus, Minus } from "lucide-react";
 import conciergeLogo from "@/assets/concierge-logo.png";
+import { ABRIR_MENU_EVENT } from "@/components/ui/tela-cheia-top";
 import { LiveSync, useFallbackInterval } from "@/components/LiveSync";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { supabase } from "@/integrations/supabase/client";
@@ -127,6 +128,12 @@ function AdminLayout() {
   const { isAdmin, isLoading: adminLoading } = useIsAdmin();
   const [email, setEmail] = useState<string>("");
   const [open, setOpen] = useState(false);
+  // O "menu" da barra repetida nas janelas de tela cheia fecha a janela e pede o menu lateral (22/11/2026).
+  useEffect(() => {
+    const abrir = () => setOpen(true);
+    window.addEventListener(ABRIR_MENU_EVENT, abrir);
+    return () => window.removeEventListener(ABRIR_MENU_EVENT, abrir);
+  }, []);
   // Recolher o menu lateral (só desktop — no mobile o menu já é um overlay
   // que abre/fecha por cima, "recolher" não se aplica lá). Lembra a escolha
   // entre sessões.

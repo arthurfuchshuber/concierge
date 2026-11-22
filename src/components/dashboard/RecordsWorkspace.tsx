@@ -1036,7 +1036,7 @@ function CategoryPendingDialog({
           <DialogTitle className="truncate text-sm font-bold leading-5">
             {meta?.short ?? "Pendências"}
           </DialogTitle>
-          <div className="!mt-0 text-xs leading-4 text-muted-foreground">
+          <div className="sg-win-sub !mt-0 text-xs leading-4 text-muted-foreground">
             {q.isLoading
               ? "Carregando…"
               : `${total} ${total === 1 ? "pendência" : "pendências"} · ${ownerCount} ${

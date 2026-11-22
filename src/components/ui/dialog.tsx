@@ -9,6 +9,8 @@ import { ChevronLeft, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CORNER_BACK_CLASS, CORNER_CLOSE_CLASS, CORNER_COVER_BACK_CLASS, CORNER_COVER_CLOSE_CLASS } from "@/components/ui/corner-close";
 import { ownsScroll, splitWindowChildren, WindowBody } from "@/components/ui/window-body";
+import { hojeExtenso, TelaCheiaTop } from "@/components/ui/tela-cheia-top";
+import { TELA_CHEIA_QUERY } from "@/lib/tela-cheia";
 
 const Dialog = DialogPrimitive.Root;
 
@@ -67,7 +69,10 @@ const DialogContent = React.forwardRef<
   const [layerRef, layerNodeRef] = useOverlayLayer("window", useAntiClipWindow(ref));
   // Janela de TELA CHEIA (`TELA_CHEIA_CLASS`, 22/11/2026) vence a "como página": no celular ela ocupa o
   // aparelho inteiro, então as classes de página (abaixo do cabeçalho, 10px nas laterais) não entram.
-  if (pageLike && /(^|\s)sg-tela-cheia(\s|$)/.test(className ?? "")) pageLike = false;
+  const telaCheia = /(^|\s)sg-tela-cheia(\s|$)/.test(className ?? "");
+  if (pageLike && telaCheia) pageLike = false;
+  // Topo de página (barra do sistema + data + "‹ Voltar") nas janelas de tela cheia sem foto de capa.
+  const top = telaCheia && !cover ? <TelaCheiaTop onBack={onBack} /> : null;
   const wrapBody = !ownsScroll(className);
   const split = splitWindowChildren(children);
   return (
@@ -76,6 +81,7 @@ const DialogContent = React.forwardRef<
       <DialogPrimitive.Content
         ref={layerNodeRef}
         data-page-like={pageLike ? "" : undefined}
+        data-cover={cover ? "" : undefined}
         className={cn(
           // Teto de ~75% da altura da tela (pedido explícito, 24/09/2026),
           // ainda descontando o teclado (`--kb-inset`) e a margem de 3rem —
@@ -98,17 +104,29 @@ const DialogContent = React.forwardRef<
           e.preventDefault();
           onBack();
         }}
+        /* Tela cheia no celular: o foco inicial vai para a própria janela, não para o botão de menu da barra
+           (senão ele abre com o anel de foco). */
+        onOpenAutoFocus={(e) => {
+          props.onOpenAutoFocus?.(e);
+          if (e.defaultPrevented || !top || !window.matchMedia?.(TELA_CHEIA_QUERY).matches) return;
+          e.preventDefault();
+          (e.currentTarget as HTMLElement | null)?.focus?.({ preventScroll: true });
+        }}
         onPointerDownOutside={guardNestedOutside(layerRef, props.onPointerDownOutside)}
         onInteractOutside={guardNestedOutside(layerRef, props.onInteractOutside)}
       >
         {wrapBody ? (
           <>
+            {top}
             {split.head}
             {split.body.length > 0 ? <WindowBody>{split.body}</WindowBody> : null}
             {split.foot.length > 0 ? <div data-window-foot className="contents">{split.foot}</div> : null}
           </>
         ) : (
-          children
+          <>
+            {top}
+            {children}
+          </>
         )}
         {onBack ? (
           <button type="button" data-window-back onClick={onBack} className={cover ? CORNER_COVER_BACK_CLASS : CORNER_BACK_CLASS}>
@@ -140,16 +158,9 @@ DialogContent.displayName = DialogPrimitive.Content.displayName;
  * reserva 40px à direita para nunca ficar embaixo dele.
  */
 const DialogDateRow = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => {
-  const hoje = new Date()
-    .toLocaleDateString("pt-BR", {
-      timeZone: "America/Sao_Paulo",
-      weekday: "long",
-      day: "numeric",
-      month: "long",
-    })
-    .replace(/^\w/, (c) => c.toUpperCase());
+  const hoje = hojeExtenso();
   return (
-    <div className={cn("flex min-w-0 items-center justify-between gap-3 pr-10", className)} {...props}>
+    <div data-dialog-date-row className={cn("flex min-w-0 items-center justify-between gap-3 pr-10", className)} {...props}>
       <p className="ds-eyebrow ds-data truncate text-[10.5px] leading-[22px] tracking-[0.2em]">
         {hoje}
       </p>
@@ -159,7 +170,7 @@ const DialogDateRow = ({ className, ...props }: React.HTMLAttributes<HTMLDivElem
 DialogDateRow.displayName = "DialogDateRow";
 
 const DialogHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
-  <div className={cn("flex flex-col space-y-0.5 text-left pr-12", className)} {...props} />
+  <div className={cn("sg-win-head flex flex-col space-y-0.5 text-left pr-12", className)} {...props} />
 );
 
 DialogHeader.displayName = "DialogHeader";
@@ -182,7 +193,7 @@ const DialogTitle = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <DialogPrimitive.Title
     ref={ref}
-    className={cn("text-lg font-semibold leading-none tracking-tight", className)}
+    className={cn("sg-win-title text-lg font-semibold leading-none tracking-tight", className)}
     {...props}
   />
 ));
@@ -194,7 +205,7 @@ const DialogDescription = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <DialogPrimitive.Description
     ref={ref}
-    className={cn("text-sm text-muted-foreground", className)}
+    className={cn("sg-win-sub text-sm text-muted-foreground", className)}
     {...props}
   />
 ));
