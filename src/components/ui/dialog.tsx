@@ -71,8 +71,9 @@ const DialogContent = React.forwardRef<
   // aparelho inteiro, então as classes de página (abaixo do cabeçalho, 10px nas laterais) não entram.
   const telaCheia = /(^|\s)sg-tela-cheia(\s|$)/.test(className ?? "");
   if (pageLike && telaCheia) pageLike = false;
-  // Topo de página (barra do sistema + data + "‹ Voltar") nas janelas de tela cheia sem foto de capa.
-  const top = telaCheia && !cover ? <TelaCheiaTop onBack={onBack} /> : null;
+  // Topo de página (barra do sistema + data + "‹ Voltar") em TODA janela de tela cheia, com ou sem foto de capa
+  // (com capa, a foto vem logo abaixo e perde a aba de canto).
+  const top = telaCheia ? <TelaCheiaTop onBack={onBack} /> : null;
   const wrapBody = !ownsScroll(className);
   const split = splitWindowChildren(children);
   return (

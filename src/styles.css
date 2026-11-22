@@ -1679,17 +1679,20 @@ html[data-kb] [role="dialog"]:not([data-page-like]) [data-window-foot] {
   [role="dialog"].sg-tela-cheia::before {
     display: none;
   }
+  [role="dialog"].sg-tela-cheia:focus {
+    outline: none;
+  }
   [role="dialog"].sg-tela-cheia > [data-window-close],
   [role="dialog"].sg-tela-cheia > [data-window-back] {
     border-top-right-radius: 0 !important;
   }
   /* TOPO DE PÁGINA (opção A aprovada, 22/11/2026): a barra do sistema + data + "‹ Voltar" vêm do
      `TelaCheiaTop`; some a aba de canto, some a data repetida da janela e o cabeçalho próprio da janela
-     vira o título/subtítulo de página (18px / 13,5px) no fundo da página. Janelas com foto de capa ficam
-     como estão. */
-  [role="dialog"].sg-tela-cheia:not([data-cover]) > [data-window-close],
-  [role="dialog"].sg-tela-cheia:not([data-cover]) > [data-window-back],
-  [role="dialog"].sg-tela-cheia:not([data-cover]) [data-dialog-date-row] {
+     vira o título/subtítulo de página (18px / 13,5px) no fundo da página. Nas janelas com foto de capa o
+     topo vem acima da foto e o título continua sobre ela (22/11/2026: "implemente em todo o sistema"). */
+  [role="dialog"].sg-tela-cheia > [data-window-close],
+  [role="dialog"].sg-tela-cheia > [data-window-back],
+  [role="dialog"].sg-tela-cheia [data-dialog-date-row] {
     display: none;
   }
   [role="dialog"].sg-tela-cheia:not([data-cover]) .sg-win-head {
