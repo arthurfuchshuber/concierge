@@ -211,7 +211,7 @@ function Row({ label, children, struck }: { label: string; children: React.React
       <span className="shrink-0 text-[#8f8781]">{label}</span>
       <span
         className={`flex min-w-0 items-center gap-1.5 truncate text-right ${
-          struck ? "font-medium text-[#8f8781] line-through decoration-[1.5px]" : "font-semibold text-[#f4efea]"
+          struck ? "font-medium text-[#8f8781] line-through decoration-[1.5px]" : "font-semibold text-foreground"
         }`}
       >
         {children}

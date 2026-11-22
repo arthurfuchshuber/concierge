@@ -1685,6 +1685,14 @@ html[data-kb] [role="dialog"]:not([data-page-like]) [data-window-foot] {
   }
 }
 
+/* ANTICORTE x ENCAIXE DA ROLAGEM (22/11/2026, "Mais registros do imóvel" no celular): numa lista `snap-y` em
+   que o primeiro card vem depois de um rótulo de seção, o navegador "encaixava" a lista no primeiro card ao
+   abrir (rolava ~24px), escondia o rótulo e deixava o card de baixo cortado. O topo da lista também é ponto de
+   encaixe, então ela abre parada no início e a regra anticorte vale. */
+.snap-y > :first-child {
+  scroll-snap-align: start;
+}
+
 /* Ponto de atraso na borda superior do card (Kanban) — mockup A, 18/10/2026. */
 .late-dot__core {
   position: relative;

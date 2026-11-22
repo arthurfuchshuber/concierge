@@ -988,7 +988,7 @@ export function ReservationRecordsDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className={cn("w-[calc(100vw-2rem)] overflow-hidden p-0 sm:w-full sm:max-w-md", TELA_CHEIA_CLASS)}>
+        <DialogContent className={cn("flex w-[calc(100vw-2rem)] flex-col overflow-hidden p-0 sm:w-full sm:max-w-md", TELA_CHEIA_CLASS)}>
           <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
           <DialogHeader className="border-b border-border/40 px-4 pb-2.5 pt-3 pr-12 text-left">
             <DialogTitle className="truncate text-sm font-bold leading-5 text-foreground">
@@ -1053,7 +1053,8 @@ export function ReservationRecordsDialog({
             </div>
           )}
 
-          <div className="sg-elegant-scroll max-h-[44vh] overflow-y-auto bg-secondary/10 px-3 py-3">
+          {/* Tela cheia no celular (22/11/2026): a lista ocupa o espaço livre e o campo de registro fica colado embaixo. */}
+          <div className="sg-elegant-scroll min-h-0 overflow-y-auto bg-secondary/10 px-3 py-3 max-lg:flex-1 lg:max-h-[44vh]">
             {q.isLoading ? (
               <div className="grid place-items-center py-10 text-muted-foreground">
                 <Loader2 className="size-5 animate-spin" />
