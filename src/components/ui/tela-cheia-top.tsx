@@ -2,6 +2,7 @@ import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { ChevronLeft, Menu } from "lucide-react";
 import conciergeLogo from "@/assets/concierge-logo.png";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { cn } from "@/lib/utils";
 
 /** Data dourada das páginas ("Domingo, 22 de novembro"), a mesma do `PageShell`/`DialogDateRow`. */
 export function hojeExtenso(): string {
@@ -46,14 +47,16 @@ export function TelaCheiaTop({ onBack }: { onBack?: () => void }) {
         </span>
         <ThemeToggle />
       </div>
-      <div className="flex min-w-0 items-center justify-between gap-3 px-4 pt-[18px]">
-        <p className="ds-eyebrow ds-data truncate text-[10.5px] leading-[26px] tracking-[0.2em]">{hojeExtenso()}</p>
+      {/* Data no MESMO lugar da página (20px abaixo da barra, 14px da lateral, linha de 12,6px); o "‹ Voltar"
+          flutua à direita, centrado na linha da data, sem empurrar o título (6px abaixo, como na página). */}
+      <div className="relative px-[14px] pt-5">
+        <p className="ds-eyebrow ds-data truncate pr-24 text-[10.5px] tracking-[0.2em]">{hojeExtenso()}</p>
         {onBack ? (
-          <button type="button" data-window-back onClick={onBack} className={VOLTAR_CLASS}>
+          <button type="button" data-window-back onClick={onBack} className={cn(VOLTAR_CLASS, "absolute right-[14px] top-[13px]")}>
             {voltar}
           </button>
         ) : (
-          <DialogPrimitive.Close data-window-close className={VOLTAR_CLASS}>
+          <DialogPrimitive.Close data-window-close className={cn(VOLTAR_CLASS, "absolute right-[14px] top-[13px]")}>
             {voltar}
           </DialogPrimitive.Close>
         )}

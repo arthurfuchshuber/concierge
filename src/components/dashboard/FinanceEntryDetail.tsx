@@ -330,7 +330,7 @@ export function FinanceEntryDetail({
         )}
         <p className={WINDOW_SUBTITLE_CLASS}>{subtitle}</p>
       </DialogHeader>
-      <div className={cn("sg-elegant-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain sm:mx-6", FIN_BODY)}>
+      <div data-entry-detail className={cn("sg-elegant-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain sm:mx-6", FIN_BODY)}>
         {imovel}
         {ext ? (
           <>
@@ -561,7 +561,7 @@ function ReservationDetailView({ r, property, owner }: { r: FinanceReservation; 
           {nights ? `Reserva · ${nights} ${nights === 1 ? "noite" : "noites"}` : "Reserva"}
         </p>
       </DialogHeader>
-      <div className={cn("sg-elegant-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain sm:mx-6", FIN_BODY)}>
+      <div data-entry-detail className={cn("sg-elegant-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain sm:mx-6", FIN_BODY)}>
         <PropertyContextCard name={property} owner={owner} />
         <div className={FIN_CARD}>
           <div className={FIN_CAP}>Hóspede</div>

@@ -179,10 +179,6 @@ export function PropertyPendingWindow({
   );
 }
 
-const SECTION =
-  "flex items-center gap-2 px-4 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground";
-const Hair = () => <i className="h-px flex-1 bg-foreground/[0.08]" />;
-
 function ListView({
   tab,
   setTab,
@@ -219,18 +215,14 @@ function ListView({
   );
   return (
     <>
-      <div className="flex shrink-0 gap-1 border-b border-[var(--panel-div)] px-4 py-2.5">
+      <div data-cover-tabs className="flex shrink-0 gap-1 border-b border-[var(--panel-div)] px-4 py-2.5">
         {tabBtn("pend", "Pendências", pending.length)}
         {tabBtn("rec", "Recorrências", recCount)}
       </div>
-      <div className="sg-elegant-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain pb-3">
+      <div data-card-list className="sg-elegant-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain pb-3">
         {tab === "pend" ? (
           <>
-            <div className={SECTION}>
-              <Hair />
-              <span>Abertas · {pending.length}</span>
-              <Hair />
-            </div>
+            {/* Sem o rótulo "Abertas" (pedido explícito, 22/11/2026: só "Concluídas" leva rótulo). */}
             {pending.length === 0 && (
               <p className="px-4 py-6 text-center text-sm text-muted-foreground">Nenhuma pendência em aberto.</p>
             )}
@@ -266,11 +258,6 @@ function ListView({
             )}
             {active.length > 0 && (
               <>
-                <div className={SECTION}>
-                  <Hair />
-                  <span>Ativas · {active.length}</span>
-                  <Hair />
-                </div>
                 {active.map((s, i) => (
                   <SeriesRow key={s.id} s={s} first={i === 0} onDetail={() => onDetail(s.id)} />
                 ))}
@@ -278,11 +265,6 @@ function ListView({
             )}
             {paused.length > 0 && (
               <>
-                <div className={SECTION}>
-                  <Hair />
-                  <span>Pausadas · {paused.length}</span>
-                  <Hair />
-                </div>
                 {paused.map((s, i) => (
                   <SeriesRow key={s.id} s={s} first={i === 0} muted onDetail={() => onDetail(s.id)} />
                 ))}

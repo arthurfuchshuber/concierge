@@ -9431,7 +9431,8 @@ function EngagementBreakdownDialog({
             singular/plural, recuo de 16px nas laterais. */}
         <DialogHeader className={WINDOW_HEADER_CLASS}>
           {/* pr-12 no header: reserva espaço pro botão "X" de fechar do Dialog. */}
-          <div className="flex items-center justify-between gap-3">
+          {/* Celular (tela cheia, 22/11/2026): o percentual fica logo depois do título. */}
+          <div className="flex items-center gap-2.5 lg:justify-between lg:gap-3">
             <DialogTitle className={cn("min-w-0", WINDOW_TITLE_CLASS)}>{windowTitle(engagementWindowTitle(label))}</DialogTitle>
             <span className="shrink-0 rounded-full bg-emerald-500/15 px-2.5 py-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
               {pct}%
@@ -9441,7 +9442,7 @@ function EngagementBreakdownDialog({
             {value} de {total} {total === 1 ? "check-in" : "check-ins"}
           </div>
           {todayOnly && (
-            <span className="mt-2 inline-flex h-[22px] w-fit items-center rounded-full border border-amber-500/30 bg-amber-500/[0.14] px-2.5 text-[11px] font-bold text-amber-600 dark:text-amber-300">
+            <span className="mt-2 inline-flex h-[22px] w-fit items-center rounded-full border border-amber-500/30 bg-amber-500/[0.14] px-2.5 text-[11px] font-bold text-amber-600 max-lg:h-auto max-lg:border-0 max-lg:bg-transparent max-lg:px-0 dark:text-amber-300">
               Entradas Pendentes de Hoje!
             </span>
           )}

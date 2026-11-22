@@ -1686,34 +1686,108 @@ html[data-kb] [role="dialog"]:not([data-page-like]) [data-window-foot] {
   [role="dialog"].sg-tela-cheia > [data-window-back] {
     border-top-right-radius: 0 !important;
   }
-  /* TOPO DE PÁGINA (opção A aprovada, 22/11/2026): a barra do sistema + data + "‹ Voltar" vêm do
-     `TelaCheiaTop`; some a aba de canto, some a data repetida da janela e o cabeçalho próprio da janela
-     vira o título/subtítulo de página (18px / 13,5px) no fundo da página. Nas janelas com foto de capa o
-     topo vem acima da foto e o título continua sobre ela (22/11/2026: "implemente em todo o sistema"). */
+  /* JANELA IGUAL À PÁGINA (mockups TelaCheia-03..07 aprovados, 22/11/2026: "um modelo idêntico ao original,
+     sem mexer nas informações, só no layout"). O topo (barra do sistema + data + "‹ Voltar") vem do
+     `TelaCheiaTop`; aqui a janela ganha o fundo da página e o MESMO ritmo do cabeçalho da página
+     (`ds-page-heading`: data → 6px → título 18px/28px → 6px → subtítulo 13,5px), margens laterais de 14px,
+     o conteúdo a 24px do cabeçalho e os itens das listas como os cards da página (10px entre eles). */
+  [role="dialog"].sg-tela-cheia {
+    background: var(--background);
+  }
+  [role="dialog"].sg-tela-cheia > div.absolute.top-0.h-px,
   [role="dialog"].sg-tela-cheia > [data-window-close],
   [role="dialog"].sg-tela-cheia > [data-window-back],
   [role="dialog"].sg-tela-cheia [data-dialog-date-row] {
     display: none;
   }
-  [role="dialog"].sg-tela-cheia:not([data-cover]) .sg-win-head {
-    min-height: 0;
-    margin-left: 0;
-    margin-right: 0;
-    padding: 6px 16px 14px;
-    background: var(--background);
-    border-bottom: 1px solid var(--border);
+  [role="dialog"].sg-tela-cheia [class*="bg-[var(--panel)]"] {
+    background-color: var(--card-surface);
   }
-  [role="dialog"].sg-tela-cheia:not([data-cover]) .sg-win-head .sg-win-title:not(.sr-only) {
+  [role="dialog"].sg-tela-cheia .sg-win-head {
+    min-height: 0;
+    margin: var(--ds-heading-gap, 6px) 0 0;
+    padding: 0 14px;
+    background: transparent;
+    border-bottom: 0;
+  }
+  [role="dialog"].sg-tela-cheia .sg-win-head > * {
+    margin-block: 0;
+  }
+  [role="dialog"].sg-tela-cheia .sg-win-head .sg-win-title:not(.sr-only) {
     font-family: var(--font-display);
     font-size: 18px;
     font-weight: 700;
-    line-height: 22px;
+    line-height: 28px;
     letter-spacing: -0.02em;
   }
-  [role="dialog"].sg-tela-cheia:not([data-cover]) .sg-win-head .sg-win-sub {
-    margin-top: 5px;
+  [role="dialog"].sg-tela-cheia .sg-win-head .sg-win-sub {
+    margin-top: var(--ds-heading-gap, 6px);
     font-size: 13.5px;
-    line-height: 19px;
+    line-height: 1.45;
+    color: var(--muted-foreground);
+  }
+  [role="dialog"].sg-tela-cheia .sg-win-head > .sg-win-sub ~ * {
+    margin-top: var(--ds-heading-gap, 6px);
+  }
+  /* Conteúdo logo depois do cabeçalho: 24px abaixo, 14px nas laterais (a margem e não o padding de cima,
+     para o encaixe da rolagem não esconder o respiro). */
+  [role="dialog"].sg-tela-cheia .sg-win-head + .sg-elegant-scroll {
+    margin: 24px 0 0;
+    padding: 0 14px 16px;
+    scrollbar-gutter: auto;
+  }
+  [role="dialog"].sg-tela-cheia .sg-win-head + .mx-4 {
+    margin: 24px 14px 0;
+  }
+  [role="dialog"].sg-tela-cheia .sg-win-head + .mx-4 + .sg-elegant-scroll {
+    margin-top: 10px;
+    padding: 0 14px 16px;
+    scrollbar-gutter: auto;
+  }
+  /* Lista do Financeiro (Limpezas/Extras): cada lançamento vira um card. */
+  [role="dialog"].sg-tela-cheia .sg-elegant-scroll > .-mx-4 {
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  [role="dialog"].sg-tela-cheia .sg-elegant-scroll > .-mx-4 > div {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--card-surface);
+    padding: 14px;
+  }
+  /* Detalhe do lançamento: blocos a 10px um do outro, como os cards da página. */
+  [role="dialog"].sg-tela-cheia [data-entry-detail] {
+    gap: 10px;
+  }
+  [role="dialog"].sg-tela-cheia [data-entry-detail] > * {
+    margin: 0;
+  }
+  /* Janelas com foto: a foto vira um card logo abaixo da data; abas e lista nas margens da página. */
+  [role="dialog"].sg-tela-cheia[data-cover] [data-tela-cheia-top] + * {
+    margin: 10px 14px 0;
+    border-radius: 12px;
+  }
+  [role="dialog"].sg-tela-cheia [data-cover-tabs] {
+    border-bottom: 0;
+    padding: 24px 14px 0;
+  }
+  [role="dialog"].sg-tela-cheia [data-card-list] {
+    padding: 14px 14px 16px;
+    scrollbar-gutter: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  [role="dialog"].sg-tela-cheia [data-card-list] > [data-clip-row] {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--card-surface);
+    padding: 12px 14px;
+  }
+  [role="dialog"].sg-tela-cheia [data-card-list] > [data-list-divider] {
+    padding: 4px 0 0;
   }
 }
 

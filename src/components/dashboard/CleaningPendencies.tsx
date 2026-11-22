@@ -275,8 +275,8 @@ function CleaningPendenciesWindow({
 
           {!detail ? (
             <>
-              <div className="sg-elegant-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain pb-2.5">
-                <Divider>Abertas · {open.length}</Divider>
+              {/* Sem o rótulo "Abertas" (pedido explícito, 22/11/2026: só "Concluídas" leva rótulo). */}
+              <div data-card-list className="sg-elegant-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain pb-2.5">
                 {open.map((t, i) => (
                   <Item
                     key={t.id}
@@ -361,7 +361,7 @@ function CleaningPendenciesWindow({
 
 function Divider({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex min-w-0 items-center gap-3 px-[18px] pb-2 pt-3.5">
+    <div data-list-divider className="flex min-w-0 items-center gap-3 px-[18px] pb-2 pt-3.5">
       <span aria-hidden className="h-px flex-1 bg-gradient-to-l from-foreground/[0.14] to-transparent" />
       <span className="flex-none text-[10px] font-bold uppercase leading-[1.2] tracking-[0.18em] text-[var(--faint,var(--muted-foreground))]">
         {children}
