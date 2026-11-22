@@ -203,7 +203,7 @@ export function FinanceEntryDetail({
 
   const imovel = (
     <div className={FIN_CARD}>
-      <div className="truncate text-[14px] font-bold leading-5 text-foreground" title={it.propertyName}>
+      <div className="ds-card-title leading-5 text-foreground" title={it.propertyName}>
         {it.propertyName}
       </div>
       {it.ownerName ? (

@@ -525,7 +525,7 @@ export function OwnerPropertiesList({
                     <span className="flex min-w-0 items-start gap-1">
                       <ClampName
                         text={p.name}
-                        className="min-w-0 flex-1 text-[14.5px] font-extrabold leading-tight"
+                        className="min-w-0 flex-1 font-display text-[13.5px] font-bold leading-tight"
                       />
                       <Link
                         to="/admin/playbook/$id"

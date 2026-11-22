@@ -11,7 +11,7 @@ export type GeneratedSystemDoc = {
   content_hash: string;
 };
 
-export const GENERATED_AT = "2026-11-19T19:21:08.903Z";
+export const GENERATED_AT = "2026-11-22T16:43:28.659Z";
 
 export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
   {
@@ -499,6 +499,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/dashboard.functions.ts",
     "audience": [],
     "content_hash": "1d55e9a1a9530b8f795f100ead60fc4d"
+  },
+  {
+    "doc_key": "rule:amenityDetails",
+    "kind": "rule",
+    "title": "Regra — amenityDetails",
+    "content": "Detalhes (metadados e cômodos atendidos) das comodidades PRESENTES e rol das AUSENTES.\nComodidade sem detalhe algum não gera linha: a presença já vem pelo nome do anúncio público.",
+    "source_path": "src/lib/airbnb-host-api.ts",
+    "audience": [],
+    "content_hash": "b663600d7c2b12d6961b8ffb2ebacd64"
   },
   {
     "doc_key": "rule:anonKey",
@@ -1626,6 +1635,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "489ba8cf43b801dc3d78af3ffa5a7514"
   },
   {
+    "doc_key": "rule:CREDENTIAL_TOKENS",
+    "kind": "rule",
+    "title": "Regra — CREDENTIAL_TOKENS",
+    "content": "Dentre eles, o que é CREDENCIAL (código, PIN, senha, segredo): nunca vira fato. Credencial só chega ao hóspede\npela D9 (`CredentialGrant`, com janela de liberação e vetos de no-show/checkout); um fato G a entregaria fora dela.",
+    "source_path": "src/lib/airbnb-host-api.ts",
+    "audience": [],
+    "content_hash": "a4cbf4041070df14943a1116464db51b"
+  },
+  {
     "doc_key": "rule:CX",
     "kind": "rule",
     "title": "Regra — CX",
@@ -1878,6 +1896,24 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "33ea736d9c771210edf2d587b0e6e805"
   },
   {
+    "doc_key": "rule:discoverChannexFacts",
+    "kind": "rule",
+    "title": "Regra — discoverChannexFacts",
+    "content": "Auto-descoberta da Channex (titular, 19/11/2026): varre `listing_meta` e `raw_settings` (até 3 níveis) e transforma toda\nchave ainda não mapeada, com valor primitivo útil, em `extra_channex_<caminho>`. Credenciais e ruído técnico ficam de fora;\na etiqueta (P/G) sai de `dynamicFactAudience`.",
+    "source_path": "src/lib/airbnb-host-api.ts",
+    "audience": [],
+    "content_hash": "0da3307c510b1f628b9d1056d7303a50"
+  },
+  {
+    "doc_key": "rule:discoverDynamicHostFacts",
+    "kind": "rule",
+    "title": "Regra — discoverDynamicHostFacts",
+    "content": "Varre o primeiro e o segundo nível de `listing` e de `property_details`. Para cada chave nova com valor\nprimitivo útil (texto, número, booleano ou lista simples) gera `extra_<chave>`. Credenciais não viram fato.",
+    "source_path": "src/lib/airbnb-host-api.ts",
+    "audience": [],
+    "content_hash": "ab2c23a51756dfba502ec8f968122dab"
+  },
+  {
     "doc_key": "rule:DraftKind",
     "kind": "rule",
     "title": "Regra — DraftKind",
@@ -1912,6 +1948,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/app-version.ts",
     "audience": [],
     "content_hash": "d1841ec815ec16d2ca28f2af84737e0b"
+  },
+  {
+    "doc_key": "rule:DYNAMIC_FACT_PREFIX",
+    "kind": "rule",
+    "title": "Regra — DYNAMIC_FACT_PREFIX",
+    "content": "Fatos descobertos sozinhos (`extra_*`, de `discoverDynamicHostFacts`) não estão em lista nenhuma: a\netiqueta sai da chave. Termo de acesso/trajeto (chave, lock, gate, portão, rota, trajeto…) = G; o resto = P.",
+    "source_path": "src/lib/guest-ai/data/listing-normalized.ts",
+    "audience": [],
+    "content_hash": "210829c324f0e48fdd3977158e574d67"
   },
   {
     "doc_key": "rule:earliestCleaningQ",
@@ -2380,6 +2425,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/components/dashboard/filter-panel.tsx",
     "audience": [],
     "content_hash": "25e9abb3c32a7ee99b4e61ff27b636a3"
+  },
+  {
+    "doc_key": "rule:floorLabelOf",
+    "kind": "rule",
+    "title": "Regra — floorLabelOf",
+    "content": "Andar no formato do campo `apartment_floor` (regra do titular, 19/11/2026). No Airbnb `listing_floor: 1`\né o primeiro pavimento e só é \"Térreo\" em imóvel de um pavimento; em prédio/condomínio é \"1º andar\".\n - 0 → \"Térreo\";\n - 1 → \"Térreo\" se `number_of_floors === 1`; \"1º andar\" se > 1; sem o dado, \"1º andar\" só em apartamento/condomínio;\n - ≥ 2 → \"<n>º andar\".",
+    "source_path": "src/lib/airbnb-host-api.ts",
+    "audience": [],
+    "content_hash": "ef6db10f789484de3ab16b2ece2d1419"
   },
   {
     "doc_key": "rule:fmtSync",
@@ -4128,6 +4182,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "4014523b880401b4aad00aa939548a77"
   },
   {
+    "doc_key": "rule:plainGuideTags",
+    "kind": "rule",
+    "title": "Regra — plainGuideTags",
+    "content": "Texto puro para a IA: `[[tag:...]]` vira \"Guia Digital (rótulo)\" e `[[info:...]]` vira só o rótulo.\nNunca resolve valores (podem ser credenciais); o texto cru com colchetes não chega ao modelo.",
+    "source_path": "src/lib/guide-tags.ts",
+    "audience": [],
+    "content_hash": "088b00912764b5c4b0d1814f30834749"
+  },
+  {
     "doc_key": "rule:planBlockMerge",
     "kind": "rule",
     "title": "Regra — planBlockMerge",
@@ -4774,6 +4837,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/permissions/permission.enforce.server.ts",
     "audience": [],
     "content_hash": "7c028baaf21a7715c3cd4284a0d953f2"
+  },
+  {
+    "doc_key": "rule:RESERVATION_ONLY_FACTS",
+    "kind": "rule",
+    "title": "Regra — RESERVATION_ONLY_FACTS",
+    "content": "Etiqueta de audiência dos fatos do anúncio, igual à regra do Dossiê. Todo fato que a API do anfitrião\nmapeia (`hostFacts`) tem a etiqueta declarada aqui, sem depender de padrão implícito:\n - G (Reserva Ativa): o que o Airbnb só libera ao hóspede com reserva (trajeto, instruções de check-in e\n check-out, manual da casa);\n - P (Público): descrição, regras, tipo, selos, legendas, estrutura (área, andar, ano, vista), cômodos,\n horário de silêncio e comodidades detalhadas.\nChave nova que não esteja numa das duas listas (nem for dinâmica do anúncio) cai em P, e o teste\n`dossie-etiquetas-anuncio` falha se o `hostFacts` emitir uma chave sem etiqueta declarada.",
+    "source_path": "src/lib/guest-ai/data/listing-normalized.ts",
+    "audience": [],
+    "content_hash": "34718595fda1ce181918a2f905baad62"
   },
   {
     "doc_key": "rule:RESERVATION_WAIT_MAX_MS",

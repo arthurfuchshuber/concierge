@@ -208,7 +208,7 @@ export function GuideCard({
       <div className="flex min-w-0 flex-1 flex-col justify-between gap-1.5 py-2.5 pl-3.5 pr-2.5">
         <div className="grid min-w-0 gap-1.5">
           <span
-            className="block truncate text-[14.5px] font-extrabold leading-tight"
+            className="ds-card-title leading-tight"
             title={p.name}
           >
             {p.name}

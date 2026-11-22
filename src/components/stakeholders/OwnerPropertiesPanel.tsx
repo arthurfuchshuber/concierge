@@ -360,7 +360,7 @@ export function OwnerPropertiesPanel({
                   <span className="block min-w-0">
                     <span className="flex min-w-0 items-center gap-1.5">
                       <span
-                        className="min-w-0 flex-1 truncate text-[14.5px] font-extrabold leading-tight"
+                        className="ds-card-title min-w-0 flex-1 leading-tight"
                         title={p.name}
                       >
                         {p.name}

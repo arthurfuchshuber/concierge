@@ -180,7 +180,7 @@ function EntryRow({
       )}
     >
       <div className="flex min-w-0 items-baseline justify-between gap-2.5">
-        <span className="min-w-0 truncate text-[14px] font-bold leading-5 text-foreground" title={name}>
+        <span className="ds-card-title min-w-0 leading-5 text-foreground" title={name}>
           {name}
         </span>
         <span className="shrink-0 whitespace-nowrap font-display text-[13.5px] font-bold tabular-nums tracking-[-0.2px] text-foreground">

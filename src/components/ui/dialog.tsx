@@ -86,6 +86,15 @@ const DialogContent = React.forwardRef<
           wrapBody ? "flex flex-col !overflow-hidden" : "overflow-hidden",
         )}
         {...props}
+        /* ESC VOLTA UMA CAMADA POR VEZ (22/11/2026): com "‹ Voltar" no canto (lista → item, passo → passo
+           anterior), o Esc faz o mesmo que o Voltar em vez de fechar a janela inteira. Cada Esc fecha/volta só
+           a última camada aberta. */
+        onEscapeKeyDown={(e) => {
+          props.onEscapeKeyDown?.(e);
+          if (e.defaultPrevented || !onBack) return;
+          e.preventDefault();
+          onBack();
+        }}
         onPointerDownOutside={guardNestedOutside(layerRef, props.onPointerDownOutside)}
         onInteractOutside={guardNestedOutside(layerRef, props.onInteractOutside)}
       >

@@ -48,7 +48,7 @@ function Label({ children }: { children: ReactNode }) {
 export function PropertyContextCard({ name, owner }: { name: string; owner: string | null }) {
   return (
     <div className={FIN_CARD}>
-      <div className="truncate text-[14px] font-bold leading-5 text-foreground" title={name}>
+      <div className="ds-card-title leading-5 text-foreground" title={name}>
         {name}
       </div>
       {owner ? (

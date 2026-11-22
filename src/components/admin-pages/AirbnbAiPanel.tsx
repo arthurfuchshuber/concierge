@@ -265,7 +265,7 @@ function ListingCard({
         <div className="min-w-0 flex-1">
           <p
             className={cn(
-              "truncate font-display text-[12.5px] font-bold leading-[1.3] tracking-[-0.01em]",
+              "ds-card-title",
               on ? "text-foreground" : "text-foreground/70",
             )}
           >

@@ -1720,7 +1720,7 @@ function PropertyCard({
         <div className="flex min-w-0 flex-1 flex-col justify-between gap-1.5 py-2.5 pl-3.5 pr-2.5">
           <div className="grid min-w-0 gap-1">
             {/* Regra global (29/10/2026): título do imóvel primeiro, proprietário logo abaixo. */}
-            <span className="block truncate text-[14.5px] font-extrabold leading-tight" title={group.label}>
+            <span className="ds-card-title leading-tight" title={group.label}>
               {group.label}
             </span>
             {/* PROPRIETÁRIO COM O ÍCONE DE MENSAGEM PADRÃO — o mesmo botão que

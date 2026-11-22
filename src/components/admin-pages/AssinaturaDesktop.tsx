@@ -220,11 +220,11 @@ export function AssinaturaDesktop({
         <div className="grid grid-cols-1 gap-[10px]">
           {view.faturas.map((f) => (
             <div key={f.id} className={`${CARD} pl-[17px]`}>
-              <span aria-hidden="true" className="absolute inset-y-0 left-0 w-[3px]" style={{ background: f.cor }} />
+              <span aria-hidden="true" className="absolute inset-y-0 left-0 w-[3px]" style={{ background: f.mob.cor }} />
               <div className="flex h-[18px] min-w-0 items-center justify-between gap-[10px]">
-                <div className="min-w-0 truncate text-[13.5px] font-bold leading-[1.3]">{f.titulo}</div>
+                <div className="min-w-0 truncate text-[13.5px] font-bold leading-[1.3]">{f.mob.titulo}</div>
                 <div className="flex shrink-0 items-center gap-2">
-                  {f.riscada ? <IsentaPill /> : null}
+                  {f.riscada ? <IsentaPill tone="sage" /> : null}
                   <span
                     className={`whitespace-nowrap font-display text-[14px] font-bold tabular-nums ${f.riscada ? "line-through opacity-55" : ""}`}
                   >
@@ -237,7 +237,7 @@ export function AssinaturaDesktop({
                   ) : null}
                 </div>
               </div>
-              <p className="mt-1 text-[11.5px] font-medium leading-[1.45] tabular-nums text-[var(--faint)]">{f.sub}</p>
+              <p className="mt-1 text-[11.5px] font-medium leading-[1.45] tabular-nums text-[var(--faint)]">{f.mob.sub}</p>
             </div>
           ))}
         </div>

@@ -271,7 +271,7 @@ export function IntegracoesPage() {
               <div className="flex min-h-[79px] flex-col">
                 <div className="min-w-0">
                   <div className="flex items-center justify-between gap-1.5">
-                    <div className="truncate font-display text-[12.5px] font-bold leading-[1.3] tracking-[-0.01em] text-foreground">{cfg.nome}</div>
+                    <div className="ds-card-title text-foreground">{cfg.nome}</div>
                     {canToggle && (
                       <button
                         type="button"
