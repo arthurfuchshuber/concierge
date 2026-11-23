@@ -1138,11 +1138,15 @@ function CategoryPendingDialog({
                 : "Nada encontrado para essa busca."}
             </p>
           ) : (
-            <div className="mt-4 flex min-w-0 flex-col gap-[18px]">
-              {groups.map((g) => {
+            <div className="flex min-w-0 flex-col">
+              {groups.map((g, gi) => {
                 const isOpen = openProp === g.id;
+                const prevOpen = gi > 0 && openProp === groups[gi - 1].id;
+                // Espaços dos mockups: 1º imóvel 16px abaixo da busca (14px quando aberto, mockups 08–11);
+                // entre imóveis recolhidos 18px (12/13); junto de um imóvel aberto 16px (08/11).
+                const mt = gi === 0 ? (isOpen ? 14 : 16) : isOpen || prevOpen ? 16 : 18;
                 return (
-                  <section key={g.id} className="min-w-0">
+                  <section key={g.id} className="min-w-0" style={{ marginTop: mt }}>
                     <button
                       type="button"
                       data-clip-row
@@ -1268,13 +1272,13 @@ function RecordTree({
           <span key={`l${i}`} aria-hidden>
             <span
               className={`pointer-events-none absolute left-[18px] top-[-5px] w-[22px] rounded-bl-[12px] border-b-[1.5px] border-l-[1.5px] ${
-                active ? "z-[2] border-foreground/[0.42]" : "z-[1] border-foreground/[0.135]"
+                active ? "z-[2] border-foreground/[0.42]" : "z-[1] border-foreground/[0.14] dark:border-foreground/[0.13]"
               }`}
               style={{ height: c + 5 }}
             />
             <span
               className={`pointer-events-none absolute left-[37px] z-[3] size-[7px] rounded-full shadow-[0_0_0_2.5px_var(--panel)] max-lg:shadow-[0_0_0_2.5px_var(--background)] ${
-                active ? "bg-foreground/[0.42]" : "bg-foreground/[0.135]"
+                active ? "bg-foreground/[0.42]" : "bg-foreground/[0.14] dark:bg-foreground/[0.13]"
               }`}
               style={{ top: c - 3 }}
             />
@@ -1311,7 +1315,7 @@ function CompactRecordCard({ record, onClick }: { record: AccountRecord; onClick
       data-clip-row
       onClick={onClick}
       aria-expanded={false}
-      className="flex h-[76px] w-full min-w-0 items-stretch overflow-hidden rounded-[12px] bg-[var(--card-surface)] text-left shadow-[inset_0_0_0_1px_var(--border)] transition-opacity hover:opacity-90"
+      className="flex h-[76px] w-full min-w-0 items-stretch overflow-hidden rounded-[12px] bg-[rgba(236,229,220,0.35)] text-left shadow-[inset_0_0_0_1px_var(--border)] dark:bg-[var(--card-surface)] transition-opacity hover:opacity-90"
     >
       {m ? (
         <span className="relative w-[76px] shrink-0">
@@ -1346,7 +1350,7 @@ function CompactRecordCard({ record, onClick }: { record: AccountRecord; onClick
           >
             {title}
           </span>
-          <span className="shrink-0 text-[11.5px] font-semibold text-[var(--faint)]">
+          <span className="shrink-0 text-[11.5px] font-semibold leading-[15px] text-[var(--faint)]">
             {agoShort(record.createdAt)}
           </span>
         </span>
@@ -1356,7 +1360,7 @@ function CompactRecordCard({ record, onClick }: { record: AccountRecord; onClick
           </span>
         )}
         {record.guestName && (
-          <span className="mt-[5px] flex min-w-0 items-center gap-[5px] text-[11.5px] font-semibold text-[var(--faint)]">
+          <span className="mt-[5px] flex min-w-0 items-center gap-[5px] text-[11.5px] font-semibold leading-[15px] text-[var(--faint)]">
             <User className="size-[13px] shrink-0" strokeWidth={2} />
             <span className="truncate">{record.guestName}</span>
           </span>
@@ -1395,7 +1399,7 @@ function OpenRecordCard({
   return (
     <div
       data-clip-row
-      className="overflow-hidden rounded-[12px] bg-[var(--card-surface)] shadow-[inset_0_0_0_1px_var(--border)]"
+      className="overflow-hidden rounded-[12px] bg-[rgba(236,229,220,0.35)] shadow-[inset_0_0_0_1px_var(--border)] dark:bg-[var(--card-surface)]"
     >
       <button
         type="button"
