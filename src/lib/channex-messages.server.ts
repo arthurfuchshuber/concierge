@@ -912,6 +912,10 @@ export async function runAirbnbAiTurn(admin: any, p: AirbnbAiTurn, opts: { longT
   if (barrier.abort) return; // hóspede escreveu de novo, outro turno já respondeu ou estado incerto: não entrega
   const finalReply = (ai?.reply ?? "").trim();
   if (finalReply) {
+    // Carência para fala humana em trânsito (23/11/2026, caso Alana/Residencial): a resposta do anfitrião digitada no
+    // Airbnb só vira linha aqui quando o webhook chega. A IA saiu 0,6 s depois da linha da equipe. Espera curta antes
+    // da última conferência para a fala humana que já foi enviada ter tempo de aparecer.
+    if (HUMAN_WEBHOOK_GRACE_MS > 0) await new Promise((r) => setTimeout(r, HUMAN_WEBHOOK_GRACE_MS));
     // última conferência colada na entrega (o push acima leva tempo): humano ou hóspede novo ⇒ não envia
     const last = await checkBarrier();
     if (last.abort) {
@@ -927,6 +931,9 @@ export async function runAirbnbAiTurn(admin: any, p: AirbnbAiTurn, opts: { longT
     });
   }
 }
+
+/** Espera antes da última conferência da barreira: tempo para o webhook de uma fala humana já enviada chegar. */
+export const HUMAN_WEBHOOK_GRACE_MS = process.env.VITEST ? 0 : 4_000;
 
 /**
  * Mensagem do anfitrião vinda da plataforma: detectada como automação por

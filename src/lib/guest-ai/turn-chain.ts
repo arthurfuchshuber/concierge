@@ -884,10 +884,26 @@ export async function runTurnChain(input: ChainInput, deps: ChainDeps): Promise<
     if (!timedGuard) return refuse("guard", "guard_missing");
     const composeStart = now();
     const guardBefore = timings.guard ?? 0;
-    const composed = composeTurnPrompt(
-      { context: ctx, history, dossiers, batch, guestProfile, cityEvents, livingDocument, operational: { stayAuthorizations, humanOwnership, aiPausedByTeam: paused }, retryNote: input.retryNote ?? null },
-      { guard: timedGuard, budget: deps.budget },
-    );
+    const composeWith = (o: { history: typeof history; dossiers: typeof dossiers; cityEvents: typeof cityEvents }) =>
+      composeTurnPrompt(
+        { context: ctx, history: o.history, dossiers: o.dossiers, batch, guestProfile, cityEvents: o.cityEvents, livingDocument, operational: { stayAuthorizations, humanOwnership, aiPausedByTeam: paused }, retryNote: input.retryNote ?? null },
+        { guard: timedGuard, budget: deps.budget },
+      );
+    let composed = composeWith({ history, dossiers, cityEvents });
+    // Orçamento estourado (23/11/2026, casa Completa: 5 respostas perdidas em 3 dias): antes de recusar, registra o
+    // tamanho de cada parte e tenta de novo sem o que é acessório — eventos da cidade, dossiês candidatos e a parte
+    // mais antiga de um histórico longo. Nada do imóvel do turno nem da mensagem atual sai.
+    if (composed.kind === "over_budget") {
+      console.warn("[guest-ai] compose_over_budget", composed.reason, JSON.stringify(composed.metrics.sections), turn.conversationId);
+      const lean = {
+        history: trimHistoryForBudget(history),
+        dossiers: dossiers ? { ...dossiers, candidates: [] } : dossiers,
+        cityEvents: null,
+      };
+      const retry = composeWith(lean);
+      if (retry.kind !== "over_budget") composed = retry;
+      else console.warn("[guest-ai] compose_over_budget após enxugar", retry.reason, JSON.stringify(retry.metrics.sections), turn.conversationId);
+    }
     timings.compose = Math.max(0, Math.round(now() - composeStart) - ((timings.guard ?? 0) - guardBefore));
     if (composed.kind === "prompt") {
       const b = composed.guardMetrics.byStatus;
@@ -898,7 +914,11 @@ export async function runTurnChain(input: ChainInput, deps: ChainDeps): Promise<
       return refuse(m.stage, m.code);
     }
     completed.push("guard");
-    if (composed.kind === "over_budget") return refuse("compose", "compose_over_budget");
+    if (composed.kind === "over_budget") {
+      // O tamanho de cada parte vai para o rastro (blocked_detail) para saber o que estoura.
+      const sizes = composed.metrics.sections.map((x) => `${x.name}=${x.chars}`);
+      return { ...refuse("compose", "compose_over_budget"), blocked: { reply: null, blocks: [composed.reason, `total=${composed.metrics.totalChars}`, ...sizes], kinds: [] } };
+    }
     const prompt = composed.prompt;
     if (!prompt.sourceIds || prompt.sourceIds.size === 0) return refuse("compose", "grounding_unverifiable");
     completed.push("compose");
@@ -1048,3 +1068,11 @@ export async function runTurnChain(input: ChainInput, deps: ChainDeps): Promise<
     return technical(stage, "stage_failed");
   }
 }
+
+/** Mantém as últimas mensagens de um histórico longo (a atual é sempre a última e continua marcada). */
+export const BUDGET_HISTORY_KEEP = 40;
+export function trimHistoryForBudget<T extends { status: string; entries?: readonly unknown[] }>(h: T): T {
+  if (h.status !== "available" || !h.entries || h.entries.length <= BUDGET_HISTORY_KEEP) return h;
+  return { ...h, entries: h.entries.slice(-BUDGET_HISTORY_KEEP) } as T;
+}
+
