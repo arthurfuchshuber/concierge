@@ -200,11 +200,15 @@ export async function buildGuestContext(input: TurnInput, deps: BuilderDeps = {}
   };
   let guests: { adults: number; children: number; infants: number } | null = null;
   let bookedMinutesAgo: number | null = null;
+  let stayDetails: import("@/lib/guest-ai/data/cancellation-terms.server").CancellationTerms["details"] = null;
+  let stayCards: import("@/lib/guest-ai/data/cancellation-terms.server").CancellationTerms["cards"] = [];
   if (state.exists) {
     try {
       const terms = await (deps.fetchCancellationTerms ?? fetchCancellationTerms)(turn, { db });
       if (terms) {
         guests = terms.guests ?? null;
+        stayDetails = terms.details ?? null;
+        stayCards = terms.cards ?? [];
         const bt = terms.bookedAt ? Date.parse(terms.bookedAt) : NaN;
         const mins = Number.isFinite(bt) ? Math.round((clock().getTime() - bt) / 60_000) : NaN;
         bookedMinutesAgo = Number.isFinite(mins) && mins >= 0 && mins <= 180 ? mins : null;
@@ -343,6 +347,8 @@ export async function buildGuestContext(input: TurnInput, deps: BuilderDeps = {}
           freeCancellation,
           guests,
           bookedMinutesAgo,
+          details: stayDetails,
+          cards: stayCards,
         }
       : null,
     calendar,

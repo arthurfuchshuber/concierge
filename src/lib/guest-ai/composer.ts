@@ -345,6 +345,27 @@ function buildContextData(ctx: ConversationContext, guarded: Guarded, unavailabl
     );
   }
   if (g.stay) {
+    const d = g.stay.details ?? null;
+    if (d) {
+      facts.push({
+        id: "ctx:reserva_detalhes",
+        valor: {
+          canal: d.channel,
+          titular: d.holderName ? guarded(d.holderName, "reserva.titular") : null,
+          idioma_do_hospede: d.language,
+          noites: d.nights,
+          reservada_em: d.bookedAt,
+        },
+        origem: "reserva",
+      });
+    }
+    for (const c of g.stay.cards ?? []) {
+      facts.push({
+        id: c.kind === "checkin" ? "ctx:card_entrada" : "ctx:card_saida",
+        valor: { status: c.status, previsao_horario: c.time, previsao_data: c.date, previsao_informada_por: c.source, saida_tardia_autorizada_ate: c.lateCheckout },
+        origem: "operacao",
+      });
+    }
     facts.push(
       { id: "ctx:reserva_status", valor: g.stay.status, origem: "reserva" },
       // mensagem escrita no ato da reserva (17/11/2026, caso Simone): minutos desde a gravação, só nas primeiras 3 h
@@ -414,7 +435,8 @@ function buildContextData(ctx: ConversationContext, guarded: Guarded, unavailabl
     { id: "ctx:interlocutor", valor: { identidade: "nao_verificada", papel: "participante_da_conversa" }, origem: "backend" },
     // B2.5: a voz é institucional (equipe da acomodação); a conta de envio não identifica uma pessoa.
     { id: "ctx:voz", valor: { representa: "equipe_da_acomodacao", papel_individual: "nao_comprovado" }, origem: "backend" },
-    { id: "ctx:titular_da_reserva", valor: { status: "nao_informado" }, origem: "backend" },
+    // titular vem em ctx:reserva_detalhes quando a reserva o informa; não prova identidade de quem escreve
+    ...(g.stay?.details?.holderName ? [] : [{ id: "ctx:titular_da_reserva", valor: { status: "nao_informado" }, origem: "backend" }]),
   );
 
   const own = op?.humanOwnership ?? null;

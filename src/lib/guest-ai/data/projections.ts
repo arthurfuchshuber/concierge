@@ -170,7 +170,9 @@ export const LISTING_STAY_RULE_COLUMNS = [
 ] as const;
 export const CALENDAR_GUEST_TEXT_COLUMNS = ["id", "conversation_id", "role", "sender_type", "is_internal_note", "content", "created_at"] as const;
 /** Modalidade de cancelamento DA RESERVA (playbook de cancelamento, 10/11/2026). Sem valores nem contatos. */
-export const RESERVATION_CANCELLATION_COLUMNS = ["id", "property_id", "checkin_date", "checkout_date", "cancellation_policy_category", "is_non_refundable", "created_at", "occupancy"] as const;
+export const RESERVATION_CANCELLATION_COLUMNS = ["id", "property_id", "checkin_date", "checkout_date", "cancellation_policy_category", "is_non_refundable", "created_at", "occupancy", "ota_name", "guest_hint", "language:raw_payload->customer->>language"] as const;
+/** Cards da operação da reserva (previsões de chegada/saída e status), sem dados de limpeza ou custo. */
+export const RESERVATION_CARD_COLUMNS = ["kind", "status", "arrival_time_override", "arrival_date_override", "arrival_time_source", "late_checkout_time", "done_at", "reservation_id", "property_id"] as const;
 export const ARRIVAL_STATUS_COLUMNS = [
   "kind",
   "status",

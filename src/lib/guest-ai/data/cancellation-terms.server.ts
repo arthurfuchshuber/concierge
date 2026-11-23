@@ -6,7 +6,7 @@
 import { assertIssued } from "@/lib/guest-ai/trust";
 import type { ValidatedTurn } from "@/lib/guest-ai/types";
 import { getGuestAiDb, type GuestAiDb } from "./client.server";
-import { RESERVATION_CANCELLATION_COLUMNS, cols } from "./projections";
+import { RESERVATION_CANCELLATION_COLUMNS, RESERVATION_CARD_COLUMNS, cols } from "./projections";
 
 export interface CancellationTerms {
   category: string | null;
@@ -16,6 +16,10 @@ export interface CancellationTerms {
   bookedAt: string | null;
   /** Ocupação da reserva (16/11/2026: concordância de número). Opcional: `null`/ausente = não informada. */
   guests?: { adults: number; children: number; infants: number } | null;
+  /** Dados da reserva para a IA (23/11/2026, titular: "absolutamente tudo precisa chegar"): canal, titular, idioma. */
+  details?: { channel: string | null; holderName: string | null; language: string | null; nights: number | null; bookedAt: string | null } | null;
+  /** Cards de entrada/saída: status e previsões informadas (hóspede, IA ou equipe). */
+  cards?: Array<{ kind: string; status: string | null; time: string | null; date: string | null; source: string | null; lateCheckout: string | null }>;
 }
 
 const DAY_MS = 86_400_000;
@@ -38,6 +42,28 @@ export async function fetchCancellationTerms(turn: ValidatedTurn, deps?: { db?: 
   const r = (data ?? null) as Record<string, unknown> | null;
   if (!r || r["property_id"] !== turn.propertyId) return null;
   const ci = isoDate(r["checkin_date"]);
+  const txt = (v: unknown, max = 80) => (typeof v === "string" && v.trim() && !/^\*+$/.test(v.trim()) ? v.trim().slice(0, max) : null);
+  let cards: NonNullable<CancellationTerms["cards"]> = [];
+  try {
+    const { data: rows } = await db
+      .from("guest_arrival_status")
+      .select(cols(RESERVATION_CARD_COLUMNS))
+      .eq("reservation_id", turn.reservationId)
+      .eq("property_id", turn.propertyId)
+      .limit(4);
+    cards = ((rows ?? []) as Array<Record<string, unknown>>)
+      .filter((c) => c["kind"] === "checkin" || c["kind"] === "checkout")
+      .map((c) => ({
+        kind: String(c["kind"]),
+        status: txt(c["status"], 20),
+        time: txt(c["arrival_time_override"], 8),
+        date: txt(c["arrival_date_override"], 10),
+        source: txt(c["arrival_time_source"], 20),
+        lateCheckout: txt(c["late_checkout_time"], 8),
+      }));
+  } catch {
+    cards = [];
+  }
   const co = isoDate(r["checkout_date"]);
   const category = typeof r["cancellation_policy_category"] === "string" && r["cancellation_policy_category"].trim() ? r["cancellation_policy_category"].trim() : null;
   return {
@@ -46,6 +72,14 @@ export async function fetchCancellationTerms(turn: ValidatedTurn, deps?: { db?: 
     nights: ci !== null && co !== null && co > ci ? Math.round((co - ci) / DAY_MS) : null,
     bookedAt: typeof r["created_at"] === "string" ? r["created_at"] : null,
     guests: occupancyOf(r["occupancy"]),
+    details: {
+      channel: txt(r["ota_name"], 40),
+      holderName: txt(r["guest_hint"], 80),
+      language: txt(r["language"], 10),
+      nights: ci !== null && co !== null && co > ci ? Math.round((co - ci) / DAY_MS) : null,
+      bookedAt: typeof r["created_at"] === "string" ? r["created_at"] : null,
+    },
+    cards,
   };
 }
 

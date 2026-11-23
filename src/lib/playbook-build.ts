@@ -427,6 +427,7 @@ export function buildPlaybook(src: PlaybookSource): PlaybookSectionData[] {
     entretenimento: withDetails(amenityLine(p, "entretenimento"), "entretenimento"),
     quarto_e_lavanderia: withDetails(amenityLine(p, "quarto_e_lavanderia"), "quarto_e_lavanderia"),
     banheiro: withDetails(amenityLine(p, "banheiro"), "banheiro"),
+    areas_externas: factLines("comodidade_areas_externas").join("\n"),
     ausentes_no_anuncio: mergeAbsent(absentAmenities(p), factLines("comodidades_ausentes_api")),
     manuais_de_equipamentos: src.manuals.map((m) => m.title).filter(Boolean).join("\n") || entryValue("manuais_de_equipamentos"),
     // O dado estruturado da API (`quiet_hours`) vale antes de procurar a frase nas regras em texto livre.
