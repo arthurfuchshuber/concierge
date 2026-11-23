@@ -202,6 +202,7 @@ export async function buildGuestContext(input: TurnInput, deps: BuilderDeps = {}
   let bookedMinutesAgo: number | null = null;
   let stayDetails: import("@/lib/guest-ai/data/cancellation-terms.server").CancellationTerms["details"] = null;
   let stayCards: import("@/lib/guest-ai/data/cancellation-terms.server").CancellationTerms["cards"] = [];
+  let stayInternalOps: import("@/lib/guest-ai/data/cancellation-terms.server").CancellationTerms["internalOps"] = null;
   if (state.exists) {
     try {
       const terms = await (deps.fetchCancellationTerms ?? fetchCancellationTerms)(turn, { db });
@@ -209,6 +210,7 @@ export async function buildGuestContext(input: TurnInput, deps: BuilderDeps = {}
         guests = terms.guests ?? null;
         stayDetails = terms.details ?? null;
         stayCards = terms.cards ?? [];
+        stayInternalOps = terms.internalOps ?? null;
         const bt = terms.bookedAt ? Date.parse(terms.bookedAt) : NaN;
         const mins = Number.isFinite(bt) ? Math.round((clock().getTime() - bt) / 60_000) : NaN;
         bookedMinutesAgo = Number.isFinite(mins) && mins >= 0 && mins <= 180 ? mins : null;
@@ -349,6 +351,7 @@ export async function buildGuestContext(input: TurnInput, deps: BuilderDeps = {}
           bookedMinutesAgo,
           details: stayDetails,
           cards: stayCards,
+          internalOps: stayInternalOps,
         }
       : null,
     calendar,

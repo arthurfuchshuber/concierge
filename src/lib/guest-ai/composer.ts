@@ -366,6 +366,20 @@ function buildContextData(ctx: ConversationContext, guarded: Guarded, unavailabl
         origem: "operacao",
       });
     }
+    const ops = g.stay.internalOps ?? null;
+    if (ops) {
+      facts.push({
+        id: "ctx:operacao_interna",
+        valor: {
+          uso: "somente_conhecimento_interno",
+          saida_anterior_no_dia_da_entrada: ops.previousCheckout
+            ? { hospede_anterior_saiu: ops.previousCheckout.guestLeft, limpeza_concluida_em: ops.previousCheckout.cleaningConcludedAt }
+            : null,
+          registros_recentes_do_imovel: ops.recentRecords.map((x) => ({ em: x.at, tipo: x.category, texto: guarded(x.text, "operacao.registro") })),
+        },
+        origem: "operacao",
+      });
+    }
     facts.push(
       { id: "ctx:reserva_status", valor: g.stay.status, origem: "reserva" },
       // mensagem escrita no ato da reserva (17/11/2026, caso Simone): minutos desde a gravação, só nas primeiras 3 h

@@ -263,6 +263,8 @@ export interface GuestContext {
     details?: import("@/lib/guest-ai/data/cancellation-terms.server").CancellationTerms["details"];
     /** Cards de entrada/saída da reserva: status e previsões (23/11/2026). */
     cards?: import("@/lib/guest-ai/data/cancellation-terms.server").CancellationTerms["cards"];
+    /** Limpeza da saída anterior e manutenções recentes: só conhecimento interno da IA (23/11/2026). */
+    internalOps?: import("@/lib/guest-ai/data/cancellation-terms.server").CancellationTerms["internalOps"];
   } | null;
   /**
    * Ocupação do calendário do imóvel (reservas confirmadas de outros hóspedes e bloqueios manuais), só datas,
