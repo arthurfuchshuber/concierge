@@ -1397,30 +1397,41 @@ function OpenRecordCard({
       data-clip-row
       className="overflow-hidden rounded-[12px] bg-[var(--card-surface)] shadow-[inset_0_0_0_1px_var(--border)]"
     >
-      {m && (
-        <button
-          type="button"
-          onClick={onOpen}
-          aria-label="Abrir registro"
-          className="relative block h-[138px] w-full overflow-hidden"
-        >
-          {m.kind === "photo" ? (
+      <button
+        type="button"
+        onClick={onOpen}
+        aria-label="Abrir registro"
+        className="relative block h-[138px] w-full overflow-hidden"
+      >
+        {m ? (
+          m.kind === "photo" ? (
             <img src={m.url!} alt="" loading="lazy" className="block size-full object-cover" />
           ) : (
             <span className="absolute inset-0">
               <VideoFrame url={m.url!} />
             </span>
-          )}
-          <span className="absolute bottom-2.5 left-2.5 inline-flex h-6 items-center gap-[5px] rounded-[8px] bg-black/55 px-[9px] text-[11px] font-bold text-white">
-            <CalendarDays className="size-[13px]" strokeWidth={2} />
-            {fmtStamp(record.createdAt)}
+          )
+        ) : (
+          // Sem foto: a mesma área neutra com o ícone do registro do card compacto (mockups 10/11).
+          <span className="absolute inset-0 grid place-items-center bg-foreground/[0.055] shadow-[inset_0_-1px_0_var(--border)]">
+            {record.kind === "audio" ? (
+              <Mic className="size-[30px] text-[var(--faint)]" strokeWidth={1.8} />
+            ) : (
+              <FileText className="size-[30px] text-[var(--faint)]" strokeWidth={1.8} />
+            )}
           </span>
+        )}
+        <span className="absolute bottom-2.5 left-2.5 inline-flex h-6 items-center gap-[5px] rounded-[8px] bg-black/55 px-[9px] text-[11px] font-bold text-white">
+          <CalendarDays className="size-[13px]" strokeWidth={2} />
+          {fmtStamp(record.createdAt)}
+        </span>
+        {m && (
           <span className="absolute bottom-2.5 right-2.5 inline-flex h-6 items-center gap-1 rounded-[8px] bg-black/55 px-[9px] text-[11px] font-bold text-white">
             <Camera className="size-[11px]" strokeWidth={2.2} />
             {mediaLabel}
           </span>
-        </button>
-      )}
+        )}
+      </button>
       <div className="px-3.5 pb-3 pt-3.5">
         <button type="button" onClick={onOpen} className="block w-full text-left">
           <span
