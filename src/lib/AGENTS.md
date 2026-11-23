@@ -47,3 +47,4 @@
 
 - **Andar e unidade do anúncio (19/11/2026):** `floorLabelOf(listing_floor, number_of_floors, multiUnit)` — 0 → "Térreo"; 1 → "Térreo" só com `number_of_floors === 1` (prédio/condomínio → "1º andar"); ≥2 → "<n>º andar". `apt` do anúncio vira `apartment_number` (+ `in_condominium: true` e `parking_spots` se vazio) via `parseApt`; sem API, `extractUnitFromAddress` lê o endereço salvo. "Casa"/"Studio" sem número não viram unidade.
 - **Auto-descoberta Channex:** `discoverChannexFacts(meta, settings)` gera `extra_channex_*` (etiqueta por `dynamicFactAudience`; credenciais/ruído fora) dentro de `normalizeListing`.
+- **Térreo pela descrição (titular, 23/11/2026):** com `listing_floor` 0/1 e a descrição do anúncio dizendo "térreo", o andar é "Térreo" (Studios 101, 102, nº 3, nº 4), mesmo em prédio de 2 pavimentos.
