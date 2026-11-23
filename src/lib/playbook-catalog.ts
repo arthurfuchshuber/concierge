@@ -485,6 +485,15 @@ const BASE_FIELDS: FieldMeta[] = [
     "obs": "Itens do grupo listados no anúncio. A IA deve usar quando o hóspede perguntar se há um item do grupo, respondendo só com os itens listados. Se o item não estiver na lista, dizer que não consta no anúncio e não prometer."
   },
   {
+    "key": "areas_externas",
+    "section": 3,
+    "label": "Áreas externas, acesso e outros",
+    "au": "P",
+    "copy": false,
+    "secret": false,
+    "obs": "Itens do anúncio fora dos grupos acima (área externa, piscina, churrasqueira, entrada, acessibilidade e outros), com os detalhes da API do anfitrião. A IA usa quando o hóspede perguntar por um desses itens, respondendo só com o que está listado."
+  },
+  {
     "key": "ausentes_no_anuncio",
     "section": 3,
     "label": "Ausentes no anúncio",
@@ -749,7 +758,7 @@ export const PLAYBOOK_LAYOUT: Array<Array<[string, string[]]>> = [
   [
     ["Internet", ["nome_da_rede_wi_fi", "senha_do_wi_fi"]],
     ["Instalações básicas", ["voltagem_das_tomadas", "descarte_de_lixo"]],
-    ["Comodidades do anúncio", ["climatizacao", "cozinha_e_sala_de_jantar", "quarto_e_lavanderia", "banheiro", "entretenimento", "ausentes_no_anuncio"]],
+    ["Comodidades do anúncio", ["climatizacao", "cozinha_e_sala_de_jantar", "quarto_e_lavanderia", "banheiro", "entretenimento", "areas_externas", "ausentes_no_anuncio"]],
     ["Manuais da casa", ["manuais_de_equipamentos", "chuveiros_e_aquecedores"]],
   ],
   [

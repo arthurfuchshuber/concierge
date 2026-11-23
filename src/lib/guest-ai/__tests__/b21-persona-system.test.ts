@@ -364,7 +364,7 @@ describe("aviso de chegada coerente com canal e dossiê (system.2026-11-11.3)", 
   const arrival = sys.slice(sys.indexOf("Aviso de deslocamento"), sys.indexOf("Continue declarando guestEtas"));
 
   it("versão do roteiro", () => {
-    expect(SYSTEM_PROMPT_VERSION).toBe("system.2026-11-22.2");
+    expect(SYSTEM_PROMPT_VERSION).toBe("system.2026-11-23.1");
   });
 
   it("corrobora o histórico em vez de vetar a palavra guia", () => {
