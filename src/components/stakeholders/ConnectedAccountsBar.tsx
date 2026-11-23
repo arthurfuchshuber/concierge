@@ -4,7 +4,7 @@ import { TELA_CHEIA_CLASS } from "@/lib/tela-cheia";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Link2, Plus, Download } from "lucide-react";
-import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import {
   listAirbnbAccounts,
   listAirbnbAccountListings,
@@ -64,11 +64,16 @@ export function ConnectedAccountsBar() {
       </button>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className={cn("w-[min(94vw,560px)] max-h-[90dvh] overflow-y-auto gap-3 p-4 sm:max-w-[560px]", TELA_CHEIA_CLASS)}>
-          <DialogTitle className="pr-11 font-display text-[18px] font-extrabold">
-            Contas Conectadas
-          </DialogTitle>
-          <DialogDescription className="sr-only">Contas e anúncios do Airbnb conectados.</DialogDescription>
+        {/* Tela cheia no celular igual às páginas (23/11/2026): cabeçalho data → título → subtítulo e o
+            conteúdo 24px abaixo, nas margens de 14px. No computador continua como era. */}
+        <DialogContent className={cn("w-[min(94vw,560px)] max-h-[90dvh] gap-0 p-4 max-lg:p-0 sm:max-w-[560px]", TELA_CHEIA_CLASS)}>
+          <DialogHeader className="space-y-0 pb-3 text-left">
+            <DialogTitle className="pr-11 font-display text-[18px] font-extrabold">
+              Contas Conectadas
+            </DialogTitle>
+            <DialogDescription className="lg:sr-only">Contas e anúncios do Airbnb conectados.</DialogDescription>
+          </DialogHeader>
+          <div className="flex min-w-0 flex-col gap-3">
           <div className="ds-scroll-x flex gap-1">
             {tabBtn("accounts", "Contas Conectadas")}
             {tabBtn("listings", "Anúncios Conectados")}
@@ -160,6 +165,7 @@ export function ConnectedAccountsBar() {
               </button>
             </div>
           )}
+          </div>
         </DialogContent>
       </Dialog>
 

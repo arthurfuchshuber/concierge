@@ -91,10 +91,11 @@ export function ImoveisCobradosDialog({ open, onOpenChange }: { open: boolean; o
           <DialogTitle className="truncate text-sm font-bold leading-5 text-foreground">Imóveis cobrados</DialogTitle>
           <DialogDescription className="text-xs leading-4 text-muted-foreground">{subtitle || " "}</DialogDescription>
         </DialogHeader>
-        <div className="px-4 pt-2.5">
+        {/* Tela cheia: a busca e a lista ficam nas margens de 14px da página (sem recuo extra). */}
+        <div className="px-4 pt-2.5 max-lg:px-0 max-lg:pt-0">
           <SearchActionRow value={q} onChange={setQ} placeholder="Buscar imóvel ou proprietário" />
         </div>
-        <div className="px-4 pb-2 pt-1">
+        <div className="px-4 pb-2 pt-1 max-lg:px-0">
           {groups.list.length === 0 ? (
             <p className="py-6 text-center text-[12px] text-[var(--faint)]">
               {listings.isLoading ? "Carregando…" : "Nenhum imóvel encontrado."}
