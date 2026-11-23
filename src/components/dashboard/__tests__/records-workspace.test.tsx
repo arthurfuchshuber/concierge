@@ -185,7 +185,7 @@ describe("Aba Registros", () => {
     expect(screen.queryByRole("button", { name: /Ver só elas/ })).toBeNull();
   });
 
-  it("o contador abre a janela da categoria, por proprietário, com um imóvel aberto por vez", async () => {
+  it("o contador abre a janela da categoria, por imóvel, com um imóvel e um registro abertos por vez", async () => {
     const records = [
       rec(),
       rec({ id: "r2", groupId: "r2", body: "Mancha no sofá" }),
@@ -226,7 +226,12 @@ describe("Aba Registros", () => {
     expect(casa.getAttribute("aria-expanded")).toBe("true");
     expect(within(dialog).getByText("Cobre-leito manchado")).toBeTruthy();
     expect(within(dialog).getByText("Mancha no sofá")).toBeTruthy();
-    expect(within(dialog).getAllByRole("button", { name: "Marcar como resolvido" })).toHaveLength(2);
+    // Registros fechados: só o aberto mostra as ações (um de cada vez).
+    expect(within(dialog).queryByRole("button", { name: "Marcar como resolvido" })).toBeNull();
+    fireEvent.click(within(dialog).getByRole("button", { name: /Mancha no sofá/ }));
+    expect(within(dialog).getAllByRole("button", { name: "Marcar como resolvido" })).toHaveLength(1);
+    fireEvent.click(within(dialog).getByRole("button", { name: /Cobre-leito manchado/ }));
+    expect(within(dialog).getAllByRole("button", { name: "Marcar como resolvido" })).toHaveLength(1);
     // Abrir outro imóvel fecha o anterior.
     fireEvent.click(within(dialog).getByRole("button", { name: /Studio 105/ }));
     expect(within(dialog).queryByText("Cobre-leito manchado")).toBeNull();

@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 import { TELA_CHEIA_CLASS } from "@/lib/tela-cheia";
 import { SearchActionRow } from "./SearchActionRow";
 import { searchScore } from "@/lib/search-score";
-import { forwardRef, useEffect, useMemo, useRef, useState } from "react";
+import { forwardRef, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
@@ -30,8 +30,8 @@ import {
   ListChecks,
   CalendarRange,
   Users,
-  Plus,
-  Minus,
+  User,
+  CalendarDays,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useUndoableRecordDelete } from "@/hooks/useUndoableRecordDelete";
@@ -873,7 +873,10 @@ export function RecordsWorkspace() {
         onClose={() => setCounterOpen(null)}
         ownerId={activeOwnerId}
         period={period}
-        propertyIds={propertyIds}
+        ownerFilters={ownerFilters}
+        propertyFilters={propertyFilters}
+        ownerOptions={ownerOptions}
+        propertyOptions={linkProperties}
         onOpen={setOpened}
         onResolve={setResolving}
       />
@@ -893,36 +896,37 @@ export function RecordsWorkspace() {
 }
 
 /**
- * JANELA DO CONTADOR (mockups aprovados, 06/11/2026 — "Registros · toque em
- * Manutenção"). Mesmo efeito dos cards do Operacional: a janela padrão do
- * sistema (`DialogContent`: véu com desfoque, centralizada, X de canto, fio de
- * luz no topo), com título = nome do contador e subtítulo "N pendências · M
- * proprietários".
+ * JANELA DO CONTADOR — LAYOUT "ÁRVORE" (mockups TelaCheia-08 a 13 aprovados, 22/11/2026: "tudo perfeito").
  *
- * Por dentro, TUDO o que está em aberto naquela categoria, agrupado por
- * PROPRIETÁRIO (nome + ícone de mensagem + contagem). Embaixo de cada um, os
- * imóveis dele FORA de card, numa linha só: "+" à esquerda, título com
- * reticências e a contagem em rosa à direita. O "+" abre a lista de pendências
- * daquele imóvel num card compacto (miniatura de 36px, título, "autor · data" e
- * o quadradinho que resolve) e vira "−". UM IMÓVEL ABERTO POR VEZ: abrir outro
- * fecha o anterior. A janela cresce com o conteúdo até 90% da tela; passou
- * disso, só a lista rola (barra fina do sistema) e a parte visível termina
- * sempre numa linha inteira (`useAntiClipRows`) — o cabeçalho de um
- * proprietário nunca fica sozinho na borda, por isso só imóveis e pendências
- * são `data-clip-row`. Rodapé: fio discreto + 12px.
+ * Abre pelos contadores Manutenção, Danos, Incidentes e Esquecidos da página Registros. É a janela das
+ * pendências de VÁRIOS imóveis (a do imóvel único tem layout próprio).
  *
- * Os dados são a MESMA leitura da tela (`listAccountRecords`), recortada na
- * categoria e em "só em aberto", com o período e os imóveis do filtro atual —
- * o total sempre fecha com o número do contador. A chave começa com
- * "account-records", então o aviso ao vivo (`useRealtimeInvalidate`) também
- * atualiza a janela aberta.
+ * - Cabeçalho da página: título = categoria, subtítulo "N pendências · M proprietários".
+ * - Busca + período + filtros, as MESMAS peças da página Registros (sem o "+"). Começam com o período e o
+ *   recorte de proprietário/imóvel que a página já tinha; mexer aqui só muda a janela.
+ * - Cada imóvel: foto 34px (raio 9), nome em Sora 600 13,5px e, embaixo, SÓ o nome do proprietário
+ *   (600 12px, cor do texto — sem "Proprietário(a):" e sem ícone). Recolhido, o número de registros fica
+ *   num selo rosa ao lado do título.
+ * - Abrir um imóvel mostra os registros em cards compactos (76px, a foto ocupa a lateral esquerda), ligados
+ *   à foto do imóvel por uma "árvore" de linhas finas que termina num ponto encostado no card. Sem foto, o
+ *   quadrado vira uma área neutra com o ícone do registro. Mais de uma mídia: selo com a câmera e o total.
+ * - Tocar num card abre o registro ali mesmo (foto 138px, data, fotos, hóspede, reserva, quem registrou,
+ *   "Marcar como resolvido" e "Recolher"); tocar na foto abre o registro completo.
+ * - UM DE CADA VEZ: um imóvel aberto e, dentro dele, um registro aberto. Abrir outro fecha o anterior.
+ * - Anticorte: imóveis e cards são `data-clip-row`; a parte visível termina sempre num item inteiro.
+ *
+ * Os dados são a MESMA leitura da tela (`listAccountRecords`), recortada na categoria e em "só em aberto".
+ * A chave começa com "account-records", então o aviso ao vivo também atualiza a janela aberta.
  */
 function CategoryPendingDialog({
   category,
   onClose,
   ownerId,
-  period,
-  propertyIds,
+  period: pagePeriod,
+  ownerFilters: pageOwners,
+  propertyFilters: pageProperties,
+  ownerOptions,
+  propertyOptions,
   onOpen,
   onResolve,
 }: {
@@ -930,16 +934,49 @@ function CategoryPendingDialog({
   onClose: () => void;
   ownerId: string | null;
   period: PeriodRange | null;
-  propertyIds: string[] | null;
+  ownerFilters: string[];
+  propertyFilters: string[];
+  ownerOptions: string[];
+  propertyOptions: ReadonlyArray<{ id: string; name: string; ownerName: string | null }>;
   onOpen: (r: AccountRecord) => void;
   onResolve: (r: AccountRecord) => void;
 }) {
   const listFn = useServerFn(listAccountRecords);
-  const [expanded, setExpanded] = useState<string | null>(null);
-  // Cada abertura começa com todos os imóveis recolhidos.
+  const [openProp, setOpenProp] = useState<string | null>(null);
+  const [openRec, setOpenRec] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [period, setPeriod] = useState<PeriodRange | null>(pagePeriod);
+  const [owners, setOwners] = useState<string[]>(pageOwners);
+  const [props, setProps] = useState<string[]>(pageProperties);
+  // Cada abertura começa recolhida, sem busca e com os filtros que a página tinha.
   useEffect(() => {
-    if (!category) setExpanded(null);
+    if (!category) return;
+    setOpenProp(null);
+    setOpenRec(null);
+    setSearch("");
+    setPeriod(pagePeriod);
+    setOwners(pageOwners);
+    setProps(pageProperties);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [category]);
+
+  // Mesmo recorte da página: proprietário vira lista de imóveis; os dois juntos são uma interseção.
+  const propertyIds = useMemo<string[] | null>(() => {
+    const byOwnerList =
+      owners.length > 0 ? propertyOptions.filter((p) => p.ownerName && owners.includes(p.ownerName)) : null;
+    const ids = new Set<string>();
+    if (byOwnerList) for (const p of byOwnerList) ids.add(p.id);
+    if (props.length > 0) {
+      if (byOwnerList) {
+        const chosen = new Set(props);
+        for (const id of Array.from(ids)) if (!chosen.has(id)) ids.delete(id);
+      } else {
+        for (const id of props) ids.add(id);
+      }
+    }
+    if (!byOwnerList && props.length === 0) return null;
+    return ids.size > 0 ? Array.from(ids) : ["00000000-0000-0000-0000-000000000000"];
+  }, [owners, props, propertyOptions]);
 
   const q = useQuery({
     queryKey: [
@@ -963,18 +1000,17 @@ function CategoryPendingDialog({
       }),
     enabled: !!category,
     staleTime: 0,
+    placeholderData: keepPreviousData,
   });
 
-  type PropGroup = { id: string; name: string; items: AccountRecord[] };
-  type OwnerGroup = {
-    key: string;
-    name: string | null;
-    phone: string | null;
-    country: string | null;
-    props: PropGroup[];
-    total: number;
+  type PropGroup = {
+    id: string;
+    name: string;
+    ownerName: string | null;
+    coverUrls: string[];
+    items: AccountRecord[];
   };
-  const owners = useMemo<OwnerGroup[]>(() => {
+  const allGroups = useMemo<PropGroup[]>(() => {
     const items = (q.data?.records ?? [])
       .filter((r) => r.category === category && r.taskStatus === "pending")
       .map((r) => ({
@@ -984,53 +1020,89 @@ function CategoryPendingDialog({
           url: stableMediaUrl(m.storagePath, m.url),
         })),
       }));
-    const byOwner = new Map<string, OwnerGroup>();
+    const map = new Map<string, PropGroup>();
     for (const r of items) {
-      const okey = r.ownerName ?? "";
-      let o = byOwner.get(okey);
-      if (!o) {
-        o = {
-          key: okey,
-          name: r.ownerName,
-          phone: r.ownerPhone,
-          country: r.ownerPhoneCountry,
-          props: [],
-          total: 0,
+      let g = map.get(r.propertyId);
+      if (!g) {
+        g = {
+          id: r.propertyId,
+          name: r.propertyName,
+          ownerName: r.ownerName,
+          coverUrls: [r.propertyCoverUrl, ...(r.propertyCoverUrls ?? [])].filter((u): u is string => !!u),
+          items: [],
         };
-        byOwner.set(okey, o);
+        map.set(r.propertyId, g);
       }
-      let p = o.props.find((x) => x.id === r.propertyId);
-      if (!p) {
-        p = { id: r.propertyId, name: r.propertyName, items: [] };
-        o.props.push(p);
-      }
-      p.items.push(r);
-      o.total += 1;
+      g.items.push(r);
     }
-    const list = Array.from(byOwner.values());
-    for (const o of list) {
-      for (const p of o.props) p.items.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
-      o.props.sort(
-        (a, b) => b.items.length - a.items.length || a.name.localeCompare(b.name, "pt-BR"),
-      );
-    }
-    // Sem proprietário fica por último.
-    const last = (n: string | null) => n ?? "\uffff";
-    return list.sort(
-      (a, b) => b.total - a.total || last(a.name).localeCompare(last(b.name), "pt-BR"),
-    );
+    const list = Array.from(map.values());
+    // Dentro do imóvel, o mais antigo primeiro (antiguidade é atraso).
+    for (const g of list) g.items.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    return list.sort((a, b) => b.items.length - a.items.length || a.name.localeCompare(b.name, "pt-BR"));
   }, [q.data, category]);
 
-  const total = owners.reduce((n, o) => n + o.total, 0);
-  const ownerCount = owners.filter((o) => o.name).length;
+  const groups = useMemo(() => {
+    if (!search.trim()) return allGroups;
+    return allGroups.filter(
+      (g) =>
+        searchScore(search, [
+          [g.name, 3],
+          [g.ownerName, 2.5],
+          [g.items.map((r) => `${r.body ?? ""} ${r.guestName ?? ""} ${r.reservationCode ?? ""}`).join(" "), 1],
+        ]) > 0,
+    );
+  }, [allGroups, search]);
+
+  const total = allGroups.reduce((n, g) => n + g.items.length, 0);
+  const ownerCount = new Set(allGroups.map((g) => g.ownerName).filter(Boolean)).size;
   const meta = category ? CATEGORY_BY_KEY.get(category) : undefined;
-  const bodyRef = useAntiClipRows<HTMLDivElement>([expanded, total, q.isLoading]);
+  const bodyRef = useAntiClipRows<HTMLDivElement>([openProp, openRec, groups.length, q.isLoading]);
+  const hasFilters = period !== null || owners.length > 0 || props.length > 0;
+
+  const actions = (
+    <>
+      <PeriodQuickFilterButton
+        value={period}
+        onChange={setPeriod}
+        min={q.data?.bounds?.min ?? null}
+        max={q.data?.bounds?.max ?? null}
+        shortcut={{ label: "Todo o período", active: !period, onSelect: () => setPeriod(null) }}
+      />
+      <RecordsFiltersButton
+        windowScope
+        category={category}
+        onCategoryChange={() => {}}
+        groupBy="property"
+        onGroupByChange={() => {}}
+        period={period}
+        onPeriodChange={setPeriod}
+        periodBounds={q.data?.bounds ?? null}
+        onlyOpen
+        onOnlyOpenChange={() => {}}
+        ownerFilters={owners}
+        onOwnerFiltersChange={setOwners}
+        ownerOptions={ownerOptions}
+        propertyFilters={props}
+        onPropertyFiltersChange={setProps}
+        propertyOptions={propertyOptions}
+        hasCustomFilters={hasFilters}
+        onClearAll={() => {
+          setPeriod(null);
+          setOwners([]);
+          setProps([]);
+        }}
+      />
+    </>
+  );
 
   return (
     <Dialog open={!!category} onOpenChange={(v) => !v && onClose()}>
       <DialogContent
         aria-describedby={undefined}
-        className={cn("flex max-h-[min(90dvh,calc(100dvh_-_var(--kb-inset,0px)_-_3rem))] w-[calc(100vw-2rem)] flex-col gap-0 overflow-hidden p-0 sm:w-full sm:max-w-md", TELA_CHEIA_CLASS)}
+        className={cn(
+          "flex max-h-[min(90dvh,calc(100dvh_-_var(--kb-inset,0px)_-_3rem))] w-[calc(100vw-2rem)] flex-col gap-0 overflow-hidden p-0 sm:w-full sm:max-w-md",
+          TELA_CHEIA_CLASS,
+        )}
       >
         <DialogHeader className="shrink-0 px-4 pb-2.5 pr-12 pt-3 text-left">
           <DialogTitle className="truncate text-sm font-bold leading-5">
@@ -1046,84 +1118,79 @@ function CategoryPendingDialog({
         </DialogHeader>
         <div
           ref={bodyRef}
-          className="sg-elegant-scroll grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)] content-start gap-3 overflow-y-auto overscroll-contain px-4 pt-1"
+          className="sg-elegant-scroll flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-4 pb-4 pt-1"
         >
+          <SearchActionRow
+            value={search}
+            onChange={setSearch}
+            placeholder="Buscar por imóvel, proprietário…"
+            actions={actions}
+            className="shrink-0"
+          />
           {q.isLoading ? (
             <div className="grid place-items-center py-10 text-muted-foreground">
               <Loader2 className="size-5 animate-spin" />
             </div>
-          ) : total === 0 ? (
+          ) : groups.length === 0 ? (
             <p className="py-8 text-center text-sm text-muted-foreground">
-              Nenhuma pendência de {meta?.short ?? "nesta categoria"} em aberto.
+              {total === 0
+                ? `Nenhuma pendência de ${meta?.short ?? "nesta categoria"} em aberto.`
+                : "Nada encontrado para essa busca."}
             </p>
           ) : (
-            owners.map((o) => (
-              <section key={o.key} className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-1.5">
-                <div className="flex min-w-0 items-center gap-1 pb-0.5 text-[12.5px]">
-                  {o.name ? (
-                    <OwnerLine
-                      name={o.name}
-                      phone={o.phone}
-                      country={o.country}
-                      phonePosition="adjacent"
-                      className="!w-auto shrink !text-[12.5px] [&>span:first-child]:font-bold"
-                    />
-                  ) : (
-                    <span className="min-w-0 truncate font-bold text-muted-foreground">
-                      Sem proprietário
-                    </span>
-                  )}
-                  <span className="shrink-0 tabular-nums text-muted-foreground/70">
-                    · {o.total}
-                  </span>
-                  <i aria-hidden className="ml-1.5 h-px min-w-3 flex-1 bg-foreground/[0.08]" />
-                </div>
-                {o.props.map((p) => {
-                  const isOpen = expanded === p.id;
-                  return (
-                    <div key={p.id} className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-1.5">
-                      <button
-                        type="button"
-                        data-clip-row
-                        onClick={() => setExpanded((cur) => (cur === p.id ? null : p.id))}
-                        aria-expanded={isOpen}
-                        className="flex min-h-[30px] min-w-0 items-center gap-2.5 text-left"
-                      >
-                        <span className="grid size-5 shrink-0 place-items-center rounded-[5px] border border-foreground/20 bg-foreground/[0.04] text-foreground/80">
-                          {isOpen ? (
-                            <Minus className="size-3" strokeWidth={2.2} />
-                          ) : (
-                            <Plus className="size-3" strokeWidth={2.2} />
+            <div className="mt-4 flex min-w-0 flex-col gap-[18px]">
+              {groups.map((g) => {
+                const isOpen = openProp === g.id;
+                return (
+                  <section key={g.id} className="min-w-0">
+                    <button
+                      type="button"
+                      data-clip-row
+                      aria-expanded={isOpen}
+                      onClick={() => {
+                        setOpenProp((cur) => (cur === g.id ? null : g.id));
+                        setOpenRec(null);
+                      }}
+                      className="mx-0.5 flex w-[calc(100%-4px)] min-w-0 items-center gap-2.5 text-left"
+                    >
+                      <span className="relative size-[34px] shrink-0 overflow-hidden rounded-[9px] bg-foreground/[0.055]">
+                        <CoverImage urls={g.coverUrls} empty={false} />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="flex min-w-0 items-center gap-2">
+                          <span
+                            className="min-w-0 truncate font-display text-[13.5px] font-semibold leading-[17px] tracking-[-0.01em] text-foreground"
+                            title={g.name}
+                          >
+                            {g.name}
+                          </span>
+                          {!isOpen && (
+                            <span
+                              aria-label={`${g.items.length} ${g.items.length === 1 ? "registro" : "registros"}`}
+                              className="grid h-5 min-w-5 shrink-0 place-items-center rounded-full bg-[rgba(200,72,92,0.10)] px-1.5 text-[11px] font-extrabold tabular-nums text-[#b4475a] dark:bg-[rgba(232,110,124,0.13)] dark:text-[#e8a3ab]"
+                            >
+                              {g.items.length}
+                            </span>
                           )}
                         </span>
-                        <span
-                          className="min-w-0 flex-1 truncate text-[13px] font-semibold"
-                          title={p.name}
-                        >
-                          {p.name}
+                        <span className="mt-0.5 block truncate text-[12px] font-semibold leading-[15px] text-foreground">
+                          {g.ownerName ?? "Sem proprietário"}
                         </span>
-                        <span className="shrink-0 rounded-full bg-[#c98c8c]/12 px-2 text-[11px] font-bold leading-5 tabular-nums text-[#c98c8c]">
-                          {p.items.length}
-                        </span>
-                      </button>
-                      {isOpen && (
-                        <div className="mb-1 overflow-hidden rounded-[12px] border border-border bg-[var(--card-surface)]">
-                          {p.items.map((r, i) => (
-                            <CompactPendingRow
-                              key={r.id}
-                              record={r}
-                              first={i === 0}
-                              onOpen={() => onOpen(r)}
-                              onResolve={() => onResolve(r)}
-                            />
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </section>
-            ))
+                      </span>
+                    </button>
+                    {isOpen && (
+                      <RecordTree
+                        items={g.items}
+                        openId={openRec}
+                        onToggle={(id) => setOpenRec((cur) => (cur === id ? null : id))}
+                        onOpen={onOpen}
+                        onResolve={onResolve}
+                      />
+                    )}
+                  </section>
+                );
+              })}
+            </div>
           )}
         </div>
         <div aria-hidden className="mx-4 mt-2 h-3 shrink-0 border-t border-[var(--panel-div)] max-lg:hidden" />
@@ -1132,76 +1199,270 @@ function CategoryPendingDialog({
   );
 }
 
-/** Linha compacta da janela do contador: miniatura 36px, título, "autor · data" e o quadradinho. */
-function CompactPendingRow({
-  record,
-  first,
+/** "hoje" / "ontem" / "há N dias" — a idade do registro no card compacto. */
+function agoShort(iso: string): string {
+  const d = new Date(iso);
+  const a = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const n = new Date();
+  const b = new Date(n.getFullYear(), n.getMonth(), n.getDate()).getTime();
+  const days = Math.max(0, Math.round((b - a) / 86_400_000));
+  if (days === 0) return "hoje";
+  if (days === 1) return "ontem";
+  return `há ${days} dias`;
+}
+
+/** "19/11 · 12:45" — o selo de data sobre a foto do registro aberto. */
+function fmtStamp(iso: string): string {
+  const d = new Date(iso);
+  const dm = d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+  const hm = d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  return `${dm} · ${hm}`;
+}
+
+function visualMedia(r: AccountRecord) {
+  return (r.media ?? []).filter((m) => m.url && (m.kind === "photo" || m.kind === "video"));
+}
+
+/**
+ * Os registros de um imóvel aberto, ligados à foto dele por linhas finas (a "árvore"): todas saem 5px
+ * acima do primeiro card, logo abaixo da foto do imóvel, descem e fazem a curva (raio 12px) até um ponto
+ * encostado na lateral do card. O ramo do registro aberto fica um tom mais forte. As posições vêm da medida
+ * real dos cards, então a linha acompanha o registro aberto, que é mais alto.
+ */
+function RecordTree({
+  items,
+  openId,
+  onToggle,
   onOpen,
   onResolve,
 }: {
-  record: AccountRecord;
-  first: boolean;
-  onOpen: () => void;
-  onResolve: () => void;
+  items: AccountRecord[];
+  openId: string | null;
+  onToggle: (id: string) => void;
+  onOpen: (r: AccountRecord) => void;
+  onResolve: (r: AccountRecord) => void;
 }) {
-  const visual = (record.media ?? []).filter(
-    (m) => m.url && (m.kind === "photo" || m.kind === "video"),
-  );
-  const m = visual[0];
+  const ref = useRef<HTMLDivElement | null>(null);
+  const [centers, setCenters] = useState<number[]>([]);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const measure = () => {
+      const kids = Array.from(el.querySelectorAll<HTMLElement>(":scope > [data-tree-item]"));
+      const next = kids.map((k) => Math.round(k.offsetTop + k.offsetHeight / 2));
+      setCenters((cur) => (cur.length === next.length && cur.every((v, i) => v === next[i]) ? cur : next));
+    };
+    measure();
+    if (typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    for (const k of Array.from(el.children)) ro.observe(k);
+    return () => ro.disconnect();
+  }, [items, openId]);
+
   return (
-    <div
-      data-clip-row
-      className={`flex min-w-0 items-center gap-2.5 px-2.5 py-2 ${
-        first ? "" : "border-t border-[var(--panel-div)]"
-      }`}
-    >
-      <button
-        type="button"
-        onClick={onOpen}
-        className="flex min-w-0 flex-1 items-center gap-2.5 text-left transition-opacity hover:opacity-80"
-      >
-        <span className="relative grid size-9 shrink-0 place-items-center overflow-hidden rounded-[9px] bg-secondary/60">
-          {m?.kind === "photo" ? (
-            <img
-              src={m.url!}
-              alt=""
-              loading="lazy"
-              className="absolute inset-0 size-full object-cover"
+    <div ref={ref} className="relative mt-2 pl-[46px]">
+      {centers.map((c, i) => {
+        const active = items[i]?.id === openId;
+        return (
+          <span key={`l${i}`} aria-hidden>
+            <span
+              className={`pointer-events-none absolute left-[18px] top-[-5px] w-[22px] rounded-bl-[12px] border-b-[1.5px] border-l-[1.5px] ${
+                active ? "z-[2] border-foreground/[0.42]" : "z-[1] border-foreground/[0.135]"
+              }`}
+              style={{ height: c + 5 }}
             />
-          ) : m?.kind === "video" ? (
-            <VideoFrame url={m.url!} />
+            <span
+              className={`pointer-events-none absolute left-[37px] z-[3] size-[7px] rounded-full shadow-[0_0_0_2.5px_var(--panel)] max-lg:shadow-[0_0_0_2.5px_var(--background)] ${
+                active ? "bg-foreground/[0.42]" : "bg-foreground/[0.135]"
+              }`}
+              style={{ top: c - 3 }}
+            />
+          </span>
+        );
+      })}
+      {items.map((r, i) => (
+        <div key={r.id} data-tree-item className={i ? "mt-2.5" : ""}>
+          {r.id === openId ? (
+            <OpenRecordCard
+              record={r}
+              onOpen={() => onOpen(r)}
+              onResolve={() => onResolve(r)}
+              onCollapse={() => onToggle(r.id)}
+            />
           ) : (
-            <RecordCover record={record} size="xs" />
+            <CompactRecordCard record={r} onClick={() => onToggle(r.id)} />
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Card compacto (76px): a foto ocupa a lateral esquerda inteira; título, "há N dias", descrição e hóspede. */
+function CompactRecordCard({ record, onClick }: { record: AccountRecord; onClick: () => void }) {
+  const visual = visualMedia(record);
+  const m = visual[0];
+  const { title, description } = recordText(record);
+  const Icon = record.kind === "audio" ? Mic : FileText;
+  return (
+    <button
+      type="button"
+      data-clip-row
+      onClick={onClick}
+      aria-expanded={false}
+      className="flex h-[76px] w-full min-w-0 items-stretch overflow-hidden rounded-[12px] bg-[var(--card-surface)] text-left shadow-[inset_0_0_0_1px_var(--border)] transition-opacity hover:opacity-90"
+    >
+      {m ? (
+        <span className="relative w-[76px] shrink-0">
+          {m.kind === "photo" ? (
+            <img src={m.url!} alt="" loading="lazy" className="absolute inset-0 block size-full object-cover" />
+          ) : (
+            <span className="absolute inset-0 overflow-hidden">
+              <VideoFrame url={m.url!} />
+            </span>
           )}
           {visual.length > 1 && (
             <span
-              className="absolute bottom-0.5 right-0.5 rounded-[4px] bg-black/65 px-1 text-[8.5px] font-semibold leading-[12px] text-white"
+              className="absolute bottom-[5px] right-[5px] inline-flex h-[18px] items-center gap-[3px] rounded-[6px] bg-black/60 px-[5px] text-[10px] font-bold text-white"
               aria-label={`${visual.length} mídias`}
             >
+              <Camera className="size-[11px]" strokeWidth={2.2} />
               {visual.length}
             </span>
           )}
         </span>
-        <span className="min-w-0 flex-1">
+      ) : (
+        <span className="grid w-[76px] shrink-0 place-items-center bg-foreground/[0.055] shadow-[inset_-1px_0_0_var(--border)]">
+          <Icon className="size-[22px] text-[var(--faint)]" strokeWidth={1.8} />
+        </span>
+      )}
+      <span className="flex min-w-0 flex-1 flex-col justify-center py-2 pl-3 pr-3.5">
+        <span className="flex items-baseline justify-between gap-2">
           <span
-            className={`block truncate text-[13px] font-semibold leading-tight ${
-              hasTitle(record) ? "" : "italic text-muted-foreground"
+            className={`min-w-0 truncate text-[14.5px] font-bold leading-[19px] ${
+              hasTitle(record) ? "text-foreground" : "italic text-muted-foreground"
             }`}
           >
-            {recordTitle(record)}
+            {title}
           </span>
-          <span className="mt-0.5 block truncate text-[11px] leading-tight text-muted-foreground">
-            {record.createdByName ?? "Equipe"} · {fmtShortDate(record.createdAt)}
+          <span className="shrink-0 text-[11.5px] font-semibold text-[var(--faint)]">
+            {agoShort(record.createdAt)}
           </span>
         </span>
-      </button>
-      <button
-        type="button"
-        onClick={onResolve}
-        aria-label="Marcar como resolvido"
-        title="Marcar como resolvido"
-        className="grid size-[18px] shrink-0 place-items-center rounded-[5px] border-[1.5px] border-foreground/25 transition-colors hover:border-emerald-500 hover:bg-emerald-500/15"
-      />
+        {description && (
+          <span className="mt-[3px] truncate text-[12.5px] font-medium leading-[17px] text-muted-foreground">
+            {description}
+          </span>
+        )}
+        {record.guestName && (
+          <span className="mt-[5px] flex min-w-0 items-center gap-[5px] text-[11.5px] font-semibold text-[var(--faint)]">
+            <User className="size-[13px] shrink-0" strokeWidth={2} />
+            <span className="truncate">{record.guestName}</span>
+          </span>
+        )}
+      </span>
+    </button>
+  );
+}
+
+/** Registro aberto: foto 138px com data e fotos, título, descrição, dados e as duas ações. */
+function OpenRecordCard({
+  record,
+  onOpen,
+  onResolve,
+  onCollapse,
+}: {
+  record: AccountRecord;
+  onOpen: () => void;
+  onResolve: () => void;
+  onCollapse: () => void;
+}) {
+  const visual = visualMedia(record);
+  const m = visual[0];
+  const { title, description } = recordText(record);
+  const onlyPhotos = visual.every((x) => x.kind === "photo");
+  const mediaLabel = `${visual.length} ${
+    onlyPhotos ? (visual.length === 1 ? "foto" : "fotos") : visual.length === 1 ? "mídia" : "mídias"
+  }`;
+  const range = fmtStayRange(record.checkinDate, record.checkoutDate);
+  const reservation = [record.reservationCode, range].filter(Boolean).join(" · ");
+  const origin = record.cardMode ? MODE_LABEL[record.cardMode] : "Registros";
+  const rows: Array<[string, string]> = [];
+  if (record.guestName) rows.push(["Hóspede", record.guestName]);
+  if (reservation) rows.push(["Reserva", reservation]);
+  rows.push(["Registrado por", `${record.createdByName ?? "Equipe"} · ${origin}`]);
+  return (
+    <div
+      data-clip-row
+      className="overflow-hidden rounded-[12px] bg-[var(--card-surface)] shadow-[inset_0_0_0_1px_var(--border)]"
+    >
+      {m && (
+        <button
+          type="button"
+          onClick={onOpen}
+          aria-label="Abrir registro"
+          className="relative block h-[138px] w-full overflow-hidden"
+        >
+          {m.kind === "photo" ? (
+            <img src={m.url!} alt="" loading="lazy" className="block size-full object-cover" />
+          ) : (
+            <span className="absolute inset-0">
+              <VideoFrame url={m.url!} />
+            </span>
+          )}
+          <span className="absolute bottom-2.5 left-2.5 inline-flex h-6 items-center gap-[5px] rounded-[8px] bg-black/55 px-[9px] text-[11px] font-bold text-white">
+            <CalendarDays className="size-[13px]" strokeWidth={2} />
+            {fmtStamp(record.createdAt)}
+          </span>
+          <span className="absolute bottom-2.5 right-2.5 inline-flex h-6 items-center gap-1 rounded-[8px] bg-black/55 px-[9px] text-[11px] font-bold text-white">
+            <Camera className="size-[11px]" strokeWidth={2.2} />
+            {mediaLabel}
+          </span>
+        </button>
+      )}
+      <div className="px-3.5 pb-3 pt-3.5">
+        <button type="button" onClick={onOpen} className="block w-full text-left">
+          <span
+            className={`block font-display text-[16px] font-bold leading-[21px] tracking-[-0.015em] ${
+              hasTitle(record) ? "text-foreground" : "italic text-muted-foreground"
+            }`}
+          >
+            {title}
+          </span>
+          {description && (
+            <span className="mt-1 block text-[13.5px] font-medium leading-[19px] text-muted-foreground">
+              {description}
+            </span>
+          )}
+        </button>
+        <div className="mt-2.5 border-t border-foreground/[0.065] pt-1">
+          {rows.map(([k, v]) => (
+            <div key={k} className="flex justify-between gap-3 py-[7px] text-[12.5px] font-medium leading-4">
+              <span className="shrink-0 text-muted-foreground">{k}</span>
+              <span className="min-w-0 text-right font-semibold text-foreground">{v}</span>
+            </div>
+          ))}
+        </div>
+        <div className="mt-2.5 flex gap-2">
+          <button
+            type="button"
+            onClick={onResolve}
+            className="inline-flex h-10 flex-1 items-center justify-center gap-1.5 rounded-[10px] bg-[#0e9f6e] text-[13px] font-bold text-white transition-opacity hover:opacity-90"
+          >
+            <Check className="size-[13px]" strokeWidth={2.6} />
+            Marcar como resolvido
+          </button>
+          <button
+            type="button"
+            onClick={onCollapse}
+            aria-expanded
+            className="inline-flex h-10 shrink-0 items-center justify-center rounded-[10px] bg-foreground/[0.055] px-3.5 text-[13px] font-bold text-foreground shadow-[inset_0_0_0_1px_var(--border)]"
+          >
+            Recolher
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -1672,6 +1933,7 @@ function PropertyCard({
       setThumbCap(cols);
     };
     measure();
+    if (typeof ResizeObserver === "undefined") return;
     const ro = new ResizeObserver(measure);
     ro.observe(el);
     return () => ro.disconnect();
@@ -3207,6 +3469,7 @@ function fmtSize(bytes: number): string {
  * para cada um, com "voltar" no topo. Nada de menu-dentro-de-menu.
  */
 function RecordsFiltersButton({
+  windowScope = false,
   category,
   onCategoryChange,
   groupBy,
@@ -3225,6 +3488,8 @@ function RecordsFiltersButton({
   hasCustomFilters,
   onClearAll,
 }: {
+  /** Na janela do contador: sem "Agrupar" (a janela é sempre por imóvel). */
+  windowScope?: boolean;
   category: RecordCategory | null;
   onCategoryChange: (v: RecordCategory | null) => void;
   groupBy: GroupBy;
@@ -3321,13 +3586,15 @@ function RecordsFiltersButton({
         {screen === "root" ? (
           <>
             <FilterRootHeader canClear={hasCustomFilters} onClear={onClearAll} />
-            <FilterMenuRow
-              icon={Layers}
-              label="Agrupar"
-              value={groupLabel}
-              active={groupBy !== GROUP_OPTIONS[0].value}
-              onClick={() => setScreen("group")}
-            />
+            {!windowScope && (
+              <FilterMenuRow
+                icon={Layers}
+                label="Agrupar"
+                value={groupLabel}
+                active={groupBy !== GROUP_OPTIONS[0].value}
+                onClick={() => setScreen("group")}
+              />
+            )}
             <FilterMenuRow
               icon={Users}
               label="Proprietário"
