@@ -18,3 +18,12 @@ describe("local de devolução da chave (caso Ricardo, 19/11)", () => {
     expect(sys).toMatch(/vale o que a equipe combinou/);
   });
 });
+
+describe("operação interna (limpeza e manutenção) só como conhecimento (23/11/2026)", () => {
+  it("prompt limita o uso e não mexe nos horários", () => {
+    const sys = buildSystemPrompt("airbnb");
+    expect(sys).toMatch(/ctx:operacao_interna é só para você entender/);
+    expect(sys).toMatch(/nunca muda os horários de entrada e saída permitidos no sistema/);
+    expect(sys).toMatch(/Ao hóspede não conte detalhes de limpeza, manutenção, danos, custos/);
+  });
+});

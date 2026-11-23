@@ -20,6 +20,14 @@ export interface CancellationTerms {
   details?: { channel: string | null; holderName: string | null; language: string | null; nights: number | null; bookedAt: string | null } | null;
   /** Cards de entrada/saída: status e previsões informadas (hóspede, IA ou equipe). */
   cards?: Array<{ kind: string; status: string | null; time: string | null; date: string | null; source: string | null; lateCheckout: string | null }>;
+  /**
+   * Conhecimento interno da operação (titular, 23/11/2026): só para a IA entender e falar com a equipe, nunca muda
+   * horário de entrada/saída. Limpeza da saída anterior no dia da entrada e manutenções/ocorrências recentes do imóvel.
+   */
+  internalOps?: {
+    previousCheckout: { guestLeft: boolean; cleaningConcludedAt: string | null } | null;
+    recentRecords: Array<{ at: string; category: string; text: string }>;
+  } | null;
 }
 
 const DAY_MS = 86_400_000;
@@ -64,6 +72,48 @@ export async function fetchCancellationTerms(turn: ValidatedTurn, deps?: { db?: 
   } catch {
     cards = [];
   }
+  let internalOps: CancellationTerms["internalOps"] = null;
+  try {
+    let previousCheckout: NonNullable<CancellationTerms["internalOps"]>["previousCheckout"] = null;
+    const ciDate = typeof r["checkin_date"] === "string" ? r["checkin_date"].slice(0, 10) : null;
+    if (ciDate) {
+      const { data: prev } = await db
+        .from("property_reservations")
+        .select("id")
+        .eq("property_id", turn.propertyId)
+        .eq("checkout_date", ciDate)
+        .neq("id", turn.reservationId)
+        .not("status", "like", "cancel%")
+        .limit(1);
+      const prevId = (prev as Array<{ id: string }> | null)?.[0]?.id;
+      if (prevId) {
+        const { data: card } = await db
+          .from("guest_arrival_status")
+          .select("status, concluded_at")
+          .eq("reservation_id", prevId)
+          .eq("kind", "checkout")
+          .limit(1);
+        const c = (card as Array<{ status?: string | null; concluded_at?: string | null }> | null)?.[0];
+        if (c) previousCheckout = { guestLeft: c.status === "done", cleaningConcludedAt: c.concluded_at ?? null };
+      }
+    }
+    const since = new Date(Date.now() - 15 * DAY_MS).toISOString();
+    const { data: recs } = await db
+      .from("reservation_records")
+      .select("created_at, category, body")
+      .eq("property_id", turn.propertyId)
+      .eq("kind", "note")
+      .in("category", ["maintenance", "incident", "damage", "other"])
+      .gte("created_at", since)
+      .order("created_at", { ascending: false })
+      .limit(5);
+    const recentRecords = ((recs ?? []) as Array<{ created_at: string; category: string; body: string | null }>)
+      .filter((x) => typeof x.body === "string" && x.body.trim())
+      .map((x) => ({ at: x.created_at, category: x.category, text: x.body!.replace(/\s+/g, " ").trim().slice(0, 200) }));
+    internalOps = previousCheckout || recentRecords.length ? { previousCheckout, recentRecords } : null;
+  } catch {
+    internalOps = null;
+  }
   const co = isoDate(r["checkout_date"]);
   const category = typeof r["cancellation_policy_category"] === "string" && r["cancellation_policy_category"].trim() ? r["cancellation_policy_category"].trim() : null;
   return {
@@ -80,6 +130,7 @@ export async function fetchCancellationTerms(turn: ValidatedTurn, deps?: { db?: 
       bookedAt: typeof r["created_at"] === "string" ? r["created_at"] : null,
     },
     cards,
+    internalOps,
   };
 }
 
