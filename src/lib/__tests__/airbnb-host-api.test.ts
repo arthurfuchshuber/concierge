@@ -449,3 +449,15 @@ describe("auto-descoberta Channex", () => {
     expect(keys.join()).not.toMatch(/check_in_time_start|default_min_nights|smart_lock_code|rate_plan_id|token|meta_title/);
   });
 });
+
+describe("térreo pela descrição do anúncio (23/11/2026)", () => {
+  it("listing_floor 1 em prédio de 2 pavimentos, descrição diz térreo → Térreo", () => {
+    const h = parseHostListing("9", { listing: { listing: { street: "Rua A, 1", apt: "Apto 101", property_details: { listing_floor: 1, number_of_floors: 2 } } }, descriptions: { listing_description: { description: "Studio n° 101 no térreo, próximo ao Paraguai." } } })!;
+    expect(hostPropertyPatch(h, {})["apartment_floor"]).toBe("Térreo");
+  });
+  it("sem menção a térreo continua 1º andar", () => {
+    const h = parseHostListing("9", { listing: { listing: { street: "Rua A, 1", apt: "Apto 202", property_details: { listing_floor: 1, number_of_floors: 4 } } }, descriptions: { listing_description: { description: "Apê aconchegante." } } })!;
+    expect(hostPropertyPatch(h, {})["apartment_floor"]).toBe("1º andar");
+  });
+});
+

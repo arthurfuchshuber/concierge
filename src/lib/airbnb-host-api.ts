@@ -1072,7 +1072,11 @@ export function hostPropertyPatch(h: HostListing, cur: HostCurrent): Record<stri
   // Andar do imóvel (P: serve a dúvidas de escada/acessibilidade antes da reserva). O número do apartamento é outro campo (G).
   const rawL = innerRawListing(h);
   const multiUnit = isMultiUnitType(h.propertyType) || cur.in_condominium === true;
-  set("apartment_floor", floorLabelOf(h.listingFloor ?? listingFloorOf(rawL), h.numberOfFloors ?? numberOfFloorsOf(rawL), multiUnit));
+  const lf = h.listingFloor ?? listingFloorOf(rawL);
+  // Titular (23/11/2026): se a acomodação é térreo, é "Térreo". Com `listing_floor` 0/1 e a descrição do próprio anúncio
+  // dizendo "térreo" (Studios 101, 102, nº 3 e nº 4), vale a descrição, mesmo em prédio de 2 pavimentos.
+  const saysGroundFloor = lf != null && lf <= 1 && /\bt[ée]rreo\b/i.test(fullDescriptionText(h) ?? "");
+  set("apartment_floor", saysGroundFloor ? "Térreo" : floorLabelOf(lf, h.numberOfFloors ?? numberOfFloorsOf(rawL), multiUnit));
   // Unidade e vaga: `apt` do anúncio (fonte principal) ou, sem API, o endereço salvo. Identificou apartamento → condomínio.
   const fromApi = parseApt(h.apt);
   const unitInfo = fromApi.unit ? fromApi : extractUnitFromAddress(cur.address);
