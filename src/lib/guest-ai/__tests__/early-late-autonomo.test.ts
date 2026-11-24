@@ -15,6 +15,14 @@ describe("early check-in e late check-out: a IA responde do início ao fim (15/1
     expect(p).not.toContain("a equipe recebe a decisão com botões");
   });
 
+  it("auditoria 24/11 (caso Claudecir): preparo do espaço só com fonte e limpeza concluída vai à equipe", () => {
+    const p = buildSystemPrompt("airbnb" as never);
+    expect(p).toContain("Só fale em limpeza ou preparo do espaço se o contexto sustentar");
+    expect(p).toContain("ou estiver chegando no dia");
+    expect(p).toContain("se ficar pronto antes, a equipe avisa por aqui");
+    expect(p).toContain("Se ctx:operacao_interna mostrar a limpeza da saída anterior concluída, marque handoff");
+  });
+
   it("resposta de early check-in (possibilidade, equipe avisa no dia) não vira promessa não declarada", () => {
     const t = "Nosso check-in é a partir das 15h. Se houver a possibilidade de liberar antes, nossa equipe entrará em contato com você durante o dia do check-in.";
     expect(kinds(t)).toEqual([]);

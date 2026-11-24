@@ -251,6 +251,10 @@ describe("C · verdade estrita do dossiê, check-in antecipado/malas e fim das m
     );
     expect(sys).toMatch(/O que não estiver declarado não existe para você/);
   });
+  it("auditoria 24/11 (caso Felipe): o texto não responde antes da equipe o que se pergunta a ela", () => {
+    expect(sys).toMatch(/Coerência com o encaminhamento: se a pergunta que você faz à equipe em handoff\.question/);
+    expect(sys).toMatch(/nunca afirma a resposta antes da equipe \(nem que não existe, nem que existe\)/);
+  });
   it("pedido de check-in antecipado/malas: horário oficial com franqueza, sem inventar maleiro, sem pergunta burocrática", () => {
     expect(sys).toMatch(/o horário oficial de check-in é o padrão; diga que faremos o possível para liberar o acesso antes/); // diretiva 11/11/2026
     expect(sys).toMatch(/a acomodação não dispõe de local para deixar as malas antes da liberação/);
