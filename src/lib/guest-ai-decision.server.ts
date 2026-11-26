@@ -345,12 +345,17 @@ export async function deliverAiMessage(p: { conversationId: string; session: str
   const db = await adminDb();
   if (p.session.startsWith("airbnb:")) {
     const { deliverToAirbnbThread } = await import("@/lib/channex-messages.server");
+    const { resolveAiSenderChannel } = await import("@/lib/ai-sender-channel.server");
+    const threadId = p.session.slice("airbnb:".length);
+    // remetente estrito também na resposta da decisão humana: nunca sai por outra conta
+    const strictSender = await resolveAiSenderChannel(db, { threadId, propertyId: p.propertyId });
     const r = await deliverToAirbnbThread(db, {
       conversationId: p.conversationId,
-      threadId: p.session.slice("airbnb:".length),
+      threadId,
       propertyId: p.propertyId,
       text: p.text,
       senderType: "ai",
+      strictSender,
     });
     return r.ok ? (r.messageId ?? null) : null;
   }

@@ -11,7 +11,7 @@ export type GeneratedSystemDoc = {
   content_hash: string;
 };
 
-export const GENERATED_AT = "2026-11-26T20:36:45.735Z";
+export const GENERATED_AT = "2026-11-26T23:12:56.571Z";
 
 export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
   {
@@ -1689,15 +1689,6 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "a4cbf4041070df14943a1116464db51b"
   },
   {
-    "doc_key": "rule:CX",
-    "kind": "rule",
-    "title": "Regra — CX",
-    "content": "Envio direto de mensagens no Airbnb com a conta escolhida no seletor de\nassinatura (\"carimbo\"), sem remapear o anúncio na Channex.\n\nSegurança:\n - O token OAuth é lido ao vivo da Channex a cada envio (nunca gravado no\n nosso banco nem devolvido ao navegador).\n - Antes de enviar, a conversa é lida no Airbnb com o token escolhido e o\n anúncio dela precisa ser exatamente o da conversa na Channex; qualquer\n divergência ou erro cai no envio padrão pela Channex (hóspede nunca fica\n sem resposta).",
-    "source_path": "src/lib/airbnb-direct-sender.server.ts",
-    "audience": [],
-    "content_hash": "78bc3eaecdfc3787303762982cf78df5"
-  },
-  {
     "doc_key": "rule:DateEditor",
     "kind": "rule",
     "title": "Regra — DateEditor",
@@ -3048,6 +3039,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "1b843713f95edbf69cf635c336a1500c"
   },
   {
+    "doc_key": "rule:isCheckoutTimeReply",
+    "kind": "rule",
+    "title": "Regra — isCheckoutTimeReply",
+    "content": "Só informa/confirma o horário de saída (\"Vamos sair às 11h mesmo\", \"Saio às 10h\", \"Às 11h\"), com cumprimento e\ndespedida opcionais. Pergunta, pedido, ressalva ou horário DEPOIS do limite que nós informamos ⇒ não (saída\ndepois do horário é pedido de late check-out e vai ao modelo/decisão). Sem limite conhecido ⇒ não.",
+    "source_path": "src/lib/guest-ai/ack-silence.ts",
+    "audience": [],
+    "content_hash": "2a360a309e489a6556303dbce7c8b08b"
+  },
+  {
     "doc_key": "rule:isExpired",
     "kind": "rule",
     "title": "Regra — isExpired",
@@ -3532,6 +3532,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/stable-media-url.ts",
     "audience": [],
     "content_hash": "f080b63cf96a1f064223cd18097c780d"
+  },
+  {
+    "doc_key": "rule:MIN_TOKEN_LENGTH",
+    "kind": "rule",
+    "title": "Regra — MIN_TOKEN_LENGTH",
+    "content": "Token OAuth do Airbnb lido das configurações do canal na Channex (26/11/2026).\n\nA Channex passou a devolver `tokens.access_token` MASCARADO (\"***\") em `GET /channels/:id`. Usar esse valor\nmandava `Bearer ***` ao Airbnb (HTTP 401) e o envio direto pela conta escolhida falhava sempre. Aqui o token\nsó vale se for um token de verdade: nulo, vazio, curto (< 10) ou mascarado ⇒ indisponível, sem nenhuma\nchamada ao Airbnb. Pura.",
+    "source_path": "src/lib/airbnb-token.ts",
+    "audience": [],
+    "content_hash": "18cd9ef6b6187c399746972f41e9506e"
   },
   {
     "doc_key": "rule:missingPortugueseAccents",
@@ -5607,10 +5616,10 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "doc_key": "rule:shouldSilenceBareAck",
     "kind": "rule",
     "title": "Regra — shouldSilenceBareAck",
-    "content": "O turno atual do hóspede (mensagens seguidas dele no fim do histórico) deve ficar SEM resposta?\nMídia (foto/áudio) nunca é confirmação vazia.\n- Sem pergunta nossa pendente: confirmação/cortesia ou afirmação sem pedido ⇒ silêncio.\n- Nossa última mensagem foi a checagem do imóvel e o hóspede respondeu que está tudo bem (com ou sem elogio)\n ⇒ a checagem cumpriu o objetivo; silêncio (sem tréplica). Qualquer ressalva, pergunta ou pedido ⇒ modelo.\n- Outra pergunta nossa pendente ⇒ a conversa segue (modelo).",
+    "content": "O turno atual do hóspede (mensagens seguidas dele no fim do histórico) deve ficar SEM resposta?\nMídia (foto/áudio) nunca é confirmação vazia.\n- Sem pergunta nossa pendente: confirmação/cortesia ou afirmação sem pedido ⇒ silêncio.\n- Nossa última mensagem foi a checagem do imóvel e o hóspede respondeu que está tudo bem (com ou sem elogio)\n ⇒ a checagem cumpriu o objetivo; silêncio (sem tréplica). Qualquer ressalva, pergunta ou pedido ⇒ modelo.\n- Nós pedimos o horário estimado de saída e o hóspede só informou um horário até o limite ⇒ silêncio.\n- Outra pergunta nossa pendente ⇒ a conversa segue (modelo).",
     "source_path": "src/lib/guest-ai/ack-silence.ts",
     "audience": [],
-    "content_hash": "164f6c6ae99fd7b6d0cec90640e485dc"
+    "content_hash": "bf512b61bcb2ea3515518009b88d99dd"
   },
   {
     "doc_key": "rule:SideBlock",
@@ -6648,6 +6657,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "8129c54afde4f31b05f449e59477cc0c"
   },
   {
+    "doc_key": "rule:src/lib/ai-sender-channel.server.ts:0",
+    "kind": "rule",
+    "title": "Regra em ai-sender-channel.server.ts",
+    "content": "Conta remetente da IA no Airbnb na hora da ENTREGA (26/11/2026, caso Carlos / \"Casa Completa Próx. a\nAvenida Turística\"): a mensagem saiu como \"Regina · Coanfitrião\" com o seletor \"Assina como\" em\n\"Anfitrião Sigma\", porque a entrega autônoma não pedia remetente estrito e a falha do envio direto caía\nna Channex, que envia pela conta mapeada da thread.\n\nResolve a conta esperada pela MESMA política do turno (`resolveSenderIdentity`: preferência do anfitrião\npara o grupo do anúncio, senão a conta mapeada do anúncio). Qualquer coisa diferente de `resolved` ⇒\n`unresolved`: a entrega não envia por conta nenhuma e a equipe é avisada.",
+    "source_path": "src/lib/ai-sender-channel.server.ts",
+    "audience": [],
+    "content_hash": "dc42e1dc296233bc2c093c3c522c7a9b"
+  },
+  {
     "doc_key": "rule:src/lib/airbnb-accounts.server.ts:0",
     "kind": "rule",
     "title": "Regra em airbnb-accounts.server.ts",
@@ -6655,6 +6673,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/airbnb-accounts.server.ts",
     "audience": [],
     "content_hash": "91f53b5ebefe7bf29aa5d6a21dc3596d"
+  },
+  {
+    "doc_key": "rule:src/lib/airbnb-direct-sender.server.ts:0",
+    "kind": "rule",
+    "title": "Regra em airbnb-direct-sender.server.ts",
+    "content": "Envio direto de mensagens no Airbnb com a conta escolhida no seletor de\nassinatura (\"carimbo\"), sem remapear o anúncio na Channex.\n\nSegurança:\n - O token OAuth é lido ao vivo da Channex a cada envio (nunca gravado no\n nosso banco nem devolvido ao navegador).\n - Antes de enviar, a conversa é lida no Airbnb com o token escolhido e o\n anúncio dela precisa ser exatamente o da conversa na Channex; qualquer\n divergência ou erro cai no envio padrão pela Channex (hóspede nunca fica\n sem resposta).",
+    "source_path": "src/lib/airbnb-direct-sender.server.ts",
+    "audience": [],
+    "content_hash": "36891ed8792f73261de92cd554e91e7f"
   },
   {
     "doc_key": "rule:src/lib/airbnb-host-api.server.ts:0",
@@ -7080,7 +7107,16 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "a87168c9bfb7e2830fcdd367537e0ee9"
   },
   {
-    "doc_key": "rule:src/lib/channex-messages.server.ts:30806",
+    "doc_key": "rule:src/lib/channex-messages.server.ts:18147",
+    "kind": "rule",
+    "title": "Regra em channex-messages.server.ts",
+    "content": "IA: remetente estrito (sem fallback silencioso de conta). Ausente = fluxo humano inalterado.\n `{ unresolved }`: a política não resolveu a conta ⇒ nada é enviado, falha registrada e equipe avisada.",
+    "source_path": "src/lib/channex-messages.server.ts",
+    "audience": [],
+    "content_hash": "015ac335c5a65d46974274f74f998d2e"
+  },
+  {
+    "doc_key": "rule:src/lib/channex-messages.server.ts:31305",
     "kind": "rule",
     "title": "Regra em channex-messages.server.ts",
     "content": "TURNO EM REQUISIÇÃO PRÓPRIA (17/11/2026, decisão do titular: mais tempo, raciocínio sem limite). O webhook é\nencerrado pela plataforma em ~30 s; o turno passa a rodar em `/api/public/ia/turno`, disparado pelo banco\n(`dispatch_guest_ai_turn`, pg_net com espera de 150 s), com os prazos de `LONG_TURN`. Se o disparo falhar, roda\naqui mesmo com os prazos curtos de antes (nunca perder a resposta). `GUEST_AI_TURN_DISPATCH=off` desliga.",
@@ -9040,6 +9076,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/reservation-records.functions.ts",
     "audience": [],
     "content_hash": "0f93acecb7b17ebc0f5e1c1814eb17ee"
+  },
+  {
+    "doc_key": "rule:src/lib/sender-identity-source.server.ts:0",
+    "kind": "rule",
+    "title": "Regra em sender-identity-source.server.ts",
+    "content": "Fontes da identidade de envio Airbnb a partir do thread da Channex (somente leitura, sem credenciais).\nNúcleo único usado pelo turno da IA (`guest-ai/data/sender-identity.server.ts`, atrás do turno validado)\ne pela ENTREGA da IA (`ai-sender-channel.server.ts`, remetente estrito). Ver o cabeçalho de\n`guest-ai/data/sender-identity.server.ts` para a regra de cada leitura.\nLança só quando `signal` foi abortado; qualquer outra falha de leitura ⇒ `lookup: \"failed\"`.",
+    "source_path": "src/lib/sender-identity-source.server.ts",
+    "audience": [],
+    "content_hash": "73a922ece17df315bbd3e51001e4e9de"
   },
   {
     "doc_key": "rule:src/lib/service-situations.functions.ts:7612",
