@@ -603,6 +603,9 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
           res: reservations[conv.id] ?? null,
           flow: isAirbnb ? flows.get(sess.slice("airbnb:".length)) ?? null : null,
           isAirbnb,
+          guideStay: mergeDetails[conv.id]
+            ? { checkin: mergeDetails[conv.id]?.checkinDate ?? null, checkout: mergeDetails[conv.id]?.checkoutDate ?? null }
+            : null,
           today,
           nowMs,
         });
