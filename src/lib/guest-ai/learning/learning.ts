@@ -24,7 +24,7 @@
  */
 import { SECRET_SCRUBBER } from "@/lib/guest-ai/secret-scrub";
 
-export const LEARNING_SOURCES = ["checkout_done", "incident_resolved", "guest_confirmation"] as const;
+export const LEARNING_SOURCES = ["checkout_done", "incident_resolved", "guest_confirmation", "team_instruction"] as const;
 export type LearningSource = (typeof LEARNING_SOURCES)[number];
 
 export const LEARNING_CATEGORIES = [
@@ -36,6 +36,20 @@ export const LEARNING_CATEGORIES = [
   "duvidas_frequentes",
 ] as const;
 export type LearningCategory = (typeof LEARNING_CATEGORIES)[number];
+
+/**
+ * QUEM VÊ cada aprendizado (público do Dossiê, 01/11/2026): acesso, equipamentos e manutenção só chegam à IA com
+ * reserva ativa (G, "Reserva Ativa"); regras da casa, vizinhança e dúvidas frequentes valem para qualquer
+ * pessoa (P, "Público"). A tela de Aprendizados mostra o mesmo rótulo que a IA aplica.
+ */
+export const LEARNING_AUDIENCE: Record<LearningCategory, "P" | "G"> = {
+  acesso_e_chegada: "G",
+  equipamentos: "G",
+  manutencao: "G",
+  regras_da_casa: "P",
+  vizinhanca: "P",
+  duvidas_frequentes: "P",
+};
 
 export const LEARNING_STATEMENT_MAX = 400;
 export const LEARNING_STATEMENT_MIN = 15;
@@ -177,6 +191,7 @@ const SOURCE_LABEL: Record<LearningSource, string> = {
   checkout_done: "estadia concluída",
   incident_resolved: "incidente resolvido",
   guest_confirmation: "confirmação do hóspede",
+  team_instruction: "instrução da equipe",
 };
 
 // ─────────────── a mais recente prevalece (10/11/2026) ───────────────

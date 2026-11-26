@@ -55,7 +55,7 @@ function normalize(s: string): string {
 const POPUP_MAX_HEIGHT = 288; // ≈ max-h-72
 
 export const TagMentionTextarea = forwardRef<TagMentionTextareaHandle, Props>(function TagMentionTextarea(
-  { value, onChange, items = [], className, containerClassName, onKeyDown: onKeyDownProp, ...rest },
+  { value, onChange, items = [], className, containerClassName, onKeyDown: onKeyDownProp, onBlur: onBlurProp, ...rest },
   ref,
 ) {
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -216,9 +216,12 @@ export const TagMentionTextarea = forwardRef<TagMentionTextareaHandle, Props>(fu
         value={value}
         onChange={handleChange}
         onKeyDown={handleKeyDown}
-        onBlur={() => setTimeout(() => setOpen(false), 120)}
         className={cn(className)}
         {...rest}
+        onBlur={(e) => {
+          setTimeout(() => setOpen(false), 120);
+          onBlurProp?.(e);
+        }}
       />
       {open && filtered.length > 0 && (
         <div

@@ -275,6 +275,8 @@ export const SENDER_PREF_SELECT = "channex_id, owner_id:payload->>owner_id, chan
 
 /** Cidade do imóvel (para os eventos da Home do guia). Posse conferida pelo `owner_id`. */
 export const PROPERTY_CITY_COLUMNS = ["id", "owner_id", "city", "country"] as const;
+/** Situação regional ATIVA confirmada pela equipe (26/11/2026): só o que a IA precisa (sem autor nem conversa). */
+export const REGIONAL_SITUATION_COLUMNS = ["id", "city", "kind", "neighborhoods", "ai_text", "starts_at", "expires_at"] as const;
 /**
  * Origem geográfica do imóvel para as ferramentas de consulta (lugares e rotas, 07/11/2026): coordenadas do
  * cadastro e localidade. Nada além disso (sem endereço, sem credenciais). Posse conferida pelo `owner_id`.

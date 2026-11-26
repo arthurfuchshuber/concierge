@@ -16,7 +16,14 @@ export function ComposerPlusMenu({
   onAttach,
   disabled,
   className = "",
+  attachLabel = "Anexo",
+  iconClassName = "size-4",
+  menuClassName = "w-40",
 }: {
+  /** Atendimento (mockup ATD-D10/M11): "Anexar Arquivo", "+" de 18px e menu de 180px sem borda. */
+  attachLabel?: string;
+  iconClassName?: string;
+  menuClassName?: string;
   onCamera: () => void;
   onAttach: () => void;
   disabled?: boolean;
@@ -32,15 +39,15 @@ export function ComposerPlusMenu({
           title="Adicionar"
           className={`${COMPOSER_ICON_BTN} ${className}`}
         >
-          <Plus className="size-4" />
+          <Plus className={iconClassName} />
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" side="top" className="w-40">
+      <DropdownMenuContent align="start" side="top" className={menuClassName}>
         <DropdownMenuItem onSelect={() => onCamera()}>
           <Camera className="size-4" /> Câmera
         </DropdownMenuItem>
         <DropdownMenuItem onSelect={() => onAttach()}>
-          <Paperclip className="size-4" /> Anexo
+          <Paperclip className="size-4" /> {attachLabel}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

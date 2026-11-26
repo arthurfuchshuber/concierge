@@ -52,7 +52,7 @@ const ERRORS: Record<string, string> = {
 };
 
 export type DecideResponse =
-  | { ok: true; outcome: "replied" | "silent" | "reply_failed"; message: string | null }
+  | { ok: true; outcome: "replied" | "silent" | "reply_failed" | "already_answered"; message: string | null }
   | { ok: false; alreadyDecided: { by: string | null; at: string | null } | null; message: string };
 
 /** O clique (1 toque). Duplo clique e clique simultâneo de outra pessoa são barrados pelo banco. */
@@ -80,7 +80,12 @@ export const decideHumanDecisionFn = createServerFn({ method: "POST" })
       return {
         ok: true,
         outcome: r.outcome,
-        message: r.outcome === "reply_failed" ? "Decisão registrada, mas a mensagem não chegou ao hóspede. Responda manualmente." : null,
+        message:
+          r.outcome === "reply_failed"
+            ? "Decisão registrada, mas a mensagem não chegou ao hóspede. Responda manualmente."
+            : r.outcome === "already_answered"
+              ? "A equipe já respondeu esse pedido ao hóspede. A IA não enviou nada."
+              : null,
       };
     }
     if (r.code === "already_decided") {

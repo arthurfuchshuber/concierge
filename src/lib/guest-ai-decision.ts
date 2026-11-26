@@ -86,6 +86,13 @@ export function extractRequestedTime(text: string | null | undefined): string | 
   return `${String(Number(m[1])).padStart(2, "0")}:${m[2] ?? "00"}`;
 }
 
+/** "13:00" ⇒ "13h00"; "9:30" ⇒ "9h30" (texto da faixa de decisão e linha de registro). */
+export function formatHourFull(hhmm: string | null | undefined): string {
+  const m = /^(\d{1,2}):(\d{2})/.exec(hhmm ?? "");
+  if (!m) return hhmm ?? "";
+  return `${Number(m[1])}h${m[2]}`;
+}
+
 /** "13:00" ⇒ "13h"; "13:30" ⇒ "13h30". */
 export function formatHour(hhmm: string | null | undefined): string {
   const m = /^(\d{1,2}):(\d{2})/.exec(hhmm ?? "");
@@ -93,17 +100,49 @@ export function formatHour(hhmm: string | null | undefined): string {
   return m[2] === "00" ? `${Number(m[1])}h` : `${Number(m[1])}h${m[2]}`;
 }
 
-/** Botões do cartão por tipo (2–4; rótulos curtos que cabem numa linha a 360px). */
-export function buildDecisionOptions(kind: DecisionKind, time: string | null): DecisionOption[] {
-  const assume: DecisionOption = { id: "assume", label: "Eu assumo a conversa", variant: "assume", ai_intent: "assume" };
-  const decline: DecisionOption = { id: "decline", label: "Recusar com gentileza", variant: "neutral", ai_intent: "decline" };
+/**
+ * Botões da faixa de decisão (25/11/2026, mockup ATD-D09/M10): rótulos com iniciais maiúsculas, sem horário no
+ * botão (o horário está no texto da faixa) e SEM "Eu Assumo a Conversa" visível — responder no campo já assume.
+ * A opção `assume` continua nos dados porque é o registro interno de "a equipe respondeu por conta própria"
+ * (`resolvePendingDecisionsOnHumanMessage`); a tela nunca a mostra.
+ * O botão em DESTAQUE (`primary`) é sempre a opção que mais beneficia o anfitrião: com outro hóspede entrando
+ * (saída tardia) ou saindo (entrada antecipada) no mesmo dia ⇒ "Recusar com Gentileza"; sem conflito ou sem
+ * saber ⇒ "Cobrar Meia Diária". O destaque vem primeiro; os demais seguem na ordem Cobrar · Aprovar · Recusar.
+ */
+export function buildDecisionOptions(
+  kind: DecisionKind,
+  time: string | null,
+  opts: { conflict?: boolean | null } = {},
+): DecisionOption[] {
+  const assume: DecisionOption = { id: "assume", label: "Eu Assumo a Conversa", variant: "assume", ai_intent: "assume" };
   if (kind === "late_checkout" || kind === "early_checkin") {
+    const conflict = opts.conflict === true;
+    const charge: DecisionOption = { id: "charge", label: "Cobrar Meia Diária", variant: conflict ? "secondary" : "primary", ai_intent: "charge" };
     const approve: DecisionOption = time
-      ? { id: "approve", label: `Aprovar ${formatHour(time)} (cortesia)`, variant: "primary", ai_intent: "approve", time }
-      : { id: "approve", label: "Aprovar (cortesia)", variant: "primary", ai_intent: "approve" };
-    return [approve, { id: "charge", label: "Cobrar meia diária", variant: "secondary", ai_intent: "charge" }, decline, assume];
+      ? { id: "approve", label: "Aprovar como Cortesia", variant: "secondary", ai_intent: "approve", time }
+      : { id: "approve", label: "Aprovar como Cortesia", variant: "secondary", ai_intent: "approve" };
+    const decline: DecisionOption = { id: "decline", label: "Recusar com Gentileza", variant: conflict ? "primary" : "secondary", ai_intent: "decline" };
+    return conflict ? [decline, charge, approve, assume] : [charge, approve, decline, assume];
   }
-  return [{ id: "approve", label: "Aprovar", variant: "primary", ai_intent: "approve" }, decline, assume];
+  return [
+    { id: "approve", label: "Aprovar", variant: "primary", ai_intent: "approve" },
+    { id: "decline", label: "Recusar com Gentileza", variant: "secondary", ai_intent: "decline" },
+    assume,
+  ];
+}
+
+/** Opções visíveis na faixa (sem a interna "assume"), com o destaque primeiro. */
+export function visibleDecisionOptions(options: readonly DecisionOption[]): DecisionOption[] {
+  const shown = options.filter((o) => o.ai_intent !== "assume");
+  return [...shown.filter((o) => o.variant === "primary"), ...shown.filter((o) => o.variant !== "primary")];
+}
+
+/** Gerúndio do botão enquanto a IA leva a resposta ("Cobrando Meia Diária…"). */
+export function decisionBusyLabel(o: Pick<DecisionOption, "ai_intent" | "label">): string {
+  if (o.ai_intent === "charge") return "Cobrando Meia Diária…";
+  if (o.ai_intent === "decline") return "Recusando com Gentileza…";
+  if (o.ai_intent === "approve") return o.label === "Aprovar" ? "Aprovando…" : "Aprovando como Cortesia…";
+  return `${o.label}…`;
 }
 
 const words = (s: string) => s.replace(/\s+/g, " ").trim().split(" ").filter(Boolean);
@@ -134,49 +173,66 @@ export interface QuestionInput {
   officialCheckinMax?: string | null;
 }
 
-/** Pergunta curta (~35 palavras, nunca mais de 45) para a equipe decidir. */
+/**
+ * Texto da faixa de decisão (~35 palavras, nunca mais de 45). Mockup de 25/11/2026: só o fato, sem pergunta no
+ * fim ("os botões já dizem o que fazer"), horários no formato "13h00" e o que importa em **negrito** (a tela
+ * transforma `**…**` em negrito; o texto nunca vai ao hóspede).
+ * Ex.: "Clarisse pede saída às **13h00**, sendo o oficial às **11h00**. **Não há entrada no mesmo dia.**"
+ */
 export function buildDecisionQuestion(q: QuestionInput): string {
   const who = (q.guestName ?? "").trim().split(/\s+/)[0] || "O hóspede";
+  const b = (t: string) => `**${t}**`;
+  const at = (hhmm: string | null | undefined) => (hhmm ? `às ${b(formatHourFull(hhmm))}` : "");
+  const day = (r: ExceptionRequest | null | undefined) => (r?.day ? ` no dia ${r.day}` : "");
   let s: string;
   if (q.late && q.early) {
-    const out = `${describeRequest("late_checkout", q.late)}${q.officialCheckout ? ` (oficial ${formatHour(q.officialCheckout)})` : ""}`;
-    const inn = `${describeRequest("early_checkin", q.early)}${q.officialCheckin ? ` (oficial ${formatHour(q.officialCheckin)})` : ""}`;
+    const inn = `entrada${q.early.time ? ` ${at(q.early.time)}` : " mais cedo"}${day(q.early)}${q.officialCheckin ? ` (oficial ${b(formatHourFull(q.officialCheckin))})` : ""}`;
+    const out = `saída${q.late.time ? ` ${at(q.late.time)}` : " mais tarde"}${day(q.late)}${q.officialCheckout ? ` (oficial ${b(formatHourFull(q.officialCheckout))})` : ""}`;
     const notes = [
-      q.sameDayDeparture === true ? "Há saída de outro hóspede no dia da entrada (depende da higienização)." : "",
-      q.sameDayArrival === true ? "Há entrada de outro hóspede no dia da saída." : "",
+      q.sameDayDeparture === true ? b("Há saída de outro hóspede no dia da entrada.") : "",
+      q.sameDayArrival === true ? b("Há entrada de outro hóspede no dia da saída.") : "",
     ].filter(Boolean).join(" ");
-    s = `${who} pede ${inn} e ${out}.${notes ? ` ${notes}` : ""} Aprovar os dois como cortesia?`;
+    s = `${who} pede ${inn} e ${out}.${notes ? ` ${notes}` : ""}`;
   } else if (q.kind === "operational_concession" && q.lateArrival) {
-    const when = q.lateArrival.time ? `por volta das ${formatHour(q.lateArrival.time)}` : "depois do horário";
-    const limit = q.officialCheckinMax ? ` (check-in até ${formatHour(q.officialCheckinMax)})` : "";
-    s = `${who} avisa que vai chegar ${when}${limit}. Viabilizar a recepção tardia?`;
+    const when = q.lateArrival.time ? `por volta das ${b(formatHourFull(q.lateArrival.time))}` : "depois do horário";
+    const limit = q.officialCheckinMax ? `, sendo o limite de check-in às ${b(formatHourFull(q.officialCheckinMax))}` : "";
+    s = `${who} avisa que vai chegar ${when}${limit}.`;
   } else if (q.kind === "late_checkout") {
-    const official = q.officialCheckout ? ` (oficial ${formatHour(q.officialCheckout)})` : "";
-    const when = q.time
-      ? `${describeRequest("late_checkout", { time: q.time, day: q.late?.day ?? null })}${official}`
-      : `sair mais tarde${official}, sem horário definido`;
-    const day =
-      q.sameDayArrival === false ? " Não há entrada no mesmo dia." : q.sameDayArrival === true ? " Há entrada no mesmo dia." : "";
-    s = `${who} pede ${when}.${day} Aprovar como cortesia?`;
+    const official = q.officialCheckout ? `, sendo o oficial às ${b(formatHourFull(q.officialCheckout))}` : "";
+    const when = q.time ? `saída ${at(q.time)}${day(q.late)}` : "para sair mais tarde, sem horário definido";
+    const turnover =
+      q.sameDayArrival === false ? ` ${b("Não há entrada no mesmo dia.")}` : q.sameDayArrival === true ? ` ${b("Há entrada no mesmo dia.")}` : "";
+    s = `${who} pede ${when}${official}.${turnover}`;
   } else if (q.kind === "early_checkin") {
-    const official = q.officialCheckin ? ` (oficial ${formatHour(q.officialCheckin)})` : "";
-    const when = q.time
-      ? `${describeRequest("early_checkin", { time: q.time, day: q.early?.day ?? null })}${official}`
-      : `entrar mais cedo${official}, sem horário definido`;
-    const day =
+    const official = q.officialCheckin ? `, sendo o oficial às ${b(formatHourFull(q.officialCheckin))}` : "";
+    const when = q.time ? `entrada ${at(q.time)}${day(q.early)}` : "para entrar mais cedo, sem horário definido";
+    const turnover =
       q.sameDayDeparture === true
-        ? " Há saída de outro hóspede no mesmo dia: a entrada depende da higienização."
+        ? ` ${b("Há saída de outro hóspede no mesmo dia.")}`
         : q.sameDayDeparture === false
-          ? " Não há saída no mesmo dia."
+          ? ` ${b("Não há saída no mesmo dia.")}`
           : "";
-    s = `${who} pede ${when}.${day} Aprovar como cortesia?`;
+    s = `${who} pede ${when}${official}.${turnover}`;
   } else {
     const base = (q.internalQuestion ?? "").trim();
-    s = base
-      ? base
-      : `${who} pede uma exceção: "${clipWords(q.guestMessage ?? "", 22)}". Como responder?`;
+    s = base ? base : `${who} pede uma exceção: "${clipWords(q.guestMessage ?? "", 22)}".`;
   }
   return clipWords(s, 45);
+}
+
+/** Partes do texto da faixa: `**negrito**` vira trecho com `bold`. */
+export function decisionTextParts(text: string): Array<{ text: string; bold: boolean }> {
+  const out: Array<{ text: string; bold: boolean }> = [];
+  const re = /\*\*([^*]+)\*\*/g;
+  let last = 0;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text))) {
+    if (m.index > last) out.push({ text: text.slice(last, m.index), bold: false });
+    out.push({ text: m[1], bold: true });
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) out.push({ text: text.slice(last), bold: false });
+  return out;
 }
 
 /** Resumo do motivo do chamado (bolha e lista). */
@@ -185,6 +241,30 @@ export function decisionHandoffReason(kind: DecisionKind, time: string | null): 
   const what =
     kind === "late_checkout" ? `late check-out${t}` : kind === "early_checkin" ? `entrada antecipada${t}` : "pedido de exceção";
   return `${DECISION_HANDOFF_PREFIX} · ${what}`;
+}
+
+/**
+ * LINHA DE REGISTRO (25/11/2026, mockup ATD-D17/M18): depois da decisão a faixa sai e fica, no MESMO ponto da
+ * conversa, uma linha discreta com o que foi decidido (o "quem · quando" a tela acrescenta). `**…**` = negrito.
+ */
+export function decisionRecordText(row: Pick<HumanDecisionRow, "kind" | "options" | "decided_option_id" | "status">): string {
+  if (row.status === "expired") return "Decisão encerrada sem clique";
+  const opt = row.options.find((o) => o.id === row.decided_option_id);
+  if (!opt) return "Decisão registrada";
+  if (opt.ai_intent === "assume") return "Respondido direto pela equipe";
+  const time = row.options.find((o) => o.time)?.time ?? null;
+  const exit = row.kind === "late_checkout";
+  const entry = row.kind === "early_checkin";
+  const what = exit ? "saída" : entry ? "entrada" : null;
+  const at = time ? ` às **${formatHourFull(time)}**` : exit ? " tardia" : entry ? " antecipada" : "";
+  if (what) {
+    if (opt.ai_intent === "charge") return `Meia diária cobrada: ${what}${at}`;
+    if (opt.ai_intent === "approve") return `Cortesia aprovada: ${what}${at}`;
+    return `Recusado com gentileza: ${what} no horário oficial`;
+  }
+  if (opt.ai_intent === "approve") return opt.label === "Aprovar" ? "Pedido aprovado" : `${opt.label}`;
+  if (opt.ai_intent === "charge") return "Pedido aprovado com cobrança";
+  return "Pedido recusado com gentileza";
 }
 
 /** Carimbo do estado decidido ("Late check-out aprovado · 13h", "Arthur assumiu a conversa"…). */
@@ -339,14 +419,6 @@ export function parseBurstRequests(messages: ReadonlyArray<string | null | undef
     if (r.arrivalInWindow) acc.arrivalInWindow = true;
   }
   return acc;
-}
-
-/** "saída às 16h no dia 23" / "entrada às 10h no dia 19". */
-export function describeRequest(kind: "late_checkout" | "early_checkin", r: ExceptionRequest): string {
-  const base = kind === "late_checkout" ? "saída" : "entrada";
-  const at = r.time ? ` às ${formatHour(r.time)}` : "";
-  const day = r.day ? ` no dia ${r.day}` : "";
-  return `${base}${at}${day}`;
 }
 
 /** Códigos `formalChangeRequests` equivalentes à rajada (alimenta `openHumanDecision` no fallback). */

@@ -82,8 +82,8 @@ describe("cartão da equipe", () => {
     const r = await openHumanDecision({ conversationId: "c1", triggerMessageId: "m1", formalChangeRequests: ["early_checkin"], internalQuestion: null }, { db });
     expect(r).toMatchObject({ opened: true, kind: "operational_concession" });
     const open = calls.find((c) => c.fn === "guest_ai_decision_open")!;
-    expect(open.args["p_question_text"]).toBe("Ary avisa que vai chegar por volta das 23h (check-in até 23h). Viabilizar a recepção tardia?");
-    expect((open.args["p_options"] as Array<{ label: string }>)[0]!.label).toBe("Receber mais tarde");
+    expect(open.args["p_question_text"]).toBe("Ary avisa que vai chegar por volta das **23h00**, sendo o limite de check-in às **23h00**.");
+    expect((open.args["p_options"] as Array<{ label: string }>)[0]!.label).toBe("Receber Mais Tarde");
   });
   it("chegada dentro da janela rotulada como early_checkin ⇒ não abre cartão", async () => {
     const { db, calls } = fakeDb(["Vamos chegar por volta das 18h"]);
@@ -93,7 +93,7 @@ describe("cartão da equipe", () => {
   });
   it("pergunta do cartão de recepção tardia", () => {
     const q = buildDecisionQuestion({ kind: "operational_concession", guestName: "Ary", time: null, officialCheckout: "11:00", officialCheckin: "15:00", sameDayArrival: null, internalQuestion: null, guestMessage: ARY, lateArrival: { time: "00:00", day: null }, officialCheckinMax: "23:00" });
-    expect(q).toBe("Ary avisa que vai chegar por volta das 0h (check-in até 23h). Viabilizar a recepção tardia?");
+    expect(q).toBe("Ary avisa que vai chegar por volta das **0h00**, sendo o limite de check-in às **23h00**.");
   });
 });
 

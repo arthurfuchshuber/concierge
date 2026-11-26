@@ -8,6 +8,7 @@ import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import {
   buildDecisionOptions,
+  visibleDecisionOptions,
   buildDecisionQuestion,
   decidedHeadline,
   decisionHandoffReason,
@@ -130,7 +131,14 @@ describe("Decisão · parte pura", () => {
       }
       expect(opts.some((o) => o.ai_intent === "assume")).toBe(true);
     }
-    expect(buildDecisionOptions("late_checkout", "13:00")[0]).toMatchObject({ label: "Aprovar 13h (cortesia)", time: "13:00" });
+    // Mockup ATD-D04/M05 (25/11/2026): em destaque o que mais beneficia o anfitrião — sem entrada no mesmo dia, cobrar;
+    // com entrada/saída na sequência, recusar. "Eu Assumo a Conversa" fica só nos dados (oculto na tela).
+    expect(buildDecisionOptions("late_checkout", "13:00")[0]).toMatchObject({ id: "charge", label: "Cobrar Meia Diária", variant: "primary" });
+    expect(buildDecisionOptions("late_checkout", "13:00")[1]).toMatchObject({ id: "approve", label: "Aprovar como Cortesia", time: "13:00" });
+    const conflict = buildDecisionOptions("late_checkout", "13:00", { conflict: true });
+    expect(conflict[0]).toMatchObject({ id: "decline", label: "Recusar com Gentileza", variant: "primary" });
+    expect(conflict.filter((o) => o.variant === "primary")).toHaveLength(1);
+    expect(visibleDecisionOptions(conflict).some((o) => o.ai_intent === "assume")).toBe(false);
   });
 
   it("pergunta curta (≤ 45 palavras) com horário oficial e entrada no mesmo dia", () => {
@@ -138,7 +146,8 @@ describe("Decisão · parte pura", () => {
       kind: "late_checkout", guestName: "Mariana Souza", time: "13:00", officialCheckout: "11:00", officialCheckin: null,
       sameDayArrival: false, internalQuestion: null, guestMessage: null,
     });
-    expect(q).toBe("Mariana pede saída às 13h (oficial 11h). Não há entrada no mesmo dia. Aprovar como cortesia?");
+    expect(q).toBe("Mariana pede saída às **13h00**, sendo o oficial às **11h00**. **Não há entrada no mesmo dia.**");
+    expect(q).not.toMatch(/\?$/);
     const long = buildDecisionQuestion({
       kind: "operational_concession", guestName: null, time: null, officialCheckout: null, officialCheckin: null,
       sameDayArrival: null, internalQuestion: null, guestMessage: "palavra ".repeat(200),
@@ -244,8 +253,8 @@ describe("Decisão · abertura no servidor", () => {
     expect(r).toMatchObject({ opened: true, id: "d9", kind: "late_checkout", reason: "Decisão pendente · late check-out às 13h" });
     const call = f.calls.find((c) => c.fn === "guest_ai_decision_open")!;
     expect(call.args).toMatchObject({ p_tenant_id: "t1", p_property_id: "p1", p_conversation_id: "c1", p_trigger_message_id: "m1", p_kind: "late_checkout" });
-    expect(String(call.args["p_question_text"])).toMatch(/^Mariana pede saída às 13h \(oficial 11h\)/);
-    expect((call.args["p_options"] as Array<{ id: string }>).map((o) => o.id)).toEqual(["approve", "charge", "decline", "assume"]);
+    expect(String(call.args["p_question_text"])).toMatch(/^Mariana pede saída às \*\*13h00\*\*, sendo o oficial às \*\*11h00\*\*/);
+    expect((call.args["p_options"] as Array<{ id: string }>).map((o) => o.id)).toEqual(["charge", "approve", "decline", "assume"]);
   });
 
   it("late check-out já concedido no card ⇒ não abre decisão", async () => {
@@ -310,6 +319,36 @@ describe("Decisão · clique (1 toque)", () => {
     expect(deliver).toHaveBeenCalledWith({ conversationId: "c1", session: "guest-abc", propertyId: "p1", text: "Tudo certo, Mariana! Pode sair até as 13h." });
     expect(f.calls.find((c) => c.fn === "guest_ai_decision_mark_reply")!.args).toEqual({ p_decision_id: "d1", p_status: "sent", p_message_id: "msg-ai-1" });
     expect(f.updates.find((u) => u.table === "property_chat_conversations")!.patch).toMatchObject({ status: "ai", handoff_reason: null });
+  });
+
+  it("confere antes de enviar: a equipe já respondeu o mesmo pedido ⇒ registra 'respondido pela equipe' e a IA não envia nada", async () => {
+    const rows = BASE_ROWS();
+    const trig = (rows["guest_ai_human_decisions"]![0] as Record<string, unknown>)["trigger_message_id"] as string;
+    rows["property_chat_messages"] = [
+      { id: trig, conversation_id: "c1", content: "posso sair às 13h?", sender_type: "guest", created_at: "2026-11-12T13:00:00Z" },
+      { id: "h1", conversation_id: "c1", content: "Pode sim, até 13h!", sender_type: "human", is_internal_note: false, created_at: "2026-11-12T13:05:00Z" },
+    ];
+    const f = fakeDb(rows, claimed("assume"));
+    const reply = vi.fn();
+    const deliver = vi.fn();
+    const topic = vi.fn(async () => "answered" as const);
+    const r = await decideHumanDecision({ decisionId: "d1", optionId: "approve", userId: "u1" }, { db: f.db, reply, deliver, topic });
+    expect(r).toEqual({ ok: true, outcome: "already_answered" });
+    expect(topic).toHaveBeenCalledTimes(1);
+    expect(f.calls.find((c) => c.fn === "guest_ai_decision_claim")!.args).toMatchObject({ p_option_id: "assume" });
+    expect(f.calls.find((c) => c.fn === "internal_set_late_checkout")).toBeUndefined();
+    expect(reply).not.toHaveBeenCalled();
+    expect(deliver).not.toHaveBeenCalled();
+  });
+
+  it("sem fala da equipe depois do pedido: nem consulta o modelo", async () => {
+    const f = fakeDb(BASE_ROWS(), claimed("approve"));
+    const topic = vi.fn(async () => "answered" as const);
+    await decideHumanDecision(
+      { decisionId: "d1", optionId: "approve", userId: "u1" },
+      { db: f.db, reply: async () => ({ text: "ok", source: "model" as const }), deliver: async () => "m", topic },
+    );
+    expect(topic).not.toHaveBeenCalled();
   });
 
   it("duplo clique: o segundo é barrado pelo banco — nenhuma ação, nenhuma resposta", async () => {
@@ -396,15 +435,18 @@ describe("Decisão · tela e infraestrutura", () => {
   const card = readFileSync(path.join(SRC, "components/handoff/DecisionCard.tsx"), "utf8");
   it("cartão: sem rótulos proibidos, botões empilhados de largura total, carregando/desativado e aviso de concorrência", () => {
     expect(card).not.toMatch(/Pr:|Propriet[aá]rio\(a\):/);
-    expect(card).toMatch(/flex flex-col gap-2/);
-    expect(card).toMatch(/w-full/);
+    // Faixa da decisão (ATD-D04/M05): botões pequenos em linha no desktop; no celular grade de 2 com o destaque inteiro
+    expect(card).toMatch(/grid grid-cols-2 gap-1\.5/);
+    expect(card).toMatch(/col-span-2/);
+    expect(card).toMatch(/visibleDecisionOptions/);
     expect(card).toMatch(/disabled=\{busy\}/);
     expect(card).toMatch(/animate-spin/);
     expect(card).toMatch(/Já decidido/);
-    expect(card).toMatch(/IA em silêncio até a decisão/);
+    // Depois do clique: rótulo no gerúndio com spinner até a IA entregar (ATD-D18/M21)
+    expect(card).toMatch(/decisionBusyLabel/);
   });
   it("chat e bolhas usam o cartão; a tabela está no tempo real", () => {
-    expect(readFileSync(path.join(SRC, "components/handoff/ConversationView.tsx"), "utf8")).toMatch(/<DecisionCard/);
+    expect(readFileSync(path.join(SRC, "components/handoff/ConversationView.tsx"), "utf8")).toMatch(/<DecisionStrip/);
     expect(readFileSync(path.join(SRC, "components/handoff/QuickChatBubbles.tsx"), "utf8")).toMatch(/Decisão pendente/);
     expect(readFileSync(path.join(SRC, "components/LiveSync.tsx"), "utf8")).toMatch(/"guest_ai_human_decisions"/);
   });

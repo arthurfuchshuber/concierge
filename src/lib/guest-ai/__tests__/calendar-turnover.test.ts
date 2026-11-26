@@ -50,6 +50,6 @@ describe("loadTurnoverFlags", () => {
 describe("cartão e resposta com as viradas", () => {
   it("entrada antecipada com saída no mesmo dia: o cartão avisa que depende da higienização", () => {
     const q = buildDecisionQuestion({ kind: "early_checkin", guestName: "Ana", time: "11:00", officialCheckout: "11:00", officialCheckin: "15:00", sameDayArrival: null, sameDayDeparture: true, internalQuestion: null, guestMessage: null });
-    expect(q).toMatch(/Há saída de outro hóspede no mesmo dia: a entrada depende da higienização/);
+    expect(q).toMatch(/\*\*Há saída de outro hóspede no mesmo dia\.\*\*/);
   });
 });

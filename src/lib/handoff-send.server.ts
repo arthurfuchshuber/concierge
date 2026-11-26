@@ -140,7 +140,7 @@ export async function sendHumanMessageToConversation(
     // Melhor esforço, nunca atrasa nem derruba o envio.
     try {
       const { resolvePendingDecisionsOnHumanMessage } = await import("@/lib/guest-ai-decision.server");
-      await resolvePendingDecisionsOnHumanMessage(data.conversationId, { actorUserId: userId });
+      await resolvePendingDecisionsOnHumanMessage(data.conversationId, { actorUserId: userId, text: content });
     } catch (e) {
       console.warn("[handoff] auto-resolução da decisão falhou", e);
     }

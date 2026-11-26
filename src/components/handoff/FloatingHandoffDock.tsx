@@ -16,7 +16,7 @@ import { listenToPushMessages } from "@/lib/push-client";
 import { HANDOFF_DOCK_OPEN_EVENT, type HandoffDockOpenDetail } from "@/lib/handoff-dock";
 import { CORNER_BACK_CLASS } from "@/components/ui/corner-close";
 import { Headphones, X, Expand, Shrink, ChevronLeft } from "lucide-react";
-import { QUEUES, type Queue } from "@/lib/handoff-queues";
+import { QUEUES, QUEUE_EMPTY, type Queue } from "@/lib/handoff-queues";
 import { useImpersonation } from "@/hooks/useImpersonation";
 import { useAntiClipRows } from "@/hooks/useAntiClipRows";
 import { QuickChatBubbles, type QuickChatItem } from "@/components/handoff/QuickChatBubbles";
@@ -470,18 +470,22 @@ export function FloatingHandoffDock({ launcher = true }: { launcher?: boolean } 
             <div className="flex min-h-0 flex-1">
               <div className="flex min-h-0 w-[clamp(320px,38%,400px)] shrink-0 flex-col border-r border-foreground/[0.065]">
                 <div ref={listRefA} className="min-h-0 flex-1 snap-y snap-proximity overflow-y-auto scroll-pt-2">
-                  <ConversationList
-                    conversations={convs as any}
-                    details={details} assignedNames={assignedNames} reservations={reservations} guideViewers={guideViewers} owners={owners}
-                    activeId={activeId}
-                    onSelect={setActiveId}
-                  />
+                  <div className="flex flex-col gap-[var(--ds-grid-gap)] px-5 py-3">
+                    <ConversationList
+                      conversations={convs as any}
+                      details={details} assignedNames={assignedNames} reservations={reservations} guideViewers={guideViewers} owners={owners}
+                      activeId={activeId}
+                      onSelect={setActiveId}
+                      resolved={queue === "resolved"}
+                      empty={QUEUE_EMPTY[queue]}
+                    />
+                  </div>
                 </div>
               </div>
 
               <div className="min-w-0 flex-1 bg-surface">
                 {activeId ? (
-                  <ConversationView conversationId={activeId} compact myUserId={myUserId} stay={activeStay} owner={activeOwner} />
+                  <ConversationView conversationId={activeId} myUserId={myUserId} stay={activeStay} owner={activeOwner} />
                 ) : (
                   <div className="grid h-full place-items-center p-4 text-center text-xs text-muted-foreground">
                     Selecione uma conversa que precisa de atendimento humano.
@@ -609,7 +613,7 @@ export function FloatingHandoffDock({ launcher = true }: { launcher?: boolean } 
 
             <div className="flex-1 min-h-0 flex flex-col">
               {activeId ? (
-                <ConversationView conversationId={activeId} compact myUserId={myUserId} stay={activeStay} owner={activeOwner} />
+                <ConversationView conversationId={activeId} myUserId={myUserId} stay={activeStay} owner={activeOwner} />
               ) : (
                 <>
                   <div className="px-2 py-2 border-b border-border">
@@ -632,12 +636,17 @@ export function FloatingHandoffDock({ launcher = true }: { launcher?: boolean } 
                     </div>
                   </div>
                   <div ref={listRefB} className="flex-1 min-h-0 snap-y snap-proximity overflow-y-auto scroll-pt-2">
-                    <ConversationList
-                      conversations={convs as any}
-                      details={details} assignedNames={assignedNames} reservations={reservations} guideViewers={guideViewers} owners={owners}
-                      activeId={activeId}
-                      onSelect={setActiveId}
-                    />
+                    <div className="flex flex-col gap-[var(--ds-grid-gap)] p-3">
+                      <ConversationList
+                        conversations={convs as any}
+                        details={details} assignedNames={assignedNames} reservations={reservations} guideViewers={guideViewers} owners={owners}
+                        activeId={activeId}
+                        onSelect={setActiveId}
+                        layout="mobile"
+                        resolved={queue === "resolved"}
+                        empty={QUEUE_EMPTY[queue]}
+                      />
+                    </div>
                   </div>
                 </>
               )}

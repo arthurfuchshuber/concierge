@@ -114,8 +114,9 @@ describe("guardas do servidor e da interface (estático)", () => {
 
   it("a interface usa a mesma regra e não restringe mais ao autor (`mine`)", () => {
     expect(ui).toMatch(/messageActions\(/);
-    expect(ui).toMatch(/actionAllowed\.edit &&/);
-    expect(ui).toMatch(/actionAllowed\.delete &&/);
+    // Janela "Opções da Mensagem" (ATD-D07/M09): Editar e Apagar só aparecem quando a regra permite
+    expect(ui).toMatch(/\{actionAllowed\.edit \? \(/);
+    expect(ui).toMatch(/\{actionAllowed\.delete \? \(/);
     expect(ui).not.toMatch(/mine: !isGuest/);
     expect(ui).not.toMatch(/actionMsg\?\.mine/);
   });

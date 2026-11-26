@@ -38,7 +38,7 @@ import type { ComposedPrompt, ConversationContext } from "@/lib/guest-ai/orchest
 import type { HistoryEntry, HistoryResult, HistoryUnavailableReason } from "./history";
 import { PERSONA_VERSION } from "./persona";
 import { CITY_EVENTS_TAG, CONTEXT_TAG, DOSSIER_TAG, GUEST_PROFILE_TAG, HISTORY_TAG, LIVING_DOCUMENT_TAG, SENT_AFTER_TAG, SYSTEM_PROMPT_VERSION, buildSystemPrompt } from "./system-prompt";
-import type { LivingDocumentLoad } from "./learning/learning";
+import { LEARNING_AUDIENCE, type LivingDocumentLoad } from "./learning/learning";
 import type { GuestProfileContext } from "./context/guest-profile";
 import { defaultBudgetConfig, evaluateBudget, type BudgetConfig, type BudgetMetrics, type BudgetOverReason } from "./budget";
 import { assertAvailabilityFor, type PropertyDossier } from "./dossier/contracts";
@@ -783,7 +783,10 @@ export function composeTurnPrompt(input: ComposeInput, options: ComposeOptions =
     // Só do imóvel do turno; cada frase passa pelo guard (recusada ⇒ só ela sai).
     if (ld && ld.status === "available" && ld.propertyId === ctx.guest.property.id && ld.items.length > 0) {
       let n = 0;
-      const items = optionalItems(ld.items, (it) => {
+      // QUEM VÊ (26/11/2026): aprendizado de acesso/equipamento/manutenção só com reserva ativa (G).
+      const canSeeG = ctx.guest.audiences.includes("G");
+      const visible = ld.items.filter((it) => canSeeG || LEARNING_AUDIENCE[it.category] !== "G");
+      const items = optionalItems(visible, (it) => {
         const texto = guarded(it.statement, "living_document");
         n += 1;
         const id = `vivo:${n}`;

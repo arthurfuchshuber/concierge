@@ -1,7 +1,7 @@
 import { SituationOutboxRunner } from "@/components/dashboard/SituationOutboxRunner";
 import { StageOutboxRunner } from "@/components/dashboard/StageOutboxRunner";
 import { createFileRoute, Outlet, Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { LogOut, LayoutDashboard, Settings2, Menu, Users, Shield, Activity, Star, Headphones, Wrench, Home, Contact, Cpu, ChevronsLeft, ChevronsRight, Plus, Minus } from "lucide-react";
+import { LogOut, LayoutDashboard, Settings2, Menu, Users, Shield, Activity, Star, Headphones, Wrench, Home, Contact, Cpu, ChevronsLeft, ChevronsRight, Plus, Minus, GraduationCap } from "lucide-react";
 import conciergeLogo from "@/assets/concierge-logo.png";
 import { ABRIR_MENU_EVENT } from "@/components/ui/tela-cheia-top";
 import { LiveSync, useFallbackInterval } from "@/components/LiveSync";
@@ -95,7 +95,7 @@ const SIDEBAR_GROUPS = [
   },
 ] as const;
 /** Ordem do menu (22/10/2026): Dashboard, Stakeholders, Guias Digitais, Atendimento, Administrativo. */
-const SIDEBAR_ORDER = ["group:dashboard", "group:stakeholders", "/admin/guias", "/admin/atendimento", "/admin/administrativo"] as const;
+const SIDEBAR_ORDER = ["group:dashboard", "group:stakeholders", "/admin/guias", "/admin/atendimento", "/admin/aprendizados", "/admin/administrativo"] as const;
 
 const adminOnlyNav = [
   { to: "/admin/engajamento", label: "Engajamento", icon: Activity, exact: false },
@@ -171,6 +171,7 @@ function AdminLayout() {
   const navAll = [
     ...baseNav,
     { to: "/admin/atendimento", label: "Atendimento", icon: Headphones, exact: false, badge: pending.data?.count ?? 0 },
+    { to: "/admin/aprendizados", label: "Aprendizados", icon: GraduationCap, exact: false },
     { to: "/admin/administrativo", label: "Administrativo", icon: Settings2, exact: false },
   ] as const;
   // Admin do SaaS sem conta selecionada: o menu da conta do cliente fica
