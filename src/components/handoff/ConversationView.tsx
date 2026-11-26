@@ -12,6 +12,7 @@
  * da IA (âmbar). Ao clicar numa opção da decisão o campo bloqueia até a IA entregar a resposta.
  * Sem logo do Airbnb ou ícone de canal ao lado do nome do hóspede (25/11/2026). Tema do app (sem tema fixo).
  */
+import { CHAT_STATUS_TONE, type ChatStatusLabel } from "@/lib/handoff-chat-status";
 import { relativeDayWord } from "@/lib/relative-day";
 import {
   CopyCode,
@@ -1636,6 +1637,7 @@ export function ConversationList({
   conversations,
   details,
   reservations,
+  chatStatus,
   guideViewers,
   owners,
   activeId,
@@ -1659,6 +1661,8 @@ export function ConversationList({
   details?: Record<string, GuestDetail>;
   assignedNames?: Record<string, string>;
   reservations?: Record<string, { status: "confirmed" | "loose" | "missing" | "no_reservations" | "cancelled"; checkin: string | null; checkout: string | null; guests?: number | null }>;
+  /** Etiqueta de status de cada conversa (Consulta, Ativa, Cancelada…), derivada da Channex. */
+  chatStatus?: Record<string, ChatStatusLabel>;
   guideViewers?: Record<string, number>;
   owners?: Record<string, { name: string | null; phone: string | null; phoneCountry: string | null }>;
   activeId: string | null;
@@ -1690,6 +1694,7 @@ export function ConversationList({
         const stay = buildStayView({ detail: d ?? null, res: reservations?.[c.id] ?? null, viewers: guideViewers?.[c.id] ?? 0 });
         const ago = shortAgo(c.handoff_at ?? c.last_message_at);
         const title = prop?.name ?? "—";
+        const tag = chatStatus?.[c.id] ? <ChatStatusTag label={chatStatus[c.id]} /> : null;
         if (layout === "mobile") {
           const sel = isActive ? " bg-[var(--card-surface-hover)] ring-1 ring-inset ring-foreground/10" : " bg-[var(--card-surface)]";
           const period = stay.checkin ? (
@@ -1723,6 +1728,7 @@ export function ConversationList({
                   <span className="ds-card-title flex-1 leading-tight" title={title}>
                     {title}
                   </span>
+                  {tag}
                   {!resolved ? <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">{ago}</span> : null}
                 </div>
                 {owner?.name ? (
@@ -1762,6 +1768,7 @@ export function ConversationList({
                 <span className="ds-card-title flex-1 leading-tight" title={title}>
                   {title}
                 </span>
+                {tag}
                 {!resolved ? <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">{ago}</span> : null}
               </div>
               {owner?.name ? (
@@ -1779,6 +1786,17 @@ export function ConversationList({
         );
       })}
     </>
+  );
+}
+
+/** Etiqueta curta de status da conversa, no canto superior direito do card (mockup de 26/11/2026). */
+function ChatStatusTag({ label }: { label: ChatStatusLabel }) {
+  return (
+    <span
+      className={`inline-flex shrink-0 items-center rounded-full px-2 py-[3px] text-[10.5px] font-semibold leading-none ${CHAT_STATUS_TONE[label]}`}
+    >
+      {label}
+    </span>
   );
 }
 

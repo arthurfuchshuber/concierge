@@ -11,7 +11,7 @@ export type GeneratedSystemDoc = {
   content_hash: string;
 };
 
-export const GENERATED_AT = "2026-11-26T14:55:19.492Z";
+export const GENERATED_AT = "2026-11-26T15:33:01.398Z";
 
 export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
   {
@@ -1165,6 +1165,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/channex-webhook.server.ts",
     "audience": [],
     "content_hash": "3bbc6e41e3d1cacaf1af4a1f347b5e0e"
+  },
+  {
+    "doc_key": "rule:ChatStatusLabel",
+    "kind": "rule",
+    "title": "Regra — ChatStatusLabel",
+    "content": "Etiqueta de status de cada conversa da lista de Atendimento (26/11/2026).\n\nFonte: o que a Channex nos manda (consulta, pedido de reserva, aceite/recusa)\ne as reservas oficiais. Nada é estimado: sem dado, sem etiqueta.\n\n - Consulta → conversa do Airbnb sem reserva (consulta ativa ou pedido que não virou reserva).\n - Solicitação → pedido de reserva ainda sem resposta, dentro das 24 h do Airbnb.\n - Recusada → consulta ou pedido recusado.\n - Confirmada → reserva confirmada que ainda não começou.\n - Ativa → hospedagem em curso (do check-in ao dia do check-out).\n - Encerrada → hospedagem já terminada.\n - Cancelada → reserva cancelada.\n\n\"Pendente de pagamento\" não existe nos dados da Channex, por isso não há essa etiqueta.",
+    "source_path": "src/lib/handoff-chat-status.ts",
+    "audience": [],
+    "content_hash": "53a3beb953e506d25d272a49cfcf2b00"
   },
   {
     "doc_key": "rule:chave",

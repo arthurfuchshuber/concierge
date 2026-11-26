@@ -550,6 +550,68 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
       console.warn("reservation cross-check failed", e);
     }
 
+    // Etiqueta de status de cada card (Consulta, Solicitação, Recusada, Confirmada, Ativa, Encerrada, Cancelada).
+    const chatStatus: Record<string, import("@/lib/handoff-chat-status").ChatStatusLabel> = {};
+    try {
+      const { buildChatFlows, chatStatusOf, saoPauloToday } = await import("@/lib/handoff-chat-status");
+      const airbnbThreads = Array.from(
+        new Set(
+          deduped
+            .map((c) => String(c.guest_session_id ?? ""))
+            .filter((s) => s.startsWith("airbnb:"))
+            .map((s) => s.slice("airbnb:".length))
+            .filter((s) => s.length > 0),
+        ),
+      ).slice(0, 300);
+      let flows = new Map<string, import("@/lib/handoff-chat-status").ChatFlow>();
+      if (airbnbThreads.length > 0) {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        type Raw = { entity_type: string; first_seen_at: string; payload: unknown };
+        const threadR = await supabaseAdmin
+          .from("channex_raw_records")
+          .select("entity_type, first_seen_at, payload")
+          .in("entity_type", ["webhook:inquiry", "webhook:reservation_request"])
+          .in("payload->payload->>message_thread_id", airbnbThreads)
+          .limit(3000);
+        const threadRows = (threadR.data ?? []) as Raw[];
+        const otaIds = Array.from(
+          new Set(
+            threadRows
+              .map((r) => {
+                const p = (r.payload as { payload?: { bms?: { meta?: { thread_id?: unknown } } } } | null)?.payload;
+                return String(p?.bms?.meta?.thread_id ?? "");
+              })
+              .filter((s) => s.length > 0),
+          ),
+        );
+        const outR = otaIds.length
+          ? await supabaseAdmin
+              .from("channex_raw_records")
+              .select("entity_type, first_seen_at, payload")
+              .in("entity_type", ["webhook:accepted_reservation", "webhook:declined_reservation"])
+              .in("payload->payload->bms->meta->>thread_id", otaIds)
+              .limit(3000)
+          : { data: [] as Raw[] };
+        flows = buildChatFlows(threadRows, (outR.data ?? []) as Raw[]);
+      }
+      const today = saoPauloToday();
+      const nowMs = Date.now();
+      for (const conv of deduped) {
+        const sess = String(conv.guest_session_id ?? "");
+        const isAirbnb = sess.startsWith("airbnb:");
+        const label = chatStatusOf({
+          res: reservations[conv.id] ?? null,
+          flow: isAirbnb ? flows.get(sess.slice("airbnb:".length)) ?? null : null,
+          isAirbnb,
+          today,
+          nowMs,
+        });
+        if (label) chatStatus[conv.id] = label;
+      }
+    } catch (e) {
+      console.warn("chat status lookup failed", e);
+    }
+
     // Proprietário de cada imóvel — mesmo padrão já usado no quadro de
     // operação: properties.owner_contact_id → property_owners (nome/telefone).
     const owners: Record<
@@ -594,6 +656,7 @@ export const listHandoffConversations = createServerFn({ method: "POST" })
       details,
       assignedNames,
       reservations,
+      chatStatus,
       owners,
       guideViewers,
     };

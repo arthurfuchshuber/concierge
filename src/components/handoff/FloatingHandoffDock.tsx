@@ -328,6 +328,7 @@ export function FloatingHandoffDock({ launcher = true }: { launcher?: boolean } 
   const details = list.data?.details ?? {};
   const assignedNames = list.data?.assignedNames ?? {};
   const reservations = list.data?.reservations ?? {};
+  const chatStatus = list.data?.chatStatus ?? {};
   const guideViewers = list.data?.guideViewers ?? {};
   const owners = list.data?.owners ?? {};
   const activeConv = activeId ? (convs as Array<{ id: string; guest_name: string | null; guest_session_id: string | null; properties: { name: string | null } | null }>).find((c) => c.id === activeId) ?? null : null;
@@ -473,7 +474,7 @@ export function FloatingHandoffDock({ launcher = true }: { launcher?: boolean } 
                   <div className="flex flex-col gap-[var(--ds-grid-gap)] px-5 py-3">
                     <ConversationList
                       conversations={convs as any}
-                      details={details} assignedNames={assignedNames} reservations={reservations} guideViewers={guideViewers} owners={owners}
+                      details={details} assignedNames={assignedNames} reservations={reservations} chatStatus={chatStatus} guideViewers={guideViewers} owners={owners}
                       activeId={activeId}
                       onSelect={setActiveId}
                       resolved={queue === "resolved"}
@@ -639,7 +640,7 @@ export function FloatingHandoffDock({ launcher = true }: { launcher?: boolean } 
                     <div className="flex flex-col gap-[var(--ds-grid-gap)] p-3">
                       <ConversationList
                         conversations={convs as any}
-                        details={details} assignedNames={assignedNames} reservations={reservations} guideViewers={guideViewers} owners={owners}
+                        details={details} assignedNames={assignedNames} reservations={reservations} chatStatus={chatStatus} guideViewers={guideViewers} owners={owners}
                         activeId={activeId}
                         onSelect={setActiveId}
                         layout="mobile"
