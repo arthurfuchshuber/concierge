@@ -164,6 +164,13 @@ async function accountProperties(ownerId: string): Promise<AccountProperty[]> {
   }));
 }
 
+/* Imóveis da conta que o usuário enxerga com o próprio login (membro com
+   imóveis atribuídos só vê os seus). */
+async function visibleIds(supabase: { from: (t: "properties") => any }, ownerId: string): Promise<Set<string>> { // eslint-disable-line @typescript-eslint/no-explicit-any
+  const { data } = await supabase.from("properties").select("id").eq("owner_id", ownerId);
+  return new Set(((data ?? []) as Array<{ id: string }>).map((r) => r.id));
+}
+
 /** Aviso específico quando a instrução é sobre algo físico e os imóveis marcados diferem (25/11/2026). */
 export const reviewInstructionScope = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -173,11 +180,14 @@ export const reviewInstructionScope = createServerFn({ method: "POST" })
   .handler(async ({ data, context }): Promise<{ warning: string | null }> => {
     const { prop } = await convOf(context.supabase, data.conversationId);
     if (!prop?.owner_id || data.propertyIds.length < 2) return { warning: null };
+    const visible = await visibleIds(context.supabase, prop.owner_id);
+    const allowedIds = data.propertyIds.filter((id) => visible.has(id));
+    if (allowedIds.length < 2) return { warning: null };
     const db = await admin();
     const { data: rows } = await db
       .from("properties")
       .select("id, name, owner_id, checkin_instructions, checkout_instructions, gate_instructions, lock_instructions, house_rules, airbnb_description_full")
-      .in("id", data.propertyIds)
+      .in("id", allowedIds)
       .eq("owner_id", prop.owner_id);
     const properties = ((rows ?? []) as Array<Record<string, unknown>>).map((r) => ({
       name: String(r["name"] ?? "Imóvel"),
@@ -485,7 +495,12 @@ export const getConversationRegional = createServerFn({ method: "POST" })
         return {
           city: prop.city,
           active: act ? toRegional(act, usageCount(act)) : null,
-          affected: act ? await affectedConversations(db, prop.owner_id, act) : [],
+          affected: act
+            ? await (async () => {
+                const visible = await visibleIds(context.supabase, prop.owner_id as string);
+                return (await affectedConversations(db, prop.owner_id as string, act)).filter((c) => visible.has(c.propertyId));
+              })()
+            : [],
           // com situação ativa na cidade, a sugestão não aparece (já está marcada)
           suggestion: s && !act ? { id: String(s.id), messageId: s.source_message_id ? String(s.source_message_id) : null, kind: String(s.kind), aiText: String(s.ai_text) } : null,
         };

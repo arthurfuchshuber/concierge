@@ -103,6 +103,17 @@ export const inviteTeamMember = createServerFn({ method: "POST" })
     if (!plan.hasAccess) {
       throw new Error("Convidar atendentes requer uma assinatura ativa.");
     }
+    /* TETO DE CONVITES (26/11/2026): no máximo 20 convites por conta em 24h,
+       para que o convite não vire canal de envio em massa de e-mails. */
+    const desde = new Date(Date.now() - 86_400_000).toISOString();
+    const { count: recentes } = await supabase
+      .from("account_member_invites")
+      .select("id", { count: "exact", head: true })
+      .eq("owner_id", ownerId)
+      .gte("created_at", desde);
+    if ((recentes ?? 0) >= 20) {
+      throw new Error("Limite de 20 convites em 24 horas atingido. Tente novamente amanhã.");
+    }
     // Assinatura ativa: atendentes ilimitados.
     const { data: inserted, error } = await supabase
       .from("account_member_invites")

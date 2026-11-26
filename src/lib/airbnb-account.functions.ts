@@ -50,6 +50,16 @@ async function ctx(
   return { accountId, admin: supabaseAdmin };
 }
 
+/* Imóveis da conta que o próprio usuário enxerga (regras do banco aplicadas
+   com o login dele): membro com imóveis atribuídos só vê os seus. */
+async function visiblePropertyIds(
+  supabase: { from: (t: "properties") => any }, // eslint-disable-line @typescript-eslint/no-explicit-any
+  accountId: string,
+): Promise<Set<string>> {
+  const { data } = await supabase.from("properties").select("id").eq("owner_id", accountId);
+  return new Set(((data ?? []) as Array<{ id: string }>).map((r) => r.id));
+}
+
 /** Desconectar/reativar uma conta do Airbnb arquiva ou devolve imóveis: só o titular da conta pode. */
 function assertAccountOwner(userId: string, accountId: string) {
   if (userId !== accountId) throw new Error("Somente o titular da conta pode desconectar ou reativar contas do Airbnb.");
@@ -604,7 +614,9 @@ export const listUnsyncedProperties = createServerFn({ method: "GET" })
     ) {
       props = (await baseQ()).data;
     }
-    const ids = (props ?? []).map((p) => p.id);
+    const visible = await visiblePropertyIds(context.supabase, accountId);
+    props = (props ?? []).filter((p) => visible.has(p.id));
+    const ids = props.map((p) => p.id);
     // Alerta de "imóveis sem sincronização": só contas da lista (hoje, só a Sigma). Decidido AQUI no servidor.
     const alert = isSyncAlertAccount(accountId);
     const empty = {
@@ -699,7 +711,8 @@ export const listSyncDismissedProperties = createServerFn({ method: "GET" })
       .eq("owner_id", accountId)
       .not("sync_dismissed_at", "is", null);
     if (error) return { ids: [] as string[] };
-    return { ids: (rows ?? []).map((r) => r.id as string) };
+    const visible = await visiblePropertyIds(context.supabase, accountId);
+    return { ids: (rows ?? []).map((r) => r.id as string).filter((id) => visible.has(id)) };
   });
 
 /**
@@ -852,6 +865,10 @@ export const retryAirbnbChat = createServerFn({ method: "POST" })
       .eq("owner_id", accountId)
       .maybeSingle();
     if (!row || row.sync_paused_at) throw new Error("Este imóvel não está ativo.");
+    const visible = await visiblePropertyIds(context.supabase, accountId);
+    if (!visible.has(data.propertyId)) throw new Error("Este imóvel não está ativo.");
+    const { enforce } = await import("@/lib/permissions/permission.enforce.server");
+    await enforce(context.userId, "imoveis.editor.write", { propertyId: data.propertyId });
     const { enableChat } = await import("@/lib/airbnb-accounts.server");
     const r = await enableChat(admin, data.propertyId);
     return r.ok ? { ok: true as const } : { ok: false as const, error: r.error };

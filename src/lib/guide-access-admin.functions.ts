@@ -19,15 +19,23 @@ type DocEntry = {
   legible?: boolean | null;
 };
 
-async function signGuestDocs<T extends { guest_documents: unknown }>(
+/* Só assina arquivos da pasta do próprio imóvel da linha: o caminho salvo
+   no registro pode ser editado e não pode apontar para outro imóvel. */
+function pathBelongsTo(path: string, propertyId: string | null | undefined): boolean {
+  return !!propertyId && path.startsWith(`${propertyId}/`) && !path.includes("..");
+}
+
+async function signGuestDocs<T extends { guest_documents: unknown; property_id?: string | null }>(
   rows: T[],
+  fallbackPropertyId?: string,
 ): Promise<T[]> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const allPaths: string[] = [];
   for (const r of rows) {
     const docs = (r.guest_documents ?? []) as DocEntry[] | null;
     if (!docs) continue;
-    for (const d of docs) if (d?.file_path) allPaths.push(d.file_path);
+    const pid = r.property_id ?? fallbackPropertyId;
+    for (const d of docs) if (d?.file_path && pathBelongsTo(d.file_path, pid)) allPaths.push(d.file_path);
   }
   if (allPaths.length === 0) return rows;
   const urlMap = new Map<string, string>();
@@ -42,9 +50,11 @@ async function signGuestDocs<T extends { guest_documents: unknown }>(
   return rows.map((r) => {
     const docs = (r.guest_documents ?? []) as DocEntry[] | null;
     if (!docs) return r;
+    const pid = r.property_id ?? fallbackPropertyId;
     const enriched = docs.map((d) => ({
       ...d,
-      file_url: d.file_path ? urlMap.get(d.file_path) ?? d.file_url ?? null : d.file_url ?? null,
+      file_url:
+        d.file_path && pathBelongsTo(d.file_path, pid) ? urlMap.get(d.file_path) ?? null : null,
     }));
     return { ...r, guest_documents: enriched };
   });
@@ -86,7 +96,7 @@ export const listGuideAccessLogs = createServerFn({ method: "GET" })
       user_agent: string | null;
       created_at: string;
     };
-    const signedLogs = (await signGuestDocs(logs ?? [])) as unknown as AccessLog[];
+    const signedLogs = (await signGuestDocs(logs ?? [], data.propertyId)) as unknown as AccessLog[];
     return {
       property: {
         id: prop.id,
