@@ -30,7 +30,10 @@ export const Route = createFileRoute("/api/public/place-photo")({
         if (tooManyRequests(request, "place-photo", 60, 60_000)) return rateLimitedResponse();
         const url = new URL(request.url);
         const name = url.searchParams.get("name") ?? "";
-        const w = Math.max(64, Math.min(2400, Number(url.searchParams.get("w") ?? 1600)));
+        // Largura arredondada para poucos tamanhos fixos: cada foto vira no
+        // máximo 4 arquivos no cache, e o Google é chamado no máximo 4 vezes.
+        const pedida = Math.max(64, Math.min(2400, Number(url.searchParams.get("w") ?? 1600) || 1600));
+        const w = [400, 800, 1600, 2400].find((b) => b >= pedida) ?? 2400;
 
         // Valida o formato esperado: places/{PLACE_ID}/photos/{PHOTO_RESOURCE}
         if (!/^places\/[A-Za-z0-9_-]+\/photos\/[A-Za-z0-9_-]+$/.test(name)) {
@@ -40,12 +43,21 @@ export const Route = createFileRoute("/api/public/place-photo")({
         /* Só fotos que o próprio app emitiu (URL assinada pelo servidor) ou que
            já estão salvas em algum guia/recomendação. Pedido arbitrário = pixel. */
         const { isValidPlacePhotoSig } = await import("@/lib/place-photo-sign");
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         if (!isValidPlacePhotoSig(name, url.searchParams.get("sig"))) {
-          const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
           const { data: known } = await supabaseAdmin.rpc("place_photo_known" as never, {
             _name: name,
           } as never);
           if (known !== true) return placeholderResponse();
+        }
+
+        /* CACHE PRÓPRIO (26/11/2026): a foto é baixada do Google uma única vez
+           por tamanho e guardada no armazenamento privado do app. Visitantes
+           recebem a cópia salva; a cota paga do Google não é gasta de novo. */
+        const cacheKey = `${name.replace(/\//g, "_")}_${w}`;
+        const cached = await supabaseAdmin.storage.from("place-photo-cache").download(cacheKey);
+        if (cached.data && cached.data.size > 0) {
+          return imageResponse(cached.data, cached.data.type || "image/jpeg");
         }
 
         /* TETO DE CONSUMO DO DIA (23/09/2026).
@@ -95,10 +107,22 @@ export const Route = createFileRoute("/api/public/place-photo")({
         }
 
         const ct = upstream?.headers.get("content-type") ?? "";
-        if (!upstream?.ok || !upstream.body || !ct.startsWith("image/")) {
+        if (!upstream?.ok || !ct.startsWith("image/")) {
           return placeholderResponse();
         }
 
+        const bytes = await upstream.arrayBuffer();
+        await supabaseAdmin.storage
+          .from("place-photo-cache")
+          .upload(cacheKey, bytes, { contentType: ct, upsert: true })
+          .catch(() => null);
+        return imageResponse(bytes, ct);
+      },
+    },
+  },
+});
+
+function imageResponse(body: BodyInit, ct: string) {
         const headers = new Headers();
         headers.set("Content-Type", ct);
         // Aggressive cache: photo resource names are stable/immutable.
@@ -108,8 +132,5 @@ export const Route = createFileRoute("/api/public/place-photo")({
         // Security: prevent the image from being used as a script or iframe
         headers.set("X-Content-Type-Options", "nosniff");
         headers.set("Content-Security-Policy", "default-src 'none'; img-src 'self'");
-        return new Response(upstream.body, { status: 200, headers });
-      },
-    },
-  },
-});
+        return new Response(body, { status: 200, headers });
+}
