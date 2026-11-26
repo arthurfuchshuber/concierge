@@ -930,17 +930,14 @@ export async function runAirbnbAiTurn(admin: any, p: AirbnbAiTurn, opts: { longT
       console.log("[channex-messages] resposta da IA descartada na última conferência", last.reason, p.convId);
       return;
     }
-    // REMETENTE ESTRITO (26/11/2026, caso Carlos): a IA só fala pela conta da política ("Assina como"); falhou ⇒
-    // nada sai por outra conta, a mensagem fica como falha e a equipe recebe o aviso para assumir.
-    const { resolveAiSenderChannel } = await import("@/lib/ai-sender-channel.server");
-    const strictSender = await resolveAiSenderChannel(admin, { threadId: p.threadId, propertyId: p.propertyId });
+    // Conta do "Assina como" primeiro (envio direto); se ela não puder enviar, a resposta sai pela conta do anúncio
+    // — o hóspede nunca fica sem resposta (decisão do titular, 26/11/2026).
     await deliverToAirbnbThread(admin, {
       conversationId: p.convId,
       threadId: p.threadId,
       propertyId: p.propertyId,
       text: finalReply,
       senderType: "ai",
-      strictSender,
     });
   }
 }
