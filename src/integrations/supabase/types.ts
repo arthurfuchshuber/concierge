@@ -4589,6 +4589,71 @@ export type Database = {
         }
         Relationships: []
       }
+      guest_ai_regional_situations: {
+        Row: {
+          ai_text: string
+          city: string
+          created_at: string
+          created_by: string | null
+          ended_at: string | null
+          ended_by: string | null
+          expires_at: string | null
+          id: string
+          kind: string
+          neighborhoods: string
+          owner_id: string
+          source_conversation_id: string | null
+          source_message_id: string | null
+          starts_at: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          ai_text: string
+          city: string
+          created_at?: string
+          created_by?: string | null
+          ended_at?: string | null
+          ended_by?: string | null
+          expires_at?: string | null
+          id?: string
+          kind: string
+          neighborhoods?: string
+          owner_id: string
+          source_conversation_id?: string | null
+          source_message_id?: string | null
+          starts_at?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          ai_text?: string
+          city?: string
+          created_at?: string
+          created_by?: string | null
+          ended_at?: string | null
+          ended_by?: string | null
+          expires_at?: string | null
+          id?: string
+          kind?: string
+          neighborhoods?: string
+          owner_id?: string
+          source_conversation_id?: string | null
+          source_message_id?: string | null
+          starts_at?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "guest_ai_regional_situations_source_conversation_id_fkey"
+            columns: ["source_conversation_id"]
+            isOneToOne: false
+            referencedRelation: "property_chat_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       guest_ai_turns: {
         Row: {
           context_credential_policy: string | null
