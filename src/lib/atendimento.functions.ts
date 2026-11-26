@@ -348,7 +348,7 @@ export const instructAi = createServerFn({ method: "POST" })
           propertyId: row.id,
           category: learning.category,
           statement: learning.statement,
-          evidence: { source: "team_instruction", propertyId: row.id, refs: [`instr:${data.conversationId}`], closed: true },
+          evidence: { source: "team_instruction", propertyId: row.id, refs: [`instr:${data.conversationId}`, `by:${userId}`], closed: true },
         });
         if (!res.ok || !res.id) continue;
         if (approve) {
@@ -382,7 +382,9 @@ export type RegionalSituation = {
 
 export type AffectedConversation = { id: string; guestName: string; propertyId: string };
 
-const REG_COLS = "id, owner_id, city, kind, neighborhoods, ai_text, status, starts_at, expires_at, source_conversation_id, source_message_id";
+const REG_BASE = "id, owner_id, city, kind, neighborhoods, ai_text, status, starts_at, expires_at, source_conversation_id, source_message_id";
+// `used_conversation_ids` chega pela migração 20261126180000; antes dela a leitura segue sem a contagem
+const REG_COLS = `${REG_BASE}, used_conversation_ids`;
 
 function toRegional(r: Row, usedIn = 0): RegionalSituation {
   return {
@@ -399,13 +401,10 @@ function toRegional(r: Row, usedIn = 0): RegionalSituation {
 
 async function activeRegional(db: Db, ownerId: string): Promise<Array<Row>> {
   const now = new Date().toISOString();
-  const { data, error } = await db
-    .from("guest_ai_regional_situations")
-    .select(REG_COLS)
-    .eq("owner_id", ownerId)
-    .eq("status", "active")
-    .order("starts_at", { ascending: false })
-    .limit(20);
+  const read = (cols: string) =>
+    db.from("guest_ai_regional_situations").select(cols).eq("owner_id", ownerId).eq("status", "active").order("starts_at", { ascending: false }).limit(20);
+  let { data, error } = await read(REG_COLS);
+  if (error) ({ data, error } = await read(REG_BASE));
   if (error) return [];
   return ((data ?? []) as Array<Row>).filter((r) => !r.expires_at || String(r.expires_at) > now);
 }
@@ -416,17 +415,9 @@ async function cityPropertyIds(db: Db, ownerId: string, city: string): Promise<s
   return ((data ?? []) as Array<{ id: string; city: string | null }>).filter((p) => cityKey(p.city) === key).map((p) => String(p.id));
 }
 
-async function usageCount(db: Db, ownerId: string, s: Row): Promise<number> {
-  const ids = await cityPropertyIds(db, ownerId, String(s.city));
-  if (!ids.length) return 0;
-  const { data } = await db
-    .from("guest_ai_turns")
-    .select("conversation_id")
-    .in("property_id", ids)
-    .eq("outcome_kind", "reply")
-    .gte("created_at", String(s.starts_at))
-    .limit(1000);
-  return new Set(((data ?? []) as Array<{ conversation_id: string }>).map((t) => t.conversation_id)).size;
+/** Conversas em que a IA de fato se apoiou na situação (registradas pela geração da resposta). */
+function usageCount(s: Row): number {
+  return Array.isArray(s.used_conversation_ids) ? new Set(s.used_conversation_ids as string[]).size : 0;
 }
 
 async function affectedConversations(db: Db, ownerId: string, s: Row): Promise<AffectedConversation[]> {
@@ -456,7 +447,7 @@ export const listRegionalSituations = createServerFn({ method: "POST" })
       const ownerId = await accountScope(context.supabase, context.userId, data.accountOwnerId);
       const db = await admin();
       const rows = await activeRegional(db, ownerId);
-      return Promise.all(rows.map(async (r) => toRegional(r, await usageCount(db, ownerId, r))));
+      return rows.map((r) => toRegional(r, usageCount(r)));
     } catch {
       return [];
     }
@@ -485,7 +476,7 @@ export const getConversationRegional = createServerFn({ method: "POST" })
         const act = (await activeRegional(db, prop.owner_id)).find((r) => cityKey(String(r.city)) === key) ?? null;
         const { data: sug } = await db
           .from("guest_ai_regional_situations")
-          .select(REG_COLS)
+          .select(REG_BASE)
           .eq("source_conversation_id", data.conversationId)
           .eq("status", "suggested")
           .order("created_at", { ascending: false })
@@ -493,7 +484,7 @@ export const getConversationRegional = createServerFn({ method: "POST" })
         const s = ((sug ?? []) as Array<Row>)[0] ?? null;
         return {
           city: prop.city,
-          active: act ? toRegional(act, await usageCount(db, prop.owner_id, act)) : null,
+          active: act ? toRegional(act, usageCount(act)) : null,
           affected: act ? await affectedConversations(db, prop.owner_id, act) : [],
           // com situação ativa na cidade, a sugestão não aparece (já está marcada)
           suggestion: s && !act ? { id: String(s.id), messageId: s.source_message_id ? String(s.source_message_id) : null, kind: String(s.kind), aiText: String(s.ai_text) } : null,
@@ -524,7 +515,7 @@ export const saveRegionalSituation = createServerFn({ method: "POST" })
     const db = await admin();
     const now = new Date();
     if (data.id) {
-      const { data: cur } = await db.from("guest_ai_regional_situations").select(REG_COLS).eq("id", data.id).maybeSingle();
+      const { data: cur } = await db.from("guest_ai_regional_situations").select(REG_BASE).eq("id", data.id).maybeSingle();
       if (!cur) throw new Error("Situação não encontrada.");
       const { requireMemberPermission } = await import("@/lib/member-permissions.server");
       if (cur.owner_id !== userId) await requireMemberPermission(supabase, userId, String(cur.owner_id), "chat_respond");
@@ -617,6 +608,10 @@ export type LearningItem = {
   decidedAt: string | null;
   scope: "property" | "city" | "account";
   canApprove: boolean;
+  /** "Aprendido com a resposta de Arthur a Larissa" (só com dado real; sem ele, o tipo de origem). */
+  originText: string;
+  /** Quando a fala de origem aconteceu (senão, quando o aprendizado nasceu). */
+  originAt: string;
 };
 
 export type LearningCounts = { pending: number; approved: number; rejected: number };
@@ -648,16 +643,18 @@ export const listLearnings = createServerFn({ method: "POST" })
       const can = await canApprove(await admin(), userId, ownerId);
       const { scopesFor } = await import("@/lib/guest-ai-learning/views.server");
       const scopes = await scopesFor(supabase, list.filter((r) => r.status === "approved").map((r) => ({ id: String(r.id), propertyId: String(r.property_id) })));
-      const count = async (st: string[]) => {
-        const { count: c } = await supabase
-          .from("guest_ai_learning_entries")
-          .select("id", { count: "exact", head: true })
-          .eq("owner_id", ownerId)
-          .in("status", st)
-          .not("evidence_refs", "cs", "{}");
-        return c ?? 0;
-      };
-      const [pending, approved, rejected] = await Promise.all([count(["pending"]), count(["approved"]), count(["rejected", "revoked"])]);
+      // contagem das abas sem as réplicas de escopo (o filtro por prefixo do item do vetor é feito aqui)
+      const { data: all } = await supabase
+        .from("guest_ai_learning_entries")
+        .select("status, evidence_refs")
+        .eq("owner_id", ownerId)
+        .in("status", ["pending", "approved", "rejected", "revoked"])
+        .limit(10000);
+      const originals = ((all ?? []) as Array<Row>).filter((r) => !isReplica(r.evidence_refs));
+      const pending = originals.filter((r) => r.status === "pending").length;
+      const approved = originals.filter((r) => r.status === "approved").length;
+      const rejected = originals.filter((r) => r.status === "rejected" || r.status === "revoked").length;
+      const origins = await learningOrigins(list);
       return {
         items: list.map((r) => ({
           id: String(r.id),
@@ -672,6 +669,8 @@ export const listLearnings = createServerFn({ method: "POST" })
           decidedAt: r.decided_at ? String(r.decided_at) : null,
           scope: scopes.get(String(r.id))?.scope ?? "property",
           canApprove: can,
+          originText: origins.get(String(r.id))?.text ?? SOURCE_ORIGIN[String(r.source)] ?? "Aprendido com a equipe",
+          originAt: origins.get(String(r.id))?.at ?? String(r.created_at),
         })),
         counts: { pending, approved, rejected },
       };
@@ -679,6 +678,80 @@ export const listLearnings = createServerFn({ method: "POST" })
       return empty;
     }
   });
+
+const SOURCE_ORIGIN: Record<string, string> = {
+  team_instruction: "Aprendido com uma instrução da equipe",
+  checkout_done: "Aprendido com uma estadia concluída",
+  incident_resolved: "Aprendido com um atendimento resolvido",
+  guest_confirmation: "Aprendido com a confirmação de um hóspede",
+};
+
+const firstName = (s: string | null | undefined) => (s ?? "").trim().split(/\s+/)[0] || null;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Origem de cada aprendizado em palavras (mockup APR-D01): "Aprendido com a resposta de Arthur a Larissa" quando a
+ * evidência é a fala da equipe; "Aprendido com a instrução de Arthur na conversa com Larissa" no Instruir a IA;
+ * "Aprendido com a mensagem de Larissa" quando é a fala do hóspede. Sem o dado, fica o tipo de origem.
+ */
+async function learningOrigins(rows: Array<Row>): Promise<Map<string, { text: string; at: string }>> {
+  const out = new Map<string, { text: string; at: string }>();
+  const msgIds = new Set<string>();
+  const convIds = new Set<string>();
+  const userIds = new Set<string>();
+  for (const r of rows) {
+    for (const ref of (Array.isArray(r.evidence_refs) ? r.evidence_refs : []) as string[]) {
+      if (UUID_RE.test(ref)) msgIds.add(ref);
+      else if (ref.startsWith("instr:")) convIds.add(ref.slice(6));
+      else if (ref.startsWith("by:")) userIds.add(ref.slice(3));
+    }
+  }
+  if (!msgIds.size && !convIds.size) return out;
+  const db = await admin();
+  const msgs = new Map<string, Row>();
+  if (msgIds.size) {
+    const { data } = await db
+      .from("property_chat_messages")
+      .select("id, conversation_id, sender_type, sender_user_id, created_at")
+      .in("id", [...msgIds]);
+    for (const m of (data ?? []) as Array<Row>) {
+      msgs.set(String(m.id), m);
+      convIds.add(String(m.conversation_id));
+      if (m.sender_user_id) userIds.add(String(m.sender_user_id));
+    }
+  }
+  const guests = new Map<string, string | null>();
+  if (convIds.size) {
+    const { data } = await db.from("property_chat_conversations").select("id, guest_name").in("id", [...convIds]);
+    for (const c of (data ?? []) as Array<Row>) guests.set(String(c.id), firstName(c.guest_name));
+  }
+  const people = new Map<string, string | null>();
+  if (userIds.size) {
+    const { data } = await db.from("profiles").select("id, full_name, trade_name").in("id", [...userIds]);
+    for (const p of (data ?? []) as Array<Row>) people.set(String(p.id), firstName(p.full_name || p.trade_name));
+  }
+  for (const r of rows) {
+    const refs = (Array.isArray(r.evidence_refs) ? r.evidence_refs : []) as string[];
+    const instr = refs.find((x) => x.startsWith("instr:"));
+    const by = refs.find((x) => x.startsWith("by:"));
+    if (instr) {
+      const who = by ? people.get(by.slice(3)) : null;
+      const guest = guests.get(instr.slice(6));
+      if (who && guest) out.set(String(r.id), { text: `Aprendido com a instrução de ${who} na conversa com ${guest}`, at: String(r.created_at) });
+      continue;
+    }
+    const m = refs.map((x) => msgs.get(x)).find(Boolean);
+    if (!m) continue;
+    const guest = guests.get(String(m.conversation_id));
+    if (m.sender_type === "human") {
+      const who = m.sender_user_id ? people.get(String(m.sender_user_id)) : null;
+      if (who && guest) out.set(String(r.id), { text: `Aprendido com a resposta de ${who} a ${guest}`, at: String(m.created_at) });
+    } else if (m.sender_type === "guest" && guest) {
+      out.set(String(r.id), { text: `Aprendido com a mensagem de ${guest}`, at: String(m.created_at) });
+    }
+  }
+  return out;
+}
 
 /** Aprovar · Só Desta Vez (recusa pontual) · Desfazer (revogar). Permissão conferida pela própria RPC. */
 export const reviewLearning = createServerFn({ method: "POST" })

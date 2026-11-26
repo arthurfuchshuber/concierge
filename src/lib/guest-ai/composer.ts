@@ -168,7 +168,16 @@ export interface DossierRef {
 }
 
 export type ComposeResult =
-  | { kind: "prompt"; prompt: ComposedPrompt; metrics: BudgetMetrics; manifest: ComposeManifest; guardMetrics: GuardMetrics; dossierRefs: DossierRef[] }
+  | {
+      kind: "prompt";
+      prompt: ComposedPrompt;
+      metrics: BudgetMetrics;
+      manifest: ComposeManifest;
+      guardMetrics: GuardMetrics;
+      dossierRefs: DossierRef[];
+      /** `vivo:n` → id do item do Documento Vivo (ex.: `regional:<uuid>`), para saber o que a resposta citou. */
+      livingRefs: Array<{ ref: string; itemId: string }>;
+    }
   | { kind: "over_budget"; reason: BudgetOverReason; metrics: BudgetMetrics }
   | { kind: "unavailable"; reason: ComposeUnavailableReason; historyReason?: HistoryUnavailableReason };
 
@@ -725,6 +734,7 @@ export function composeTurnPrompt(input: ComposeInput, options: ComposeOptions =
   let eventsJson: string | null = null;
   let livingJson: string | null = null;
   const livingIds: string[] = [];
+  const livingRefs: Array<{ ref: string; itemId: string }> = [];
   const guideIds = new Set<string>();
   try {
     contextData = buildContextData(ctx, guarded, unavailable, input.operational ?? null);
@@ -791,6 +801,7 @@ export function composeTurnPrompt(input: ComposeInput, options: ComposeOptions =
         n += 1;
         const id = `vivo:${n}`;
         livingIds.push(id);
+        livingRefs.push({ ref: id, itemId: it.id });
         return { id, categoria: it.category, texto, origem: it.source, aprovado_em: it.approvedAt };
       });
       if (items.length > 0) livingJson = encodeDataBlock(items);
@@ -880,6 +891,7 @@ export function composeTurnPrompt(input: ComposeInput, options: ComposeOptions =
     },
     guardMetrics,
     dossierRefs,
+    livingRefs,
   };
 }
 

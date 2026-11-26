@@ -2,14 +2,14 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { CircleCheck, Check, Funnel, Hourglass, LoaderCircle, Pencil, X } from "lucide-react";
-import { format } from "date-fns";
+import { CircleCheck, Check, Funnel, GraduationCap, Hourglass, LoaderCircle, Pencil, X } from "lucide-react";
 import { toast } from "sonner";
 import { PageShell } from "@/components/ds/PageShell";
 import { Stepper } from "@/components/editor/Stepper";
 import { SearchActionRow } from "@/components/dashboard/SearchActionRow";
 import { Seg, AtdWindow, BTN_BRAND, BTN_SOFT } from "@/components/handoff/atd-window";
 import { PropertyFilterWindow } from "@/components/handoff/PropertyFilterWindow";
+import { RelDayTime } from "@/components/handoff/stay-view";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useImpersonation } from "@/hooks/useImpersonation";
 import {
@@ -29,14 +29,6 @@ export const Route = createFileRoute("/_authenticated/admin/aprendizados")({
 });
 
 type Tab = "pending" | "approved" | "rejected";
-
-const SOURCE_ORIGIN: Record<string, string> = {
-  team_instruction: "Instrução da equipe",
-  checkout_done: "Aprendido com uma estadia concluída",
-  incident_resolved: "Aprendido com um atendimento resolvido",
-  guest_confirmation: "Aprendido com a confirmação de um hóspede",
-};
-
 
 /**
  * APRENDIZADOS DA IA (mockups APR-D01/M01, aprovados em 25/11/2026). O que a IA aprendeu com a equipe e espera a
@@ -103,7 +95,10 @@ function AprendizadosPage() {
           <LoaderCircle className="size-3.5 animate-spin" /> Carregando…
         </div>
       ) : items.length === 0 ? (
-        <div className="ds-3d rounded-[14px] bg-card px-4 py-8 text-center">
+        <div className="ds-3d relative overflow-hidden rounded-[14px] bg-card px-4 py-8 text-center">
+          <span className="mx-auto mb-2 grid size-9 place-items-center rounded-[10px] bg-foreground/[0.06] text-muted-foreground">
+            <GraduationCap className="size-4" />
+          </span>
           <p className="text-[13px] font-semibold">
             {tab === "pending" ? "Nenhum aprendizado esperando aprovação." : tab === "approved" ? "Nenhum aprendizado aprovado." : "Nenhum aprendizado recusado."}
           </p>
@@ -166,7 +161,7 @@ function LearnCard({ item, tab }: { item: LearningItem; tab: Tab }) {
     onError: (e) => toast.error(friendlyErrorMessage(e, "Não foi possível salvar.")),
   });
   const audience = LEARNING_AUDIENCE[item.category as LearningCategory] === "P" ? "Público" : "Reserva Ativa";
-  const origin = `${SOURCE_ORIGIN[item.source] ?? "Aprendido com a equipe"} · ${format(new Date(item.createdAt), "dd/MM · HH:mm")}`;
+
   return (
     <div className="ds-3d relative flex flex-col gap-2.5 overflow-hidden rounded-[14px] bg-card p-3.5">
       <div className="ds-card-lines min-w-0">
@@ -178,7 +173,9 @@ function LearnCard({ item, tab }: { item: LearningItem; tab: Tab }) {
         ) : null}
       </div>
       <p className="text-[13.5px] leading-[1.45]">{item.statement}</p>
-      <p className="text-[11.5px] text-muted-foreground">{origin}</p>
+      <p className="text-[11.5px] text-muted-foreground">
+        {item.originText} · <RelDayTime iso={item.originAt} />
+      </p>
       <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-3 gap-y-2">
         <span className="text-[11px] font-bold uppercase tracking-[0.1em] text-muted-foreground">Vale Para</span>
         <Seg

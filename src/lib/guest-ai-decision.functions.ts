@@ -10,8 +10,9 @@ import { DECISION_COLUMNS, type HumanDecisionRow } from "@/lib/guest-ai-decision
 
 export type ConversationDecision = HumanDecisionRow & { decidedByName: string | null };
 
+/** Primeiro nome da pessoa da equipe (mockup ATD-D17/M18: "· Arthur · 09:20"). */
 const nameOf = (p: { trade_name?: string | null; full_name?: string | null } | undefined) =>
-  ((p?.trade_name || p?.full_name) ?? "").trim() || null;
+  ((p?.full_name || p?.trade_name) ?? "").trim().split(/\s+/)[0] || null;
 
 /** Decisões da conversa (mais antigas primeiro). Tabela ausente ou erro de leitura ⇒ lista vazia. */
 export const listConversationDecisions = createServerFn({ method: "GET" })

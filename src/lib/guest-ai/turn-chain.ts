@@ -307,7 +307,17 @@ export function blockedDraft(
 }
 
 export type ChainOutcome =
-  | ({ kind: "reply"; text: string; strategy: Strategy; decision: ModelDecision; situation: ChainSituation; dispatch: DispatchPreparation; audit: ChainAudit } & NotSent)
+  | ({
+      kind: "reply";
+      text: string;
+      strategy: Strategy;
+      decision: ModelDecision;
+      situation: ChainSituation;
+      dispatch: DispatchPreparation;
+      audit: ChainAudit;
+      /** Itens do Documento Vivo em que a resposta se apoiou (ex.: `regional:<uuid>`). */
+      livingUsed?: string[];
+    } & NotSent)
   | ({ kind: "paused"; situation: ChainSituation; audit: ChainAudit } & NotSent)
   | ({ kind: "urgent_internal_alert"; alert: UrgentInternalAlert; situation: ChainSituation; audit: ChainAudit } & NotSent)
   | ({ kind: "silence"; decision: ModelDecision; situation: ChainSituation; audit: ChainAudit } & NotSent)
@@ -1062,7 +1072,19 @@ export async function runTurnChain(input: ChainInput, deps: ChainDeps): Promise<
       sendAuthorization: "not_granted",
       state: senderIdentity && senderIdentity.status === "resolved" ? "awaiting_send_authorization" : "blocked_sender_identity",
     };
-    return emit({ kind: "reply", text: decision.reply, strategy: decision.strategy, decision, situation, dispatch, audit: audit("reply", "final_decision", null), ...NOT_SENT });
+    const grounded = new Set(decision.groundedOn);
+    const livingUsed = composed.kind === "prompt" ? composed.livingRefs.filter((r) => grounded.has(r.ref)).map((r) => r.itemId) : [];
+    return emit({
+      kind: "reply",
+      text: decision.reply,
+      strategy: decision.strategy,
+      decision,
+      situation,
+      dispatch,
+      audit: audit("reply", "final_decision", null),
+      livingUsed: livingUsed.length ? livingUsed : undefined,
+      ...NOT_SENT,
+    });
   } catch {
     const stage = CHAIN_STAGE_IDS[Math.min(completed.length, CHAIN_STAGE_IDS.length - 1)]!;
     return technical(stage, "stage_failed");

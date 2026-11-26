@@ -169,6 +169,11 @@ export interface TurnGenerateDeps {
    * `recordOpsNoAdvance`, só quando `ops` não é substituído). Prazo próprio de 2,5 s; nunca derruba a geração.
    */
   opsNoAdvance?: (input: OpsNoAdvanceInput) => Promise<unknown>;
+  /**
+   * Situação regional (26/11/2026): registra a conversa em que a resposta da IA se apoiou numa situação regional
+   * confirmada (o "usada em N conversas" da faixa). Padrão: `recordRegionalUse`; melhor esforço.
+   */
+  regionalUse?: (input: { situationIds: string[]; conversationId: string }) => Promise<unknown>;
 }
 
 /** Prazo máximo do registro de "não avançou": a auditoria nunca atrasa a resposta além disto. */
@@ -958,6 +963,19 @@ export async function generateGuestAiTurn(
           }
         : {}),
     });
+    // Situação regional usada nesta resposta ⇒ conta na faixa ("usada em N conversas"), só com dado real.
+    if (outcome.kind === "reply" && outcome.livingUsed?.length && stored.kind === "stored") {
+      const situationIds = outcome.livingUsed.filter((id) => id.startsWith("regional:")).map((id) => id.slice("regional:".length));
+      const regionalWriter =
+        deps.regionalUse ?? (deps.store ? null : async (i: { situationIds: string[]; conversationId: string }) => (await import("@/lib/regional-suggest.server")).recordRegionalUse(i));
+      if (situationIds.length && regionalWriter) {
+        try {
+          await regionalWriter({ situationIds, conversationId: turn.conversationId });
+        } catch {
+          console.error("[ia-turno] registro do uso da situação regional falhou");
+        }
+      }
+    }
     // Sinais operacionais: a decisão validada da resposta é a fonte única; sem ela, o leitor de reserva.
     const decided =
       outcome.kind === "reply" || outcome.kind === "silence" || outcome.kind === "human_action" ? outcome.decision : null;

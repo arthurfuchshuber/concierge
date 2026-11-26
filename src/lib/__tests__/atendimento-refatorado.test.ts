@@ -1,6 +1,8 @@
 /**
  * Atendimento refatorado (mockups ATD-D/M, REG, CANC e APR aprovados em 23–26/11/2026): regras puras novas.
  */
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { formatDayBR, relativeDayWord, todaySaoPauloIso } from "@/lib/relative-day";
 import {
@@ -136,5 +138,48 @@ describe("Quem Vê (Aprendizados, 26/11/2026)", () => {
     const guest = run(["P", "G"]);
     expect(guest).toMatch(/quadro de energia/);
     expect(guest).toMatch(/padaria da esquina/);
+  });
+});
+
+describe("auditoria de 26/11/2026", () => {
+  const SRC = path.resolve(__dirname, "../..");
+  const read = (f: string) => readFileSync(path.join(SRC, f), "utf8");
+  it("o prompt devolve de qual item do Documento Vivo veio cada `vivo:n` (base do 'usada em N conversas')", () => {
+    const history = normalizeHistory([row({ id: MSG, created_at: "2026-11-03T10:00:50Z", content: "Oi" })], { conversationId: CONV, currentMessageId: MSG });
+    const context = conversationContext({ audiences: ["P", "G"] } as never);
+    const r = composeTurnPrompt(
+      {
+        context,
+        history,
+        livingDocument: {
+          status: "available",
+          propertyId: context.guest.property.id,
+          items: [{ id: "regional:abc", category: "vizinhanca", statement: "A cidade está sem energia por causa do temporal desta tarde.", source: "team_instruction", approvedAt: null }],
+        },
+      } as never,
+      { guard: TEST_GUARD },
+    );
+    if (r.kind !== "prompt") throw new Error(r.kind);
+    expect(r.livingRefs).toEqual([{ ref: "vivo:1", itemId: "regional:abc" }]);
+  });
+  it("a contagem vem do registro real de uso (não de toda resposta da cidade)", () => {
+    const fns = read("lib/atendimento.functions.ts");
+    expect(fns).toMatch(/used_conversation_ids/);
+    expect(fns).not.toMatch(/outcome_kind", "reply"/);
+    expect(read("lib/guest-ai/turn/generate.server.ts")).toMatch(/recordRegionalUse/);
+  });
+  it("janelas sem o recuo de 24px da base e com rolagem só no conteúdo", () => {
+    const w = read("components/handoff/atd-window.tsx");
+    expect(w).toMatch(/p-0 sm:p-0/);
+    expect(w).toMatch(/min-h-0 flex-1 flex-col overflow-y-auto/);
+  });
+  it("cards da lista não aninham botões (copiar e WhatsApp ficam dentro do card)", () => {
+    const v = read("components/handoff/ConversationView.tsx");
+    const list = v.slice(v.indexOf("export function ConversationList"));
+    expect(list).not.toMatch(/<button\s+key=\{c\.id\}/);
+    expect(list).toMatch(/role="button"/);
+  });
+  it("as abas de Aprendizados contam sem o filtro que zerava tudo", () => {
+    expect(read("lib/atendimento.functions.ts")).not.toMatch(/\.not\("evidence_refs", "cs", "\{\}"\)/);
   });
 });
