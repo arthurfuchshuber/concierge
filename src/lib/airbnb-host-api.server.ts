@@ -12,8 +12,15 @@ const AIRBNB = "https://api.airbnb.com/v2";
 
 /** Token OAuth do canal Airbnb, lido pelo cache de canais (regra de 24/10/2026: nada de `GET /channels/:id` ao vivo). */
 async function channelToken(channelId: string): Promise<string | null> {
+  // 1º o cofre do ConciergeIA (token real guardado cifrado); 2º o cache de canais — mascarado ("***") ⇒ null
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const creds = await import("@/lib/airbnb-sender-credentials.server");
+  const local = await creds.getUsableSenderToken(supabaseAdmin as any, channelId).catch(() => null);
+  if (local) return local;
   const r = await getChannelCached(channelId);
-  return usableAirbnbToken(r?.data?.attributes); // mascarado ("***") ⇒ null, sem chamar o Airbnb
+  const token = usableAirbnbToken(r?.data?.attributes);
+  if (token) await creds.captureChannelToken(supabaseAdmin as any, channelId, r?.data?.attributes?.settings);
+  return token;
 }
 
 async function get(path: string, token: string): Promise<unknown> {

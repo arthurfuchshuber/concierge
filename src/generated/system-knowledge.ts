@@ -11,7 +11,7 @@ export type GeneratedSystemDoc = {
   content_hash: string;
 };
 
-export const GENERATED_AT = "2026-11-26T23:37:48.470Z";
+export const GENERATED_AT = "2026-11-26T23:51:44.719Z";
 
 export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
   {
@@ -1023,6 +1023,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "5ba8ddcefa7b3c22f3f3b2dd25c4d49c"
   },
   {
+    "doc_key": "rule:captureChannelToken",
+    "kind": "rule",
+    "title": "Regra — captureChannelToken",
+    "content": "A Channex ainda devolveu um token REAL para o canal ⇒ guarda no cofre de cada conta do ConciergeIA ligada a ele.\nSó regrava quando o token mudou. Melhor esforço: nunca lança.",
+    "source_path": "src/lib/airbnb-sender-credentials.server.ts",
+    "audience": [],
+    "content_hash": "d32e619f489e54f746aee5d2dce20fb4"
+  },
+  {
     "doc_key": "rule:captureDocumentFiles",
     "kind": "rule",
     "title": "Regra — captureDocumentFiles",
@@ -1156,6 +1165,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/media-upload.ts",
     "audience": [],
     "content_hash": "037d6da820ffc6ee8fc89e18b7e96043"
+  },
+  {
+    "doc_key": "rule:channelToken",
+    "kind": "rule",
+    "title": "Regra — channelToken",
+    "content": "Token OAuth do canal Airbnb. 1º o cofre do ConciergeIA (`airbnb_sender_credentials`, cifrado); 2º a Channex\nao vivo — quando ela ainda devolve um token real, ele é guardado no cofre. Mascarado (\"***\") ⇒ null.",
+    "source_path": "src/lib/airbnb-direct-sender.server.ts",
+    "audience": [],
+    "content_hash": "367ad161fb7502fc7a545d2c58a1acf3"
   },
   {
     "doc_key": "rule:CHANNEX_BASE",
@@ -6693,6 +6711,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "8b815bec1199be26571cc26f6348c9ba"
   },
   {
+    "doc_key": "rule:src/lib/airbnb-sender-credentials.server.ts:0",
+    "kind": "rule",
+    "title": "Regra em airbnb-sender-credentials.server.ts",
+    "content": "Cofre do token da conta remetente do Airbnb (26/11/2026).\n\nA Channex passou a mascarar o token OAuth (\"***\"). O ConciergeIA guarda, cifrado, o último token REAL de cada\nconta (`airbnb_sender_credentials`), capturado sempre que a Channex ainda devolve um token de verdade\n(`captureChannelToken`), e o envio direto usa o cofre antes da Channex (`getUsableSenderToken`).\n\nRenovação: só com credenciais de app do Airbnb configuradas (`AIRBNB_CLIENT_ID`/`AIRBNB_CLIENT_SECRET`) e\nrefresh token guardado. Sem isso, token vencido ⇒ `expired` e o envio segue o caminho normal (Channex).\nNada aqui loga ou devolve o token para fora do servidor.",
+    "source_path": "src/lib/airbnb-sender-credentials.server.ts",
+    "audience": [],
+    "content_hash": "ecea8144112a5d7fc4f55072b618a8f8"
+  },
+  {
     "doc_key": "rule:src/lib/airbnb.functions.ts:1075",
     "kind": "rule",
     "title": "Regra em airbnb.functions.ts",
@@ -9067,6 +9094,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/reservation-records.functions.ts",
     "audience": [],
     "content_hash": "0f93acecb7b17ebc0f5e1c1814eb17ee"
+  },
+  {
+    "doc_key": "rule:src/lib/security/sender-crypto.server.ts:0",
+    "kind": "rule",
+    "title": "Regra em sender-crypto.server.ts",
+    "content": "Cifra dos tokens da conta remetente do Airbnb (AES-256-GCM, só servidor).\nFormato: `iv:authTag:payload` em base64 (iv de 12 bytes, tag de 16).\n\nChave: `AIRBNB_TOKEN_SECRET` (32 bytes em base64, ou qualquer texto, derivado por SHA-256). Sem ela, deriva da\nchave já usada para os conectores (`APP_USER_CONNECTION_KEY_SECRET`) com contexto próprio. Só em teste existe uma\nchave fixa de desenvolvimento; em produção sem nenhuma das duas, cifrar/decifrar LANÇA (nunca grava em claro).",
+    "source_path": "src/lib/security/sender-crypto.server.ts",
+    "audience": [],
+    "content_hash": "427b55f9380941061651de3e6503c3ea"
   },
   {
     "doc_key": "rule:src/lib/sender-identity-source.server.ts:0",
