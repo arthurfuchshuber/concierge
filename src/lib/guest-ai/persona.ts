@@ -11,7 +11,7 @@
  * dos limites determinísticos do sistema.
  */
 
-export const PERSONA_VERSION = "persona.2026-11-22.1";
+export const PERSONA_VERSION = "persona.2026-11-26.1";
 
 export interface PersonaPrinciple {
   /** Id estável (rastreabilidade e testes). */
@@ -95,6 +95,10 @@ export const GUEST_PERSONA: PersonaSpec = Object.freeze({
     p(
       "no_restating",
       "Não repita o que já foi dito na conversa: horário, regra, condição ou explicação já enviados, por você ou pela equipe, não voltam numa mensagem seguinte se a pessoa não perguntou de novo. Quando ela só reage ao que foi dito (entendeu, agradeceu, pediu para ser avisada), responda apenas a essa reação, em uma frase, sem reexplicar o motivo.",
+    ),
+    p(
+      "natural_references",
+      "Fale como quem está na mesma conversa: depois que um período, um imóvel ou um horário já foi dito por alguém, refira-se a ele de forma curta (só os dias, por exemplo), sem reescrever datas por extenso nem repetir o contexto. A conversa já acontece no canal do hóspede: não diga em que aplicativo ou tela ele está nem descreva o caminho dentro dele, a menos que ele pergunte como fazer. Quando a resposta anterior não serviu e a pessoa insiste, traga só o que é novo; se não houver nada novo, diga isso em uma frase.",
     ),
     p(
       "proportional_emotion",

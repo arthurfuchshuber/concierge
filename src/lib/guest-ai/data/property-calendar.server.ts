@@ -13,7 +13,11 @@
 import { assertIssued } from "@/lib/guest-ai/trust";
 import type { ValidatedTurn } from "@/lib/guest-ai/types";
 import {
+  addDays as addDaysPure,
+  approximateBookableWindow,
+  APPROX_SHIFT_DAYS,
   assessPeriod,
+  averageNightly,
   buildOccupancy,
   calendarWindow,
   extractMentionedDates,
@@ -40,21 +44,32 @@ import {
 } from "./projections";
 import { publicPropertyTitle } from "./public-title";
 
-/** Quantas alternativas do portfólio vão ao modelo, no máximo. */
+/** Quantas alternativas do portfólio vão ao modelo, no máximo, POR CAMADA (mesmo proprietário · outros). */
 export const PORTFOLIO_MAX_ALTERNATIVES = 3;
+
+/** Diárias reais por noite de um anúncio (calendário do Airbnb). `null` = não lidas (nada é estimado). */
+export type NightlyPriceFetcher = (
+  listing: { channelId: string; listingId: string },
+  start: string,
+  end: string,
+) => Promise<ReadonlyMap<string, number> | null>;
+
+const defaultPrices: NightlyPriceFetcher = async (l, start, end) =>
+  (await import("@/lib/airbnb-host-api.server")).fetchAirbnbNightlyPrices(l.channelId, l.listingId, start, end);
 
 type ListingRuleRow = {
   property_id: string | null;
   airbnb_listing_id: string | null;
+  channex_channel_id?: string | null;
   sync_paused_at: string | null;
   not_found_at: string | null;
   availability_rule: unknown;
 };
 
 /** Regras do anúncio ATIVO do imóvel (primeiro sem pausa nem "não encontrado"). Falha ⇒ `null` (desconhecida). */
-function rulesFrom(rows: readonly ListingRuleRow[], propertyId: string): { rules: StayRules | null; listingId: string | null } {
+function rulesFrom(rows: readonly ListingRuleRow[], propertyId: string): { rules: StayRules | null; listingId: string | null; channelId: string | null } {
   const row = rows.find((r) => r.property_id === propertyId && !r.sync_paused_at && !r.not_found_at);
-  return { rules: row ? parseStayRules(row.availability_rule) : null, listingId: row?.airbnb_listing_id ?? null };
+  return { rules: row ? parseStayRules(row.availability_rule) : null, listingId: row?.airbnb_listing_id ?? null, channelId: row?.channex_channel_id ?? null };
 }
 
 /** Link oficial do anúncio: o cadastrado no imóvel ou o montado pelo id do Airbnb (só dígitos). */
@@ -66,16 +81,27 @@ export function listingUrl(registered: string | null | undefined, listingId: str
 }
 
 /**
- * Outros imóveis do MESMO anfitrião (conta do turno), na MESMA cidade, ativos e com anúncio sincronizado, que estão
- * LIVRES em todas as noites do período E cumprem o mínimo de noites do anúncio. Sem link oficial ou sem regra de
- * estadia conhecida, o imóvel não entra (nunca sugestão cega). Erro de leitura ⇒ `null`.
+ * PORTFÓLIO EM CAMADAS (16/11/2026, caso Tais; refeito em 26/11/2026, caso Izabela). Imóveis da MESMA conta, na MESMA
+ * cidade, ativos, com anúncio sincronizado, link oficial e regra de estadia conhecida (nunca sugestão cega):
+ *  1) camada "mesmo_proprietario": do mesmo proprietário do imóvel da conversa, primeiro;
+ *  2) camada "outro_proprietario": dos demais proprietários da conta, ordenados pela diária REAL mais parecida.
+ * Em cada imóvel vale o período exato; sem ele, o aproximado (entrada/saída até 2 dias, com noites em comum, ex.:
+ * 27→01 vira 28→01). Grupo maior que a capacidade cadastrada não entra. Anúncios gêmeos são o mesmo imóvel (uma
+ * opção, um link). Até `PORTFOLIO_MAX_ALTERNATIVES` por camada. Erro de leitura ⇒ `null`.
  */
 async function fetchPortfolioAlternatives(
   db: GuestAiDb,
   turn: ValidatedTurn,
   period: RequestedPeriod,
   today: string,
-  opts: { allowBelowMinNights?: boolean; partySize?: number | null } = {},
+  opts: {
+    allowBelowMinNights?: boolean;
+    partySize?: number | null;
+    approximate?: boolean;
+    prices?: NightlyPriceFetcher | null;
+    /** Diária real do imóvel da conversa (referência de preço); lida em paralelo. */
+    ownAvgNightly?: number | null | Promise<number | null>;
+  } = {},
 ): Promise<PortfolioAlternative[] | null> {
   try {
     const props = await db
@@ -89,13 +115,15 @@ async function fetchPortfolioAlternatives(
       id: string;
       name: string | null;
       city: string | null;
+      owner_contact_id?: string | null;
       airbnb_listing_url: string | null;
       airbnb_guest_count?: number | null;
       airbnb_bedroom_count?: number | null;
     }>;
     const own = all.find((p) => p.id === turn.propertyId);
     const city = (own?.city ?? "").trim().toLowerCase();
-    // mesmo anfitrião, mesma cidade e, sabendo o tamanho do grupo, com capacidade para ele (16/11/2026: imóvel similar)
+    const ownOwner = own?.owner_contact_id ?? null;
+    // mesma cidade e, sabendo o tamanho do grupo, com capacidade para ele (16/11/2026: imóvel similar)
     const party = typeof opts.partySize === "number" && opts.partySize > 0 ? opts.partySize : null;
     const candidates = all.filter(
       (p) =>
@@ -106,6 +134,9 @@ async function fetchPortfolioAlternatives(
     );
     if (candidates.length === 0) return [];
     const ids = candidates.map((p) => p.id);
+    const approx = opts.approximate !== false && !opts.allowBelowMinNights;
+    const from = approx ? addDaysPure(period.checkin, -APPROX_SHIFT_DAYS) : period.checkin;
+    const to = approx ? addDaysPure(period.checkout, APPROX_SHIFT_DAYS) : period.checkout;
     const [listings, reservations] = await Promise.all([
       db.from("property_listing_raw_data").select(cols(LISTING_STAY_RULE_COLUMNS)).in("property_id", ids).limit(400),
       db
@@ -113,39 +144,85 @@ async function fetchPortfolioAlternatives(
         .select(cols(RESERVATION_COLUMNS))
         .in("property_id", ids)
         .in("status", ["confirmed", "blocked"])
-        .gt("checkout_date", period.checkin)
-        .lt("checkin_date", period.checkout)
+        .gt("checkout_date", from)
+        .lt("checkin_date", to)
         .limit(1000),
     ]);
     if (listings.error || reservations.error) return null;
     const lrows = (listings.data ?? []) as ListingRuleRow[];
     const rrows = (reservations.data ?? []) as CalendarRow[];
-    const out: PortfolioAlternative[] = [];
+    type Found = PortfolioAlternative & { channelId: string | null; listingId: string | null; guests: number | null; rooms: number | null };
+    const found: Found[] = [];
     for (const p of candidates) {
-      const { rules, listingId } = rulesFrom(lrows, p.id);
+      const { rules, listingId, channelId } = rulesFrom(lrows, p.id);
       const url = listingUrl(p.airbnb_listing_url, listingId);
       const name = publicPropertyTitle(p.name);
       if (!rules || !url || !name) continue;
-      const occ = buildOccupancy(rrows, { propertyId: p.id, today, windowStart: period.checkin, windowEnd: period.checkout });
+      const occ = buildOccupancy(rrows, { propertyId: p.id, today, windowStart: from, windowEnd: to });
       const a = assessPeriod(occ, period, rules);
       if (a.minNights === null) continue;
       const belowMinOnly = a.allNightsFree && a.meetsMinNights === false && a.withinBookingWindow !== false && period.checkin >= today;
-      if (a.bookable !== "sim" && !(opts.allowBelowMinNights && belowMinOnly)) continue;
-      out.push({
+      let win: RequestedPeriod | null = null;
+      let exact = true;
+      let minNights = a.minNights;
+      let meetsMin = a.meetsMinNights !== false;
+      if (a.bookable === "sim" || (opts.allowBelowMinNights && belowMinOnly)) win = period;
+      else if (approx) {
+        win = approximateBookableWindow(occ, period, rules);
+        exact = false;
+        if (win) {
+          const w = assessPeriod(occ, win, rules);
+          minNights = w.minNights ?? minNights;
+          meetsMin = true;
+        }
+      }
+      if (!win) continue;
+      found.push({
         propertyId: p.id,
         name,
         url,
-        checkin: period.checkin,
-        checkout: period.checkout,
-        nights: period.nights,
-        minNights: a.minNights,
-        meetsMinNights: a.meetsMinNights !== false,
+        checkin: win.checkin,
+        checkout: win.checkout,
+        nights: win.nights,
+        minNights,
+        meetsMinNights: meetsMin,
         maxGuests: typeof p.airbnb_guest_count === "number" ? p.airbnb_guest_count : null,
         bedrooms: typeof p.airbnb_bedroom_count === "number" ? p.airbnb_bedroom_count : null,
+        tier: ownOwner && p.owner_contact_id === ownOwner ? "mesmo_proprietario" : "outro_proprietario",
+        exact,
+        avgNightly: null,
+        channelId,
+        listingId,
+        guests: typeof p.airbnb_guest_count === "number" ? p.airbnb_guest_count : null,
+        rooms: typeof p.airbnb_bedroom_count === "number" ? p.airbnb_bedroom_count : null,
       });
-      if (out.length >= PORTFOLIO_MAX_ALTERNATIVES) break;
     }
-    return out;
+    // diária REAL de cada opção no período dela (calendário do anúncio); sem leitura, fica sem preço (nada estimado)
+    if (opts.prices && found.length) {
+      const read = await Promise.all(
+        found.map((f) =>
+          f.channelId && f.listingId
+            ? opts.prices!({ channelId: f.channelId, listingId: f.listingId }, f.checkin, addDaysPure(f.checkout, -1)).catch(() => null)
+            : Promise.resolve(null),
+        ),
+      );
+      found.forEach((f, i) => (f.avgNightly = averageNightly(read[i], f)));
+    }
+    const ownGuests = typeof own?.airbnb_guest_count === "number" ? own.airbnb_guest_count : null;
+    const ownRooms = typeof own?.airbnb_bedroom_count === "number" ? own.airbnb_bedroom_count : null;
+    const ownAvg = await Promise.resolve(opts.ownAvgNightly ?? null).catch(() => null);
+    const ref = typeof ownAvg === "number" && ownAvg > 0 ? ownAvg : null;
+    const priceGap = (f: Found) => (ref !== null && typeof f.avgNightly === "number" ? Math.abs(f.avgNightly - ref) / ref : Number.POSITIVE_INFINITY);
+    const sizeGap = (f: Found) => (ownGuests !== null && f.guests !== null ? Math.abs(f.guests - ownGuests) : 0) + (ownRooms !== null && f.rooms !== null ? Math.abs(f.rooms - ownRooms) * 2 : 0);
+    const shift = (f: Found) => Math.abs(Date.parse(f.checkin) - Date.parse(period.checkin)) / 86_400_000 + Math.abs(Date.parse(f.checkout) - Date.parse(period.checkout)) / 86_400_000;
+    const sameOwner = found
+      .filter((f) => f.tier === "mesmo_proprietario")
+      .sort((x, y) => Number(!x.exact) - Number(!y.exact) || shift(x) - shift(y) || sizeGap(x) - sizeGap(y) || priceGap(x) - priceGap(y));
+    const others = found
+      .filter((f) => f.tier === "outro_proprietario")
+      .sort((x, y) => priceGap(x) - priceGap(y) || Number(!x.exact) - Number(!y.exact) || shift(x) - shift(y) || sizeGap(x) - sizeGap(y));
+    const strip = ({ channelId: _c, listingId: _l, guests: _g, rooms: _r, ...alt }: Found): PortfolioAlternative => alt;
+    return [...sameOwner.slice(0, PORTFOLIO_MAX_ALTERNATIVES), ...others.slice(0, PORTFOLIO_MAX_ALTERNATIVES)].map(strip);
   } catch {
     return null;
   }
@@ -159,19 +236,23 @@ const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 export async function fetchPropertyOccupancy(
   turn: ValidatedTurn,
   opts: { today: string; guestTexts?: readonly string[]; inquiryPeriod?: RequestedPeriod | null; partySize?: number | null },
-  deps?: { db?: GuestAiDb },
+  deps?: { db?: GuestAiDb; prices?: NightlyPriceFetcher | null },
 ): Promise<PropertyCalendarOccupancy> {
   assertIssued("turn", turn, "data_requires_validated_turn");
   const db = deps?.db ?? (await getGuestAiDb());
+  // diárias reais: no banco injetado (teste) só com leitor injetado; em produção, o calendário do Airbnb
+  const prices: NightlyPriceFetcher | null = deps?.prices !== undefined ? deps.prices : deps?.db ? null : defaultPrices;
 
   // 1) estadia da conversa (só se for do MESMO imóvel)
   let stay: { checkin: string; checkout: string } | null = null;
+  let stayCancelled = false;
   if (turn.reservationId) {
     const { data, error } = await db.from("property_reservations").select(cols(RESERVATION_COLUMNS)).eq("id", turn.reservationId).maybeSingle();
     if (error) throw new Error("property_calendar_lookup_failed");
     const r = (data ?? null) as CalendarRow | null;
     if (r && r.property_id === turn.propertyId && ISO_DATE.test(r.checkin_date ?? "") && ISO_DATE.test(r.checkout_date ?? "")) {
       stay = { checkin: r.checkin_date!, checkout: r.checkout_date! };
+      stayCancelled = !!r.status && !["confirmed", "blocked"].includes(r.status);
     }
   }
 
@@ -191,6 +272,14 @@ export async function fetchPropertyOccupancy(
       .filter((m) => m.is_internal_note !== true)
       .map((m) => (typeof m.content === "string" ? m.content : ""));
   }
+  // NOVA CONSULTA DE QUEM JÁ TEVE RESERVA (26/11/2026, caso Izabela): hóspede que volta pela mesma conversa pedindo
+  // datas novas depois de a estadia acabar (ou de a reserva ser cancelada). A estadia deixa de valer como "estadia":
+  // vira consulta (período, datas próximas, portfólio). Com reserva ATIVA, datas diferentes podem ser pedido de
+  // alteração (regra própria da plataforma): nada muda.
+  const askedText = texts.find((t) => extractMentionedDates(t, opts.today).length > 0);
+  const asked = askedText ? extractRequestedPeriod(askedText, opts.today) : null;
+  const newInquiry = !!stay && !!asked && asked.checkin >= opts.today && (stay.checkout < opts.today || stayCancelled);
+  if (newInquiry) stay = null;
   // Consulta do Airbnb (15/11/2026): o período já escolhido pelo hóspede entra como datas de interesse.
   const inquiryPeriod =
     !stay && opts.inquiryPeriod && ISO_DATE.test(opts.inquiryPeriod.checkin) && ISO_DATE.test(opts.inquiryPeriod.checkout) && opts.inquiryPeriod.checkout > opts.inquiryPeriod.checkin
@@ -244,9 +333,8 @@ export async function fetchPropertyOccupancy(
   // 4) CONSULTA DE DATAS (sem estadia na conversa): o período da mensagem mais recente que cita datas, avaliado com
   //    o mínimo de noites do anúncio; se aqui não der para reservar, o portfólio do anfitrião (12/11/2026, caso Tais)
   if (stay) return occ;
-  const latestWithDates = texts.find((t) => extractMentionedDates(t, opts.today).length > 0);
-  const period = (latestWithDates ? extractRequestedPeriod(latestWithDates, opts.today) : null) ?? inquiryPeriod;
-  if (!period) return occ;
+  const period = asked ?? inquiryPeriod;
+  if (!period) return newInquiry ? { ...occ, newInquiry: true } : occ;
   let ownRules: StayRules | null = null;
   try {
     const lr = await db.from("property_listing_raw_data").select(cols(LISTING_STAY_RULE_COLUMNS)).eq("property_id", turn.propertyId).limit(5);
@@ -276,7 +364,7 @@ export async function fetchPropertyOccupancy(
   // Datas iguais às da consulta do Airbnb: a plataforma já validou as regras de estadia (inclusive as condicionais).
   const platformAccepted = !!inquiryPeriod && period.checkin === inquiryPeriod.checkin && period.checkout === inquiryPeriod.checkout;
   const requested: PeriodAssessment = assessPeriod(periodOcc, period, ownRules, { platformAccepted });
-  if (requested.bookable === "sim") return { ...occ, requested, alternatives: null };
+  if (requested.bookable === "sim") return { ...occ, requested, alternatives: null, ...(newInquiry ? { newInquiry: true } : {}) };
   // NÃO CABE AQUI (16/11/2026, caso José): datas do mesmo tamanho mais próximas NESTE imóvel (oferecidas primeiro) e,
   // em paralelo, o portfólio no período pedido (para quando o hóspede não aceitar mudar as datas).
   const nearest = async (): Promise<RequestedPeriod[] | null> => {
@@ -295,11 +383,49 @@ export async function fetchPropertyOccupancy(
     const near = buildOccupancy((nr.data ?? []) as CalendarRow[], { propertyId: turn.propertyId, today: opts.today, windowStart: from, windowEnd: to });
     return nearestBookableWindows(near, period, ownRules);
   };
-  const [nearestWindows, alternatives] = await Promise.all([
+  // o mais parecido NESTE imóvel com noites em comum (ex.: pediu 27→01, aqui há 29→01) e a diária real daqui, que
+  // é a referência de preço para comparar o portfólio
+  const approximateHere = (() => {
+    if (!ownRules) return null;
+    try {
+      return approximateBookableWindow(periodOcc, period, ownRules);
+    } catch {
+      return null;
+    }
+  })();
+  // diária real daqui em paralelo com a busca do portfólio (o tempo da resposta não soma as duas leituras)
+  const ownAvgPromise: Promise<number | null> = prices
+    ? ownListingIds(db, turn.propertyId)
+        .then((l) => (l ? prices(l, period.checkin, addDaysSafe(period.checkout, -1)) : null))
+        .then((m) => averageNightly(m, period))
+        .catch(() => null)
+    : Promise.resolve(null);
+  const [nearestWindows, alternatives, ownAvgNightly] = await Promise.all([
     nearest().catch(() => null),
-    fetchPortfolioAlternatives(db, turn, period, opts.today, { partySize: opts.partySize }),
+    fetchPortfolioAlternatives(db, turn, period, opts.today, { partySize: opts.partySize, prices, ownAvgNightly: ownAvgPromise }),
+    ownAvgPromise,
   ]);
-  return { ...occ, requested, alternatives, nearestWindows };
+  return {
+    ...occ,
+    requested,
+    alternatives,
+    nearestWindows,
+    approximateHere,
+    ownAvgNightly,
+    ...(newInquiry ? { newInquiry: true } : {}),
+  };
+}
+
+/** Anúncio ativo do imóvel da conversa (para ler as diárias reais). */
+async function ownListingIds(db: GuestAiDb, propertyId: string): Promise<{ channelId: string; listingId: string } | null> {
+  try {
+    const lr = await db.from("property_listing_raw_data").select(cols(LISTING_STAY_RULE_COLUMNS)).eq("property_id", propertyId).limit(5);
+    if (lr.error) return null;
+    const row = ((lr.data ?? []) as ListingRuleRow[]).find((r) => r.property_id === propertyId && !r.sync_paused_at && !r.not_found_at);
+    return row?.channex_channel_id && row.airbnb_listing_id ? { channelId: row.channex_channel_id, listingId: row.airbnb_listing_id } : null;
+  } catch {
+    return null;
+  }
 }
 
 function addDaysSafe(date: string, days: number): string {

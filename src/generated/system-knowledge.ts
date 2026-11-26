@@ -11,7 +11,7 @@ export type GeneratedSystemDoc = {
   content_hash: string;
 };
 
-export const GENERATED_AT = "2026-11-26T13:47:16.858Z";
+export const GENERATED_AT = "2026-11-26T14:55:19.492Z";
 
 export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
   {
@@ -562,6 +562,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/cleaning-approval.functions.ts",
     "audience": [],
     "content_hash": "5facaab41a4755646afadaca4252483a"
+  },
+  {
+    "doc_key": "rule:approximateBookableWindow",
+    "kind": "rule",
+    "title": "Regra — approximateBookableWindow",
+    "content": "O período reservável mais parecido com o pedido: entrada e saída até `maxShift` dias antes ou depois, com pelo\nmenos uma noite em comum com o pedido (ex.: pediu 27→01, o anúncio tem 28→01). Prefere a menor mudança, depois o\nnúmero de noites mais próximo do pedido e, por fim, mais noites em comum. Regra desconhecida ⇒ `null`. Pura.",
+    "source_path": "src/lib/guest-ai/calendar-occupancy.ts",
+    "audience": [],
+    "content_hash": "0a0a233c70aa3bb707ec94744cdfb2cc"
   },
   {
     "doc_key": "rule:AreaGate",
@@ -2247,6 +2256,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "bf9ca227701fce71ab98e02419dab7ab"
   },
   {
+    "doc_key": "rule:fetchAirbnbNightlyPrices",
+    "kind": "rule",
+    "title": "Regra — fetchAirbnbNightlyPrices",
+    "content": "Diárias REAIS do calendário do anúncio (26/11/2026, caso Izabela): o preço que o hóspede vê, vindo do próprio\nAirbnb (inclusive o definido por ferramenta de preço), por noite. Serve para a IA comparar imóveis parecidos no\nportfólio; nunca é gravado. Somente GET. Formato desconhecido, sem token ou erro ⇒ `null` (nada é estimado).",
+    "source_path": "src/lib/airbnb-host-api.server.ts",
+    "audience": [],
+    "content_hash": "11909c9f870d0b047f7cc295e4cd4912"
+  },
+  {
     "doc_key": "rule:fetchEngagementSectionEvents",
     "kind": "rule",
     "title": "Regra — fetchEngagementSectionEvents",
@@ -2259,10 +2277,10 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "doc_key": "rule:fetchPortfolioAlternatives",
     "kind": "rule",
     "title": "Regra — fetchPortfolioAlternatives",
-    "content": "Outros imóveis do MESMO anfitrião (conta do turno), na MESMA cidade, ativos e com anúncio sincronizado, que estão\nLIVRES em todas as noites do período E cumprem o mínimo de noites do anúncio. Sem link oficial ou sem regra de\nestadia conhecida, o imóvel não entra (nunca sugestão cega). Erro de leitura ⇒ `null`.",
+    "content": "PORTFÓLIO EM CAMADAS (16/11/2026, caso Tais; refeito em 26/11/2026, caso Izabela). Imóveis da MESMA conta, na MESMA\ncidade, ativos, com anúncio sincronizado, link oficial e regra de estadia conhecida (nunca sugestão cega):\n 1) camada \"mesmo_proprietario\": do mesmo proprietário do imóvel da conversa, primeiro;\n 2) camada \"outro_proprietario\": dos demais proprietários da conta, ordenados pela diária REAL mais parecida.\nEm cada imóvel vale o período exato; sem ele, o aproximado (entrada/saída até 2 dias, com noites em comum, ex.:\n27→01 vira 28→01). Grupo maior que a capacidade cadastrada não entra. Anúncios gêmeos são o mesmo imóvel (uma\nopção, um link). Até `PORTFOLIO_MAX_ALTERNATIVES` por camada. Erro de leitura ⇒ `null`.",
     "source_path": "src/lib/guest-ai/data/property-calendar.server.ts",
     "audience": [],
-    "content_hash": "da6cdaf824d13dad76b53be401a8791c"
+    "content_hash": "019de3d811d3285af5cc38ff09cc6ae2"
   },
   {
     "doc_key": "rule:fetchThreadRawMeta",
@@ -3604,6 +3622,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/components/playbook/PlaybookPage.tsx",
     "audience": [],
     "content_hash": "c2fa3d50638d4f508c899d8ff01afac3"
+  },
+  {
+    "doc_key": "rule:newInquiryOf",
+    "kind": "rule",
+    "title": "Regra — newInquiryOf",
+    "content": "Nova consulta de quem já se hospedou (26/11/2026, caso Izabela): convidar a reservar as datas NOVAS é o esperado,\nnão convite a \"reservar o que já tem\" (a reserva antiga acabou ou foi cancelada).",
+    "source_path": "src/lib/guest-ai/validation/semantic-validator.ts",
+    "audience": [],
+    "content_hash": "46706f5f290a0657c878fa9296d07803"
   },
   {
     "doc_key": "rule:newThread",
@@ -5296,6 +5323,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/guest-ai/orchestrator/decision.ts",
     "audience": [],
     "content_hash": "163dc4bafec3f0d5fd9a9a671e015a1a"
+  },
+  {
+    "doc_key": "rule:scopeDoneByIds",
+    "kind": "rule",
+    "title": "Regra — scopeDoneByIds",
+    "content": "Restringe IDs de \"quem concluiu\" (`cleaning_done_by`, gravável pelo usuário)\nàs pessoas das contas donas dos imóveis consultados: o titular e membros\nativos. Evita usar a consulta privilegiada para descobrir nomes de terceiros.",
+    "source_path": "src/lib/done-by-scope.server.ts",
+    "audience": [],
+    "content_hash": "d538c7ed1c688eb59fb16b56fc6e42aa"
   },
   {
     "doc_key": "rule:ScopeInput",
@@ -7143,7 +7179,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "c5d7c67ab36429e4ef7882a69012e930"
   },
   {
-    "doc_key": "rule:src/lib/dashboard.functions.ts:69251",
+    "doc_key": "rule:src/lib/dashboard.functions.ts:69518",
     "kind": "rule",
     "title": "Regra em dashboard.functions.ts",
     "content": "CORREÇÃO (16/09/2026): a trava não tinha recorte de data. Uma estadia\nantiga que ficou sem conclusão na esteira (ninguém arrastou o card até\n\"Concluído\") travava PARA SEMPRE todo check-in futuro do imóvel, sem\nforma de limpar pela tela. A regra só vale enquanto a estadia anterior\nainda está em curso: se a saída dela já passou, o imóvel está livre.",
@@ -7152,7 +7188,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "f0dc32f8e039acbdce5c3d639d01aec7"
   },
   {
-    "doc_key": "rule:src/lib/dashboard.functions.ts:72530",
+    "doc_key": "rule:src/lib/dashboard.functions.ts:72797",
     "kind": "rule",
     "title": "Regra em dashboard.functions.ts",
     "content": "\"Não Compareceu\" NÃO libera o imóvel (pedido explícito, 15/09/2026).\nA estadia continua ocupando o imóvel até que a reserva seja de fato\ncancelada no sistema — só então a próxima chegada é liberada. Como\nmarkNoShow grava concluded_at, essas linhas não aparecem na consulta\nacima; por isso olhamos para elas separadamente.\n\nCORREÇÃO (15/09/2026): a trava não tinha recorte de data. Um \"Não\nCompareceu\" do mês passado, cuja reserva importada por iCal continua\n\"confirmed\" para sempre, travava TODA chegada futura daquele imóvel,\nsem nenhuma forma de limpar. A regra só faz sentido enquanto a estadia\ndo no-show ainda está em curso: se a data de saída dela já passou, o\nimóvel está livre, independentemente do status da reserva.",
@@ -7161,7 +7197,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "edc55a43f4b31fbebe1f8cc20b92ca0d"
   },
   {
-    "doc_key": "rule:src/lib/dashboard.functions.ts:91402",
+    "doc_key": "rule:src/lib/dashboard.functions.ts:91669",
     "kind": "rule",
     "title": "Regra em dashboard.functions.ts",
     "content": "Completa o identificador que faltou (pedido explícito, 08/09/2026: o\ncard marcado como \"não compareceu\" continuava espelhado na Fila de\nLimpeza).\n\nO card de chegada e o de saída da MESMA estadia nem sempre carregam o\nmesmo identificador — o casamento formulário↔reserva é mais exigente\ndo lado da chegada (ver `findLogsForReservation`). Gravando só o que o\ncard clicado tinha, o outro lado ficava sem chave em comum e escapava\ndo filtro. Aqui procuramos o par pela estadia e gravamos os DOIS, de\nmodo que qualquer consumidor — não só o quadro — reconheça o\nnão comparecimento por qualquer um dos lados.",
@@ -7368,7 +7404,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "35562d3d28e86fb67d90967ca080f1c2"
   },
   {
-    "doc_key": "rule:src/lib/guest-ai/calendar-occupancy.ts:11067",
+    "doc_key": "rule:src/lib/guest-ai/calendar-occupancy.ts:11654",
     "kind": "rule",
     "title": "Regra em calendar-occupancy.ts",
     "content": "Período pedido que não cabe aqui: as janelas do MESMO tamanho mais próximas, reserváveis NESTE imóvel pelas regras\ndo anúncio (mínimo de noites, horizonte de reserva). Vazio = nenhuma em ±21 dias; ausente = não calculado.",
@@ -7384,6 +7420,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/guest-ai/calendar-occupancy.ts",
     "audience": [],
     "content_hash": "c57bf9f119109d3f8ba2e9c1395c2cc0"
+  },
+  {
+    "doc_key": "rule:src/lib/guest-ai/calendar-occupancy.ts:4204",
+    "kind": "rule",
+    "title": "Regra em calendar-occupancy.ts",
+    "content": "Camada da busca (26/11/2026, caso Izabela): primeiro os imóveis do MESMO proprietário; os de outros proprietários\nda mesma conta só entram na conversa se não houver opção do mesmo proprietário ou se o hóspede recusar.",
+    "source_path": "src/lib/guest-ai/calendar-occupancy.ts",
+    "audience": [],
+    "content_hash": "3370c7098e7b3d24057e900eda0e9151"
   },
   {
     "doc_key": "rule:src/lib/guest-ai/composer.ts:0",

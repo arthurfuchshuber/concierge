@@ -282,16 +282,26 @@ describe("sugestão de portfólio", () => {
         meetsMinNights: true,
         maxGuests: null,
         bedrooms: null,
+        tier: "outro_proprietario",
+        exact: true,
+        avgNightly: null,
       },
+      // 26/11/2026: o 101 não tem a noite 18 avulsa (mínimo 2), mas tem 18→20 — período APROXIMADO, depois do exato
+      expect.objectContaining({ propertyId: "s101", checkin: "2026-11-18", checkout: "2026-11-20", nights: 2, exact: false }),
     ]);
     const fact = calendarFactValue(occ) as Record<string, Array<Record<string, unknown>>>;
     expect(fact.alternativas_portfolio![0]).toMatchObject({ acomodacao: "Studio n° 4 Natureza Próx. a Corredor Turístico", link_airbnb: "https://www.airbnb.com.br/rooms/1793590014642613896", entrada: "2026-11-18", saida: "2026-11-19" });
   });
-  it("alternativa ocupada no período (bloqueio manual) ⇒ não entra; nenhuma ⇒ lista vazia (sem sugestão cega)", async () => {
+  it("alternativa ocupada no período (bloqueio manual) ⇒ não entra; sem nada livre por perto ⇒ lista vazia (sem sugestão cega)", async () => {
     const t = base();
     t.property_reservations.push(res("s4", "2026-11-18", "2026-11-22", { status: "blocked", source: "manual" }));
     const occ = await fetchPropertyOccupancy(turn(), { today: TODAY }, { db: fakeDb(t) });
-    expect(occ.alternatives).toEqual([]);
+    expect(occ.alternatives!.map((a) => a.propertyId)).toEqual(["s101"]);
+    expect(occ.alternatives![0]).toMatchObject({ exact: false });
+    t.property_reservations.push(res("s101", "2026-11-18", "2026-11-25"));
+    const none = await fetchPropertyOccupancy(turn(), { today: TODAY }, { db: fakeDb(t) });
+    expect(none.alternatives).toEqual([]);
+    expect((calendarFactValue(none) as Record<string, unknown>).portfolio_consultado).toBe("sim");
   });
   it("COM ESTADIA (caso Marcela, 16/11): antecipar 1 noite ocupada aqui ⇒ studios livres do portfólio, inclusive abaixo do mínimo (sinalizado)", async () => {
     const t = base();
@@ -344,11 +354,11 @@ describe("sugestão de portfólio", () => {
 });
 
 // ─────────────── roteiro ───────────────
-describe("roteiro e persona (system.2026-11-23.2 / persona.2026-11-22.1)", () => {
+describe("roteiro e persona (system.2026-11-26.1 / persona.2026-11-26.1)", () => {
   const sys = buildSystemPrompt("airbnb");
   it("versões", () => {
-    expect(SYSTEM_PROMPT_VERSION).toBe("system.2026-11-23.2");
-    expect(PERSONA_VERSION).toBe("persona.2026-11-22.1");
+    expect(SYSTEM_PROMPT_VERSION).toBe("system.2026-11-26.1");
+    expect(PERSONA_VERSION).toBe("persona.2026-11-26.1");
   });
   it("período consultado: resposta comercial direta, mínimo de noites e sem promessa vazia", () => {
     expect(sys).toMatch(/Período consultado \(ctx:calendario_ocupacao\.periodo_consultado\)/);
@@ -356,7 +366,7 @@ describe("roteiro e persona (system.2026-11-23.2 / persona.2026-11-22.1)", () =>
     expect(sys).toMatch(/aceita reservas a partir do mínimo indicado/);
   });
   it("portfólio: nome, datas exatas e link do anúncio; nunca sugestão cega", () => {
-    expect(sys).toMatch(/inclua o link_airbnb do anúncio, exatamente como veio/);
+    expect(sys).toMatch(/o link_airbnb exatamente como veio/);
     expect(sys).toMatch(/Sem alternativas_portfolio, não sugira outro imóvel/);
     expect(sys).toMatch(/É proibido responder com promessa vazia/);
   });
@@ -408,7 +418,8 @@ describe("consultora do portfólio: dossiês públicos dos imóveis livres", () 
     expect(portfolioCandidateIds(null)).toEqual([]);
   });
   it("o prompt manda agir como consultora pelo dossiê alternativo e conduzir à reserva pelo link", () => {
-    expect(buildSystemPrompt("airbnb")).toMatch(/Aja como consultora: o dossiê alternativo dessa acomodação/);
+    expect(buildSystemPrompt("airbnb")).toMatch(/aja como consultora/);
+    expect(buildSystemPrompt("airbnb")).toMatch(/o dossiê alternativo \(ref alt\) responde o que ela quiser saber/);
   });
 });
 
@@ -457,10 +468,13 @@ describe("não cabe aqui (16/11/2026, caso José): datas próximas neste imóvel
 
   it("roteiro: próprio imóvel primeiro, portfólio com link se a pessoa não aceitar; desconto vai à equipe; chegada sem reforço de material", () => {
     const sys = buildSystemPrompt("airbnb");
-    expect(sys).toMatch(/Quando o período pedido não cabe neste imóvel, conduza em etapas\. Primeiro ofereça o que ele tem/);
-    expect(sys).toMatch(/datas_livres_mais_proximas_neste_imovel/);
-    expect(sys).toMatch(/Se a pessoa não aceitar mudar as datas, ou se não houver datas próximas, sugira uma ou duas acomodações de alternativas_portfolio/);
-    expect(sys).toMatch(/com capacidade para o grupo/);
+    // 26/11/2026 (caso Izabela): o próprio imóvel e, na mesma resposta, a opção do MESMO proprietário; outros
+    // proprietários da conta só sem opção do mesmo ou com recusa; nunca negar sem ter consultado
+    expect(sys).toMatch(/Quando o período pedido não cabe neste imóvel, aja como consultora e conduza em etapas/);
+    expect(sys).toMatch(/datas_aproximadas_neste_imovel e datas_livres_mais_proximas_neste_imovel/);
+    expect(sys).toMatch(/camada mesmo_proprietario que mais combina/);
+    expect(sys).toMatch(/As da camada outro_proprietario só entram quando não houver nenhuma do mesmo proprietário ou quando a pessoa recusar/);
+    expect(sys).toMatch(/Nunca diga que não há outra acomodação, outra opção ou outro imóvel livre sem que o contexto mostre portfolio_consultado sim/);
     expect(sys).toMatch(/Pedido de desconto, valor especial ou negociação: explique com naturalidade que o valor já está com o desconto máximo aplicado/);
     expect(sys).toMatch(/um ou dois benefícios reais do imóvel \(só do dossiê\)/);
     expect(sys).toMatch(/avise a equipe \(strategy answer_and_handoff, urgência normal\), que pode intervir na negociação/);
