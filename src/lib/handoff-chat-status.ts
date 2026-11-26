@@ -4,7 +4,7 @@
  * Fonte: o que a Channex nos manda (consulta, pedido de reserva, aceite/recusa)
  * e as reservas oficiais. Nada é estimado: sem dado, sem etiqueta.
  *
- *  - Consulta     → conversa do Airbnb sem reserva (consulta ativa ou pedido que não virou reserva).
+ *  - Consulta     → conversa do Airbnb que não virou reserva (consulta, ou pedido sem aceite fora das 24 h).
  *  - Solicitação  → pedido de reserva ainda sem resposta, dentro das 24 h do Airbnb.
  *  - Recusada     → consulta ou pedido recusado.
  *  - Confirmada   → reserva confirmada que ainda não começou.
@@ -78,10 +78,13 @@ export function chatStatusOf(input: {
   res: ChatStatusReservation | null | undefined;
   flow: ChatFlow | null | undefined;
   isAirbnb: boolean;
+  /** Datas da reserva com que o hóspede entrou no guia (código validado). Usadas no guia/WhatsApp
+   *  quando o cruzamento com a reserva oficial não achou a linha (ex.: conversas antigas, sem vínculo). */
+  guideStay?: { checkin: string | null; checkout: string | null } | null;
   today: string;
   nowMs: number;
 }): ChatStatusLabel | null {
-  const { res, flow, isAirbnb, today, nowMs } = input;
+  const { res, flow, isAirbnb, guideStay, today, nowMs } = input;
   const hasStay = !!res && (res.status === "confirmed" || res.status === "loose") && !!res.checkin;
   const cancelled = !!res && res.status === "cancelled";
 
@@ -98,7 +101,11 @@ export function chatStatusOf(input: {
   if (hasStay) return byDates(res!.checkin!, res!.checkout, today);
   if (cancelled) return "Cancelada";
   if (flow) return fromFlow(flow, nowMs);
-  return isAirbnb ? "Consulta" : null;
+  // Airbnb: tudo o que não virou reserva é consulta.
+  if (isAirbnb) return "Consulta";
+  // Guia/WhatsApp: o hóspede só entra com o código da reserva, então sempre há datas.
+  if (guideStay?.checkin) return byDates(guideStay.checkin, guideStay.checkout, today);
+  return null;
 }
 
 /** Data local de São Paulo (YYYY-MM-DD). */

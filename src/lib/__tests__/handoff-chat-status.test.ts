@@ -23,6 +23,12 @@ describe("chatStatusOf — etiqueta do card", () => {
     expect(chatStatusOf({ ...base, isAirbnb: false, res: { status: "missing", checkin: null, checkout: null }, flow: null })).toBeNull();
   });
 
+  it("guia/WhatsApp sem cruzamento oficial usa as datas da reserva com que o hóspede entrou no guia", () => {
+    const res = { status: "missing" as const, checkin: null, checkout: null };
+    expect(chatStatusOf({ ...base, isAirbnb: false, res, flow: null, guideStay: { checkin: "2026-11-25", checkout: "2026-11-27" } })).toBe("Ativa");
+    expect(chatStatusOf({ ...base, isAirbnb: false, res, flow: null, guideStay: { checkin: "2026-09-01", checkout: "2026-09-03" } })).toBe("Encerrada");
+  });
+
   it("pedido de reserva: Solicitação só dentro das 24 h; recusado vira Recusada", () => {
     const req = (state: ChatFlow["state"], at: string): ChatFlow => ({ kind: "request", state, checkin: "2026-12-10", checkout: "2026-12-12", at });
     expect(chatStatusOf({ ...base, res: null, flow: req("pending", "2026-11-26T10:00:00Z") })).toBe("Solicitação");
