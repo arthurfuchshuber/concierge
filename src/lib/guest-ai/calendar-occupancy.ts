@@ -94,6 +94,15 @@ export interface PortfolioAlternative {
   bedrooms?: number | null;
   /** O período cumpre o mínimo de noites do anúncio? (antecipar/prorrogar 1 noite pode ficar abaixo: depende da equipe). */
   meetsMinNights?: boolean;
+  /**
+   * Camada da busca (26/11/2026, caso Izabela): primeiro os imóveis do MESMO proprietário; os de outros proprietários
+   * da mesma conta só entram na conversa se não houver opção do mesmo proprietário ou se o hóspede recusar.
+   */
+  tier?: "mesmo_proprietario" | "outro_proprietario";
+  /** `true` = período exato pedido; `false` = aproximado (entrada/saída até 2 dias antes ou depois, com noites em comum). */
+  exact?: boolean;
+  /** Diária média REAL do período no calendário do anúncio (sem taxas); `null` = não lida. Nunca é a diária base. */
+  avgNightly?: number | null;
 }
 
 /** Uma noite colada na estadia (antecipar a entrada ou prorrogar a saída), neste imóvel e no portfólio. */
@@ -230,6 +239,15 @@ export interface PropertyCalendarOccupancy {
   nearestWindows?: readonly RequestedPeriod[] | null;
   /** Com estadia: a noite anterior à entrada e a noite da saída (antecipar/prorrogar), aqui e no portfólio. */
   stayEdges?: { before: StayEdgeNight | null; after: StayEdgeNight | null } | null;
+  /**
+   * Nova consulta de quem já tem (ou teve) reserva nesta conversa (26/11/2026, caso Izabela): pediu datas novas, sem
+   * relação com a estadia. É tratada como consulta de reserva (período, datas próximas, portfólio).
+   */
+  newInquiry?: boolean;
+  /** Período pedido que não cabe exato aqui: o mais parecido NESTE imóvel com noites em comum (entrada/saída ±2 dias). */
+  approximateHere?: RequestedPeriod | null;
+  /** Diária média REAL do período pedido neste imóvel (calendário do anúncio); `null` = não lida. */
+  ownAvgNightly?: number | null;
 }
 
 export type CalendarFact = ({ status: "available" } & PropertyCalendarOccupancy) | { status: "unavailable" };
@@ -485,18 +503,29 @@ export function calendarFactValue(occ: PropertyCalendarOccupancy): Record<string
           datas_livres_mais_proximas_neste_imovel: occ.nearestWindows.map((w) => ({ entrada: w.checkin, saida: w.checkout, noites: w.nights })),
         }
       : {}),
+    ...(occ.newInquiry ? { nova_consulta: true } : {}),
+    ...(occ.approximateHere
+      ? { datas_aproximadas_neste_imovel: { entrada: occ.approximateHere.checkin, saida: occ.approximateHere.checkout, noites: occ.approximateHere.nights } }
+      : {}),
+    // o portfólio foi (ou não) consultado: sem consulta, a IA não sabe se há outra acomodação e não pode negar
+    ...(occ.requested && occ.requested.bookable !== "sim"
+      ? { portfolio_consultado: occ.alternatives === undefined || occ.alternatives === null ? "nao" : "sim" }
+      : {}),
     ...(occ.alternatives
       ? {
           alternativas_portfolio: occ.alternatives.map((a) => ({
             acomodacao: a.name,
             link_airbnb: a.url,
+            camada: a.tier ?? "mesmo_proprietario",
+            periodo: a.exact === false ? "aproximado" : "exato",
             entrada: a.checkin,
             saida: a.checkout,
             noites: a.nights,
             minimo_noites: a.minNights,
             capacidade_hospedes: a.maxGuests ?? null,
             quartos: a.bedrooms ?? null,
-            situacao: "livre e reservável no período",
+            ...(typeof a.avgNightly === "number" ? { diaria_media_real: a.avgNightly } : {}),
+            situacao: "livre e reservável nessas datas",
           })),
         }
       : {}),
@@ -598,4 +627,51 @@ export function nearestBookableWindows(
     }
   }
   return out;
+}
+
+/** Até quantos dias a entrada e a saída podem mudar num período "aproximado" (26/11/2026, caso Izabela). */
+export const APPROX_SHIFT_DAYS = 2;
+
+/**
+ * O período reservável mais parecido com o pedido: entrada e saída até `maxShift` dias antes ou depois, com pelo
+ * menos uma noite em comum com o pedido (ex.: pediu 27→01, o anúncio tem 28→01). Prefere a menor mudança, depois o
+ * número de noites mais próximo do pedido e, por fim, mais noites em comum. Regra desconhecida ⇒ `null`. Pura.
+ */
+export function approximateBookableWindow(
+  occ: Pick<PropertyCalendarOccupancy, "occupiedRanges" | "today">,
+  period: RequestedPeriod,
+  rules: StayRules | null | undefined,
+  maxShift = APPROX_SHIFT_DAYS,
+): RequestedPeriod | null {
+  if (!rules) return null;
+  let best: { p: RequestedPeriod; score: [number, number, number] } | null = null;
+  for (let s1 = -maxShift; s1 <= maxShift; s1++) {
+    for (let s2 = -maxShift; s2 <= maxShift; s2++) {
+      if (s1 === 0 && s2 === 0) continue;
+      const checkin = addDays(period.checkin, s1);
+      const checkout = addDays(period.checkout, s2);
+      const nights = daysBetween(checkin, checkout);
+      if (nights < 1 || checkin < occ.today) continue;
+      const overlap = daysBetween(checkin > period.checkin ? checkin : period.checkin, checkout < period.checkout ? checkout : period.checkout);
+      if (overlap < 1) continue;
+      const cand: RequestedPeriod = { checkin, checkout, nights };
+      if (assessPeriod(occ, cand, rules).bookable !== "sim") continue;
+      const score: [number, number, number] = [Math.abs(s1) + Math.abs(s2), Math.abs(nights - period.nights), -overlap];
+      if (!best || score[0] < best.score[0] || (score[0] === best.score[0] && (score[1] < best.score[1] || (score[1] === best.score[1] && score[2] < best.score[2]))))
+        best = { p: cand, score };
+    }
+  }
+  return best?.p ?? null;
+}
+
+/** Diária média do período a partir das diárias reais por noite; falta uma noite ⇒ `null` (nunca estimada). Pura. */
+export function averageNightly(prices: ReadonlyMap<string, number> | null | undefined, period: RequestedPeriod): number | null {
+  if (!prices) return null;
+  let sum = 0;
+  for (let d = period.checkin; d < period.checkout; d = addDays(d, 1)) {
+    const v = prices.get(d);
+    if (typeof v !== "number" || !(v > 0)) return null;
+    sum += v;
+  }
+  return period.nights > 0 ? Math.round(sum / period.nights) : null;
 }

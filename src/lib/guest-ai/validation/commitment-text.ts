@@ -131,7 +131,7 @@ export interface TextEvidence {
   calendarAvailability?: boolean;
 }
 
-export const TEXT_BLOCKS = ["text_commitment_undeclared", "text_completion_without_evidence", "text_commitment_unclassifiable", "text_time_mismatch", "text_calendar_collision", "text_asks_known_dates", "text_sac_jargon", "text_missing_accents", "text_booking_invite_with_stay"] as const;
+export const TEXT_BLOCKS = ["text_commitment_undeclared", "text_completion_without_evidence", "text_commitment_unclassifiable", "text_time_mismatch", "text_calendar_collision", "text_asks_known_dates", "text_sac_jargon", "text_missing_accents", "text_booking_invite_with_stay", "text_denies_portfolio"] as const;
 export type TextBlock = (typeof TEXT_BLOCKS)[number];
 
 export interface TextCheck {
@@ -363,9 +363,25 @@ export function checkReplyAgainstDecision(d: ModelDecision, ctx: TextContext, ev
   // Consulta: nunca mandar o hóspede selecionar/informar as datas que ele já escolheu (caso Lauriete, 15/11/2026).
   if (ctx.inquiry === true && asksForKnownDates(reply)) blocks.add("text_asks_known_dates");
   if (ctx.hasStay === true && invitesToBook(reply)) blocks.add("text_booking_invite_with_stay");
+  // Portfólio (26/11/2026, caso Izabela): negar "outra acomodação" sem ter consultado o portfólio, ou havendo
+  // alternativa livre no contexto, é afirmação sem fonte (uma nova tentativa).
+  if (deniesOtherAccommodation(reply) && ctx.calendar && (ctx.calendar.alternatives == null || ctx.calendar.alternatives.length > 0))
+    blocks.add("text_denies_portfolio");
   // Jargão de SAC (15/11/2026): a regra de estilo do prompt ganha rede de segurança em código (uma nova tentativa).
   if (hasSacJargon(reply)) blocks.add("text_sac_jargon");
   // Acentuação (16/11/2026): resposta longa em português sem nenhum acento ⇒ uma nova tentativa.
   if (missingPortugueseAccents(reply, a.language)) blocks.add("text_missing_accents");
   return { blocks: [...blocks], detectedKinds: [...new Set(a.claims.map((c) => c.kind))], undeclaredKinds: [...undeclared], language: a.language };
+}
+
+const DENY_OTHER =
+  /\b(?:nao\s+(?:temos|tem|ha|existe|existem|dispomos\s+de)|nenhum[a]?|sem)\s+(?:nenhum[a]?\s+)?(?:outr[ao]s?|mais)\s+(?:acomodac|opc|opco|imove|unidad|studio|apartament|casa|suite|quarto|alternativ|lugar)/;
+
+/** A resposta nega que haja outra acomodação/opção ("não temos outra acomodação livre", "nenhuma outra opção"). */
+export function deniesOtherAccommodation(reply: string): boolean {
+  const n = (reply ?? "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+  return DENY_OTHER.test(n);
 }

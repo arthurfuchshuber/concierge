@@ -330,7 +330,7 @@ export function validateSemantics(input: SemanticInput): SemanticReport {
   }
 
   // 6c) B2.5 — o TEXTO confrontado com a estrutura e com a evidência do sistema (fail-closed).
-  const text = checkReplyAgainstDecision(d, { ...(input.officialTimes ?? { officialCheckin: null, officialCheckout: null }), inquiry: ctx.guest.phase === "inquiry", hasStay: !!ctx.guest.stay }, {
+  const text = checkReplyAgainstDecision(d, { ...(input.officialTimes ?? { officialCheckin: null, officialCheckout: null }), inquiry: ctx.guest.phase === "inquiry", hasStay: !!ctx.guest.stay && !newInquiryOf(ctx) }, {
     credentialReleaseAllowed: auth.credentialRelease === "allow",
     lateCheckoutAuthorizedTime: auth.lateCheckout.status === "authorized" ? auth.lateCheckout.time : null,
     humanOwnershipActive: !!own?.active || ctx.humanOwnership.openCaseCount > 0,
@@ -352,4 +352,13 @@ export function validateSemantics(input: SemanticInput): SemanticReport {
     milestoneIdempotency,
     text: { detectedKinds: text.detectedKinds, undeclaredKinds: text.undeclaredKinds, language: text.language },
   };
+}
+
+/**
+ * Nova consulta de quem já se hospedou (26/11/2026, caso Izabela): convidar a reservar as datas NOVAS é o esperado,
+ * não convite a "reservar o que já tem" (a reserva antiga acabou ou foi cancelada).
+ */
+function newInquiryOf(ctx: { guest: { calendar?: unknown } }): boolean {
+  const cal = ctx.guest.calendar as { status?: string; newInquiry?: boolean } | null | undefined;
+  return !!cal && cal.status === "available" && cal.newInquiry === true;
 }
