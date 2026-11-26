@@ -34,6 +34,7 @@ import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin.index'
 import { Route as AuthenticatedAdminAdministrativoRouteImport } from './routes/_authenticated/admin.administrativo'
+import { Route as AuthenticatedAdminAprendizadosRouteImport } from './routes/_authenticated/admin.aprendizados'
 import { Route as AuthenticatedAdminAssinaturaRouteImport } from './routes/_authenticated/admin.assinatura'
 import { Route as AuthenticatedAdminAtendimentoRouteImport } from './routes/_authenticated/admin.atendimento'
 import { Route as AuthenticatedAdminDashboardRouteImport } from './routes/_authenticated/admin.dashboard'
@@ -226,6 +227,12 @@ const AuthenticatedAdminAdministrativoRoute =
   AuthenticatedAdminAdministrativoRouteImport.update({
     id: '/administrativo',
     path: '/administrativo',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminAprendizadosRoute =
+  AuthenticatedAdminAprendizadosRouteImport.update({
+    id: '/aprendizados',
+    path: '/aprendizados',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
 const AuthenticatedAdminAssinaturaRoute =
@@ -616,6 +623,7 @@ export interface FileRoutesByFullPath {
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/admin/administrativo': typeof AuthenticatedAdminAdministrativoRoute
+  '/admin/aprendizados': typeof AuthenticatedAdminAprendizadosRoute
   '/admin/assinatura': typeof AuthenticatedAdminAssinaturaRoute
   '/admin/atendimento': typeof AuthenticatedAdminAtendimentoRoute
   '/admin/dashboard': typeof AuthenticatedAdminDashboardRouteWithChildren
@@ -704,6 +712,7 @@ export interface FileRoutesByTo {
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/admin/administrativo': typeof AuthenticatedAdminAdministrativoRoute
+  '/admin/aprendizados': typeof AuthenticatedAdminAprendizadosRoute
   '/admin/assinatura': typeof AuthenticatedAdminAssinaturaRoute
   '/admin/atendimento': typeof AuthenticatedAdminAtendimentoRoute
   '/admin/engajamento': typeof AuthenticatedAdminEngajamentoRoute
@@ -795,6 +804,7 @@ export interface FileRoutesById {
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/_authenticated/admin/administrativo': typeof AuthenticatedAdminAdministrativoRoute
+  '/_authenticated/admin/aprendizados': typeof AuthenticatedAdminAprendizadosRoute
   '/_authenticated/admin/assinatura': typeof AuthenticatedAdminAssinaturaRoute
   '/_authenticated/admin/atendimento': typeof AuthenticatedAdminAtendimentoRoute
   '/_authenticated/admin/dashboard': typeof AuthenticatedAdminDashboardRouteWithChildren
@@ -887,6 +897,7 @@ export interface FileRouteTypes {
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/admin/administrativo'
+    | '/admin/aprendizados'
     | '/admin/assinatura'
     | '/admin/atendimento'
     | '/admin/dashboard'
@@ -975,6 +986,7 @@ export interface FileRouteTypes {
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/admin/administrativo'
+    | '/admin/aprendizados'
     | '/admin/assinatura'
     | '/admin/atendimento'
     | '/admin/engajamento'
@@ -1065,6 +1077,7 @@ export interface FileRouteTypes {
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/_authenticated/admin/administrativo'
+    | '/_authenticated/admin/aprendizados'
     | '/_authenticated/admin/assinatura'
     | '/_authenticated/admin/atendimento'
     | '/_authenticated/admin/dashboard'
@@ -1369,6 +1382,13 @@ declare module '@tanstack/react-router' {
       path: '/administrativo'
       fullPath: '/admin/administrativo'
       preLoaderRoute: typeof AuthenticatedAdminAdministrativoRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/aprendizados': {
+      id: '/_authenticated/admin/aprendizados'
+      path: '/aprendizados'
+      fullPath: '/admin/aprendizados'
+      preLoaderRoute: typeof AuthenticatedAdminAprendizadosRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
     '/_authenticated/admin/assinatura': {
@@ -1854,6 +1874,7 @@ const AuthenticatedAdminDashboardRouteWithChildren =
 
 interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminAdministrativoRoute: typeof AuthenticatedAdminAdministrativoRoute
+  AuthenticatedAdminAprendizadosRoute: typeof AuthenticatedAdminAprendizadosRoute
   AuthenticatedAdminAssinaturaRoute: typeof AuthenticatedAdminAssinaturaRoute
   AuthenticatedAdminAtendimentoRoute: typeof AuthenticatedAdminAtendimentoRoute
   AuthenticatedAdminDashboardRoute: typeof AuthenticatedAdminDashboardRouteWithChildren
@@ -1876,6 +1897,7 @@ interface AuthenticatedAdminRouteChildren {
 
 const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
   AuthenticatedAdminAdministrativoRoute: AuthenticatedAdminAdministrativoRoute,
+  AuthenticatedAdminAprendizadosRoute: AuthenticatedAdminAprendizadosRoute,
   AuthenticatedAdminAssinaturaRoute: AuthenticatedAdminAssinaturaRoute,
   AuthenticatedAdminAtendimentoRoute: AuthenticatedAdminAtendimentoRoute,
   AuthenticatedAdminDashboardRoute:

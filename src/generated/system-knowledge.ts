@@ -11,7 +11,7 @@ export type GeneratedSystemDoc = {
   content_hash: string;
 };
 
-export const GENERATED_AT = "2026-11-22T19:40:28.235Z";
+export const GENERATED_AT = "2026-11-26T13:11:51.607Z";
 
 export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
   {
@@ -22,6 +22,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/routes/_authenticated/admin.administrativo.tsx",
     "audience": [],
     "content_hash": "2aefcc71e25271ca2c005843831616fe"
+  },
+  {
+    "doc_key": "route:/admin/aprendizados",
+    "kind": "route",
+    "title": "Aprendizados — tela /admin/aprendizados",
+    "content": "Caminho no sistema: /admin/aprendizados\n\nNo menu do painel esta tela se chama \"Aprendizados\".",
+    "source_path": "src/routes/_authenticated/admin.aprendizados.tsx",
+    "audience": [],
+    "content_hash": "8ade8b65070ceb62834a7f9728e325a2"
   },
   {
     "doc_key": "route:/admin/atendimento",
@@ -834,6 +843,24 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "168b9b23da6f58de79f4e884aa81e61d"
   },
   {
+    "doc_key": "rule:buildDecisionOptions",
+    "kind": "rule",
+    "title": "Regra — buildDecisionOptions",
+    "content": "Botões da faixa de decisão (25/11/2026, mockup ATD-D09/M10): rótulos com iniciais maiúsculas, sem horário no\nbotão (o horário está no texto da faixa) e SEM \"Eu Assumo a Conversa\" visível — responder no campo já assume.\nA opção `assume` continua nos dados porque é o registro interno de \"a equipe respondeu por conta própria\"\n(`resolvePendingDecisionsOnHumanMessage`); a tela nunca a mostra.\nO botão em DESTAQUE (`primary`) é sempre a opção que mais beneficia o anfitrião: com outro hóspede entrando\n(saída tardia) ou saindo (entrada antecipada) no mesmo dia ⇒ \"Recusar com Gentileza\"; sem conflito ou sem\nsaber ⇒ \"Cobrar Meia Diária\". O destaque vem primeiro; os demais seguem na ordem Cobrar · Aprovar · Recusar.",
+    "source_path": "src/lib/guest-ai-decision.ts",
+    "audience": [],
+    "content_hash": "714ee645d515b00b03228550fc07d53a"
+  },
+  {
+    "doc_key": "rule:buildDecisionQuestion",
+    "kind": "rule",
+    "title": "Regra — buildDecisionQuestion",
+    "content": "Texto da faixa de decisão (~35 palavras, nunca mais de 45). Mockup de 25/11/2026: só o fato, sem pergunta no\nfim (\"os botões já dizem o que fazer\"), horários no formato \"13h00\" e o que importa em **negrito** (a tela\ntransforma `**…**` em negrito; o texto nunca vai ao hóspede).\nEx.: \"Clarisse pede saída às **13h00**, sendo o oficial às **11h00**. **Não há entrada no mesmo dia.**\"",
+    "source_path": "src/lib/guest-ai-decision.ts",
+    "audience": [],
+    "content_hash": "736cd5922e083a0b2e83c45f96bad61e"
+  },
+  {
     "doc_key": "rule:buildGuestPhotoMessage",
     "kind": "rule",
     "title": "Regra — buildGuestPhotoMessage",
@@ -1071,10 +1098,10 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "doc_key": "rule:CategoryPendingDialog",
     "kind": "rule",
     "title": "Regra — CategoryPendingDialog",
-    "content": "JANELA DO CONTADOR (mockups aprovados, 06/11/2026 — \"Registros · toque em\nManutenção\"). Mesmo efeito dos cards do Operacional: a janela padrão do\nsistema (`DialogContent`: véu com desfoque, centralizada, X de canto, fio de\nluz no topo), com título = nome do contador e subtítulo \"N pendências · M\nproprietários\".\n\nPor dentro, TUDO o que está em aberto naquela categoria, agrupado por\nPROPRIETÁRIO (nome + ícone de mensagem + contagem). Embaixo de cada um, os\nimóveis dele FORA de card, numa linha só: \"+\" à esquerda, título com\nreticências e a contagem em rosa à direita. O \"+\" abre a lista de pendências\ndaquele imóvel num card compacto (miniatura de 36px, título, \"autor · data\" e\no quadradinho que resolve) e vira \"−\". UM IMÓVEL ABERTO POR VEZ: abrir outro\nfecha o anterior. A janela cresce com o conteúdo até 90% da tela; passou\ndisso, só a lista rola (barra fina do sistema) e a parte visível termina\nsempre numa linha inteira (`useAntiClipRows`) — o cabeçalho de um\nproprietário nunca fica sozinho na borda, por isso só imóveis e pendências\nsão `data-clip-row`. Rodapé: fio discreto + 12px.\n\nOs dados são a MESMA leitura da tela (`listAccountRecords`), recortada na\ncategoria e em \"só em aberto\", com o período e os imóveis do filtro atual —\no total sempre fecha com o número do contador. A chave começa com\n\"account-records\", então o aviso ao vivo (`useRealtimeInvalidate`) também\natualiza a janela aberta.",
+    "content": "JANELA DO CONTADOR — LAYOUT \"ÁRVORE\" (mockups TelaCheia-08 a 13 aprovados, 22/11/2026: \"tudo perfeito\").\n\nAbre pelos contadores Manutenção, Danos, Incidentes e Esquecidos da página Registros. É a janela das\npendências de VÁRIOS imóveis (a do imóvel único tem layout próprio).\n\n- Cabeçalho da página: título = categoria, subtítulo \"N pendências · M proprietários\".\n- Busca + período + filtros, as MESMAS peças da página Registros (sem o \"+\"). Começam com o período e o\n recorte de proprietário/imóvel que a página já tinha; mexer aqui só muda a janela.\n- Cada imóvel: foto 34px (raio 9), nome em Sora 600 13,5px e, embaixo, SÓ o nome do proprietário\n (600 12px, cor do texto — sem \"Proprietário(a):\" e sem ícone). Recolhido, o número de registros fica\n num selo rosa ao lado do título.\n- Abrir um imóvel mostra os registros em cards compactos (76px, a foto ocupa a lateral esquerda), ligados\n à foto do imóvel por uma \"árvore\" de linhas finas que termina num ponto encostado no card. Sem foto, o\n quadrado vira uma área neutra com o ícone do registro. Mais de uma mídia: selo com a câmera e o total.\n- Tocar num card abre o registro ali mesmo (foto 138px, data, fotos, hóspede, reserva, quem registrou,\n \"Marcar como resolvido\" e \"Recolher\"); tocar na foto abre o registro completo.\n- UM DE CADA VEZ: um imóvel aberto e, dentro dele, um registro aberto. Abrir outro fecha o anterior.\n- Anticorte: imóveis e cards são `data-clip-row`; a parte visível termina sempre num item inteiro.\n\nOs dados são a MESMA leitura da tela (`listAccountRecords`), recortada na categoria e em \"só em aberto\".…",
     "source_path": "src/components/dashboard/RecordsWorkspace.tsx",
     "audience": [],
-    "content_hash": "6eddff6285af8893bbb8bc8f71d7a1b4"
+    "content_hash": "1e9dd7b6b4ff8b40c8a185a5bd4d0b19"
   },
   {
     "doc_key": "rule:CellPart",
@@ -1716,24 +1743,6 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "ce4c7badb581860f0ef62b3b3da310f8"
   },
   {
-    "doc_key": "rule:DecisionCard",
-    "kind": "rule",
-    "title": "Regra — DecisionCard",
-    "content": "CARTÃO DE DECISÃO HUMANA COM 1 CLIQUE (mockup aprovado em 10/11/2026). Largura total da coluna do chat,\nbotões empilhados (sem quebra feia a 360–390px), superfície neutra (âmbar só no ícone de pendente).\nPendente → clique (carregando no botão escolhido, demais desativados na hora) → decidido (carimbo de quem e\nquando). Clique concorrente: \"Já decidido por [Nome] às [Horário]\".",
-    "source_path": "src/components/handoff/DecisionCard.tsx",
-    "audience": [],
-    "content_hash": "36843c6884fe428da95deb53b983d0ad"
-  },
-  {
-    "doc_key": "rule:DecisionDock",
-    "kind": "rule",
-    "title": "Regra — DecisionDock",
-    "content": "DOCK FIXO DE DECISÃO PENDENTE: fica imediatamente acima do campo de digitação (nunca some na rolagem do chat).\nMostra a primeira decisão pendente com os botões de 1 clique; ao decidir, vira um aviso de sucesso por alguns\nsegundos e sai. O cartão no fluxo vira só um aviso (`ref`) e, depois de decidido, o carimbo de sempre.",
-    "source_path": "src/components/handoff/DecisionCard.tsx",
-    "audience": [],
-    "content_hash": "4f999247458643af88eb0011dd51514a"
-  },
-  {
     "doc_key": "rule:decisionKindFromRequests",
     "kind": "rule",
     "title": "Regra — decisionKindFromRequests",
@@ -1741,6 +1750,24 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/guest-ai-decision.ts",
     "audience": [],
     "content_hash": "17c6d093945323cc97dd218cc2d55227"
+  },
+  {
+    "doc_key": "rule:decisionRecordText",
+    "kind": "rule",
+    "title": "Regra — decisionRecordText",
+    "content": "LINHA DE REGISTRO (25/11/2026, mockup ATD-D17/M18): depois da decisão a faixa sai e fica, no MESMO ponto da\nconversa, uma linha discreta com o que foi decidido (o \"quem · quando\" a tela acrescenta). `**…**` = negrito.",
+    "source_path": "src/lib/guest-ai-decision.ts",
+    "audience": [],
+    "content_hash": "dee5d4b2e7144525c60a3ac9c6148f0b"
+  },
+  {
+    "doc_key": "rule:DecisionStrip",
+    "kind": "rule",
+    "title": "Regra — DecisionStrip",
+    "content": "FAIXA DA DECISÃO DA EQUIPE (25/11/2026, mockups ATD-D09/M10/D18/M21): de ponta a ponta, no formato da faixa do\nmotivo e da nota interna, em azul suave, logo ABAIXO da mensagem do hóspede que originou o pedido — corre junto\ncom a conversa (mensagens novas entram abaixo dela). Texto com o fato (negritos), sem cabeçalho nem pergunta;\nbotões pequenos, o que mais beneficia o anfitrião em destaque e primeiro; sem \"Eu Assumo a Conversa\".\nAo clicar: o botão escolhido mostra o envio (\"Cobrando Meia Diária…\"), os demais apagam e o campo de mensagem\nbloqueia (`onSendingChange`) até a IA entregar a resposta; então a faixa sai e fica a linha de registro.",
+    "source_path": "src/components/handoff/DecisionCard.tsx",
+    "audience": [],
+    "content_hash": "4f938f6681adc2af01bab15e2a7377fa"
   },
   {
     "doc_key": "rule:dedupeFormLogs",
@@ -1795,15 +1822,6 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/reservation-records.functions.ts",
     "audience": [],
     "content_hash": "b2d775aa80079ce72c3c68b1b535bcb5"
-  },
-  {
-    "doc_key": "rule:DeliveryTicks",
-    "kind": "rule",
-    "title": "Regra — DeliveryTicks",
-    "content": "OS TIQUINHOS DO WHATSAPP (pedido explícito, 10/09/2026).\n\nO canal já guardava o recibo em `property_chat_messages.delivery_status` —\no webhook do provedor escreve `sent`, `delivered`, `read` ou `failed` — mas\nnada disso aparecia na tela: o atendente mandava a mensagem e não sabia se\nela tinha chegado.\n\n ✓ enviada (saiu daqui, ainda sem confirmação do aparelho)\n ✓✓ entregue no aparelho\n ✓✓ azul lida\n ! falhou\n\nSem recibo (chat do próprio guia, que é tempo real e não tem confirmação de\nentrega), NADA é desenhado — um tique cinza eterno mentiria.",
-    "source_path": "src/components/handoff/ConversationView.tsx",
-    "audience": [],
-    "content_hash": "e08ca02ce291b5db422484d9b0ad5faa"
   },
   {
     "doc_key": "rule:DenseSections",
@@ -2947,6 +2965,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/guest-ai/history.ts",
     "audience": [],
     "content_hash": "69059313473c24d0edecac1de08ff6ff"
+  },
+  {
+    "doc_key": "rule:instructAi",
+    "kind": "rule",
+    "title": "Regra — instructAi",
+    "content": "\"Enviar à IA\" (janela Instruir a IA): a IA avalia, em cada conversa, se ainda precisa responder ao hóspede e\nentrega só o que ficou em aberto. Com \"Ensinar a IA para as Próximas\", a instrução vira aprendizado nos imóveis\nescolhidos: quem pode aprovar (dono, admin, `ai_train`) ativa na hora; os demais mandam para Aprendizados.\nInstrução sobre algo físico dada aqui não passa por outro filtro além dessa aprovação (25/11/2026).",
+    "source_path": "src/lib/atendimento.functions.ts",
+    "audience": [],
+    "content_hash": "2ce6cf7b306d383b70f995c26b5bb607"
   },
   {
     "doc_key": "rule:INTERNAL_CODE_PREFIX",
@@ -4740,6 +4767,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "2946b906bda28e9b1f75ac33d5ac658e"
   },
   {
+    "doc_key": "rule:RecordTree",
+    "kind": "rule",
+    "title": "Regra — RecordTree",
+    "content": "Os registros de um imóvel aberto, ligados à foto dele por linhas finas (a \"árvore\"): todas saem 5px\nacima do primeiro card, logo abaixo da foto do imóvel, descem e fazem a curva (raio 12px) até um ponto\nencostado na lateral do card. O ramo do registro aberto fica um tom mais forte. As posições vêm da medida\nreal dos cards, então a linha acompanha o registro aberto, que é mais alto.",
+    "source_path": "src/components/dashboard/RecordsWorkspace.tsx",
+    "audience": [],
+    "content_hash": "a4a1ef0e7d8b06f6528b7c69ac11a16f"
+  },
+  {
     "doc_key": "rule:refreshListingFromAirbnb",
     "kind": "rule",
     "title": "Regra — refreshListingFromAirbnb",
@@ -4765,6 +4801,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/guest-ai/turn/generate.server.ts",
     "audience": [],
     "content_hash": "5685241ed50129e76deb200b69bc365a"
+  },
+  {
+    "doc_key": "rule:REGIONAL_VALIDITY_HOURS",
+    "kind": "rule",
+    "title": "Regra — REGIONAL_VALIDITY_HOURS",
+    "content": "SITUAÇÃO REGIONAL (mockups REG-D/M 01–03, ATD-D14/D15, aprovados em 23–26/11/2026) — parte PURA.\n\nA equipe confirma que um problema é da REGIÃO (falta de energia, de água, de internet, temporal) e não do\nimóvel; a IA nunca decide isso sozinha. Enquanto a situação está ativa, a IA usa o texto da equipe com os\nhóspedes da mesma cidade da conta que relatarem o mesmo problema. Defeito dentro do imóvel nunca entra.",
+    "source_path": "src/lib/regional-situation.ts",
+    "audience": [],
+    "content_hash": "8e617f26d8de9dfb0262402f1fddd4eb"
   },
   {
     "doc_key": "rule:registries",
@@ -4932,10 +4977,10 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "doc_key": "rule:resolvePendingDecisionsOnHumanMessage",
     "kind": "rule",
     "title": "Regra — resolvePendingDecisionsOnHumanMessage",
-    "content": "A equipe respondeu o hóspede por conta própria (painel, IA ou direto no Airbnb): as decisões pendentes da\nconversa viram \"assumidas pela equipe\" (sem resposta da IA) e o cartão sai do painel. `actorUserId` é quem\nrespondeu; sem ele (mensagem sincronizada do Airbnb) vale o titular da decisão. Usa só as RPCs da decisão\n(a tabela é somente leitura). Melhor esforço: nunca lança.",
+    "content": "A equipe respondeu o hóspede por conta própria (painel ou direto no Airbnb). A faixa da decisão sai (vira a\nlinha de registro \"Respondido direto pela equipe\", sem resposta da IA) quando a fala é SOBRE O MESMO PEDIDO\n(25/11/2026); fala sobre outro assunto não mexe na faixa. Leitura incerta ⇒ encerra (o lado seguro: a IA nunca\nfala por cima da equipe). `actorUserId` é quem respondeu; sem ele (mensagem do Airbnb) vale o titular da\ndecisão. Usa só as RPCs da decisão (a tabela é somente leitura). Melhor esforço: nunca lança.",
     "source_path": "src/lib/guest-ai-decision.server.ts",
     "audience": [],
-    "content_hash": "38bde8708dd33386eee7975fb0e5ebc3"
+    "content_hash": "0129131650e0e880069ea4a65f6c22b2"
   },
   {
     "doc_key": "rule:resolveProfileOwnerId",
@@ -6171,7 +6216,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "bb858acdfcfe0c71275a4ebad074241a"
   },
   {
-    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:13530",
+    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:13554",
     "kind": "rule",
     "title": "Regra em RecordsWorkspace.tsx",
     "content": "Capa do imóvel (04/10/2026, proposta A). `undefined` = \"Por data\": o\ncartão reúne vários imóveis e não mostra foto. `null` = imóvel sem capa.",
@@ -6180,7 +6225,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "2a36d540280566cf3f361f2e1a5bba3c"
   },
   {
-    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:14884",
+    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:14908",
     "kind": "rule",
     "title": "Regra em RecordsWorkspace.tsx",
     "content": "ACERVO RECOLHIDO POR PADRÃO, UM DE CADA VEZ (pedido explícito,\n10/09/2026). A tela abre mostrando só o que há para EXECUTAR; as\nminiaturas de prova ficam a um toque. E abrir um imóvel fecha o anterior,\nsenão a página volta a ser uma parede de quadradinhos.",
@@ -6189,7 +6234,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "da56a7e41911b71c751dc4fed78c2097"
   },
   {
-    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:15240",
+    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:15264",
     "kind": "rule",
     "title": "Regra em RecordsWorkspace.tsx",
     "content": "PENDÊNCIAS TAMBÉM RECOLHIDAS, PELA MESMA REGRA (pedido explícito,\n11/09/2026): \"coloque também a linha PENDÊNCIAS recolhida seguindo as\nmesmas regras da linha REGISTROS\". Mesma mecânica, estado separado — a\nlinha inteira é o botão, sem seta, e abrir um imóvel fecha o anterior.\nSeparado do acervo de propósito: são duas perguntas diferentes (\"o que há\npara fazer aqui?\" e \"que provas existem aqui?\"), e amarrar as duas faria\numa abrir a outra sem ninguém ter pedido.",
@@ -6198,7 +6243,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "921b94e2b28e53f61ef460f4945f7be2"
   },
   {
-    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:47779",
+    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:59999",
     "kind": "rule",
     "title": "Regra em RecordsWorkspace.tsx",
     "content": "Contador/filtro de uma categoria. Mesma casca dos KPIs da Operacional.\n\nA COR DO NÚMERO É UM SEMÁFORO, NÃO UMA ETIQUETA (pedido explícito,\n10/09/2026): zerado é BRANCO em todas as categorias — não há nada ali, nada\na sinalizar. Acima de zero, a cor diz o quanto aquilo pesa: manutenção e\ndano em vermelho (é trabalho parado), esquecidos e outros em âmbar (é\natenção), auditoria de limpeza no violeta de sempre (é rotina, não alarme)\ne \"Todos\" sempre branco, porque somar tudo não é sinal de nada.\n\nCartão zerado NÃO é mais esmaecido — todos têm a mesma tonalidade.",
@@ -6207,7 +6252,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "0d8acd5693abba2abe9b8f2962b36ba3"
   },
   {
-    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:54993",
+    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:67213",
     "kind": "rule",
     "title": "Regra em RecordsWorkspace.tsx",
     "content": "O CARTÃO DO IMÓVEL EM DOIS ANDARES (mockup B, aprovado 10/09/2026).\n\nAntes era uma fileira de quadrados cinzentos com um ponto de 6px: um dano\nsem conserto e uma foto de auditoria eram visualmente o mesmo quadrado. O\ncartão passa a admitir que há duas naturezas ali dentro —\n\n A RESOLVER o que abriu pendência e ela ainda está de pé (dano,\n manutenção, objeto esquecido). Vira LINHA, com título\n legível, porque é trabalho e trabalho precisa de nome.\n REGISTROS o resto. Continua miniatura, porque é prova.\n\nSem nada em aberto o primeiro andar não existe e o cartão fica igual ao de\nantes — a mesma regra de sempre: o aviso só aparece quando há aviso.",
@@ -6216,7 +6261,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "1bede5e40def9ea40c009fa805397bcc"
   },
   {
-    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:55720",
+    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:67940",
     "kind": "rule",
     "title": "Regra em RecordsWorkspace.tsx",
     "content": "A FAIXA LATERAL DO CARTÃO DO IMÓVEL (pedido explícito, 10/09/2026).\n\nMesma barra de 3px dos cards do Kanban, mas dizendo outra coisa: aqui ela\nresponde \"o que mais tem neste imóvel?\" antes de a pessoa ler qualquer\nlinha. A cor é a da CATEGORIA MAIS FREQUENTE entre os registros daquele\nimóvel, com UMA exceção pedida pelo cliente:\n\n \"só nunca usar a cor da auditoria de limpeza quando tiver registro de\n outras categorias junto. só usar a cor da auditoria da limpeza quando só\n tiver isso no imóvel\"\n\nFaz sentido: auditoria é ROTINA — todo imóvel limpo gera vídeo, então ela\nganharia quase sempre na contagem e a faixa viraria uma fileira roxa que não\ninforma nada. Tirando-a da disputa, a faixa passa a mostrar o que exige\natenção; roxo então significa exatamente \"aqui só há prova de limpeza, nada\npendente\".\n\nEmpate: vence a mais grave — dano, depois manutenção, depois esquecidos,\ndepois outros.",
@@ -6225,7 +6270,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "ac3013773b1e44cf4e096d38a8c66d5a"
   },
   {
-    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:56686",
+    "doc_key": "rule:src/components/dashboard/RecordsWorkspace.tsx:68906",
     "kind": "rule",
     "title": "Regra em RecordsWorkspace.tsx",
     "content": "O DEGRADÊ MORA DENTRO DA BARRA (pedido explícito, 10/09/2026).\n\nA primeira tentativa deixava a cor sangrar para dentro do cartão e o\ncliente cortou na hora: \"eu não quero que a cor vaze para o quadrante, eu\nsó quero que o efeito da barra conceda uma leveza na cor, sem torná-la\ngritante\".\n\nEntão a faixa continua sendo SÓ a faixa — nada invade o conteúdo. O que\nmudou é que ela deixou de ser um bloco chapado: cheia na quina de fora e\ndissolvendo até quase transparente do lado de dentro. De longe continua\ndizendo a cor; de perto é um fio de luz, não um adesivo.\n\nDois botões de ajuste, se quiser calibrar: a LARGURA (`w-[4px]`) e a\nOPACIDADE das duas pontas do degradê.",
@@ -6378,6 +6423,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "66fe218bf954aecaa898288c8ca66298"
   },
   {
+    "doc_key": "rule:src/components/handoff/atd-window.tsx:0",
+    "kind": "rule",
+    "title": "Regra em atd-window.tsx",
+    "content": "JANELAS DO ATENDIMENTO (mockups ATD-D04…D16 / M05…M17, aprovados em 23–26/11/2026). Casca, cabeçalho, linhas\nde opção, busca de janela, botões, rótulos, seletor segmentado e a chave compacta — as MESMAS classes do mockup.\nRegras: sem bordas na casca (23/11/2026), título 14px negrito em uma linha com reticências e subtítulo 12px,\n\"X\" de canto ou \"‹ Voltar\" no lugar dele quando há etapa anterior (`onBack`), tudo centralizado na tela.",
+    "source_path": "src/components/handoff/atd-window.tsx",
+    "audience": [],
+    "content_hash": "0226de1968c397bb3c99cc7aaca95269"
+  },
+  {
     "doc_key": "rule:src/components/handoff/AudioRecorderButton.tsx:352",
     "kind": "rule",
     "title": "Regra em AudioRecorderButton.tsx",
@@ -6387,13 +6441,40 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "72ecc10611abbec39b47addf405d3ed6"
   },
   {
+    "doc_key": "rule:src/components/handoff/ConversationView.tsx:0",
+    "kind": "rule",
+    "title": "Regra em ConversationView.tsx",
+    "content": "CONVERSA DO ATENDIMENTO (mockups ATD-D02…D18 / ATD-M03…M21, CANC, REG-D01/M01, aprovados em 23–26/11/2026).\n\nLayouts INDIVIDUAIS por visão (25/11/2026: o que muda no celular não replica no desktop e vice-versa):\n - desktop: cabeçalho de painel (título 17px + ações no canto, proprietário, e a reserva numa única linha num\n quadrante sem fundo próprio);\n - celular: tela cheia com a barra do sistema; título com \"‹ Voltar\" na mesma linha, proprietário e o quadrante\n da reserva em três linhas com as ações. Com o teclado aberto o quadrante SEMPRE recua para uma linha (hóspede\n com reticências + período) e volta ao fechar; tocar no quadrante alterna recolher/expandir (aberto ou fechado).\nFaixas de ponta a ponta: Motivo (rosa, abre a janela Motivo do Encaminhamento), Decisão da Equipe (azul, presa\nabaixo da mensagem do hóspede, corre com a conversa), Nota Interna (bege, a mais recente, \"Ver (n)\") e a pausa\nda IA (âmbar). Ao clicar numa opção da decisão o campo bloqueia até a IA entregar a resposta.\nSem logo do Airbnb ou ícone de canal ao lado do nome do hóspede (25/11/2026). Tema do app (sem tema fixo).",
+    "source_path": "src/components/handoff/ConversationView.tsx",
+    "audience": [],
+    "content_hash": "29f22e82e87697fb691d89e809dc1a6c"
+  },
+  {
+    "doc_key": "rule:src/components/handoff/InstructAiWindow.tsx:0",
+    "kind": "rule",
+    "title": "Regra em InstructAiWindow.tsx",
+    "content": "JANELA \"INSTRUIR A IA\" (mockups ATD-D12/D13/D14 e M13/M14/M15, aprovados em 24–26/11/2026). Abre pela janela\nMotivo do Encaminhamento, na MESMA janela (\"‹ Voltar\" volta ao motivo):\n - Pergunta da IA (o que ela perguntou à equipe ao encaminhar) e Sua Instrução (texto livre ou ditado);\n - situação regional confirmada: \"Aplicar às N Conversas Afetadas\" (a IA avalia em cada uma);\n - \"Ensinar a IA para as Próximas\": a instrução vira aprendizado nos imóveis escolhidos (padrão: só o imóvel\n desta conversa). Quem pode aprovar ativa na hora; os demais mandam para Aprendizados (apoio muda conforme a\n permissão). Com vários imóveis, a IA avisa de forma ESPECÍFICA quando o item físico difere entre eles;\n - \"Enviar à IA\": a IA avalia se ainda precisa responder ao hóspede e só envia o que ficou em aberto.\nEtapa \"Imóveis\" na mesma janela: busca, Selecionar Todos, \"N Selecionados\" + X, no máximo 5 visíveis, Confirmar.",
+    "source_path": "src/components/handoff/InstructAiWindow.tsx",
+    "audience": [],
+    "content_hash": "23f7c5c799a50b018c622d9adcbdb3af"
+  },
+  {
+    "doc_key": "rule:src/components/handoff/RegionalWindow.tsx:0",
+    "kind": "rule",
+    "title": "Regra em RegionalWindow.tsx",
+    "content": "SITUAÇÃO REGIONAL (mockups REG-D02/D03 e M02/M03, aprovados em 23–26/11/2026).\n - `RegionalWindow`: \"Marcar Situação Regional\" (Tipo, Cidade travada = a do imóvel, Bairros, Texto Para a IA,\n Vale Por 3 h · 6 h · 12 h · 24 h) e a edição da situação ativa (mesma janela).\n - `RegionalBanner`: faixa da situação ativa acima da lista (desde · expira · usada em N conversas, lápis e\n Encerrar).",
+    "source_path": "src/components/handoff/RegionalWindow.tsx",
+    "audience": [],
+    "content_hash": "36170b404b0f3511b5fbfaea7268c7cf"
+  },
+  {
     "doc_key": "rule:src/components/handoff/stay-view.tsx:0",
     "kind": "rule",
     "title": "Regra em stay-view.tsx",
-    "content": "Dados da reserva no ATENDIMENTO (mockup \"Atendimento: lista e cabeçalho\",\naprovado em 16/10/2026): uma informação por linha, na mesma ordem do card do\nKanban. Usado pelos cards da lista lateral e pelo cabeçalho do chat.\n\n- Cores IDÊNTICAS às do card do Kanban (card-colors.ts: azul chegada, verde estadia,\n laranja saída, vermelho atraso/cancelada).\n- Etiqueta ao lado do nome: FASE da reserva (Chega hoje, Em estadia…) na cor\n do status; \"Cancelada\" em vermelho; \"Consulta\" em amarelo fraco (o hóspede\n ainda não tem reserva). Reserva encerrada não leva etiqueta.\n- \"Data Indisponível\" só aparece na Consulta, ao lado direito da etiqueta; as demais linhas\n (Estadia, Reserva) continuam quando houver dado.\n- Ícone de pessoas com número: quantas pessoas abriram o guia dessa reserva.",
+    "content": "Dados da reserva no ATENDIMENTO (mockups ATD-D/M, aprovados em 23–26/11/2026). Usado pelos cards da lista e\npelo cabeçalho da conversa. Sem tabela rotulada (Período/Estadia/Reserva) e sem etiquetas de fase:\n - hóspede com o ícone de pessoa;\n - período \"dd/mm/aaaa → dd/mm/aaaa\" na COR DA ETAPA (a mesma do card do Kanban), com Hoje/Amanhã/Ontem/\n Anteontem/Depois de Amanhã no lugar da data, SEMPRE em negrito (regra global de 23/11/2026);\n - \"N noites · N hóspedes · CÓDIGO\" em tom secundário, com o botão de copiar o código logo à direita\n (regra global de 24/11/2026).\nA barra lateral do card continua na cor da fase (`stayBarClass`).",
     "source_path": "src/components/handoff/stay-view.tsx",
     "audience": [],
-    "content_hash": "6d7d0885b0b6f5e5452f5b052d1a791a"
+    "content_hash": "48c85fdbcd4ad9af327ce0d551cfc894"
   },
   {
     "doc_key": "rule:src/components/landing/LiveGuideFrame.tsx:54",
@@ -6756,6 +6837,24 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "3ceb6ee5f6100c7dae07f4396d3b4ab3"
   },
   {
+    "doc_key": "rule:src/lib/atendimento-ai.server.ts:0",
+    "kind": "rule",
+    "title": "Regra em atendimento-ai.server.ts",
+    "content": "IA DO ATENDIMENTO — leituras e redações pedidas pela equipe na tela (mockups ATD-D12/D13/D14, REG-D01,\naprovados em 24–26/11/2026). Modelo de baixo custo (Gemini Flash), JSON curto, sem ferramentas. Nenhum texto\npronto ao hóspede: as instruções descrevem comportamento e limites; quem redige é o modelo (16/11/2026).\n\n - `composeInstructedReply`: a equipe escreve a instrução do seu jeito (\"Instruir a IA\"); a IA lê a conversa e\n decide se AINDA é preciso responder ao hóspede (se a equipe já respondeu o ponto, não manda nada; só o que\n ficou em aberto, sem repetir nem contradizer a equipe), redige a resposta no idioma do canal e, se pedido,\n resume a instrução como aprendizado duradouro do imóvel (categoria fechada).\n - `instructionScopeWarning`: instrução sobre algo FÍSICO marcada para vários imóveis ⇒ aviso ESPECÍFICO do que\n difere em cada imóvel (25/11/2026: nunca genérico como \"essa instrução fala do portão\").\n - `classifyRegional`: a fala da equipe descreve uma situação da REGIÃO (energia, água, internet, temporal) e\n não um defeito do imóvel? Só gera a SUGESTÃO de marcar; quem confirma é a equipe.\nFalha do modelo ⇒ resultado seguro (sem envio / sem aviso / sem sugestão). Nunca lança.",
+    "source_path": "src/lib/atendimento-ai.server.ts",
+    "audience": [],
+    "content_hash": "89582b0771b7d33afa3c0c311412c330"
+  },
+  {
+    "doc_key": "rule:src/lib/atendimento.functions.ts:354",
+    "kind": "rule",
+    "title": "Regra em atendimento.functions.ts",
+    "content": "ATENDIMENTO REFATORADO (mockups ATD/REG/APR aprovados em 23–26/11/2026) — server functions da tela.\n - contagem das quatro filas (Meus · Precisa Humano · Com a IA · Resolvidas);\n - pergunta da IA à equipe (janela Instruir a IA) e o fluxo \"Enviar à IA\";\n - imóveis da conta para o seletor e o aviso específico de escopo;\n - situação regional: sugestão, marcar/editar/encerrar, \"Agora Não\", faixa da situação ativa;\n - Aprendizados: lista, aprovar, \"Só Desta Vez\", editar e escopo.\nLeituras de conversa passam pela RLS do usuário; escritas exigem `chat_respond` (ou a permissão de treino da\nIA, nos aprendizados) e rodam com o cliente de serviço só depois da checagem.",
+    "source_path": "src/lib/atendimento.functions.ts",
+    "audience": [],
+    "content_hash": "cb0a74753e8360fa774726e048344030"
+  },
+  {
     "doc_key": "rule:src/lib/audit-fn-labels.server.ts:0",
     "kind": "rule",
     "title": "Regra em audit-fn-labels.server.ts",
@@ -7089,6 +7188,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "30d0a7dd452e4201def229b11fc27cfe"
   },
   {
+    "doc_key": "rule:src/lib/guest-ai-decision-topic.server.ts:0",
+    "kind": "rule",
+    "title": "Regra em guest-ai-decision-topic.server.ts",
+    "content": "A EQUIPE JÁ RESPONDEU ESTE ASSUNTO? (25/11/2026, regras da faixa de decisão)\n - Ao clicar num botão da decisão, a IA NÃO envia nada antes de conferir se alguém da equipe (painel ou direto\n no Airbnb) já respondeu ao hóspede sobre aquele pedido depois que ele foi feito; se respondeu, ela não envia.\n - Uma resposta direta da equipe SOBRE O MESMO TEMA encerra a faixa (vira a linha de registro); resposta sobre\n outro assunto não mexe nela.\nLeitura pelo modelo de baixo custo (sem lista de frases). Sem mensagem da equipe ⇒ \"not_answered\" sem modelo.\nFalha do modelo ⇒ \"unknown\" (quem chama decide o lado seguro). Nunca lança.",
+    "source_path": "src/lib/guest-ai-decision-topic.server.ts",
+    "audience": [],
+    "content_hash": "2da14ada602fb814fb0b2d0a37f4c2c8"
+  },
+  {
     "doc_key": "rule:src/lib/guest-ai-decision.server.ts:0",
     "kind": "rule",
     "title": "Regra em guest-ai-decision.server.ts",
@@ -7098,7 +7206,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "0cf2f061232dd443df05df1055a308ab"
   },
   {
-    "doc_key": "rule:src/lib/guest-ai-decision.ts:10439",
+    "doc_key": "rule:src/lib/guest-ai-decision.ts:14922",
     "kind": "rule",
     "title": "Regra em guest-ai-decision.ts",
     "content": "Chegada DEPOIS do limite de check-in do imóvel (caso Ary, 11/11/2026: \"iremos chegar após as 23\"). Nunca é\nentrada antecipada; vira concessão operacional (recepção tardia) para a equipe decidir.",
@@ -7260,7 +7368,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "fa9395eb0b16678cf73b59ae3b120b13"
   },
   {
-    "doc_key": "rule:src/lib/guest-ai/composer.ts:5124",
+    "doc_key": "rule:src/lib/guest-ai/composer.ts:5159",
     "kind": "rule",
     "title": "Regra em composer.ts",
     "content": "B2.4: estado operacional VERIFICADO pelo sistema (nunca pelo modelo): autorizações formais de\nhorário (`policy/stay-authorizations.ts`) e atendimento humano por assunto (`case-ownership.ts`).\nAusente ⇒ o prompt declara `nao_informado`, como antes.",
@@ -7269,7 +7377,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "77202763b63a6e7d702dbb4fa43d5777"
   },
   {
-    "doc_key": "rule:src/lib/guest-ai/composer.ts:5645",
+    "doc_key": "rule:src/lib/guest-ai/composer.ts:5680",
     "kind": "rule",
     "title": "Regra em composer.ts",
     "content": "B2.5: lote fechado de mensagens consecutivas do hóspede (um turno lógico). As mensagens do lote\nsão marcadas no histórico (`lote_atual`), cada uma com a sua identidade e fronteira; o guard é\naplicado a cada mensagem E ao conjunto (um segredo dividido entre mensagens não escapa).",
@@ -7278,7 +7386,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "c76b273cd23dda3d321a938aaa4c86ed"
   },
   {
-    "doc_key": "rule:src/lib/guest-ai/composer.ts:5988",
+    "doc_key": "rule:src/lib/guest-ai/composer.ts:6023",
     "kind": "rule",
     "title": "Regra em composer.ts",
     "content": "Memória do hóspede recorrente (06/11/2026): bloco leve, sem PII nem financeiro. As preferências são\ntexto livre e passam pelo guard. Ausente ⇒ o bloco não entra (comportamento anterior).",
@@ -7287,7 +7395,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "0298b46b00d9c1056fdf70ac2cc04b10"
   },
   {
-    "doc_key": "rule:src/lib/guest-ai/composer.ts:6242",
+    "doc_key": "rule:src/lib/guest-ai/composer.ts:6277",
     "kind": "rule",
     "title": "Regra em composer.ts",
     "content": "Pilar 1 (06/11/2026): eventos da Home do guia para a cidade do imóvel (`data/city-events.server.ts`).\nAusente ⇒ o bloco não entra; indisponível ⇒ o bloco declara a indisponibilidade.",
@@ -7296,7 +7404,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "0c794aee03e95389a497ca403cd723b9"
   },
   {
-    "doc_key": "rule:src/lib/guest-ai/composer.ts:6485",
+    "doc_key": "rule:src/lib/guest-ai/composer.ts:6520",
     "kind": "rule",
     "title": "Regra em composer.ts",
     "content": "Etapa 4 (08/11/2026): Documento Vivo do imóvel do turno (só aprendizados APROVADOS). Ausente,\nindisponível, vazio ou de outro imóvel ⇒ o bloco não entra (comportamento anterior).",
@@ -7366,6 +7474,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/guest-ai/data/airbnb-thread.server.ts",
     "audience": [],
     "content_hash": "6f3144265dde51f1e6db5600806337b7"
+  },
+  {
+    "doc_key": "rule:src/lib/guest-ai/data/cancellation-terms.server.ts:1527",
+    "kind": "rule",
+    "title": "Regra em cancellation-terms.server.ts",
+    "content": "Conhecimento interno da operação (titular, 23/11/2026): só para a IA entender e falar com a equipe, nunca muda\nhorário de entrada/saída. Limpeza da saída anterior no dia da entrada e manutenções/ocorrências recentes do imóvel.",
+    "source_path": "src/lib/guest-ai/data/cancellation-terms.server.ts",
+    "audience": [],
+    "content_hash": "ab66f10fde4cce605aefff6cf02ca61c"
   },
   {
     "doc_key": "rule:src/lib/guest-ai/data/city-events.server.ts:0",
@@ -7627,6 +7744,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/guest-ai/dossier/normalize.ts",
     "audience": [],
     "content_hash": "79065c08856860e1589e837eca9415ce"
+  },
+  {
+    "doc_key": "rule:src/lib/guest-ai/history.ts:4829",
+    "kind": "rule",
+    "title": "Regra em history.ts",
+    "content": "Mensagens que a CONTA já enviou depois da atual (resposta automática de reserva confirmada, guia, equipe), antes\nde o turno ser gerado (22/11/2026, caso Juliano/Charmosa): o hóspede já as recebeu, então a IA precisa vê-las\npara não repetir o conteúdo. Mensagens do hóspede depois da atual nunca entram aqui (são de outro turno/lote).",
+    "source_path": "src/lib/guest-ai/history.ts",
+    "audience": [],
+    "content_hash": "9a87b81b2548336723df0def8b3a938b"
   },
   {
     "doc_key": "rule:src/lib/guest-ai/learning/learning.ts:0",
@@ -8151,7 +8277,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "8f4ad04aa1b4556c1e605931fe140646"
   },
   {
-    "doc_key": "rule:src/lib/guest-ai/types.ts:10140",
+    "doc_key": "rule:src/lib/guest-ai/types.ts:10702",
     "kind": "rule",
     "title": "Regra em types.ts",
     "content": "Ocupação do calendário do imóvel (reservas confirmadas de outros hóspedes e bloqueios manuais), só datas,\nsem PII (11/11/2026, caso Gleison). Ausente/`unavailable` ⇒ a IA não presume disponibilidade.",
@@ -8160,7 +8286,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "4e8fd6ebde44fe10ec893d5f4b3edeb2"
   },
   {
-    "doc_key": "rule:src/lib/guest-ai/types.ts:10548",
+    "doc_key": "rule:src/lib/guest-ai/types.ts:11110",
     "kind": "rule",
     "title": "Regra em types.ts",
     "content": "Como se entra no imóvel (14/11/2026): `autonomous` = há credencial de acesso cadastrada; `in_person` = nenhuma\n(entrega presencial de chaves é o padrão); `unknown`/ausente = não comprovado. Só a modalidade, nunca valor.",
@@ -8754,6 +8880,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "5d65ad941c10e2e6d984c700e2518ed5"
   },
   {
+    "doc_key": "rule:src/lib/regional-suggest.server.ts:0",
+    "kind": "rule",
+    "title": "Regra em regional-suggest.server.ts",
+    "content": "SUGESTÃO \"PARECE UMA SITUAÇÃO DA REGIÃO\" (mockup REG-D01/M01, 23/11/2026). Depois que a equipe fala com o\nhóspede, a IA lê a fala: se ela afirma um problema da região (e não do imóvel), grava uma SUGESTÃO presa à\nmensagem; a tela mostra o cartão logo abaixo dela com \"Marcar Situação Regional\" e \"Agora Não\". Nada vale para\noutros hóspedes antes de a equipe confirmar. Segundo plano, melhor esforço: nunca lança, nunca atrasa o envio.",
+    "source_path": "src/lib/regional-suggest.server.ts",
+    "audience": [],
+    "content_hash": "ec45d014d0ccf0d9d78b1a5ed189a7b8"
+  },
+  {
     "doc_key": "rule:src/lib/reservation-journey.functions.ts:0",
     "kind": "rule",
     "title": "Regra em reservation-journey.functions.ts",
@@ -9006,15 +9141,6 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "ac065d752954bcb584fd1bbfa3fcfdd6"
   },
   {
-    "doc_key": "rule:StayLines",
-    "kind": "rule",
-    "title": "Regra — StayLines",
-    "content": "Linhas Período · Estadia · Reserva (Consulta não tem Período: a nota fica ao lado da etiqueta).\n`size=\"md\"` = cabeçalho do chat; `size=\"sm\"` = card da lista.",
-    "source_path": "src/components/handoff/stay-view.tsx",
-    "audience": [],
-    "content_hash": "ece6b3320dd2e6ae4ea99d4c89e1123e"
-  },
-  {
     "doc_key": "rule:StayPhase",
     "kind": "rule",
     "title": "Regra — StayPhase",
@@ -9256,6 +9382,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/reservation-journey.functions.ts",
     "audience": [],
     "content_hash": "6a51ac0ea4aff905f371434f2a8b9faf"
+  },
+  {
+    "doc_key": "rule:teamAlreadyAnswered",
+    "kind": "rule",
+    "title": "Regra — teamAlreadyAnswered",
+    "content": "Falas da equipe (não notas) depois do pedido e o veredito \"já respondeu este assunto?\". Sem fala da equipe ⇒\n`not_answered` sem modelo. Nunca lança (erro ⇒ `unknown`).",
+    "source_path": "src/lib/guest-ai-decision.server.ts",
+    "audience": [],
+    "content_hash": "ccdf49b71bc2d77f9a43299bd75fc0f1"
   },
   {
     "doc_key": "rule:teamOrNegotiationBlock",
@@ -9720,10 +9855,10 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "doc_key": "rule:WatchdogRow",
     "kind": "rule",
     "title": "Regra — WatchdogRow",
-    "content": "VIGIA DE ENCAMINHAMENTOS SEM RESPOSTA (14/11/2026). O encaminhamento da IA é silencioso: o hóspede não recebe\naviso, e a equipe recebe UM push. Sem este vigia, um push perdido deixa o hóspede esperando indefinidamente.\nRegra: conversa `needs_human` com `handoff_at` cuja ÚLTIMA fala (fora nota interna) é do hóspede ⇒\n - ≥ GUEST_AI_WATCHDOG_REMIND_MIN (padrão 10): novo push de urgência alta (1º lembrete);\n - ≥ GUEST_AI_WATCHDOG_ESCALATE_MIN (padrão 30): segundo aviso (escalonamento).\nCada etapa dispara UMA vez (colunas `handoff_reminded_at` / `handoff_escalated_at`). Nunca fala com o hóspede,\nnunca muda o status da conversa, nunca lança. Desligável com GUEST_AI_WATCHDOG=off.",
+    "content": "VIGIA DE ENCAMINHAMENTOS SEM RESPOSTA (14/11/2026). O encaminhamento da IA é silencioso: o hóspede não recebe\naviso, e a equipe recebe UM push. Sem este vigia, um push perdido deixa o hóspede esperando indefinidamente.\nRegra: conversa `needs_human` com `handoff_at` cuja ÚLTIMA fala (fora nota interna) é do hóspede ⇒\n - ≥ GUEST_AI_WATCHDOG_REMIND_MIN (padrão 10): novo push de urgência alta (1º lembrete);\n - ≥ GUEST_AI_WATCHDOG_ESCALATE_MIN (padrão 30): segundo aviso (escalonamento).\nCada etapa dispara UMA vez (colunas `handoff_reminded_at` / `handoff_escalated_at`). Nunca fala com o hóspede,\n(23/11/2026, caso Roberto/Studio 101) Também cobre conversa já ASSUMIDA (`assigned`) cuja última fala é do hóspede\ne cujo turno da IA para essa mensagem falhou, foi recusado ou pediu a equipe: ali ninguém era avisado de novo. O\ntempo conta da mensagem do hóspede, e cada nova mensagem sem resposta reabre um lembrete e um escalonamento.\nnunca muda o status da conversa, nunca lança. Desligável com GUEST_AI_WATCHDOG=off.",
     "source_path": "src/lib/handoff-watchdog.server.ts",
     "audience": [],
-    "content_hash": "d9e764632c9e3577c1e0383eeaadb18c"
+    "content_hash": "5b48c3ad4d90c90c1bac532e0b404c8d"
   },
   {
     "doc_key": "rule:WHATSAPP_STANDBY_REASON",
@@ -9778,5 +9913,14 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/guest-ai/ops/policy.ts",
     "audience": [],
     "content_hash": "221a0b2591bda3c8f1b316dc797510b7"
+  },
+  {
+    "doc_key": "rule:WORDS",
+    "kind": "rule",
+    "title": "Regra — WORDS",
+    "content": "PALAVRA RELATIVA NO LUGAR DA DATA (regra global de 23/11/2026): Hoje, Amanhã, Ontem, Anteontem e Depois de\nAmanhã substituem a data quando couberem; fora dessa janela de ±2 dias, a data \"dd/mm/aaaa\". Quem desenha\nmostra a palavra SEMPRE em negrito e na cor do status (ver `RelDay`, `src/components/handoff/stay-view.tsx`).\nDatas no fuso de São Paulo. Puro: sem relógio próprio quando `today` é informado.",
+    "source_path": "src/lib/relative-day.ts",
+    "audience": [],
+    "content_hash": "7132cbf1a71d71727efa347636e0fc32"
   }
 ];

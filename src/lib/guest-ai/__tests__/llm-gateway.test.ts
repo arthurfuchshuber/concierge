@@ -393,7 +393,10 @@ describe("F2-A · isolamento no repositório", () => {
       // Decisão humana com 1 clique (10/11/2026): a resposta ÚNICA da IA depois do clique — lista nominal
       /lib[\\/]guest-ai-decision-reply\.server\.ts$/,
       // Chamado de ocorrência (15/11/2026): tipos do transporte e a chamada barata do detector — lista nominal
-      /lib[\\/]guest-ai-incidents[\\/](contracts\.ts|detector\.server\.ts)$/]; // B3.3: Shadow (tipos + gerador emitido)
+      /lib[\\/]guest-ai-incidents[\\/](contracts\.ts|detector\.server\.ts)$/,
+      // Atendimento refatorado (26/11/2026): "a equipe já respondeu?" da faixa de decisão e as leituras da tela
+      // (Instruir a IA, aviso de escopo, sugestão de situação regional) — lista nominal
+      /lib[\\/](guest-ai-decision-topic|atendimento-ai)\.server\.ts$/]; // B3.3: Shadow (tipos + gerador emitido)
     expect(offenders.filter((f) => !allowed.some((re) => re.test(f))).map((f) => path.relative(SRC, f))).toEqual([]);
   });
   it("o gateway convencional do SaaS (src/lib/llm) não importa o do Guest AI", () => {

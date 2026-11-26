@@ -58,7 +58,7 @@ describe("extração da rajada (determinística)", () => {
       late: { time: "16:00", day: 23 },
       early: { time: "10:00", day: 19 },
     });
-    expect(q).toBe("Clarisse pede entrada às 10h no dia 19 (oficial 15h) e saída às 16h no dia 23 (oficial 11h). Aprovar os dois como cortesia?");
+    expect(q).toBe("Clarisse pede entrada às **10h00** no dia 19 (oficial **15h00**) e saída às **16h00** no dia 23 (oficial **11h00**).");
   });
 });
 
@@ -75,6 +75,7 @@ function fakeDb(rows: Rows, rpc: (fn: string, args: Record<string, unknown>) => 
         eq: (k: string, v: unknown) => (filters.push([k, v]), q),
         neq: () => q,
         gte: () => q,
+        gt: () => q,
         lte: () => q,
         in: () => q,
         order: () => q,
@@ -112,9 +113,9 @@ describe("openHumanDecision · rajada", () => {
     expect(r).toMatchObject({ opened: true, kind: "operational_concession" });
     const call = f.calls.find((c) => c.fn === "guest_ai_decision_open")!;
     expect(String(call.args["p_question_text"])).toBe(
-      "Clarisse pede entrada às 10h no dia 19 (oficial 15h) e saída às 16h no dia 23 (oficial 11h). Aprovar os dois como cortesia?",
+      "Clarisse pede entrada às **10h00** no dia 19 (oficial **15h00**) e saída às **16h00** no dia 23 (oficial **11h00**).",
     );
-    expect((call.args["p_options"] as Array<{ label: string }>)[0]!.label).toBe("Aprovar os dois (cortesia)");
+    expect((call.args["p_options"] as Array<{ label: string }>)[0]!.label).toBe("Aprovar os Dois como Cortesia");
   });
   it("só a entrada: o tipo vira early_checkin (não 'late check-out às 10h')", async () => {
     const rows = ROWS();
@@ -125,7 +126,7 @@ describe("openHumanDecision · rajada", () => {
       { db: f.db },
     );
     expect(r).toMatchObject({ opened: true, kind: "early_checkin" });
-    expect(String(f.calls.find((c) => c.fn === "guest_ai_decision_open")!.args["p_question_text"])).toMatch(/entrada às 10h no dia 19 \(oficial 15h\)/);
+    expect(String(f.calls.find((c) => c.fn === "guest_ai_decision_open")!.args["p_question_text"])).toMatch(/entrada às \*\*10h00\*\* no dia 19, sendo o oficial às \*\*15h00\*\*/);
   });
 });
 
@@ -205,25 +206,56 @@ describe("auto-resolução quando a equipe responde", () => {
     expect(f.calls.map((c) => c.fn)).toEqual(["guest_ai_decision_claim"]);
     expect(await resolvePendingDecisionsOnHumanMessage("c1", {}, { db: fakeDb({}).db })).toBe(0);
   });
+  it("com o texto da equipe: só encerra quando a fala é sobre o MESMO pedido (25/11/2026)", async () => {
+    const rows = () => ({
+      guest_ai_human_decisions: decisions().map((d) => ({ ...d, trigger_message_id: "g1", question_text: "Clarisse pede saída às **13h00**." })),
+      property_chat_messages: [{ id: "g1", conversation_id: "c1", content: "posso sair às 13h?", created_at: "2026-11-25T10:00:00Z" }],
+    });
+    const rpc = (fn: string) => (fn === "guest_ai_decision_claim" ? { data: { result: "claimed" } } : { data: { result: "marked" } });
+    const seen: Array<readonly string[]> = [];
+    // outro assunto: a faixa continua
+    const other = fakeDb(rows(), rpc);
+    const n0 = await resolvePendingDecisionsOnHumanMessage("c1", { text: "o wi-fi é CASA123" }, {
+      db: other.db,
+      topic: async (i) => (seen.push(i.teamMessages), "not_answered"),
+    });
+    expect(n0).toBe(0);
+    expect(other.calls).toEqual([]);
+    expect(seen[0]).toContain("o wi-fi é CASA123");
+    // mesmo assunto: vira "Respondido direto pela equipe"
+    const same = fakeDb(rows(), rpc);
+    expect(await resolvePendingDecisionsOnHumanMessage("c1", { text: "pode sair às 13h sim" }, { db: same.db, topic: async () => "answered" })).toBe(1);
+    expect(same.calls[0]).toMatchObject({ fn: "guest_ai_decision_claim", args: { p_option_id: "assume" } });
+    // leitura incerta: encerra (a IA nunca fala por cima da equipe)
+    const unsure = fakeDb(rows(), rpc);
+    expect(await resolvePendingDecisionsOnHumanMessage("c1", { text: "ok" }, { db: unsure.db, topic: async () => "unknown" })).toBe(1);
+  });
   it("ligada ao envio pelo painel/IA e à mensagem do anfitrião vinda do Airbnb", () => {
     const send = readFileSync(path.join(SRC, "lib/handoff-send.server.ts"), "utf8");
-    expect(send).toMatch(/resolvePendingDecisionsOnHumanMessage\(data\.conversationId, \{ actorUserId: userId \}\)/);
+    // 26/11/2026: o texto vai junto — a faixa só some se a equipe respondeu o MESMO assunto
+    expect(send).toMatch(/resolvePendingDecisionsOnHumanMessage\(data\.conversationId, \{ actorUserId: userId, text: content \}\)/);
     const channex = readFileSync(path.join(SRC, "lib/channex-messages.server.ts"), "utf8");
     expect(channex).toMatch(/if \(!automated\) \{\s*try \{\s*const \{ resolvePendingDecisionsOnHumanMessage \}/);
+    expect(channex).toMatch(/resolvePendingDecisionsOnHumanMessage\(c\.id, \{ text: m\.text \}\)/);
   });
 });
 
-describe("dock fixo no chat", () => {
+describe("faixa da decisão no chat (ATD-D04/M05, D18/M21)", () => {
   const view = readFileSync(path.join(SRC, "components/handoff/ConversationView.tsx"), "utf8");
   const card = readFileSync(path.join(SRC, "components/handoff/DecisionCard.tsx"), "utf8");
-  it("o painel pendente fica acima do campo de digitação; no fluxo só um aviso", () => {
-    expect(view).toMatch(/<DecisionDock[\s\S]*?\/>\s*\n\s*\{status !== "resolved" && !canChat/);
-    expect(view.match(/variant="ref"/g)?.length).toBe(2);
-    expect(card).toMatch(/border-amber-500\/40 bg-amber-500\/10/);
-    expect(card).toMatch(/data-testid=\{dock \? "decision-dock"/);
+  it("pendente: faixa presa abaixo da mensagem do hóspede; decidida: linha de registro", () => {
+    expect(view).toMatch(/<DecisionStrip/);
+    expect(view).toMatch(/<DecisionRecord/);
+    expect(card).toMatch(/data-testid="decision-strip"/);
+    expect(card).toMatch(/data-testid="decision-record"/);
   });
-  it("ao decidir, o dock mostra o sucesso na hora", () => {
-    expect(card).toMatch(/onResolved\?\.\(r\.message \?\? ""\)/);
-    expect(card).toMatch(/data-state="resolved"/);
+  it("ao clicar, o campo de mensagem fica bloqueado até a IA entregar a resposta", () => {
+    expect(view).toMatch(/const sendingDecision = !!pickedOption \|\| decisions\.list\.some\(decisionSending\)/);
+    expect(view).toMatch(/if \(!text\.trim\(\) \|\| send\.isPending \|\| sendingDecision\) return;/);
+    expect(view).toMatch(/A IA está enviando a resposta…/);
+  });
+  it("ao decidir, as consultas da decisão, conversa e lista são renovadas", () => {
+    expect(card).toMatch(/invalidateQueries\(\{ queryKey: \["conv-decisions", conversationId\] \}\)/);
+    expect(card).toMatch(/invalidateQueries\(\{ queryKey: \["handoff-list"\] \}\)/);
   });
 });

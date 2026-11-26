@@ -262,13 +262,15 @@ export async function openHumanDecision(input: OpenDecisionInput, deps: { db?: D
     const lateArrivalCard = kind === "operational_concession" && !both && !!burst.lateArrival;
     const options = lateArrivalCard
       ? buildDecisionOptions("operational_concession", null).map((o) =>
-          o.id === "approve" ? { ...o, label: "Receber mais tarde" } : o,
+          o.id === "approve" ? { ...o, label: "Receber Mais Tarde" } : o,
         )
       : both
       ? buildDecisionOptions("operational_concession", null).map((o) =>
-          o.id === "approve" ? { ...o, label: "Aprovar os dois (cortesia)" } : o,
+          o.id === "approve" ? { ...o, label: "Aprovar os Dois como Cortesia" } : o,
         )
-      : buildDecisionOptions(kind, time);
+      : buildDecisionOptions(kind, time, {
+          conflict: kind === "early_checkin" ? sameDayDeparture === true : kind === "late_checkout" ? sameDayArrival === true : false,
+        });
     const { data, error } = await db.rpc("guest_ai_decision_open", {
       p_tenant_id: prop.owner_id,
       p_property_id: conv.property_id,
@@ -293,11 +295,14 @@ export async function openHumanDecision(input: OpenDecisionInput, deps: { db?: D
 
 export type DecideResult =
   | { ok: true; outcome: "replied" | "silent"; replySource?: "model" | "fallback" }
+  | { ok: true; outcome: "already_answered" }
   | { ok: true; outcome: "reply_failed"; code: string }
   | { ok: false; code: "already_decided"; decidedBy: string | null; decidedAt: string | null; decidedOptionId: string | null }
   | { ok: false; code: "not_found" | "forbidden" | "invalid" | "action_failed" | "late_checkout_rejected" | "not_authorized" | "error" };
 
 export interface DecideDeps {
+  /** Teste: substitui a leitura "a equipe já respondeu este pedido?". */
+  topic?: (i: import("@/lib/guest-ai-decision-topic.server").TopicInput) => Promise<import("@/lib/guest-ai-decision-topic.server").TopicVerdict>;
   db?: DecisionDb;
   reply?: (input: DecisionReplyInput) => Promise<{ text: string; source: "model" | "fallback" }>;
   /** Entrega pelo canal de origem; devolve o id da mensagem gravada ou null quando não entregou. */
@@ -335,7 +340,8 @@ async function setLateCheckout(
 }
 
 /** Entrega padrão: Airbnb pela Channex (como a IA), WhatsApp em standby (não entrega), guia grava no chat. */
-async function defaultDeliver(p: { conversationId: string; session: string; propertyId: string; text: string }): Promise<string | null> {
+/** Entrega UMA mensagem da IA pelo canal da conversa (Airbnb, guia; WhatsApp em standby ⇒ null). */
+export async function deliverAiMessage(p: { conversationId: string; session: string; propertyId: string; text: string }): Promise<string | null> {
   const db = await adminDb();
   if (p.session.startsWith("airbnb:")) {
     const { deliverToAirbnbThread } = await import("@/lib/channex-messages.server");
@@ -385,6 +391,21 @@ export async function decideHumanDecision(
 ): Promise<DecideResult> {
   try {
     const db = deps.db ?? (await adminDb());
+    // 0) CONFERE ANTES DE ENVIAR (25/11/2026): se a equipe já respondeu ao hóspede sobre este pedido depois que ele
+    //    foi feito (painel ou direto no Airbnb), a decisão vira "respondida pela equipe" e NADA vai ao hóspede.
+    const answered = await teamAlreadyAnswered(db, input.decisionId, deps.topic);
+    if (answered.verdict === "answered" && answered.assumeId) {
+      const claimed = await db.rpc("guest_ai_decision_claim", {
+        p_decision_id: input.decisionId,
+        p_actor: input.userId,
+        p_option_id: answered.assumeId,
+      });
+      const cc = (claimed.data ?? {}) as Record<string, any>;
+      if (!claimed.error && cc.result === "claimed") {
+        await db.rpc("guest_ai_decision_mark_reply", { p_decision_id: input.decisionId, p_status: "silent", p_message_id: null });
+        return { ok: true, outcome: "already_answered" };
+      }
+    }
     // 1) trava atômica contra duplo clique (o banco também confere o acesso de quem clicou ao imóvel)
     const claim = await db.rpc("guest_ai_decision_claim", {
       p_decision_id: input.decisionId,
@@ -471,7 +492,7 @@ export async function decideHumanDecision(
     const reply = deps.reply
       ? await deps.reply(replyInput)
       : await (await import("@/lib/guest-ai-decision-reply.server")).generateDecisionReply(replyInput);
-    const deliver = deps.deliver ?? defaultDeliver;
+    const deliver = deps.deliver ?? deliverAiMessage;
     const messageId = await deliver({
       conversationId: d.conversation_id,
       session: String(conv.guest_session_id ?? ""),
@@ -514,15 +535,71 @@ export async function expirePendingDecisions(conversationId: string, deps: { db?
 
 
 /**
- * A equipe respondeu o hóspede por conta própria (painel, IA ou direto no Airbnb): as decisões pendentes da
- * conversa viram "assumidas pela equipe" (sem resposta da IA) e o cartão sai do painel. `actorUserId` é quem
- * respondeu; sem ele (mensagem sincronizada do Airbnb) vale o titular da decisão. Usa só as RPCs da decisão
- * (a tabela é somente leitura). Melhor esforço: nunca lança.
+ * Falas da equipe (não notas) depois do pedido e o veredito "já respondeu este assunto?". Sem fala da equipe ⇒
+ * `not_answered` sem modelo. Nunca lança (erro ⇒ `unknown`).
+ */
+export async function teamAlreadyAnswered(
+  db: DecisionDb,
+  decisionId: string,
+  topic?: DecideDeps["topic"],
+  extraTeamText?: string | null,
+): Promise<{ verdict: "answered" | "not_answered" | "unknown"; assumeId: string | null }> {
+  try {
+    const { data: row } = await db
+      .from("guest_ai_human_decisions")
+      .select("id, conversation_id, trigger_message_id, question_text, options, status")
+      .eq("id", decisionId)
+      .maybeSingle();
+    const r = row as (Pick<HumanDecisionRow, "conversation_id" | "trigger_message_id" | "question_text" | "options" | "status"> & { id: string }) | null;
+    if (!r) return { verdict: "unknown", assumeId: null };
+    const assumeId = (r.options ?? []).find((o) => o.ai_intent === "assume")?.id ?? null;
+    const { data: trig } = await db
+      .from("property_chat_messages")
+      .select("content, created_at")
+      .eq("id", r.trigger_message_id)
+      .maybeSingle();
+    const since = (trig as { created_at?: string } | null)?.created_at ?? null;
+    let team: string[] = [];
+    if (since) {
+      const { data: rows } = await db
+        .from("property_chat_messages")
+        .select("content, created_at")
+        .eq("conversation_id", r.conversation_id)
+        .eq("sender_type", "human")
+        .eq("is_internal_note", false)
+        .gt("created_at", since)
+        .order("created_at", { ascending: true })
+        .limit(12);
+      team = ((rows ?? []) as Array<{ content?: string | null }>).map((m) => String(m.content ?? "")).filter(Boolean);
+    }
+    if (extraTeamText && !team.includes(extraTeamText)) team.push(extraTeamText);
+    // Ninguém da equipe falou com o hóspede depois do pedido: não há o que conferir (e nenhuma chamada ao modelo).
+    if (team.length === 0) return { verdict: "not_answered", assumeId };
+    const input = {
+      decisionText: r.question_text,
+      guestMessage: String((trig as { content?: string | null } | null)?.content ?? ""),
+      teamMessages: team,
+    };
+    const verdict = topic
+      ? await topic(input)
+      : await (await import("@/lib/guest-ai-decision-topic.server")).teamAnsweredTopic(input);
+    return { verdict, assumeId };
+  } catch {
+    return { verdict: "unknown", assumeId: null };
+  }
+}
+
+/**
+ * A equipe respondeu o hóspede por conta própria (painel ou direto no Airbnb). A faixa da decisão sai (vira a
+ * linha de registro "Respondido direto pela equipe", sem resposta da IA) quando a fala é SOBRE O MESMO PEDIDO
+ * (25/11/2026); fala sobre outro assunto não mexe na faixa. Leitura incerta ⇒ encerra (o lado seguro: a IA nunca
+ * fala por cima da equipe). `actorUserId` é quem respondeu; sem ele (mensagem do Airbnb) vale o titular da
+ * decisão. Usa só as RPCs da decisão (a tabela é somente leitura). Melhor esforço: nunca lança.
  */
 export async function resolvePendingDecisionsOnHumanMessage(
   conversationId: string,
-  opts: { actorUserId?: string | null } = {},
-  deps: { db?: DecisionDb } = {},
+  opts: { actorUserId?: string | null; text?: string | null } = {},
+  deps: { db?: DecisionDb; topic?: DecideDeps["topic"] } = {},
 ): Promise<number> {
   let resolved = 0;
   try {
@@ -535,6 +612,10 @@ export async function resolvePendingDecisionsOnHumanMessage(
     for (const r of (data ?? []) as Array<{ id: string; tenant_id: string; options: DecisionOption[] | null }>) {
       const assume = (r.options ?? []).find((o) => o.ai_intent === "assume");
       if (!assume) continue;
+      if (opts.text != null) {
+        const { verdict } = await teamAlreadyAnswered(db, r.id, deps.topic, opts.text);
+        if (verdict === "not_answered") continue; // outro assunto: a faixa continua
+      }
       const claim = await db.rpc("guest_ai_decision_claim", {
         p_decision_id: r.id,
         p_actor: opts.actorUserId || r.tenant_id,

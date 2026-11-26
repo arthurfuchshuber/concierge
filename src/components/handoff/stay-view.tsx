@@ -1,20 +1,17 @@
 /**
- * Dados da reserva no ATENDIMENTO (mockup "Atendimento: lista e cabeçalho",
- * aprovado em 16/10/2026): uma informação por linha, na mesma ordem do card do
- * Kanban. Usado pelos cards da lista lateral e pelo cabeçalho do chat.
- *
- * - Cores IDÊNTICAS às do card do Kanban (card-colors.ts: azul chegada, verde estadia,
- *   laranja saída, vermelho atraso/cancelada).
- * - Etiqueta ao lado do nome: FASE da reserva (Chega hoje, Em estadia…) na cor
- *   do status; "Cancelada" em vermelho; "Consulta" em amarelo fraco (o hóspede
- *   ainda não tem reserva). Reserva encerrada não leva etiqueta.
- * - "Data Indisponível" só aparece na Consulta, ao lado direito da etiqueta; as demais linhas
- *   (Estadia, Reserva) continuam quando houver dado.
- * - Ícone de pessoas com número: quantas pessoas abriram o guia dessa reserva.
+ * Dados da reserva no ATENDIMENTO (mockups ATD-D/M, aprovados em 23–26/11/2026). Usado pelos cards da lista e
+ * pelo cabeçalho da conversa. Sem tabela rotulada (Período/Estadia/Reserva) e sem etiquetas de fase:
+ *  - hóspede com o ícone de pessoa;
+ *  - período "dd/mm/aaaa → dd/mm/aaaa" na COR DA ETAPA (a mesma do card do Kanban), com Hoje/Amanhã/Ontem/
+ *    Anteontem/Depois de Amanhã no lugar da data, SEMPRE em negrito (regra global de 23/11/2026);
+ *  - "N noites · N hóspedes · CÓDIGO" em tom secundário, com o botão de copiar o código logo à direita
+ *    (regra global de 24/11/2026).
+ * A barra lateral do card continua na cor da fase (`stayBarClass`).
  */
-import { CalendarDays, Hash, Moon, Users } from "lucide-react";
-import { CopyButton } from "@/components/CopyButton";
+import { CalendarDays, Copy, Moon, User } from "lucide-react";
+import { toast } from "sonner";
 import type { HandoffGuestDetail, HandoffReservationMatch } from "@/lib/handoff.schemas";
+import { formatDayBR, relativeDayWord, todaySaoPauloIso } from "@/lib/relative-day";
 
 type StayTone = "sky" | "emerald" | "orange" | "cream" | "red" | "none";
 
@@ -32,10 +29,6 @@ export type StayView = {
 
 const DAY = 86_400_000;
 
-function todaySaoPaulo(): string {
-  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
-}
-
 const dayNum = (iso: string) => Math.round(Date.parse(`${iso}T00:00:00Z`) / DAY);
 
 /** "2026-10-18" → "18/10" */
@@ -46,7 +39,7 @@ function fmtDM(iso: string | null | undefined): string | null {
 }
 
 function phaseOf(checkin: string, checkout: string | null): { label: string | null; tone: StayTone } {
-  const today = dayNum(todaySaoPaulo());
+  const today = dayNum(todaySaoPauloIso());
   const ci = dayNum(checkin);
   const co = checkout ? dayNum(checkout) : ci;
   if (today < ci) {
@@ -60,7 +53,7 @@ function phaseOf(checkin: string, checkout: string | null): { label: string | nu
     return { label: `Em estadia · sai ${fmtDM(checkout)}`, tone: "emerald" };
   }
   if (today === co) return { label: "Sai hoje", tone: "orange" };
-  return { label: null, tone: "none" }; // encerrada: sem etiqueta
+  return { label: null, tone: "none" }; // encerrada
 }
 
 export function buildStayView(args: {
@@ -94,7 +87,7 @@ function nightsOf(ci: string | null, co: string | null): number | null {
 }
 
 /** Barra lateral do card (cor da fase). */
-export function stayBarClass(s: StayView): string {
+export function stayBarClass(s: Pick<StayView, "tone">): string {
   switch (s.tone) {
     case "sky":
       return "bg-sky-400";
@@ -102,8 +95,6 @@ export function stayBarClass(s: StayView): string {
       return "bg-emerald-400";
     case "orange":
       return "bg-orange-400";
-    case "cream":
-      return "bg-muted-foreground/40";
     case "red":
       return "bg-red-500";
     default:
@@ -111,137 +102,108 @@ export function stayBarClass(s: StayView): string {
   }
 }
 
-const TAG_THEME: Record<Exclude<StayTone, "none">, string> = {
-  sky: "bg-sky-500/15 text-sky-700 dark:bg-sky-400/15 dark:text-sky-300",
-  emerald: "bg-emerald-500/15 text-emerald-700 dark:bg-emerald-400/15 dark:text-emerald-300",
-  orange: "bg-orange-500/15 text-orange-600 dark:bg-orange-400/15 dark:text-orange-400",
-  // Consulta: amarelo-creme PRÓPRIO (matiz ~100°), distinto do âmbar de "pendente/atenção" e do laranja de saída.
-  cream: "bg-[oklch(0.88_0.09_100/0.2)] text-[oklch(0.45_0.09_100)] dark:bg-[oklch(0.88_0.09_100/0.14)] dark:text-[oklch(0.88_0.1_100)]",
-  red: "bg-red-500/15 text-red-800 dark:bg-red-500/15 dark:text-red-400",
-};
-// O cabeçalho do chat tem tema claro fixo (independe do modo do app): classes sem `dark:`.
-const TAG_LIGHT: Record<Exclude<StayTone, "none">, string> = {
-  sky: "bg-sky-100 text-sky-800",
-  emerald: "bg-emerald-50 text-emerald-700",
-  orange: "bg-orange-50 text-orange-600",
-  cream: "bg-[oklch(0.95_0.05_100)] text-[oklch(0.45_0.09_100)]",
-  red: "bg-red-50 text-red-800",
-};
-
-/** Etiqueta ao lado do nome. `light`: cabeçalho do chat (tema claro fixo). */
-export function StayTag({ stay, light = false }: { stay: StayView; light?: boolean }) {
-  if (!stay.tagLabel || stay.tone === "none") return null;
-  const theme = (light ? TAG_LIGHT : TAG_THEME)[stay.tone];
-  const chip = (
-    <span className={`inline-flex shrink-0 items-center rounded-full px-2 py-[2px] text-[10.5px] font-semibold leading-none ${theme}`}>
-      {stay.tagLabel}
-    </span>
-  );
-  // "Data Indisponível" só na Consulta, ao lado direito da etiqueta (as demais linhas do card seguem iguais).
-  if (stay.kind !== "consulta") return chip;
-  return (
-    <>
-      {chip}
-      <span className={`min-w-0 truncate text-[10.5px] font-semibold ${light ? "text-zinc-700" : "text-foreground"}`}>
-        Data Indisponível
-      </span>
-    </>
-  );
+/** Cor do texto do período e da palavra relativa (a cor da etapa, igual ao card do Kanban). */
+export function stayToneText(s: Pick<StayView, "tone">, fallback = "text-foreground"): string {
+  switch (s.tone) {
+    case "orange":
+      return "text-orange-600";
+    case "sky":
+      return "text-sky-700";
+    case "emerald":
+      return "text-emerald-700";
+    case "red":
+      return "text-red-800";
+    default:
+      return fallback;
+  }
 }
 
-/** Ícone de pessoas + número, ao lado do telefone. Some quando ninguém abriu o guia. */
-export function GuideViewers({ count }: { count: number }) {
-  if (!count) return null;
-  const label = count === 1 ? "1 pessoa acessou o guia desta reserva" : `${count} pessoas acessaram o guia desta reserva`;
+/** Data ou palavra relativa (negrito + cor do status). */
+export function RelDay({ iso, toneClass }: { iso: string | null; toneClass: string }) {
+  const word = relativeDayWord(iso);
+  if (word) return <strong className={`font-bold ${toneClass}`}>{word}</strong>;
+  return <>{formatDayBR(iso)}</>;
+}
+
+/** Plural certo de noites/hóspedes. */
+export const nightsLabel = (n: number) => `${n} ${n === 1 ? "noite" : "noites"}`;
+export const guestsLabel = (n: number) => `${n} ${n === 1 ? "hóspede" : "hóspedes"}`;
+
+/** Botão de copiar o código da reserva (mesma cor cinza do texto secundário). */
+export function CopyCode({ code, className = "" }: { code: string; className?: string }) {
   return (
-    <span
-      className="inline-flex shrink-0 items-center gap-0.5 text-[11px] font-semibold tabular-nums text-muted-foreground"
-      title={label}
-      aria-label={label}
+    <button
+      type="button"
+      aria-label="Copiar código da reserva"
+      title="Copiar código da reserva"
+      onClick={(e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        navigator.clipboard
+          ?.writeText(code)
+          .then(() => toast.success("Código copiado"))
+          .catch(() => toast.error("Não foi possível copiar"));
+      }}
+      className={`-m-1 inline-flex size-5 shrink-0 items-center justify-center rounded-md p-1 text-muted-foreground transition-colors hover:text-foreground ${className}`}
     >
-      <Users className="size-3" />
-      {count}
-    </span>
+      <Copy className="size-3" />
+    </button>
   );
 }
 
-function Line({
-  icon: Icon,
-  label,
-  labelW,
-  iconCls,
-  value,
-  extra,
-}: {
-  icon: typeof Hash;
-  label: string;
-  labelW: string;
-  iconCls: string;
-  value: React.ReactNode;
-  extra?: React.ReactNode;
-}) {
-  // Idêntico ao mockup: ícone · rótulo (largura fixa) · valor em negrito · complemento (mesmo gap de 8px).
+/** Linha do hóspede (ícone de pessoa à esquerda; sem ícone de canal). */
+export function StayGuestLine({ name, size = "text-[12px]" }: { name: string; size?: string }) {
   return (
-    <div className="flex min-w-0 items-center gap-2 whitespace-nowrap tabular-nums">
-      <Icon className={`${iconCls} shrink-0 text-muted-foreground`} />
-      <span className={`${labelW} shrink-0 text-muted-foreground`}>{label}</span>
-      <span className="font-semibold text-foreground">{value}</span>
-      {extra}
+    <div className="flex min-w-0 items-center gap-1.5 text-muted-foreground">
+      <User className="size-3.5 shrink-0" />
+      <span className={`min-w-0 truncate ${size} font-medium`} title={name}>
+        {name}
+      </span>
     </div>
   );
 }
 
-/**
- * Linhas Período · Estadia · Reserva (Consulta não tem Período: a nota fica ao lado da etiqueta).
- * `size="md"` = cabeçalho do chat; `size="sm"` = card da lista.
- */
-export function StayLines({ stay, size = "sm" }: { stay: StayView; size?: "sm" | "md" }) {
-  const text = size === "md" ? "text-[12.5px]" : "text-[11.5px]";
-  const labelW = size === "md" ? "w-[68px]" : "w-[52px]";
-  const iconCls = size === "md" ? "size-3.5" : "size-3";
-  const ci = fmtDM(stay.checkin);
-  const co = fmtDM(stay.checkout);
-  const guests = stay.guests ? (
-    <span className="font-semibold text-foreground">
-      · {stay.guests} {stay.guests === 1 ? "hóspede" : "hóspedes"}
-    </span>
-  ) : null;
+/** Período "início → fim" na cor da etapa. */
+export function StayPeriodLine({ stay, size = "text-[12px]" }: { stay: StayView; size?: string }) {
+  if (!stay.checkin) return null;
+  const tone = stayToneText(stay);
   return (
-    <div className={`flex flex-col gap-0.5 ${text}`}>
-      {ci && <Line icon={CalendarDays} label="Período" labelW={labelW} iconCls={iconCls} value={co ? `${ci} a ${co}` : ci} />}
-      {stay.nights != null && (
-        <Line
-          icon={Moon}
-          label="Estadia"
-          labelW={labelW}
-          iconCls={iconCls}
-          value={`${stay.nights} ${stay.nights === 1 ? "noite" : "noites"}`}
-          extra={guests}
-        />
-      )}
-      {stay.nights == null && stay.guests ? (
-        <Line
-          icon={Moon}
-          label="Estadia"
-          labelW={labelW}
-          iconCls={iconCls}
-          value={`${stay.guests} ${stay.guests === 1 ? "hóspede" : "hóspedes"}`}
-        />
+    <div className={`flex min-w-0 items-center gap-1.5 whitespace-nowrap tabular-nums ${size} font-medium ${tone}`}>
+      <CalendarDays className="size-3.5 shrink-0" />
+      <span>
+        <RelDay iso={stay.checkin} toneClass={tone} />
+      </span>
+      {stay.checkout ? (
+        <>
+          <span aria-hidden="true">→</span>
+          <span>
+            <RelDay iso={stay.checkout} toneClass={tone} />
+          </span>
+        </>
       ) : null}
-      {stay.code && (
-        <Line
-          icon={Hash}
-          label="Reserva"
-          labelW={labelW}
-          iconCls={iconCls}
-          value={stay.code}
-          extra={
-            <span onClick={(e) => e.stopPropagation()}>
-              <CopyButton value={stay.code} size={11} />
-            </span>
-          }
-        />
-      )}
+    </div>
+  );
+}
+
+/** "N noites · N hóspedes · CÓDIGO" + copiar. Some quando não há nenhum dos três. */
+export function StayNightsLine({ stay, size = "text-[12px]" }: { stay: StayView; size?: string }) {
+  const parts: string[] = [];
+  if (stay.nights != null) parts.push(nightsLabel(stay.nights));
+  if (stay.guests) parts.push(guestsLabel(stay.guests));
+  if (parts.length === 0 && !stay.code) return null;
+  return (
+    <div className={`flex min-w-0 items-center gap-1.5 whitespace-nowrap tabular-nums ${size} font-medium text-muted-foreground`}>
+      <Moon className="size-3.5 shrink-0" />
+      <span className="truncate">
+        {parts.join(" · ")}
+        {stay.code ? (
+          <>
+            {parts.length ? " · " : ""}
+            <span className="tracking-[0.02em] text-foreground/75">{stay.code}</span>
+          </>
+        ) : null}
+      </span>
+      {stay.code ? <CopyCode code={stay.code} /> : null}
     </div>
   );
 }

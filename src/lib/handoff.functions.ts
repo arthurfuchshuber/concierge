@@ -1294,6 +1294,13 @@ export const sendHandoffMessage = createServerFn({ method: "POST" })
     if (!data.internalNote) {
       const { triggerIncidentDetector } = await import("@/lib/guest-ai-incidents/detector.server");
       await triggerIncidentDetector({ conversationId: data.conversationId, trigger: "team", messageId: sent?.messageId ?? null });
+      // SITUAÇÃO REGIONAL (26/11/2026): a fala da equipe pode descrever um problema da região ⇒ sugestão de marcar.
+      const { runInBackground } = await import("@/lib/background.server");
+      const sug = { conversationId: data.conversationId, messageId: sent?.messageId ?? null, text: data.content };
+      await runInBackground(async () => {
+        const { suggestRegionalFromTeamMessage } = await import("@/lib/regional-suggest.server");
+        await suggestRegionalFromTeamMessage(sug);
+      });
     }
     // AUTO-APRENDIZADO (10/11/2026): fato do imóvel dito pela equipe ao hóspede entra no Documento Vivo (governança
     // por exceção). Segundo plano: nunca atrasa nem derruba o envio. Nota interna não ensina nada.

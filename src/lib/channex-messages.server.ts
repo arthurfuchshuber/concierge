@@ -1085,9 +1085,19 @@ export async function pauseOnHostMessage(m: Inbound, automated = false): Promise
     if (!automated) {
       try {
         const { resolvePendingDecisionsOnHumanMessage } = await import("@/lib/guest-ai-decision.server");
-        await resolvePendingDecisionsOnHumanMessage(c.id);
+        await resolvePendingDecisionsOnHumanMessage(c.id, { text: m.text });
       } catch (e) {
         console.warn("[channex-messages] auto-resolução da decisão falhou", e);
+      }
+      try {
+        const { runInBackground } = await import("@/lib/background.server");
+        const sug = { conversationId: c.id, messageId: null, text: m.text };
+        await runInBackground(async () => {
+          const { suggestRegionalFromTeamMessage } = await import("@/lib/regional-suggest.server");
+          await suggestRegionalFromTeamMessage(sug);
+        });
+      } catch (e) {
+        console.warn("[channex-messages] sugestão de situação regional falhou", e);
       }
     }
   }

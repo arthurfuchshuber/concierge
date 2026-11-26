@@ -12,6 +12,8 @@ export const ROUTE_PERMISSIONS: Array<{ prefix: string; permission: string }> = 
   { prefix: "/admin/prestadores", permission: "tenant.stakeholders" },
   { prefix: "/admin/hospedes", permission: "tenant.stakeholders.hospedes" },
   { prefix: "/admin/atendimento", permission: "tenant.atendimento" },
+  // Aprendizados da IA (25/11/2026): mesma área do Atendimento; aprovar exige ainda titular/admin/`ai_train` (RPC).
+  { prefix: "/admin/aprendizados", permission: "tenant.atendimento" },
   { prefix: "/admin/administrativo", permission: "tenant.administrativo" },
   { prefix: "/admin/assinatura", permission: "tenant.administrativo.assinatura" },
   { prefix: "/admin/integracoes", permission: "tenant.administrativo.integracoes" },

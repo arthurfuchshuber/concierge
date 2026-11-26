@@ -67,6 +67,8 @@ const TABLES = [
   "city_daily_news","guest_ai_turns",
   // 10/11/2026 — decisão humana com 1 clique (migration 20261110200000_guest_ai_human_decisions.sql).
   "guest_ai_human_decisions",
+  // 26/11/2026 — situação regional (migration 20261126120000_atendimento_regional_instrucoes.sql).
+  "guest_ai_regional_situations",
 ];
 
 /**
