@@ -299,14 +299,20 @@ export const getCleaningStats = createServerFn({ method: "GET" })
     );
     const providerNameByUser = new Map<string, string>();
     const displayNameByUser = new Map<string, string>();
-    if (doneByIds.length > 0) {
+    const { scopeDoneByIds } = await import("@/lib/done-by-scope.server");
+    const scoped = await scopeDoneByIds(
+      Array.from(new Set(rawAll.map((r) => r.property_id))),
+      doneByIds,
+    );
+    if (scoped.allowed.length > 0) {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       const [{ data: providers }, { data: profs }] = await Promise.all([
         supabaseAdmin
           .from("service_providers")
           .select("member_user_id, name, trade_name")
-          .in("member_user_id", doneByIds),
-        supabaseAdmin.from("profiles").select("id, full_name, trade_name").in("id", doneByIds),
+          .in("account_owner_id", scoped.ownerIds)
+          .in("member_user_id", scoped.allowed),
+        supabaseAdmin.from("profiles").select("id, full_name, trade_name").in("id", scoped.allowed),
       ]);
       for (const pf of (profs ?? []) as Array<{
         id: string;

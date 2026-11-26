@@ -164,12 +164,15 @@ export const listCleaningApprovals = createServerFn({ method: "GET" })
       new Set(list.map((r) => r.cleaning_done_by).filter((v): v is string => !!v)),
     );
     const nameByUser = new Map<string, string>();
-    if (doneByIds.length > 0) {
+    const { scopeDoneByIds } = await import("@/lib/done-by-scope.server");
+    const scoped = await scopeDoneByIds(propertyIdsInList, doneByIds);
+    if (scoped.allowed.length > 0) {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       const { data: providers } = await supabaseAdmin
         .from("service_providers")
         .select("member_user_id, name, trade_name")
-        .in("member_user_id", doneByIds);
+        .in("account_owner_id", scoped.ownerIds)
+        .in("member_user_id", scoped.allowed);
       for (const p of (providers ?? []) as Array<{
         member_user_id: string | null;
         name: string | null;

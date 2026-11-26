@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.kick_card_check() FROM PUBLIC, anon, authenticated;

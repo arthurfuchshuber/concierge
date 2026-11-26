@@ -114,7 +114,16 @@ export const listConversationAccountProperties = createServerFn({ method: "POST"
   .handler(async ({ data, context }): Promise<AccountProperty[]> => {
     const { prop } = await convOf(context.supabase, data.conversationId);
     if (!prop?.owner_id) return [];
-    return accountProperties(prop.owner_id);
+    const all = await accountProperties(prop.owner_id);
+    if (context.userId === prop.owner_id) return all;
+    // Membro: só os imóveis que ele mesmo enxerga (atribuições/RLS).
+    const { data: visible } = await context.supabase
+      .from("properties")
+      .select("id")
+      .eq("owner_id", prop.owner_id)
+      .limit(1000);
+    const ok = new Set(((visible ?? []) as Array<{ id: string }>).map((v) => String(v.id)));
+    return all.filter((p) => ok.has(p.id));
   });
 
 /** Imóveis da conta ativa (filtro "Imóveis" da busca do Atendimento). */

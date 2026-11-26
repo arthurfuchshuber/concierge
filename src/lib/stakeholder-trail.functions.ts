@@ -199,6 +199,7 @@ export const getStakeholderSystemTrail = createServerFn({ method: "POST" })
         "id, created_at, event_type, event_category, description, entity_type, entity_id, metadata, severity, result",
       )
       .or(`user_id.eq.${personId},actor_id.eq.${personId}`)
+      .eq("tenant_id", userId)
       .order("created_at", { ascending: false })
       .limit(data.limit ?? 300);
 

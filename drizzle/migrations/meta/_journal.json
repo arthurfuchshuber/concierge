@@ -176,6 +176,13 @@
       "when": 1795143211208,
       "tag": "0024_guard_can_read_permission_catalog",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1795700688607,
+      "tag": "0025_lock_kick_card_check",
+      "breakpoints": true
     }
   ]
 }
