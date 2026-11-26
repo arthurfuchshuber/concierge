@@ -6,20 +6,14 @@
  */
 import { getChannelCached } from "@/lib/channex-channel-cache.server";
 import { parseHostListing, type HostListing } from "@/lib/airbnb-host-api";
+import { usableAirbnbToken } from "@/lib/airbnb-token";
 
 const AIRBNB = "https://api.airbnb.com/v2";
 
 /** Token OAuth do canal Airbnb, lido pelo cache de canais (regra de 24/10/2026: nada de `GET /channels/:id` ao vivo). */
 async function channelToken(channelId: string): Promise<string | null> {
   const r = await getChannelCached(channelId);
-  const a = r?.data?.attributes;
-  if (a?.channel !== "AirBNB") return null;
-  const s = a?.settings ?? {};
-  if (s.token_invalid) return null;
-  const t = s.tokens?.access_token;
-  const exp = Number(s.tokens?.expires_at ?? 0);
-  if (!t || (exp && exp * 1000 < Date.now() + 60_000)) return null;
-  return String(t);
+  return usableAirbnbToken(r?.data?.attributes); // mascarado ("***") ⇒ null, sem chamar o Airbnb
 }
 
 async function get(path: string, token: string): Promise<unknown> {

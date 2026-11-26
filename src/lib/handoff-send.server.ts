@@ -100,7 +100,7 @@ export async function sendHumanMessageToConversation(
       strictSender: opts.strictSender,
     });
     if (!r.ok) {
-      if (r.failure === "preferred_sender_failed" || r.failure === "sender_mismatch") {
+      if (r.failure === "preferred_sender_failed" || r.failure === "sender_mismatch" || r.failure === "sender_unresolved") {
         throw new Error(
           "A conta remetente configurada para este anúncio não pôde enviar. Nada foi enviado por outra conta.",
         );

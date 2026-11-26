@@ -380,7 +380,7 @@ export interface StrictSenderOptions {
 }
 
 export class StrictSenderError extends Error {
-  constructor(readonly code: "preferred_sender_failed" | "sender_mismatch", readonly detail: string | null) {
+  constructor(readonly code: "preferred_sender_failed" | "sender_mismatch" | "sender_unresolved", readonly detail: string | null) {
     super(code);
     this.name = "StrictSenderError";
   }
@@ -419,8 +419,9 @@ export async function deliverToAirbnbThread(
     senderType: "ai" | "human";
     senderUserId?: string | null;
     skipInsert?: boolean;
-    /** IA: remetente estrito (sem fallback silencioso de conta). Ausente = fluxo humano inalterado. */
-    strictSender?: StrictSenderOptions;
+    /** IA: remetente estrito (sem fallback silencioso de conta). Ausente = fluxo humano inalterado.
+     *  `{ unresolved }`: a política não resolveu a conta ⇒ nada é enviado, falha registrada e equipe avisada. */
+    strictSender?: StrictSenderOptions | { unresolved: string };
   },
 ): Promise<{ ok: boolean; messageId?: string; externalId: string | null; text: string; failure?: string }> {
   const text = toAirbnbPlainText(p.text);
@@ -449,11 +450,18 @@ export async function deliverToAirbnbThread(
   let status: "sent" | "failed" = "sent";
   let failure: string | undefined;
   try {
-    externalId = await sendChannexThreadMessage(p.threadId, text, p.strictSender);
+    const strict = p.strictSender;
+    if (strict && "unresolved" in strict) throw new StrictSenderError("sender_unresolved", strict.unresolved);
+    externalId = await sendChannexThreadMessage(p.threadId, text, strict);
   } catch (e) {
     status = "failed";
     failure = e instanceof StrictSenderError ? e.code : "delivery_failed";
-    const msg = e instanceof Error ? e.message : String(e);
+    const msg =
+      e instanceof StrictSenderError
+        ? `conta remetente configurada não pôde enviar (${e.code}${e.detail ? `: ${e.detail}` : ""}); nada foi enviado por outra conta`
+        : e instanceof Error
+          ? e.message
+          : String(e);
     console.error("[channex-messages] entrega ao Airbnb falhou", msg);
     try {
       const { data: prop } = await admin.from("properties").select("name").eq("id", p.propertyId).maybeSingle();
@@ -922,12 +930,17 @@ export async function runAirbnbAiTurn(admin: any, p: AirbnbAiTurn, opts: { longT
       console.log("[channex-messages] resposta da IA descartada na última conferência", last.reason, p.convId);
       return;
     }
+    // REMETENTE ESTRITO (26/11/2026, caso Carlos): a IA só fala pela conta da política ("Assina como"); falhou ⇒
+    // nada sai por outra conta, a mensagem fica como falha e a equipe recebe o aviso para assumir.
+    const { resolveAiSenderChannel } = await import("@/lib/ai-sender-channel.server");
+    const strictSender = await resolveAiSenderChannel(admin, { threadId: p.threadId, propertyId: p.propertyId });
     await deliverToAirbnbThread(admin, {
       conversationId: p.convId,
       threadId: p.threadId,
       propertyId: p.propertyId,
       text: finalReply,
       senderType: "ai",
+      strictSender,
     });
   }
 }

@@ -903,11 +903,18 @@ export async function generateGuestAiTurn(
         history as HistoryResult | null,
       ),
     });
+    // confirmação sem pergunta nem pedido (ex.: "Vamos sair às 11h mesmo" depois de pedirmos o horário): o slot
+    // cala a resposta; a telemetria registra o motivo (`no_question_ack`) em vez de parecer resposta enviada
+    const bareAck = ((h: HistoryResult | null) => !!h && h.status === "available" && shouldSilenceBareAck(h.entries))(
+      history as HistoryResult | null,
+    );
     // bloqueio do gerador (orçamento do turno, substituída, prazo) ⇒ código fechado em vez do técnico genérico
     const outcomeCode =
       outcome.kind === "technical_error" && g.status === "blocked" && g.blockCode
         ? g.blockCode
-        : projected.outcomeCode;
+        : bareAck && projected.outcomeKind === "reply" && !projected.handoffNeeded
+          ? "no_question_ack"
+          : projected.outcomeCode;
 
     const stored = await store.store({
       suggestionId: claimed.suggestionId,
@@ -1029,8 +1036,7 @@ export async function generateGuestAiTurn(
           outcomeKind: projected.outcomeKind,
           formalChangeRequests:
             "decision" in outcome ? [...(outcome.decision.formalChangeRequests ?? [])] : [],
-          bareAckWithoutQuestion: ((h: HistoryResult | null) =>
-            !!h && h.status === "available" && shouldSilenceBareAck(h.entries))(history as HistoryResult | null),
+          bareAckWithoutQuestion: bareAck,
         },
       };
     if (stored.kind === "stale") return { status: "stale", suggestionId: claimed.suggestionId };

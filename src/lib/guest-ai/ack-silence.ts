@@ -172,6 +172,76 @@ export function isPureGreeting(text: string | null | undefined): boolean {
   return n.replace(GREETING_RE, " ").replace(/\s+/g, " ").trim() === "";
 }
 
+// ─────────── confirmação do horário de saída pedido por nós (caso Carlos, 26/11/2026) ───────────
+
+/** Nossa mensagem pediu o horário estimado/previsto de saída ("…qual é o seu horário estimado de saída?"). */
+const CHECKOUT_TIME_QUESTION =
+  /\b((horario|hora) (estimad[oa]|previst[oa]|aproximad[oa]|provavel)( de)? (saida|check ?out)|(horario|hora|previsao) (de|da) (saida|check ?out)|que horas? (voces? )?(vao|vai|pretende[m]?|deve[m]?|planeja[m]?) (sair|fazer o check ?out|deixar))\b/;
+
+export function isCheckoutTimeQuestion(text: string | null | undefined): boolean {
+  const raw = (text ?? "").trim();
+  if (!raw.includes("?")) return false;
+  return CHECKOUT_TIME_QUESTION.test(normalizeAck(raw));
+}
+
+/** Horários citados num texto normalizado, em minutos desde 0h ("11h", "11 00", "10h30", "as 11", "11 horas", "meio dia"). */
+export function mentionedTimes(n: string): number[] {
+  const out: number[] = [];
+  if (/\bmeio dia\b/.test(n)) out.push(12 * 60);
+  const re = /\b(\d{1,2})(?:\s?(?:h|hs|hrs?|horas?)(?:\s?(\d{2}))?|\s(\d{2})\b)/g;
+  for (const m of n.matchAll(re)) {
+    const h = Number(m[1]);
+    const min = Number(m[2] ?? m[3] ?? 0);
+    if (h <= 23 && min <= 59) out.push(h * 60 + min);
+  }
+  for (const m of n.matchAll(/\b(?:as|ate as|pelas|umas)\s(\d{1,2})\b(?!\s?(?:h|hs|hrs?|horas?|\d))/g)) {
+    const h = Number(m[1]);
+    if (h <= 23) out.push(h * 60);
+  }
+  return out;
+}
+
+const CHECKOUT_TIME_FILLER = [
+  "vamos sair", "vou sair", "iremos sair", "irei sair", "devemos sair", "devo sair", "pretendemos sair", "pretendo sair", "planejamos sair",
+  "vamos fazer o check ?out", "faremos o check ?out", "farei o check ?out", "vou fazer o check ?out", "saimos", "saio", "sairemos", "sairei",
+  "vamos deixar o (apartamento|imovel|studio|estudio|casa|local)", "deixaremos o (apartamento|imovel|studio|estudio|casa|local)",
+  "nossa saida (sera|vai ser)", "minha saida (sera|vai ser)", "a saida (sera|vai ser)", "saida", "previsao", "check ?out",
+  "mesmo", "msm", "certinho", "no horario( padrao| combinado| normal)?", "horario( padrao| combinado| normal)?", "padrao", "normal",
+  "combinado", "conforme combinado", "la pelas", "pelas", "por volta (das|de)", "umas", "as", "ate as", "no maximo", "antes", "mais ou menos",
+  "aproximadamente", "da manha", "manha", "meio dia", "ok", "sim", "isso", "certo", "perfeito", "beleza", "blz", "entao", "acho que", "provavelmente",
+  "e", "a", "o", "de", "da", "do", "h", "hs", "hrs?", "horas?",
+];
+const CHECKOUT_TIME_FILLER_RE = new RegExp(`\\b(${CHECKOUT_TIME_FILLER.join("|")})\\b`, "g");
+
+/**
+ * Só informa/confirma o horário de saída ("Vamos sair às 11h mesmo", "Saio às 10h", "Às 11h"), com cumprimento e
+ * despedida opcionais. Pergunta, pedido, ressalva ou horário DEPOIS do limite que nós informamos ⇒ não (saída
+ * depois do horário é pedido de late check-out e vai ao modelo/decisão). Sem limite conhecido ⇒ não.
+ */
+export function isCheckoutTimeReply(text: string | null | undefined, limitMinutes: number | null): boolean {
+  const raw = (text ?? "").trim();
+  if (!raw || raw.includes("?") || raw.length > 160 || limitMinutes === null) return false;
+  const n = normalizeAck(raw);
+  if (!n || REQUEST_WORDS.test(n) || PROBLEM_OR_RESERVATION.test(n)) return false;
+  const times = mentionedTimes(n);
+  if (times.length === 0 || times.some((t) => t > limitMinutes)) return false;
+  const rest = n
+    .replace(/\b\d{1,2}(\s?(h|hs|hrs?|horas?)(\s?\d{2})?|\s\d{2})?\b/g, " ")
+    .replace(GREETING_RE, " ")
+    .replace(FAREWELL_CORE_RE, " ")
+    .replace(FAREWELL_FILLER_RE, " ")
+    .replace(CHECKOUT_TIME_FILLER_RE, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return rest === "";
+}
+
+/** Limite de saída citado na nossa mensagem ("deve acontecer até 11:00 horas"); o maior horário citado. */
+export function checkoutLimitFrom(text: string | null | undefined): number | null {
+  const times = mentionedTimes(normalizeAck(text ?? ""));
+  return times.length ? Math.max(...times) : null;
+}
+
 /** Janela em que um cumprimento repetido não ganha novo cumprimento nosso (anti-eco). */
 export const GREETING_ECHO_WINDOW_MS = 30 * 60 * 1000;
 
@@ -181,6 +251,7 @@ export const GREETING_ECHO_WINDOW_MS = 30 * 60 * 1000;
  * - Sem pergunta nossa pendente: confirmação/cortesia ou afirmação sem pedido ⇒ silêncio.
  * - Nossa última mensagem foi a checagem do imóvel e o hóspede respondeu que está tudo bem (com ou sem elogio)
  *   ⇒ a checagem cumpriu o objetivo; silêncio (sem tréplica). Qualquer ressalva, pergunta ou pedido ⇒ modelo.
+ * - Nós pedimos o horário estimado de saída e o hóspede só informou um horário até o limite ⇒ silêncio.
  * - Outra pergunta nossa pendente ⇒ a conversa segue (modelo).
  */
 export function shouldSilenceBareAck(entries: readonly HistoryEntry[]): boolean {
@@ -198,6 +269,13 @@ export function shouldSilenceBareAck(entries: readonly HistoryEntry[]): boolean 
     const oursAt = Date.parse(ours.at ?? "");
     const lastAt = Date.parse(turn[turn.length - 1]!.at ?? "");
     if (Number.isFinite(oursAt) && Number.isFinite(lastAt) && lastAt - oursAt <= GREETING_ECHO_WINDOW_MS && lastAt >= oursAt) return true;
+  }
+  // nós pedimos o horário de saída e o hóspede só informou um horário dentro do limite: o card já é atualizado pelos
+  // bastidores (extrator), sem tréplica no chat (caso Carlos, 26/11/2026)
+  if (ours && isCheckoutTimeQuestion(ours.text)) {
+    const limit = checkoutLimitFrom(ours.text);
+    const timeReply = (e: HistoryEntry) => isCheckoutTimeReply(e.text, limit);
+    if (turn.some(timeReply) && turn.every((e) => timeReply(e) || closed(e) || isPureGreeting(e.text) || isFarewell(e.text))) return true;
   }
   if (!ours || !ours.text.includes("?")) return turn.every(closed);
   if (isAccommodationCheck(ours.text)) return turn.every((e) => closed(e) || isSatisfiedCheckReply(e.text));

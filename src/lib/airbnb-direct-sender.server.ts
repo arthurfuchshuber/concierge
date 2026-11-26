@@ -10,6 +10,8 @@
  *    divergência ou erro cai no envio padrão pela Channex (hóspede nunca fica
  *    sem resposta).
  */
+import { usableAirbnbToken } from "@/lib/airbnb-token";
+
 const CX = "https://app.channex.io/api/v1";
 const AIRBNB = "https://api.airbnb.com/v2";
 const PREF = "airbnb_sender_pref";
@@ -49,17 +51,10 @@ export async function writeSenderPrefs(db: any, ownerId: string, userId: string,
   if (error) throw new Error("Não foi possível salvar a conta remetente.");
 }
 
-/** Token OAuth atual do canal Airbnb (lido da Channex, nunca persistido). */
-async function channelToken(channelId: string): Promise<string | null> {
+/** Token OAuth atual do canal Airbnb (lido da Channex, nunca persistido). Mascarado ("***") ⇒ null. */
+export async function channelToken(channelId: string): Promise<string | null> {
   const r = await cx<{ data?: any }>(`/channels/${channelId}`);
-  const a = r?.data?.attributes;
-  if (a?.channel !== "AirBNB") return null;
-  const s = a?.settings ?? {};
-  if (s.token_invalid) return null;
-  const t = s.tokens?.access_token;
-  const exp = Number(s.tokens?.expires_at ?? 0);
-  if (!t || (exp && exp * 1000 < Date.now() + 60_000)) return null;
-  return String(t);
+  return usableAirbnbToken(r?.data?.attributes);
 }
 
 /**
