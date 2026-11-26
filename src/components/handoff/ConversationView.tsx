@@ -1086,7 +1086,7 @@ export function ConversationView({ conversationId, compact, myUserId, stay, owne
       </Strip>
     ) : null;
 
-  const lockedFooter = (msg: ReactNode, withClaim: boolean) => (
+  const lockedFooter = (msg: ReactNode, withClaim: boolean, onClaim: () => void = handleClaim, claimBusy = claim.isPending) => (
     <>
     {noteStrip}
     <div className="shrink-0 px-3 py-2.5" style={{ paddingBottom: "max(0.625rem, env(safe-area-inset-bottom))" }}>
@@ -1096,8 +1096,8 @@ export function ConversationView({ conversationId, compact, myUserId, stay, owne
         {withClaim ? (
           <button
             type="button"
-            onClick={handleClaim}
-            disabled={claim.isPending}
+            onClick={onClaim}
+            disabled={claimBusy}
             className="ml-1 inline-flex h-7 items-center gap-1 rounded-[7px] bg-gradient-to-br from-[#7C1AD8] to-[#E82DAE] px-2.5 text-[11.5px] font-bold text-white disabled:opacity-50"
           >
             <UserCheck className="size-3" />
@@ -1110,7 +1110,7 @@ export function ConversationView({ conversationId, compact, myUserId, stay, owne
   );
 
   let footer: ReactNode = null;
-  if (status !== "resolved" && !canChat) {
+  if (!canChat) {
     footer = lockedFooter("Você não tem permissão para responder no chat. Peça ao dono da conta para habilitar em Administrativo → Permissões.", false);
   } else if (status !== "resolved" && canChat && !canCompose) {
     footer = lockedFooter(
@@ -1172,7 +1172,7 @@ export function ConversationView({ conversationId, compact, myUserId, stay, owne
                 <span className="block w-full truncate text-sm leading-[1.2rem] text-muted-foreground/80">A IA está enviando a resposta…</span>
               </div>
             ) : (
-              <div className={`flex min-h-8 min-w-0 flex-1 items-end rounded-2xl px-3 py-1.5 ${note ? "bg-[#c9a962]/12" : "bg-foreground/[0.05]"}`}>
+              <div className={`flex min-h-8 min-w-0 flex-1 items-end gap-2 rounded-2xl py-1.5 ${note ? "bg-[#c9a962]/12 pl-3 pr-1" : "bg-foreground/[0.05] px-3"}`}>
                 <TagMentionTextarea
                   value={text}
                   onChange={(e) => {
@@ -1195,6 +1195,18 @@ export function ConversationView({ conversationId, compact, myUserId, stay, owne
                   containerClassName="flex-1 min-w-0"
                   className={`${COMPOSER_INPUT} !max-h-40 whitespace-pre-wrap break-words border-0 px-0 placeholder:text-muted-foreground`}
                 />
+                {note ? (
+                  // 26/11/2026 (ATD-D10/M11): sai da nota interna e volta para a mensagem ao hóspede (o texto fica)
+                  <button
+                    type="button"
+                    aria-label="Sair da nota interna"
+                    title="Sair da nota interna"
+                    onClick={() => setNote(false)}
+                    className="grid size-6 shrink-0 place-items-center self-center rounded-full bg-[#c9a962]/20 text-[#8a6a1a] transition-colors hover:bg-[#c9a962]/30"
+                  >
+                    <X className="size-3.5" strokeWidth={2.2} />
+                  </button>
+                ) : null}
               </div>
             )}
             <div className="shrink-0">
@@ -1218,8 +1230,9 @@ export function ConversationView({ conversationId, compact, myUserId, stay, owne
         </form>
       </>
     );
-  } else if (latestNote) {
-    footer = noteStrip;
+  } else if (status === "resolved") {
+    // 26/11/2026 (ATD-D02/M03): conversa resolvida também tem o campo travado; "Assumir" reabre e assume
+    footer = lockedFooter(mobile ? "Assuma para responder." : "Assuma a conversa para poder responder ao hóspede.", true, () => reopen.mutate("chat"), reopen.isPending);
   }
 
   // ── Janelas ──

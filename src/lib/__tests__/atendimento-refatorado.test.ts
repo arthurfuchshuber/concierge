@@ -183,3 +183,13 @@ describe("auditoria de 26/11/2026", () => {
     expect(read("lib/atendimento.functions.ts")).not.toMatch(/\.not\("evidence_refs", "cs", "\{\}"\)/);
   });
 });
+
+describe("ajustes de 26/11/2026 (tarde)", () => {
+  const v = readFileSync(path.join(path.resolve(__dirname, "../.."), "components/handoff/ConversationView.tsx"), "utf8");
+  it("nota interna tem X no campo que volta para a mensagem ao hóspede", () => {
+    expect(v).toMatch(/aria-label="Sair da nota interna"[\s\S]{0,120}onClick=\{\(\) => setNote\(false\)\}/);
+  });
+  it("conversa resolvida tem o campo travado com Assumir (reabre e assume)", () => {
+    expect(v).toMatch(/status === "resolved"[\s\S]{0,300}lockedFooter\([\s\S]{0,160}reopen\.mutate\("chat"\)/);
+  });
+});
