@@ -219,6 +219,7 @@ function AtendimentoPage() {
       details={details}
       assignedNames={list.data?.assignedNames ?? {}}
       reservations={list.data?.reservations ?? {}}
+      chatStatus={list.data?.chatStatus ?? {}}
       guideViewers={list.data?.guideViewers ?? {}}
       owners={list.data?.owners ?? {}}
       activeId={activeId}

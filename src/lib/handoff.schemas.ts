@@ -62,6 +62,8 @@ export type HandoffListResult = {
   details: Record<string, HandoffGuestDetail>;
   assignedNames?: Record<string, string>;
   reservations?: Record<string, HandoffReservationMatch>;
+  /** Etiqueta de status de cada conversa (Consulta, Ativa, Cancelada…), derivada da Channex. */
+  chatStatus?: Record<string, import("@/lib/handoff-chat-status").ChatStatusLabel>;
   /** Pessoas distintas que abriram o guia com o código da reserva da conversa. */
   guideViewers?: Record<string, number>;
   /** Proprietário do imóvel de cada conversa (chave = id da conversa). */
