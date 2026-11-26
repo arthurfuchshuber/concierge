@@ -28,6 +28,14 @@ async function fetchChannel(id: string): Promise<any> {
   if (data) {
     const { saveRawRecords } = await import("@/lib/channex-raw.server");
     await saveRawRecords([{ entity_type: "channel", channex_id: id, payload: data, source: "api" } as any]).catch(() => 0);
+    // token real (não mascarado) ⇒ cofre do ConciergeIA, para o envio pela conta do "Assina como" (26/11/2026)
+    try {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { captureChannelToken } = await import("@/lib/airbnb-sender-credentials.server");
+      await captureChannelToken(supabaseAdmin as any, id, data?.attributes?.settings);
+    } catch {
+      /* melhor esforço */
+    }
   }
   return data;
 }

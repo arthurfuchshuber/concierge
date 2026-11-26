@@ -51,10 +51,23 @@ export async function writeSenderPrefs(db: any, ownerId: string, userId: string,
   if (error) throw new Error("Não foi possível salvar a conta remetente.");
 }
 
-/** Token OAuth atual do canal Airbnb (lido da Channex, nunca persistido). Mascarado ("***") ⇒ null. */
-export async function channelToken(channelId: string): Promise<string | null> {
-  const r = await cx<{ data?: any }>(`/channels/${channelId}`);
-  return usableAirbnbToken(r?.data?.attributes);
+/**
+ * Token OAuth do canal Airbnb. 1º o cofre do ConciergeIA (`airbnb_sender_credentials`, cifrado); 2º a Channex
+ * ao vivo — quando ela ainda devolve um token real, ele é guardado no cofre. Mascarado ("***") ⇒ null.
+ */
+export async function channelToken(
+  channelId: string,
+  deps: { db?: any; vault?: (db: any, channelId: string) => Promise<string | null>; channex?: (path: string) => Promise<any> } = {},
+): Promise<string | null> {
+  const db = deps.db ?? ((await import("@/integrations/supabase/client.server")).supabaseAdmin as any);
+  const creds = await import("@/lib/airbnb-sender-credentials.server");
+  const local = await (deps.vault ?? creds.getUsableSenderToken)(db, channelId).catch(() => null);
+  if (local && usableAirbnbToken({ channel: "AirBNB", settings: { tokens: { access_token: local } } })) return local;
+  const r = await (deps.channex ?? cx)(`/channels/${channelId}`).catch(() => null);
+  const attrs = r?.data?.attributes;
+  const token = usableAirbnbToken(attrs);
+  if (token) await creds.captureChannelToken(db, channelId, attrs?.settings);
+  return token;
 }
 
 /**
@@ -101,6 +114,11 @@ export async function sendAsPreferredSenderDetailed(channexThreadId: string, tex
     if (!token) return { outcome: "failed", reason: "token_unavailable", channelId: prefChannel };
     // Blindagem: a conversa vista pela conta escolhida precisa ser do mesmo anúncio.
     const seen = await threadListing(otaThreadId, token);
+    if (seen === UNAUTHORIZED) {
+      const { markSenderTokenExpired } = await import("@/lib/airbnb-sender-credentials.server");
+      await markSenderTokenExpired(db, prefChannel).catch(() => undefined);
+      return { outcome: "failed", reason: "token_unavailable", channelId: prefChannel };
+    }
     if (!seen || seen !== listingId) return { outcome: "failed", reason: "listing_mismatch", channelId: prefChannel };
     const id = await postDirect(otaThreadId, text, token);
     return id ? { outcome: "sent", messageId: id, channelId: prefChannel } : { outcome: "failed", reason: "airbnb_rejected", channelId: prefChannel };
@@ -120,10 +138,13 @@ export async function trySendAsPreferredSender(channexThreadId: string, text: st
   return r.outcome === "sent" ? r.messageId : null;
 }
 
+const UNAUTHORIZED = "__unauthorized__";
+
 async function threadListing(otaThreadId: string, token: string): Promise<string | null> {
   const res = await fetch(`${AIRBNB}/threads/${encodeURIComponent(otaThreadId)}?_format=for_messaging_sync_with_posts_china`, {
     headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
   });
+  if (res.status === 401) return UNAUTHORIZED; // token do cofre revogado/vencido
   if (!res.ok) return null;
   const j: any = await res.json().catch(() => null);
   const id = j?.thread?.attachment?.booking_details?.listing_id ?? j?.thread?.listing_id ?? null;
