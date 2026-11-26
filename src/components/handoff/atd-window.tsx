@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/compone
 import { cn } from "@/lib/utils";
 
 const WIN_SHELL =
-  "sg-elegant-scroll [scrollbar-gutter:auto]! flex max-w-none flex-col gap-0 overflow-hidden rounded-[var(--win-radius)] border-0 bg-[var(--panel)] p-0 text-foreground shadow-[0_24px_60px_rgba(0,0,0,0.6),0_2px_8px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.05)] sm:max-w-none";
+  "sg-elegant-scroll [scrollbar-gutter:auto]! flex max-w-none flex-col gap-0 overflow-hidden rounded-[var(--win-radius)] border-0 bg-[var(--panel)] p-0 sm:p-0 text-foreground shadow-[0_24px_60px_rgba(0,0,0,0.6),0_2px_8px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.05)] sm:max-w-none";
 
 export function AtdWindow({
   open,
@@ -49,7 +49,8 @@ export function AtdWindow({
           </div>
           <DialogDescription className="sr-only">{description ?? subtitle ?? title}</DialogDescription>
         </div>
-        {children}
+        {/* rolagem só no conteúdo (o cabeçalho e o canto ficam fixos) quando a janela passa de 90% da tela */}
+        <div className="sg-elegant-scroll flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden">{children}</div>
       </DialogContent>
     </Dialog>
   );

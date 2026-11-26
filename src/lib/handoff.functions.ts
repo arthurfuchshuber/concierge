@@ -997,8 +997,9 @@ export const getHandoffConversation = createServerFn({ method: "POST" })
         .select("id, full_name, trade_name")
         .in("id", senderIds);
       for (const p of profs ?? []) {
+        // pessoa da equipe pelo nome dela (mockups ATD: "Arthur"), não pelo nome fantasia da empresa
         senderProfiles[p.id as string] = {
-          displayName: ((p.trade_name as string) || (p.full_name as string)) ?? null,
+          displayName: ((p.full_name as string) || (p.trade_name as string)) ?? null,
         };
       }
     }

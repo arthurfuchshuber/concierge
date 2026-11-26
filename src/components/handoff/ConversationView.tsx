@@ -19,6 +19,7 @@ import {
   StayNightsLine,
   StayPeriodLine,
   RelDay,
+  RelDayTime,
   buildStayView,
   guestsLabel,
   nightsLabel,
@@ -664,7 +665,7 @@ export function ConversationView({ conversationId, compact, myUserId, stay, owne
           aria-label="Nota interna"
           aria-pressed={note}
           title="Nota interna"
-          className={`grid size-7 place-items-center rounded-[7px] transition-colors ${note ? "bg-[#c9a962]/20 text-[#8a6a1a]" : "text-muted-foreground hover:bg-foreground/[0.06]"}`}
+          className="grid size-7 place-items-center rounded-[7px] text-muted-foreground transition-colors hover:bg-foreground/[0.06]"
         >
           <StickyNote className="size-[14px]" />
         </button>
@@ -897,7 +898,7 @@ export function ConversationView({ conversationId, compact, myUserId, stay, owne
             {guestNameByConversation[(m as { conversation_id?: string }).conversation_id ?? ""] || guestName}
           </div>
         ) : m.sender_type === "human" ? (
-          <div className="mb-1 text-[11px] font-bold">{(m.sender_user_id && senderProfiles[m.sender_user_id]?.displayName) || "Atendente"}</div>
+          <div className="mb-1 text-[11px] font-bold">{firstNameOf(m.sender_user_id ? senderProfiles[m.sender_user_id]?.displayName : null) || "Atendente"}</div>
         ) : m.sender_type === "system" ? (
           <div className="mb-1 text-[11px] font-semibold text-muted-foreground">Mensagem Automática</div>
         ) : (
@@ -984,7 +985,7 @@ export function ConversationView({ conversationId, compact, myUserId, stay, owne
                     {airbnb ? "Cancelada Pelo Airbnb · Não Entregue" : "Não Entregue"}
                   </span>
                   <span className="text-[10.5px] text-muted-foreground">
-                    {format(new Date(m.created_at), "dd/MM · HH:mm")}
+                    <RelDayTime iso={String(m.created_at)} />
                   </span>
                 </div>
               ) : null}
@@ -1086,6 +1087,8 @@ export function ConversationView({ conversationId, compact, myUserId, stay, owne
     ) : null;
 
   const lockedFooter = (msg: ReactNode, withClaim: boolean) => (
+    <>
+    {noteStrip}
     <div className="shrink-0 px-3 py-2.5" style={{ paddingBottom: "max(0.625rem, env(safe-area-inset-bottom))" }}>
       <div className="flex items-center justify-center gap-2 rounded-[10px] bg-foreground/[0.05] px-3 py-2 text-center text-[12px] text-muted-foreground">
         <Lock className="size-3 shrink-0" />
@@ -1103,6 +1106,7 @@ export function ConversationView({ conversationId, compact, myUserId, stay, owne
         ) : null}
       </div>
     </div>
+    </>
   );
 
   let footer: ReactNode = null;
@@ -1158,7 +1162,7 @@ export function ConversationView({ conversationId, compact, myUserId, stay, owne
               attachLabel="Anexar Arquivo"
               iconClassName="size-[18px]"
               menuClassName="w-[180px] !border-0"
-              className={sendingDecision ? "!text-muted-foreground/40" : ""}
+              className={sendingDecision ? "!text-muted-foreground/40 disabled:!opacity-100" : ""}
             />
             {sendingDecision ? (
               <div className="flex min-h-8 min-w-0 flex-1 items-center gap-2 rounded-2xl bg-foreground/[0.03] px-3 py-1.5">
@@ -1261,7 +1265,8 @@ export function ConversationView({ conversationId, compact, myUserId, stay, owne
             last={!actionAllowed.delete}
             onClick={() => {
               if (actionMsg) {
-                if (actionMsg.isNote) setNotesOpen(false);
+                // nota: a edição acontece na própria janela Notas Internas, que segue aberta
+                if (actionMsg.isNote) setNotesOpen(true);
                 setEditingId(actionMsg.id);
                 setEditingText(actionMsg.content);
               }
@@ -1330,7 +1335,7 @@ export function ConversationView({ conversationId, compact, myUserId, stay, owne
       <AtdWindow open={notesOpen} onOpenChange={setNotesOpen} title="Notas Internas" subtitle="Só a equipe vê" width={380}>
         <div className="sg-elegant-scroll flex max-h-[60dvh] flex-col gap-2.5 overflow-y-auto px-4 pb-4 pt-3.5">
           {notes.map((n) => {
-            const who = (n.sender_user_id && senderProfiles[n.sender_user_id]?.displayName) || "Equipe";
+            const who = firstNameOf(n.sender_user_id ? senderProfiles[n.sender_user_id]?.displayName : null) || "Equipe";
             return (
               <div
                 key={n.id}
@@ -1514,6 +1519,11 @@ export function ConversationView({ conversationId, compact, myUserId, stay, owne
   );
 }
 
+/** Pessoa da equipe pelo primeiro nome (mockups: "Arthur"). */
+function firstNameOf(n: string | null | undefined): string | null {
+  return (n ?? "").trim().split(/\s+/)[0] || null;
+}
+
 function StayGuestIcon() {
   return <UserIcon className="size-3.5 shrink-0" />;
 }
@@ -1685,12 +1695,14 @@ export function ConversationList({
             </div>
           ) : null;
           return (
-            <button
+            <div
               key={c.id}
-              type="button"
+              role="button"
+              tabIndex={0}
               data-clip-row
               onClick={() => onSelect(c.id)}
-              className={`group relative isolate flex shrink-0 flex-col gap-2 rounded-[12px] p-3.5 text-left ds-3d${sel}`}
+              onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), onSelect(c.id))}
+              className={`group relative isolate flex shrink-0 cursor-pointer flex-col gap-2 rounded-[12px] p-3.5 text-left ds-3d${sel}`}
             >
               <span aria-hidden="true" className={`absolute inset-y-0 left-0 w-[3px] rounded-l-[12px] ${stayBarClass(stay)}`} />
               <div className="ds-card-lines min-w-0 w-full">
@@ -1712,17 +1724,20 @@ export function ConversationList({
                 {period}
                 {!resolved && c.handoff_reason ? <p className="truncate text-[11.5px] text-muted-foreground">{c.handoff_reason}</p> : null}
               </div>
-            </button>
+            </div>
           );
         }
         return (
-          <button
+          <div
             key={c.id}
-            type="button"
+            role="button"
+            tabIndex={0}
+            aria-current={isActive || undefined}
             data-clip-row
             onClick={() => onSelect(c.id)}
+            onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), onSelect(c.id))}
             style={isActive ? { boxShadow: CARD_LIFT_SHADOW } : undefined}
-            className={`group relative isolate flex shrink-0 flex-col gap-2 overflow-hidden rounded-[12px] p-3.5 text-left ds-3d bg-card ${
+            className={`group relative isolate flex shrink-0 cursor-pointer flex-col gap-2 overflow-hidden rounded-[12px] p-3.5 text-left ds-3d bg-card ${
               isActive
                 ? "-mx-3 px-[26px]"
                 : "transition-[margin,padding,box-shadow] duration-200 ease-out hover:-mx-3 hover:px-[26px] hover:shadow-[0_22px_44px_-18px_rgba(40,25,20,0.34),0_4px_10px_rgba(40,25,20,0.06)]"
@@ -1747,7 +1762,7 @@ export function ConversationList({
                 <StayNightsLine stay={stay} />
               </div>
             </div>
-          </button>
+          </div>
         );
       })}
     </>

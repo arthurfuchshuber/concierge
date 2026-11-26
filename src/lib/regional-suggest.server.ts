@@ -57,3 +57,18 @@ export async function suggestRegionalFromTeamMessage(p: { conversationId: string
     /* melhor esforço */
   }
 }
+
+/**
+ * Conversa em que a resposta da IA se apoiou numa situação regional ativa (o item citado do Documento Vivo).
+ * Alimenta o "usada em N conversas" da faixa com dado real; sem duplicar a mesma conversa. Nunca lança.
+ */
+export async function recordRegionalUse(p: { situationIds: string[]; conversationId: string }): Promise<void> {
+  try {
+    if (!p.situationIds.length) return;
+    const { supabaseAdmin: db } = await import("@/integrations/supabase/client.server");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (db as any).rpc("guest_ai_regional_record_use", { p_ids: p.situationIds, p_conversation_id: p.conversationId });
+  } catch {
+    /* melhor esforço */
+  }
+}

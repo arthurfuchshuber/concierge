@@ -125,6 +125,22 @@ export function RelDay({ iso, toneClass }: { iso: string | null; toneClass: stri
   return <>{formatDayBR(iso)}</>;
 }
 
+/**
+ * "Hoje · 13:41" / "20/11 · 13:41" (etiquetas e origens, mockups CANC e APR): palavra relativa em negrito quando
+ * couber; senão o dia e o mês. Fuso de São Paulo.
+ */
+export function RelDayTime({ iso, strongClass = "font-bold text-foreground/80" }: { iso: string; strongClass?: string }) {
+  const d = new Date(iso);
+  const day = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(d);
+  const hm = new Intl.DateTimeFormat("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" }).format(d);
+  const word = relativeDayWord(day);
+  return (
+    <>
+      {word ? <strong className={strongClass}>{word}</strong> : `${day.slice(8, 10)}/${day.slice(5, 7)}`} · {hm}
+    </>
+  );
+}
+
 /** Plural certo de noites/hóspedes. */
 export const nightsLabel = (n: number) => `${n} ${n === 1 ? "noite" : "noites"}`;
 export const guestsLabel = (n: number) => `${n} ${n === 1 ? "hóspede" : "hóspedes"}`;

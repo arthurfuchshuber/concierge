@@ -11,7 +11,7 @@ export type GeneratedSystemDoc = {
   content_hash: string;
 };
 
-export const GENERATED_AT = "2026-11-26T13:11:51.607Z";
+export const GENERATED_AT = "2026-11-26T13:47:16.858Z";
 
 export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
   {
@@ -3210,6 +3210,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "0b9d01c18d84048bc69b0ffbfa7e2081"
   },
   {
+    "doc_key": "rule:learningOrigins",
+    "kind": "rule",
+    "title": "Regra — learningOrigins",
+    "content": "Origem de cada aprendizado em palavras (mockup APR-D01): \"Aprendido com a resposta de Arthur a Larissa\" quando a\nevidência é a fala da equipe; \"Aprendido com a instrução de Arthur na conversa com Larissa\" no Instruir a IA;\n\"Aprendido com a mensagem de Larissa\" quando é a fala do hóspede. Sem o dado, fica o tipo de origem.",
+    "source_path": "src/lib/atendimento.functions.ts",
+    "audience": [],
+    "content_hash": "8881cae0113ee935943368ac9ef6b617"
+  },
+  {
     "doc_key": "rule:LearningScope",
     "kind": "rule",
     "title": "Regra — LearningScope",
@@ -4740,6 +4749,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "83f1cc2dcd4442139b30c23217db6308"
   },
   {
+    "doc_key": "rule:recordRegionalUse",
+    "kind": "rule",
+    "title": "Regra — recordRegionalUse",
+    "content": "Conversa em que a resposta da IA se apoiou numa situação regional ativa (o item citado do Documento Vivo).\nAlimenta o \"usada em N conversas\" da faixa com dado real; sem duplicar a mesma conversa. Nunca lança.",
+    "source_path": "src/lib/regional-suggest.server.ts",
+    "audience": [],
+    "content_hash": "251c30337b63db0084c9a11f6bfba891"
+  },
+  {
     "doc_key": "rule:records",
     "kind": "rule",
     "title": "Regra — records",
@@ -4819,6 +4837,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/guest-ai/trust.ts",
     "audience": [],
     "content_hash": "9de0f4e2b725f93d34cfe7797d0257f3"
+  },
+  {
+    "doc_key": "rule:RelDayTime",
+    "kind": "rule",
+    "title": "Regra — RelDayTime",
+    "content": "\"Hoje · 13:41\" / \"20/11 · 13:41\" (etiquetas e origens, mockups CANC e APR): palavra relativa em negrito quando\ncouber; senão o dia e o mês. Fuso de São Paulo.",
+    "source_path": "src/components/handoff/stay-view.tsx",
+    "audience": [],
+    "content_hash": "a89b630cbad43b520b7b4648d09de7b6"
   },
   {
     "doc_key": "rule:relinkAutoCheckout",
@@ -8142,7 +8169,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "1ffdb550cccd9d75cb95475089e1c0c4"
   },
   {
-    "doc_key": "rule:src/lib/guest-ai/turn-chain.ts:17038",
+    "doc_key": "rule:src/lib/guest-ai/turn-chain.ts:17205",
     "kind": "rule",
     "title": "Regra em turn-chain.ts",
     "content": "Resposta barrada pelos validadores (17/11/2026, auditoria): texto que o modelo escreveu e os bloqueios, para\na auditoria ver POR QUE foi barrada. Só existe quando o guard de saída diz que o texto é seguro (sem\ncredencial); caso contrário fica `null`.",
@@ -8151,7 +8178,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "c60fcb7d9af5cbe0e121a64ddf078d60"
   },
   {
-    "doc_key": "rule:src/lib/guest-ai/turn-chain.ts:18290",
+    "doc_key": "rule:src/lib/guest-ai/turn-chain.ts:18457",
     "kind": "rule",
     "title": "Regra em turn-chain.ts",
     "content": "B2.4 — fonte das autorizações de horário (R6; entrada antecipada sem fonte). A identidade\n(imóvel, reserva) e o instante vêm SEMPRE do turno/cadeia, nunca desta fonte. Ausente ou falha\n⇒ nada autorizado (não recusa o turno: só impede promessas).",
@@ -8160,7 +8187,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "9bef0357039b4d1a134e33ef6ce4acc6"
   },
   {
-    "doc_key": "rule:src/lib/guest-ai/turn-chain.ts:18913",
+    "doc_key": "rule:src/lib/guest-ai/turn-chain.ts:19080",
     "kind": "rule",
     "title": "Regra em turn-chain.ts",
     "content": "Memória do hóspede recorrente — perfil canônico (só leitura). Enriquecimento: falha ou ausência ⇒\n`indisponivel` no prompt, nunca recusa o turno. Cancelamento externo continua encerrando o turno.",
@@ -8169,7 +8196,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "642fd8eac8b7c3de7c0c007c88868a35"
   },
   {
-    "doc_key": "rule:src/lib/guest-ai/turn-chain.ts:19435",
+    "doc_key": "rule:src/lib/guest-ai/turn-chain.ts:19602",
     "kind": "rule",
     "title": "Regra em turn-chain.ts",
     "content": "Pilar 1 (06/11/2026) — eventos da Home do guia para a cidade do imóvel (só leitura). Enriquecimento:\nfalha ⇒ bloco `indisponivel` (a IA admite não saber), nunca recusa o turno.",
