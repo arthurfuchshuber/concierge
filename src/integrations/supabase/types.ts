@@ -4607,6 +4607,7 @@ export type Database = {
           starts_at: string
           status: string
           updated_at: string
+          used_conversation_ids: string[]
         }
         Insert: {
           ai_text: string
@@ -4625,6 +4626,7 @@ export type Database = {
           starts_at?: string
           status?: string
           updated_at?: string
+          used_conversation_ids?: string[]
         }
         Update: {
           ai_text?: string
@@ -4643,6 +4645,7 @@ export type Database = {
           starts_at?: string
           status?: string
           updated_at?: string
+          used_conversation_ids?: string[]
         }
         Relationships: [
           {
@@ -9143,6 +9146,10 @@ export type Database = {
       }
       guest_ai_purge_turns: { Args: never; Returns: Json }
       guest_ai_record_trace: { Args: { p_trace: Json }; Returns: undefined }
+      guest_ai_regional_record_use: {
+        Args: { p_conversation_id: string; p_ids: string[] }
+        Returns: undefined
+      }
       guest_ai_release_unsent_turn: {
         Args: {
           p_before: string
