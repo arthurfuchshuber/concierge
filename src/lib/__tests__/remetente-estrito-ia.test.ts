@@ -15,7 +15,6 @@ import { deliverToAirbnbThread } from "@/lib/channex-messages.server";
 import { isMaskedOrUnusableToken, usableAirbnbToken } from "@/lib/airbnb-token";
 import { shouldSilenceBareAck, isCheckoutTimeReply } from "@/lib/guest-ai/ack-silence";
 import type { HistoryEntry } from "@/lib/guest-ai/history";
-import { resolveAiSenderChannel } from "@/lib/ai-sender-channel.server";
 
 /** Admin falso: registra inserções; leituras devolvem vazio. */
 function fakeAdmin() {
@@ -45,7 +44,7 @@ function fakeAdmin() {
 
 const base = { conversationId: "c1", threadId: "t1", propertyId: "p1", text: "Até amanhã!", senderType: "ai" as const };
 
-describe("Remetente estrito da IA no Airbnb", () => {
+describe("Entrega no Airbnb: remetente estrito (quando pedido) e resposta garantida (IA)", () => {
   beforeEach(() => {
     direct.mockReset();
     report.mockClear();
@@ -92,24 +91,15 @@ describe("Remetente estrito da IA no Airbnb", () => {
     expect(report).not.toHaveBeenCalled();
   });
 
-  it("resolve a conta esperada pela preferência do anfitrião (política do turno)", async () => {
+  it("sem modo estrito (IA e equipe): conta selecionada falhou ⇒ responde pela conta do anúncio", async () => {
+    direct.mockResolvedValue({ outcome: "failed", reason: "token_unavailable", channelId: "sigma" });
+    vi.stubEnv("CHANNEX_API_KEY", "test-key");
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ data: { id: "cx-1" } }), { status: 200 })));
     const admin = fakeAdmin();
-    const source = {
-      lookup: "ok" as const,
-      conversationListingId: "L1",
-      conversationListingCandidates: ["L1"],
-      reservationListingId: null,
-      listings: [{ airbnb_listing_id: "L1", property_id: "p1", owner_id: "tenant-1", channex_channel_id: "regina" }],
-      twins: [],
-      prefs: [{ channex_id: "L1", payload: { owner_id: "tenant-1", channel_id: "sigma" } }],
-      accounts: [
-        { owner_id: "tenant-1", channex_channel_id: "sigma", status: "active" },
-        { owner_id: "tenant-1", channex_channel_id: "regina", status: "active" },
-      ],
-    };
-    expect(await resolveAiSenderChannel(admin, { threadId: "t1", propertyId: "p1" }, { readSource: async () => source })).toEqual({ expectedChannelId: "sigma" });
-    const failed = { ...source, lookup: "failed" as const };
-    expect(await resolveAiSenderChannel(admin, { threadId: "t1", propertyId: "p1" }, { readSource: async () => failed })).toHaveProperty("unresolved");
+    const r = await deliverToAirbnbThread(admin, base);
+    vi.unstubAllEnvs();
+    expect(r).toMatchObject({ ok: true, externalId: "cx-1" });
+    expect(report).not.toHaveBeenCalled();
   });
 });
 

@@ -11,7 +11,7 @@ export type GeneratedSystemDoc = {
   content_hash: string;
 };
 
-export const GENERATED_AT = "2026-11-26T23:12:56.571Z";
+export const GENERATED_AT = "2026-11-26T23:37:48.470Z";
 
 export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
   {
@@ -6657,15 +6657,6 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "8129c54afde4f31b05f449e59477cc0c"
   },
   {
-    "doc_key": "rule:src/lib/ai-sender-channel.server.ts:0",
-    "kind": "rule",
-    "title": "Regra em ai-sender-channel.server.ts",
-    "content": "Conta remetente da IA no Airbnb na hora da ENTREGA (26/11/2026, caso Carlos / \"Casa Completa Próx. a\nAvenida Turística\"): a mensagem saiu como \"Regina · Coanfitrião\" com o seletor \"Assina como\" em\n\"Anfitrião Sigma\", porque a entrega autônoma não pedia remetente estrito e a falha do envio direto caía\nna Channex, que envia pela conta mapeada da thread.\n\nResolve a conta esperada pela MESMA política do turno (`resolveSenderIdentity`: preferência do anfitrião\npara o grupo do anúncio, senão a conta mapeada do anúncio). Qualquer coisa diferente de `resolved` ⇒\n`unresolved`: a entrega não envia por conta nenhuma e a equipe é avisada.",
-    "source_path": "src/lib/ai-sender-channel.server.ts",
-    "audience": [],
-    "content_hash": "dc42e1dc296233bc2c093c3c522c7a9b"
-  },
-  {
     "doc_key": "rule:src/lib/airbnb-accounts.server.ts:0",
     "kind": "rule",
     "title": "Regra em airbnb-accounts.server.ts",
@@ -9081,10 +9072,10 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "doc_key": "rule:src/lib/sender-identity-source.server.ts:0",
     "kind": "rule",
     "title": "Regra em sender-identity-source.server.ts",
-    "content": "Fontes da identidade de envio Airbnb a partir do thread da Channex (somente leitura, sem credenciais).\nNúcleo único usado pelo turno da IA (`guest-ai/data/sender-identity.server.ts`, atrás do turno validado)\ne pela ENTREGA da IA (`ai-sender-channel.server.ts`, remetente estrito). Ver o cabeçalho de\n`guest-ai/data/sender-identity.server.ts` para a regra de cada leitura.\nLança só quando `signal` foi abortado; qualquer outra falha de leitura ⇒ `lookup: \"failed\"`.",
+    "content": "Fontes da identidade de envio Airbnb a partir do thread da Channex (somente leitura, sem credenciais).\nNúcleo único usado pelo turno da IA (`guest-ai/data/sender-identity.server.ts`, atrás do turno validado)\ne por quem mais precisar resolver a conta remetente de uma thread. Ver o cabeçalho de\n`guest-ai/data/sender-identity.server.ts` para a regra de cada leitura.\nLança só quando `signal` foi abortado; qualquer outra falha de leitura ⇒ `lookup: \"failed\"`.",
     "source_path": "src/lib/sender-identity-source.server.ts",
     "audience": [],
-    "content_hash": "73a922ece17df315bbd3e51001e4e9de"
+    "content_hash": "dc2c6d9769fb56f2130e5abbfc502241"
   },
   {
     "doc_key": "rule:src/lib/service-situations.functions.ts:7612",

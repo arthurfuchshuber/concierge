@@ -1,7 +1,7 @@
 /**
  * Fontes da identidade de envio Airbnb a partir do thread da Channex (somente leitura, sem credenciais).
  * Núcleo único usado pelo turno da IA (`guest-ai/data/sender-identity.server.ts`, atrás do turno validado)
- * e pela ENTREGA da IA (`ai-sender-channel.server.ts`, remetente estrito). Ver o cabeçalho de
+ * e por quem mais precisar resolver a conta remetente de uma thread. Ver o cabeçalho de
  * `guest-ai/data/sender-identity.server.ts` para a regra de cada leitura.
  * Lança só quando `signal` foi abortado; qualquer outra falha de leitura ⇒ `lookup: "failed"`.
  */
