@@ -294,7 +294,20 @@ export const listAirbnbAccountListings = createServerFn({ method: "GET" })
   .inputValidator((i: unknown) => WithChannel.parse(i))
   .handler(async ({ data, context }) => {
     const { accountId, admin } = await ctx(context.supabase, context.userId, data.accountOwnerId);
-    return loadInventory(admin, accountId, data.channelId, data.live === true);
+    const inv = await loadInventory(admin, accountId, data.channelId, data.live === true);
+    // Membro com imóveis atribuídos só vê os anúncios desses imóveis.
+    const visible = await visiblePropertyIds(context.supabase as never, accountId);
+    const { count } = await admin
+      .from("properties")
+      .select("id", { count: "exact", head: true })
+      .eq("owner_id", accountId);
+    const seesAll = (count ?? 0) <= visible.size;
+    return {
+      ...inv,
+      listings: inv.listings.filter((l) =>
+        l.propertyId ? visible.has(l.propertyId) : seesAll,
+      ),
+    };
   });
 
 /** Contas do Airbnb conectadas à conta do sistema (com quantos anúncios têm e quantos já foram importados). */
@@ -820,6 +833,8 @@ export const setAirbnbListingActive = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { accountId, admin } = await ctx(context.supabase, context.userId, data.accountOwnerId);
+    const visible = await visiblePropertyIds(context.supabase as never, accountId);
+    if (!visible.has(data.propertyId)) throw new Error("Acesso negado a este imóvel.");
     const { data: row } = await admin
       .from("property_listing_raw_data")
       .select("property_id, airbnb_listing_id, channex_channel_id")

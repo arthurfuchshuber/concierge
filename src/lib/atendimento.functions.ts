@@ -133,7 +133,8 @@ export const listAtendimentoProperties = createServerFn({ method: "POST" })
   .handler(async ({ data, context }): Promise<AccountProperty[]> => {
     try {
       const ownerId = await accountScope(context.supabase, context.userId, data.accountOwnerId);
-      return await accountProperties(ownerId);
+      const visible = await visibleIds(context.supabase as never, ownerId);
+      return (await accountProperties(ownerId)).filter((p) => visible.has(p.id));
     } catch {
       return [];
     }
