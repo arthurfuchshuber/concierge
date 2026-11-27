@@ -63,7 +63,7 @@ export function SearchActionRow({
   const inset = variant === "inset" || bleed;
   return (
     <div
-      className={`flex min-w-0 items-stretch h-10 overflow-hidden lg:h-[var(--ds-action-h-lg)] ${
+      className={`ds-search-bar flex min-w-0 items-stretch h-10 overflow-hidden lg:h-[var(--ds-action-h-lg)] ${
         bleed ? "rounded-none bg-transparent" : "rounded-[9px] lg:rounded-[13px]"
       } ${
         bleed

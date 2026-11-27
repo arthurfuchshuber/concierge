@@ -1894,3 +1894,34 @@ html {
     animation: none;
   }
 }
+
+
+/* BARRAS PADRÃO NO CELULAR (mockup "Atendimento · barra de abas + busca e filtro", aprovado 27/11/2026):
+   no celular TODAS as barras de abas e TODAS as barras de busca + filtros ficam com 30px de altura (eram
+   40px), e o rótulo das abas com 12px (era 14px). Mesma altura e mesma largura nas duas barras.
+   Vale para:
+   - abas: `ds-tabs` (Dashboard, Administrativo, central de atendimento), `ds-tabs-depth` (Stepper das
+     páginas — Atendimento, Proprietários, Guias… — e edição em massa) e as `TabsList` roláveis
+     (`[role=tablist].ds-segmented`: fichas, Engajamento, permissões, recomendações);
+   - busca + filtros: `SearchActionRow` (`ds-search-bar`), em páginas e janelas.
+   O computador não muda (lá a medida continua `--ds-action-h-lg`). */
+@media (max-width: 1023.98px) {
+  .ds-tabs,
+  .ds-tabs-depth,
+  [role="tablist"].ds-segmented,
+  .ds-search-bar {
+    height: 30px !important;
+    min-height: 30px !important;
+  }
+  .ds-tabs > *,
+  .ds-tabs-depth > *,
+  [role="tablist"].ds-segmented > * {
+    height: auto !important;
+    min-height: 0 !important;
+    font-size: 12px !important;
+  }
+  /* As TabsList com recuo interno (pílula dentro da barra) perdem parte do recuo para a pílula caber. */
+  [role="tablist"].ds-segmented:not(.p-0) {
+    padding: 2px !important;
+  }
+}
