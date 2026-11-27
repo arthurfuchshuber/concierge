@@ -13,7 +13,6 @@
 import { usableAirbnbToken } from "@/lib/airbnb-token";
 
 const CX = "https://app.channex.io/api/v1";
-const AIRBNB = "https://api.airbnb.com/v2";
 const PREF = "airbnb_sender_pref";
 
 function cxHeaders() {
@@ -110,17 +109,9 @@ export async function sendAsPreferredSenderDetailed(channexThreadId: string, tex
     if (expectedChannelId && prefChannel !== expectedChannelId) return { outcome: "failed", reason: "preference_mismatch", channelId: prefChannel };
     if (prefChannel === channelOfThread) return { outcome: "preferred_is_mapped", channelId: prefChannel };
     if (!otaThreadId) return { outcome: "failed", reason: "thread_unresolved", channelId: prefChannel };
-    const token = await channelToken(prefChannel);
-    if (!token) return { outcome: "failed", reason: "token_unavailable", channelId: prefChannel };
-    // Blindagem: a conversa vista pela conta escolhida precisa ser do mesmo anúncio.
-    const seen = await threadListing(otaThreadId, token);
-    if (seen === UNAUTHORIZED) {
-      const { markSenderTokenExpired } = await import("@/lib/airbnb-sender-credentials.server");
-      await markSenderTokenExpired(db, prefChannel).catch(() => undefined);
-      return { outcome: "failed", reason: "token_unavailable", channelId: prefChannel };
-    }
-    if (!seen || seen !== listingId) return { outcome: "failed", reason: "listing_mismatch", channelId: prefChannel };
-    const id = await postDirect(otaThreadId, text, token);
+    // Channex não expõe mais o token (resposta do suporte, 27/11/2026): o envio sai pelo proxy autenticado
+    // do canal escolhido no seletor "Assinar como"; a Channex usa o token dela e o Airbnb carimba essa conta.
+    const id = await postViaChannexProxy(prefChannel, otaThreadId, text);
     return id ? { outcome: "sent", messageId: id, channelId: prefChannel } : { outcome: "failed", reason: "airbnb_rejected", channelId: prefChannel };
   } catch (e) {
     console.error("[airbnb-direct] envio direto indisponível", e instanceof Error ? e.message : e);
@@ -138,34 +129,34 @@ export async function trySendAsPreferredSender(channexThreadId: string, text: st
   return r.outcome === "sent" ? r.messageId : null;
 }
 
-const UNAUTHORIZED = "__unauthorized__";
-
-async function threadListing(otaThreadId: string, token: string): Promise<string | null> {
-  const res = await fetch(`${AIRBNB}/threads/${encodeURIComponent(otaThreadId)}?_format=for_messaging_sync_with_posts_china`, {
-    headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
-  });
-  if (res.status === 401) return UNAUTHORIZED; // token do cofre revogado/vencido
-  if (!res.ok) return null;
-  const j: any = await res.json().catch(() => null);
-  const id = j?.thread?.attachment?.booking_details?.listing_id ?? j?.thread?.listing_id ?? null;
-  return id ? String(id) : null;
-}
-
-async function postDirect(otaThreadId: string, text: string, token: string): Promise<string | null> {
-  const res = await fetch(`${AIRBNB}/messages`, {
+/**
+ * Envio pelo proxy da Channex (`POST /channels/:id/action/api_proxy`, método temporário liberado pelo suporte
+ * em 27/11/2026): a mensagem sai pela conta do canal informado, sem acesso ao token. null = recusado.
+ */
+export async function postViaChannexProxy(
+  channelId: string,
+  otaThreadId: string,
+  text: string,
+  fetchImpl: typeof fetch = fetch,
+): Promise<string | null> {
+  const res = await fetchImpl(`${CX}/channels/${encodeURIComponent(channelId)}/action/api_proxy`, {
     method: "POST",
-    headers: { Authorization: `Bearer ${token}`, Accept: "application/json", "Content-Type": "application/json" },
-    body: JSON.stringify({ thread_id: Number(otaThreadId), message: text }),
+    headers: cxHeaders(),
+    body: JSON.stringify({
+      request: { endpoint: "messages", method: "post", params: { thread_id: Number(otaThreadId), message: text } },
+    }),
   });
   const body = await res.text().catch(() => "");
   if (!res.ok) {
-    console.error("[airbnb-direct] Airbnb recusou", res.status, body.slice(0, 200));
+    console.error("[airbnb-proxy] Channex/Airbnb recusou", res.status, body.slice(0, 200));
     return null;
   }
-  let id: string | null = null;
-  try {
-    const j = JSON.parse(body);
-    id = j?.message?.id != null ? String(j.message.id) : null;
-  } catch { /* ignore */ }
-  return id ?? `airbnb-direct:${Date.now()}`;
+  let j: any = null;
+  try { j = JSON.parse(body); } catch { /* ignore */ }
+  if (j?.errors || j?.data?.error || j?.error) {
+    console.error("[airbnb-proxy] erro no corpo", body.slice(0, 200));
+    return null;
+  }
+  const m = j?.data?.message ?? j?.message ?? j?.data?.attributes?.message;
+  return m?.id != null ? String(m.id) : `channex-proxy:${Date.now()}`;
 }
