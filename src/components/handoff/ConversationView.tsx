@@ -1738,7 +1738,6 @@ export function ConversationList({
                 ) : null}
                 <div className="flex min-w-0 items-center gap-1.5">
                   <span className="min-w-0 shrink truncate text-[13px] font-semibold">{displayName}</span>
-                  <GuestChatIcon phone={d?.phone ?? null} country={d?.phoneCountry ?? null} />
                 </div>
                 {period}
                 {!resolved && c.handoff_reason ? <p className="truncate text-[11.5px] text-muted-foreground">{c.handoff_reason}</p> : null}
@@ -1797,23 +1796,6 @@ function ChatStatusTag({ label }: { label: ChatStatusLabel }) {
     >
       {label}
     </span>
-  );
-}
-
-/** Ícone de chat do hóspede (verde, 12px) logo depois do nome; com telefone abre o WhatsApp. */
-function GuestChatIcon({ phone, country }: { phone: string | null; country: string | null }) {
-  const icon = (
-    <span className="inline-flex shrink-0 items-center justify-center rounded-full p-0.5 text-emerald-600">
-      <MessageCircle style={{ width: 12, height: 12 }} />
-    </span>
-  );
-  if (!phone) return icon;
-  const digits = (formatIntlPhone(phone, country ?? undefined) ?? phone).replace(/\D+/g, "");
-  if (!digits) return icon;
-  return (
-    <a href={`https://wa.me/${digits}`} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} aria-label="Conversar com o hóspede">
-      {icon}
-    </a>
   );
 }
 
