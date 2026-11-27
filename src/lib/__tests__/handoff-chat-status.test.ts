@@ -7,10 +7,10 @@ const base = { today, nowMs: now, isAirbnb: true };
 const conf = (checkin: string, checkout: string) => ({ status: "confirmed" as const, checkin, checkout });
 
 describe("chatStatusOf — etiqueta do card", () => {
-  it("reserva confirmada vira Confirmada / Em Andamento / Encerrada pelas datas", () => {
+  it("reserva confirmada vira Confirmada / Andamento / Encerrada pelas datas", () => {
     expect(chatStatusOf({ ...base, res: conf("2026-11-28", "2026-12-01"), flow: null })).toBe("Confirmada");
-    expect(chatStatusOf({ ...base, res: conf("2026-11-24", "2026-11-26"), flow: null })).toBe("Em Andamento");
-    expect(chatStatusOf({ ...base, res: conf("2026-11-26", "2026-11-28"), flow: null })).toBe("Em Andamento");
+    expect(chatStatusOf({ ...base, res: conf("2026-11-24", "2026-11-26"), flow: null })).toBe("Andamento");
+    expect(chatStatusOf({ ...base, res: conf("2026-11-26", "2026-11-28"), flow: null })).toBe("Andamento");
     expect(chatStatusOf({ ...base, res: conf("2026-11-20", "2026-11-25"), flow: null })).toBe("Encerrada");
   });
 
@@ -25,7 +25,7 @@ describe("chatStatusOf — etiqueta do card", () => {
 
   it("guia/WhatsApp sem cruzamento oficial usa as datas da reserva com que o hóspede entrou no guia", () => {
     const res = { status: "missing" as const, checkin: null, checkout: null };
-    expect(chatStatusOf({ ...base, isAirbnb: false, res, flow: null, guideStay: { checkin: "2026-11-25", checkout: "2026-11-27" } })).toBe("Em Andamento");
+    expect(chatStatusOf({ ...base, isAirbnb: false, res, flow: null, guideStay: { checkin: "2026-11-25", checkout: "2026-11-27" } })).toBe("Andamento");
     expect(chatStatusOf({ ...base, isAirbnb: false, res, flow: null, guideStay: { checkin: "2026-09-01", checkout: "2026-09-03" } })).toBe("Encerrada");
   });
 

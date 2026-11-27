@@ -11,7 +11,7 @@ export type GeneratedSystemDoc = {
   content_hash: string;
 };
 
-export const GENERATED_AT = "2026-11-27T18:00:33.205Z";
+export const GENERATED_AT = "2026-11-27T18:09:27.423Z";
 
 export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
   {
@@ -1188,10 +1188,10 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "doc_key": "rule:ChatStatusLabel",
     "kind": "rule",
     "title": "Regra — ChatStatusLabel",
-    "content": "Etiqueta de status de cada conversa da lista de Atendimento (26/11/2026).\n\nFonte: o que a Channex nos manda (consulta, pedido de reserva, aceite/recusa)\ne as reservas oficiais. Nada é estimado: sem dado, sem etiqueta.\n\n - Consulta → conversa do Airbnb que não virou reserva (consulta, ou pedido sem aceite fora das 24 h).\n - Solicitação → pedido de reserva ainda sem resposta, dentro das 24 h do Airbnb.\n - Recusada → consulta ou pedido recusado.\n - Confirmada → reserva confirmada que ainda não começou.\n - Em Andamento → hospedagem em curso (do check-in ao dia do check-out).\n - Encerrada → hospedagem já terminada.\n - Cancelada → reserva cancelada.\n\n\"Pendente de pagamento\" não existe nos dados da Channex, por isso não há essa etiqueta.",
+    "content": "Etiqueta de status de cada conversa da lista de Atendimento (26/11/2026).\n\nFonte: o que a Channex nos manda (consulta, pedido de reserva, aceite/recusa)\ne as reservas oficiais. Nada é estimado: sem dado, sem etiqueta.\n\n - Consulta → conversa do Airbnb que não virou reserva (consulta, ou pedido sem aceite fora das 24 h).\n - Solicitação → pedido de reserva ainda sem resposta, dentro das 24 h do Airbnb.\n - Recusada → consulta ou pedido recusado.\n - Confirmada → reserva confirmada que ainda não começou.\n - Andamento → hospedagem em curso (do check-in ao dia do check-out).\n - Encerrada → hospedagem já terminada.\n - Cancelada → reserva cancelada.\n\n\"Pendente de pagamento\" não existe nos dados da Channex, por isso não há essa etiqueta.",
     "source_path": "src/lib/handoff-chat-status.ts",
     "audience": [],
-    "content_hash": "96663ccee690eefea60a94cd8c375762"
+    "content_hash": "2b71afc0d32e242bd338641f75946ba6"
   },
   {
     "doc_key": "rule:chave",
@@ -8565,7 +8565,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "c9be3b69c03d0e0c22eac82894d94057"
   },
   {
-    "doc_key": "rule:src/lib/handoff-chat-status.ts:3212",
+    "doc_key": "rule:src/lib/handoff-chat-status.ts:3200",
     "kind": "rule",
     "title": "Regra em handoff-chat-status.ts",
     "content": "Datas da reserva com que o hóspede entrou no guia (código validado). Usadas no guia/WhatsApp\n quando o cruzamento com a reserva oficial não achou a linha (ex.: conversas antigas, sem vínculo).",
