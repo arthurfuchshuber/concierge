@@ -473,3 +473,13 @@ describe("diretivas literais de 14/11/2026", () => {
     }
   });
 });
+
+describe("tom gentil, leve e consultivo em qualquer assunto (27/11/2026)", () => {
+  it("persona pede gentileza sem secura nem melosidade e condução consultiva e resolutiva", async () => {
+    const { renderPersona } = await import("@/lib/guest-ai/persona");
+    const t = renderPersona();
+    expect(t).toMatch(/nunca ríspida, seca ou cortante, nem melosa, melancólica ou dramática/);
+    expect(t).toMatch(/sempre consultiva e resolutiva/);
+    expect(t).toMatch(/curta não é seca/);
+  });
+});
