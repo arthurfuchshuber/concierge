@@ -354,10 +354,10 @@ describe("sugestão de portfólio", () => {
 });
 
 // ─────────────── roteiro ───────────────
-describe("roteiro e persona (system.2026-11-26.1 / persona.2026-11-26.1)", () => {
+describe("roteiro e persona (system.2026-11-27.1 / persona.2026-11-26.1)", () => {
   const sys = buildSystemPrompt("airbnb");
   it("versões", () => {
-    expect(SYSTEM_PROMPT_VERSION).toBe("system.2026-11-26.1");
+    expect(SYSTEM_PROMPT_VERSION).toBe("system.2026-11-27.1");
     expect(PERSONA_VERSION).toBe("persona.2026-11-26.1");
   });
   it("período consultado: resposta comercial direta, mínimo de noites e sem promessa vazia", () => {
@@ -480,5 +480,15 @@ describe("não cabe aqui (16/11/2026, caso José): datas próximas neste imóvel
     expect(sys).toMatch(/avise a equipe \(strategy answer_and_handoff, urgência normal\), que pode intervir na negociação/);
     expect(sys).not.toMatch(/cite e reforce com naturalidade o material enviado/);
     expect(sys).not.toMatch(/as instruções que te passamos por aqui/);
+  });
+});
+
+describe("consulta: sem repetir o período e fechando com pergunta (caso Xiaoling, 27/11/2026)", () => {
+  it("o roteiro manda não repetir período/grupo e fechar com pergunta curta e persuasiva", async () => {
+    const { buildSystemPrompt } = await import("@/lib/guest-ai/system-prompt");
+    const sys = buildSystemPrompt("airbnb", undefined, { phase: "inquiry" } as never);
+    expect(sys).toMatch(/não repita de volta o período, o grupo ou a disponibilidade/);
+    expect(sys).toMatch(/O fechamento é uma pergunta curta e persuasiva, com as suas palavras/);
+    expect(sys).not.toMatch(/acolha o hóspede citando o período e o grupo/);
   });
 });
