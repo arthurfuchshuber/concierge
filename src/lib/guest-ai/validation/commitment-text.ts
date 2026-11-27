@@ -175,6 +175,12 @@ const TEAM = /\b(equipe|anfitri\w+|atendente|responsavel|host|team|staff|equipo|
 const CHANGE = /\b(alter\w*|mud\w*|troc\w*|estend\w*|prorrog\w*|cancel\w*|antecip\w*|adi\w*|chang\w*|extend\w*|modif\w*|cambi\w*|reschedul\w*)\b/;
 /** Disponibilidade só é afirmação sobre o IMÓVEL/DATAS (não "as senhas ficam disponíveis no guia"). */
 const LODGING = /\b(datas?|noites?|imovel|apartamento|flat|casa|quarto|unidade|studio|dates?|nights?|apartment|room|unit|property|fechas?|noches?|departamento|habitacion)\b/;
+/**
+ * Orientação para o PRÓPRIO hóspede fazer a alteração pela plataforma ("você consegue estender pela plataforma",
+ * "dá para incluir a diária pelo aplicativo"): é instrução, não compromisso nosso (caso Joseane, 27/11/2026 — a
+ * resposta consultiva foi barrada como não classificável e a hóspede ficou sem retorno).
+ */
+const GUEST_SELF_SERVICE = /\b(pela (propria )?plataforma|pelo (proprio )?(aplicativo|app|airbnb)|no (aplicativo|app|airbnb)|na plataforma|direto no app|(voce|voces) (pode|podem|consegue|conseguem)|it'?s possible to|you can|through the (app|platform)|via (the )?(app|platform|airbnb)|in the (app|airbnb)|por la (plataforma|app|aplicacion)|desde la (app|aplicacion)|usted puede|puedes)\b/;
 const NEGATION: Record<Lang | "mixed", RegExp> = {
   pt: /\b(nao|nunca|jamais)\b/,
   en: /\b(not|never|cannot|can't|won't|don't)\b/,
@@ -289,6 +295,7 @@ export function analyzeReplyCommitments(reply: string, ctx: TextContext): TextAn
       if (!has(c, re)) continue;
       objectHit = true;
       if (kind === "reservation_change" && !has(c, CHANGE)) continue;
+      if (kind === "reservation_change" && !done && !promise && has(c, GUEST_SELF_SERVICE)) continue;
       if (kind === "availability") {
         // afirmar disponibilidade do imóvel/datas = compromisso de disponibilidade (exige consulta)
         if (has(c, LODGING)) found.add(kind);

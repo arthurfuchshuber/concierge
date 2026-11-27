@@ -11,7 +11,7 @@ export type GeneratedSystemDoc = {
   content_hash: string;
 };
 
-export const GENERATED_AT = "2026-11-27T21:17:44.657Z";
+export const GENERATED_AT = "2026-11-27T23:25:26.056Z";
 
 export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
   {
@@ -2722,6 +2722,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/guest-ai/data/projections.ts",
     "audience": [],
     "content_hash": "bebc7578b3ae3f2579f04aa8de10d2f1"
+  },
+  {
+    "doc_key": "rule:GUEST_SELF_SERVICE",
+    "kind": "rule",
+    "title": "Regra — GUEST_SELF_SERVICE",
+    "content": "Orientação para o PRÓPRIO hóspede fazer a alteração pela plataforma (\"você consegue estender pela plataforma\",\n\"dá para incluir a diária pelo aplicativo\"): é instrução, não compromisso nosso (caso Joseane, 27/11/2026 — a\nresposta consultiva foi barrada como não classificável e a hóspede ficou sem retorno).",
+    "source_path": "src/lib/guest-ai/validation/commitment-text.ts",
+    "audience": [],
+    "content_hash": "83fe426bf303fc8ec0d9243d19315198"
   },
   {
     "doc_key": "rule:GuestMarkGroup",
@@ -6705,10 +6714,10 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "doc_key": "rule:src/lib/airbnb-direct-sender.server.ts:0",
     "kind": "rule",
     "title": "Regra em airbnb-direct-sender.server.ts",
-    "content": "Envio direto de mensagens no Airbnb com a conta escolhida no seletor de\nassinatura (\"carimbo\"), sem remapear o anúncio na Channex.\n\nSegurança:\n - O token OAuth é lido ao vivo da Channex a cada envio (nunca gravado no\n nosso banco nem devolvido ao navegador).\n - Antes de enviar, a conversa é lida no Airbnb com o token escolhido e o\n anúncio dela precisa ser exatamente o da conversa na Channex; qualquer\n divergência ou erro cai no envio padrão pela Channex (hóspede nunca fica\n sem resposta).",
+    "content": "Envio direto de mensagens no Airbnb com a conta escolhida no seletor de\nassinatura (\"carimbo\"), sem remapear o anúncio na Channex.\n\nO proxy usa a autenticação do canal escolhido, sem expor o token OAuth.\nO corpo de POST fica em request.payload; request.params não envia o corpo.\nO chamador mantém sua política existente de contingência.",
     "source_path": "src/lib/airbnb-direct-sender.server.ts",
     "audience": [],
-    "content_hash": "36891ed8792f73261de92cd554e91e7f"
+    "content_hash": "538854d0bfa1976b963ac86a75161627"
   },
   {
     "doc_key": "rule:src/lib/airbnb-host-api.server.ts:0",

@@ -42,3 +42,21 @@ describe("rascunho barrado para a auditoria", () => {
     expect(blockedDraft("O código é 4471.", ["x"], [], deny).reply).toBeNull();
   });
 });
+
+describe("caso Joseane (27/11/2026): orientar o hóspede a estender pela plataforma é informação, não compromisso", () => {
+  it("não fica como não classificável", async () => {
+    const { analyzeReplyCommitments } = await import("@/lib/guest-ai/validation/commitment-text");
+    for (const t of [
+      "Você consegue estender a estadia em uma diária pela plataforma, Joseane.",
+      "É possível estender a estadia incluindo a diária pelo aplicativo.",
+      "Puedes extender la estadía por la plataforma.",
+    ]) {
+      expect(analyzeReplyCommitments(t, {} as never).unclassifiable, t).toBe(0);
+    }
+  });
+  it("prometer estender em nosso nome continua barrado", async () => {
+    const { analyzeReplyCommitments } = await import("@/lib/guest-ai/validation/commitment-text");
+    const a = analyzeReplyCommitments("Vou estender a sua estadia por mais uma noite.", {} as never);
+    expect(a.claims.some((c) => c.kind === "reservation_change")).toBe(true);
+  });
+});
