@@ -32,7 +32,7 @@ const RAW = /\[\[|\]\]|\{\{|\}\}/;
 
 describe("[[CREDENCIAIS]] · troca pela credencial real autorizada", () => {
   it("CASO RENAN: o marcador vira o código real do cofre (Airbnb: texto limpo) e nunca aparece cru", () => {
-    const r = resolveOutboundText("Seguem os dados de acesso: [[CREDENCIAIS]] Qualquer coisa, me chama aqui!", ctx());
+    const r = resolveOutboundText("Seguem os dados de acesso: [[CREDENCIAIS]] Qualquer coisa, me chama aqui!", ctx({ guestText: "Não consigo abrir o cofre" }));
     expect(r.text).toContain("Código da fechadura/cofre: 2610");
     expect(r.text).toContain("Código do portão: 4455");
     expect(r.text).toContain("O cofre fica à direita da porta.");
@@ -42,6 +42,14 @@ describe("[[CREDENCIAIS]] · troca pela credencial real autorizada", () => {
     expect(r.needsHandoff).toBe(false);
     expect(r.text.indexOf("Seguem")).toBe(0);
     expect(r.text.trim().endsWith("me chama aqui!")).toBe(true);
+  });
+  it("caso Juan: chegada simples recebe só os códigos; o procedimento completo vai quando pergunta como ou relata dificuldade", () => {
+    const chegada = resolveOutboundText("Para entrar: [[CREDENCIAIS]]", ctx({ guestText: "Ya estoy afuera de la ubicación" }));
+    expect(chegada.text).toContain("2610");
+    expect(chegada.text).not.toContain("O cofre fica à direita da porta.");
+    for (const g of ["La puerta principal no abre", "Como abro o cofre?", "No puedo abrir", "I can't open it"]) {
+      expect(resolveOutboundText("Para entrar: [[CREDENCIAIS]]", ctx({ guestText: g })).text, g).toContain("O cofre fica à direita da porta.");
+    }
   });
   it("negrito no WhatsApp (*x*) e no guia (**x**)", () => {
     expect(resolveOutboundText("Acesso: [[CREDENCIAIS]]", ctx({ surface: "whatsapp" })).text).toContain("*2610*");

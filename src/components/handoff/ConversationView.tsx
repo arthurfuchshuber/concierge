@@ -12,7 +12,7 @@
  * da IA (âmbar). Ao clicar numa opção da decisão o campo bloqueia até a IA entregar a resposta.
  * Sem logo do Airbnb ou ícone de canal ao lado do nome do hóspede (25/11/2026). Tema do app (sem tema fixo).
  */
-import { CHAT_STATUS_TONE, type ChatStatusLabel } from "@/lib/handoff-chat-status";
+import type { ChatStatusLabel } from "@/lib/handoff-chat-status";
 import { relativeDayWord } from "@/lib/relative-day";
 import {
   CopyCode,
@@ -27,6 +27,7 @@ import {
   shortAgo,
   stayBarClass,
   stayToneText,
+  stayTagClass,
   type StayView,
 } from "./stay-view";
 import { channelOf } from "./ChannelLogo";
@@ -1694,7 +1695,7 @@ export function ConversationList({
         const stay = buildStayView({ detail: d ?? null, res: reservations?.[c.id] ?? null, viewers: guideViewers?.[c.id] ?? 0 });
         const ago = shortAgo(c.handoff_at ?? c.last_message_at);
         const title = prop?.name ?? "—";
-        const tag = chatStatus?.[c.id] ? <ChatStatusTag label={chatStatus[c.id]} /> : null;
+        const tag = chatStatus?.[c.id] ? <ChatStatusTag label={chatStatus[c.id]} className={stayTagClass(stay)} /> : null;
         if (layout === "mobile") {
           const sel = isActive ? " bg-[var(--card-surface-hover)] ring-1 ring-inset ring-foreground/10" : " bg-[var(--card-surface)]";
           const period = stay.checkin ? (
@@ -1720,9 +1721,9 @@ export function ConversationList({
               data-clip-row
               onClick={() => onSelect(c.id)}
               onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), onSelect(c.id))}
-              className={`group relative isolate flex shrink-0 cursor-pointer flex-col gap-2 rounded-[12px] p-3.5 text-left ds-3d${sel}`}
+              className={`group relative isolate flex shrink-0 cursor-pointer flex-col gap-2 overflow-hidden rounded-[12px] p-3.5 text-left ds-3d${sel}`}
             >
-              <span aria-hidden="true" className={`absolute inset-y-0 left-0 w-[3px] rounded-l-[12px] ${stayBarClass(stay)}`} />
+              <span aria-hidden="true" className={`absolute inset-y-0 left-0 w-[3px] ${stayBarClass(stay)}`} />
               <div className="ds-card-lines min-w-0 w-full">
                 <div className="flex min-w-0 items-center gap-2">
                   <span className="ds-card-title flex-1 leading-tight" title={title}>
@@ -1789,11 +1790,9 @@ export function ConversationList({
 }
 
 /** Etiqueta curta de status da conversa, no canto superior direito do card (mockup de 26/11/2026). */
-function ChatStatusTag({ label }: { label: ChatStatusLabel }) {
+function ChatStatusTag({ label, className }: { label: ChatStatusLabel; className: string }) {
   return (
-    <span
-      className={`inline-flex shrink-0 items-center rounded-full px-2 py-[3px] text-[10.5px] font-semibold leading-none ${CHAT_STATUS_TONE[label]}`}
-    >
+    <span className={`inline-flex shrink-0 items-center rounded-full px-2 py-[3px] text-[10.5px] font-semibold leading-none ${className}`}>
       {label}
     </span>
   );
