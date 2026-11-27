@@ -11,7 +11,7 @@ export type GeneratedSystemDoc = {
   content_hash: string;
 };
 
-export const GENERATED_AT = "2026-11-27T18:09:27.423Z";
+export const GENERATED_AT = "2026-11-27T21:17:44.657Z";
 
 export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
   {
@@ -2922,6 +2922,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "9b294659aa18a7a63f19b8b06c539557"
   },
   {
+    "doc_key": "rule:HOW_OR_TROUBLE",
+    "kind": "rule",
+    "title": "Regra — HOW_OR_TROUBLE",
+    "content": "O hóspede relatou dificuldade ou perguntou COMO entrar (pt/es/en). Só então o procedimento completo do dossiê\n(accessInstructions) acompanha os códigos; na chegada simples vão só os códigos e o modelo conduz um passo por vez\n(caso Juan, 27/11/2026: a chegada recebeu o procedimento inteiro de cofre, portão e alarme de uma vez).",
+    "source_path": "src/lib/guest-ai/credential-delivery.ts",
+    "audience": [],
+    "content_hash": "cc6c57340cbbd62365d552be87576f69"
+  },
+  {
     "doc_key": "rule:humanizeEventMessage",
     "kind": "rule",
     "title": "Regra — humanizeEventMessage",
@@ -3406,6 +3415,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/auto-checkout.server.ts",
     "audience": [],
     "content_hash": "91a6bce5c04be3356ecf7335758a1628"
+  },
+  {
+    "doc_key": "rule:loadRecentGuestText",
+    "kind": "rule",
+    "title": "Regra — loadRecentGuestText",
+    "content": "Texto das mensagens recentes do hóspede (rajada dos últimos 10 min): decide se o procedimento completo de acesso\nacompanha os códigos (só quando ele pergunta como entrar ou relata dificuldade). Falha ⇒ \"\" (vão só os códigos).",
+    "source_path": "src/lib/guest-ai/credential-delivery.server.ts",
+    "audience": [],
+    "content_hash": "a846cc250ce60721503826c878e14a0f"
   },
   {
     "doc_key": "rule:loadTurnoverFlags",
@@ -7596,10 +7614,10 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "doc_key": "rule:src/lib/guest-ai/credential-delivery.ts:0",
     "kind": "rule",
     "title": "Regra em credential-delivery.ts",
-    "content": "ENTREGA DE CREDENCIAIS NA SAÍDA (14/11/2026 · caso Renan: a mensagem saiu para o hóspede com o texto literal\n\"[[CREDENCIAIS]]\"). Puro, sem banco nem rede.\n\nO modelo NUNCA vê códigos: quando a D9 permite, ele só declara `credentialIntent = would_deliver` e escreve o\nmarcador `[[CREDENCIAIS]]` uma vez. Quem troca o marcador pelos dados reais é a camada de saída\n(`slot.server.ts`), DEPOIS de a cadeia validar a resposta e SÓ com as credenciais obtidas por um\n`CredentialGrant` emitido numa reavaliação nova da D9 (`credential-delivery.server.ts`).\n\nRegras:\n - com credenciais: o marcador vira o bloco de acesso (cofre/fechadura, portão, PIN, instruções; Wi-Fi só se o\n assunto for Wi-Fi);\n - sem credenciais (D9 negou agora, falha de leitura, imóvel sem código cadastrado): a frase do marcador é\n REMOVIDA (nenhum aviso improvisado) e a conversa SEMPRE é encaminhada à equipe — o slot nem envia o texto;\n - rede de segurança final (`stripCredentialMarker`): nenhuma variação do marcador sai para o canal.\nNada aqui vai para log; os valores só existem no texto devolvido ao canal.",
+    "content": "ENTREGA DE CREDENCIAIS NA SAÍDA (14/11/2026 · caso Renan: a mensagem saiu para o hóspede com o texto literal\n\"[[CREDENCIAIS]]\"). Puro, sem banco nem rede.\n\nO modelo NUNCA vê códigos: quando a D9 permite, ele só declara `credentialIntent = would_deliver` e escreve o\nmarcador `[[CREDENCIAIS]]` uma vez. Quem troca o marcador pelos dados reais é a camada de saída\n(`slot.server.ts`), DEPOIS de a cadeia validar a resposta e SÓ com as credenciais obtidas por um\n`CredentialGrant` emitido numa reavaliação nova da D9 (`credential-delivery.server.ts`).\n\nRegras:\n - com credenciais: o marcador vira o bloco de acesso (cofre/fechadura, portão, PIN; Wi-Fi só se o assunto for\n Wi-Fi); o procedimento completo (instruções) só quando o hóspede pergunta como entrar ou relata dificuldade;\n - sem credenciais (D9 negou agora, falha de leitura, imóvel sem código cadastrado): a frase do marcador é\n REMOVIDA (nenhum aviso improvisado) e a conversa SEMPRE é encaminhada à equipe — o slot nem envia o texto;\n - rede de segurança final (`stripCredentialMarker`): nenhuma variação do marcador sai para o canal.\nNada aqui vai para log; os valores só existem no texto devolvido ao canal.",
     "source_path": "src/lib/guest-ai/credential-delivery.ts",
     "audience": [],
-    "content_hash": "c6d2bf9327f2f8f99ad0eb9cf003a13b"
+    "content_hash": "8c908ee9d1b30dc72f99c62acbebc762"
   },
   {
     "doc_key": "rule:src/lib/guest-ai/data/airbnb-thread.server.ts:0",
@@ -8565,7 +8583,7 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "content_hash": "c9be3b69c03d0e0c22eac82894d94057"
   },
   {
-    "doc_key": "rule:src/lib/handoff-chat-status.ts:3200",
+    "doc_key": "rule:src/lib/handoff-chat-status.ts:2566",
     "kind": "rule",
     "title": "Regra em handoff-chat-status.ts",
     "content": "Datas da reserva com que o hóspede entrou no guia (código validado). Usadas no guia/WhatsApp\n quando o cruzamento com a reserva oficial não achou a linha (ex.: conversas antigas, sem vínculo).",
@@ -9319,6 +9337,15 @@ export const SYSTEM_KNOWLEDGE: GeneratedSystemDoc[] = [
     "source_path": "src/lib/manual-block-conflict.ts",
     "audience": [],
     "content_hash": "d0cdacb4ef7f53387ac6794e671a033c"
+  },
+  {
+    "doc_key": "rule:stayTagClass",
+    "kind": "rule",
+    "title": "Regra — stayTagClass",
+    "content": "Etiqueta de status do card do chat (27/11/2026): a cor é SEMPRE a da etapa da reserva, a mesma da barra lateral\ne do período (laranja saída, verde estadia, azul chegada, vermelho cancelada); sem etapa, neutra.",
+    "source_path": "src/components/handoff/stay-view.tsx",
+    "audience": [],
+    "content_hash": "d2e56267b692f5729a366339d1b19588"
   },
   {
     "doc_key": "rule:stepAuthor",

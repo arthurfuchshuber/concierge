@@ -62,15 +62,43 @@ export async function loadOutboundContext(
   propertyId: string,
   needsCredentials: boolean,
 ): Promise<OutboundContext> {
-  const [credentials, pub] = await Promise.all([
+  const [credentials, pub, guestText] = await Promise.all([
     needsCredentials ? loadAuthorizedCredentials(req) : Promise.resolve(null),
     loadPublicSnapshot(propertyId),
+    needsCredentials ? loadRecentGuestText(req.conversationId) : Promise.resolve(""),
   ]);
   return {
     surface: req.surface,
     credentials,
+    guestText,
     property: pub.property,
     guideSlug: pub.slug,
     origin: process.env["GUIDE_PUBLIC_ORIGIN"] || undefined,
   };
+}
+
+/**
+ * Texto das mensagens recentes do hóspede (rajada dos últimos 10 min): decide se o procedimento completo de acesso
+ * acompanha os códigos (só quando ele pergunta como entrar ou relata dificuldade). Falha ⇒ "" (vão só os códigos).
+ */
+async function loadRecentGuestText(conversationId: string): Promise<string> {
+  try {
+    const db = await getGuestAiDb();
+    const { data } = await db
+      .from("property_chat_messages")
+      .select("content, created_at")
+      .eq("conversation_id", conversationId)
+      .eq("role", "user")
+      .order("created_at", { ascending: false })
+      .limit(5);
+    const rows = (data ?? []) as Array<{ content: string | null; created_at: string }>;
+    if (rows.length === 0) return "";
+    const last = Date.parse(rows[0]!.created_at);
+    return rows
+      .filter((r) => last - Date.parse(r.created_at) <= 10 * 60 * 1000)
+      .map((r) => r.content ?? "")
+      .join("\n");
+  } catch {
+    return "";
+  }
 }

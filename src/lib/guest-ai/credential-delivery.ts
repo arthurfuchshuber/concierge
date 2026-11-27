@@ -8,8 +8,8 @@
  * `CredentialGrant` emitido numa reavaliação nova da D9 (`credential-delivery.server.ts`).
  *
  * Regras:
- *  - com credenciais: o marcador vira o bloco de acesso (cofre/fechadura, portão, PIN, instruções; Wi-Fi só se o
- *    assunto for Wi-Fi);
+ *  - com credenciais: o marcador vira o bloco de acesso (cofre/fechadura, portão, PIN; Wi-Fi só se o assunto for
+ *    Wi-Fi); o procedimento completo (instruções) só quando o hóspede pergunta como entrar ou relata dificuldade;
  *  - sem credenciais (D9 negou agora, falha de leitura, imóvel sem código cadastrado): a frase do marcador é
  *    REMOVIDA (nenhum aviso improvisado) e a conversa SEMPRE é encaminhada à equipe — o slot nem envia o texto;
  *  - rede de segurança final (`stripCredentialMarker`): nenhuma variação do marcador sai para o canal.
@@ -31,6 +31,13 @@ export const hasCredentialMarker = (text: string): boolean => {
 };
 
 const WIFI = /wi-?\s?fi|internet|\brede\b/iu;
+/**
+ * O hóspede relatou dificuldade ou perguntou COMO entrar (pt/es/en). Só então o procedimento completo do dossiê
+ * (accessInstructions) acompanha os códigos; na chegada simples vão só os códigos e o modelo conduz um passo por vez
+ * (caso Juan, 27/11/2026: a chegada recebeu o procedimento inteiro de cofre, portão e alarme de uma vez).
+ */
+const HOW_OR_TROUBLE =
+  /\b(como|c[oó]mo|how)\b|n[aã]o\s+(?:consig|abr|funcion|d[aá])|no\s+(?:puedo|abre|funciona|logro|consigo|anda)|can'?t|cannot|won'?t|doesn'?t|not\s+(?:open|work)|travad|trancad|emperr|problema|dificuldade|dificultad|ayuda|help|ajuda|passo a passo|paso a paso|instru[cç]/iu;
 const ACCESS = /porta|port[aã]o|cofre|cadeado|fechadura|chave|entrar|entrada|acesso|c[oó]digo|pin\b|senha da (?:porta|entrada)|lockbox/iu;
 
 /** Wi-Fi só quando o assunto é Wi-Fi: na resposta ou na mensagem do hóspede, e sem pedido de acesso. */
@@ -63,7 +70,7 @@ export function renderCredentialBlock(
     if (creds.pinCode) lines.push(`• PIN de acesso: ${b(creds.pinCode)}`);
   }
   if (want.wifi && creds.wifiPassword) lines.push(`• Senha do Wi-Fi: ${b(creds.wifiPassword)}`);
-  if (want.access && creds.accessInstructions) lines.push(creds.accessInstructions.trim());
+  if (want.access && creds.accessInstructions && HOW_OR_TROUBLE.test(ctx.guestText ?? "")) lines.push(creds.accessInstructions.trim());
   return lines.length > 0 ? lines.join("\n") : null;
 }
 

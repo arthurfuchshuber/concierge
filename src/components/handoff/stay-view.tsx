@@ -102,19 +102,38 @@ export function stayBarClass(s: Pick<StayView, "tone">): string {
   }
 }
 
-/** Cor do texto do período e da palavra relativa (a cor da etapa, igual ao card do Kanban). */
+/** Cor do texto do período e da palavra relativa: a MESMA do Kanban (`periodColorClass` em `card-colors.ts`). */
 export function stayToneText(s: Pick<StayView, "tone">, fallback = "text-foreground"): string {
   switch (s.tone) {
     case "orange":
-      return "text-orange-600";
+      return "text-orange-600 dark:text-orange-400";
     case "sky":
-      return "text-sky-700";
+      return "text-sky-700 dark:text-sky-300";
     case "emerald":
-      return "text-emerald-700";
+      return "text-emerald-700 dark:text-emerald-300";
     case "red":
-      return "text-red-800";
+      return "text-red-800 dark:text-red-400";
     default:
       return fallback;
+  }
+}
+
+/**
+ * Etiqueta de status do card do chat (27/11/2026): a cor é SEMPRE a da etapa da reserva, a mesma da barra lateral
+ * e do período (laranja saída, verde estadia, azul chegada, vermelho cancelada); sem etapa, neutra.
+ */
+export function stayTagClass(s: Pick<StayView, "tone">): string {
+  switch (s.tone) {
+    case "orange":
+      return `bg-orange-500/12 ${stayToneText(s)}`;
+    case "sky":
+      return `bg-sky-500/12 ${stayToneText(s)}`;
+    case "emerald":
+      return `bg-emerald-500/12 ${stayToneText(s)}`;
+    case "red":
+      return `bg-red-500/10 ${stayToneText(s)}`;
+    default:
+      return "bg-foreground/[0.06] text-muted-foreground";
   }
 }
 

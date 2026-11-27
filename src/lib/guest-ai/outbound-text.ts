@@ -77,6 +77,8 @@ export interface OutboundContext {
   /** Slug do guia publicado (links das seções); `null` ⇒ só o nome da seção. */
   guideSlug: string | null;
   origin?: string;
+  /** Mensagens recentes do hóspede: o procedimento completo de acesso só vai se ele perguntou como entrar ou relatou dificuldade. */
+  guestText?: string;
 }
 
 export interface OutboundResult {
@@ -172,7 +174,7 @@ export function resolveOutboundText(text: string, ctx: OutboundContext): Outboun
   if (firstAt >= 0) {
     out = out.slice(0, firstAt + CREDENTIAL_MARKER.length) + out.slice(firstAt + CREDENTIAL_MARKER.length).split(CREDENTIAL_MARKER).join("");
   }
-  const cred = applyCredentials(out, ctx.credentials, { surface: ctx.surface });
+  const cred = applyCredentials(out, ctx.credentials, { surface: ctx.surface, guestText: ctx.guestText });
   out = cred.text;
   needsHandoff = cred.fallback;
   // 3) info públicas (e sensíveis já autorizadas)
