@@ -2,13 +2,9 @@
  * Envio direto de mensagens no Airbnb com a conta escolhida no seletor de
  * assinatura ("carimbo"), sem remapear o anúncio na Channex.
  *
- * Segurança:
- *  - O token OAuth é lido ao vivo da Channex a cada envio (nunca gravado no
- *    nosso banco nem devolvido ao navegador).
- *  - Antes de enviar, a conversa é lida no Airbnb com o token escolhido e o
- *    anúncio dela precisa ser exatamente o da conversa na Channex; qualquer
- *    divergência ou erro cai no envio padrão pela Channex (hóspede nunca fica
- *    sem resposta).
+ * O proxy usa a autenticação do canal escolhido, sem expor o token OAuth.
+ * O corpo de POST fica em request.payload; request.params não envia o corpo.
+ * O chamador mantém sua política existente de contingência.
  */
 import { usableAirbnbToken } from "@/lib/airbnb-token";
 
@@ -143,7 +139,7 @@ export async function postViaChannexProxy(
     method: "POST",
     headers: cxHeaders(),
     body: JSON.stringify({
-      request: { endpoint: "messages", method: "post", params: { thread_id: Number(otaThreadId), message: text } },
+      request: { endpoint: "messages", method: "post", payload: { thread_id: Number(otaThreadId), message: text } },
     }),
   });
   const body = await res.text().catch(() => "");
@@ -158,5 +154,6 @@ export async function postViaChannexProxy(
     return null;
   }
   const m = j?.data?.message ?? j?.message ?? j?.data?.attributes?.message;
-  return m?.id != null ? String(m.id) : `channex-proxy:${Date.now()}`;
+  const id = j?.data?.id ?? m?.id;
+  return id != null ? String(id) : null;
 }

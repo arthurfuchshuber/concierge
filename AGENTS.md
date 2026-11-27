@@ -1,5 +1,7 @@
 # Architecture rules
 
+- Channex proxy message POSTs send unchanged caller text in `request.payload` and use the returned `data.id` as delivery evidence; `request.params` does not carry a POST body, and fabricated IDs cannot prove delivery.
+
 - Microsoft OAuth uses the managed Lovable helper and returns to public `/auth` with validated `next`; navigate to protected destinations only after Auth verifies the user, preserving existing profiles and permissions.
 
 - Every floating surface must register with `global-overlay-store`; this keeps blur and outside-click order consistent across nested UI.
