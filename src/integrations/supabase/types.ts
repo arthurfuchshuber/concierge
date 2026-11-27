@@ -2274,6 +2274,42 @@ export type Database = {
         }
         Relationships: []
       }
+      airbnb_sender_credentials: {
+        Row: {
+          airbnb_user_id: string | null
+          channex_channel_id: string
+          encrypted_access_token: string
+          encrypted_refresh_token: string | null
+          expires_at: string | null
+          id: string
+          owner_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          airbnb_user_id?: string | null
+          channex_channel_id: string
+          encrypted_access_token: string
+          encrypted_refresh_token?: string | null
+          expires_at?: string | null
+          id?: string
+          owner_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          airbnb_user_id?: string | null
+          channex_channel_id?: string
+          encrypted_access_token?: string
+          encrypted_refresh_token?: string | null
+          expires_at?: string | null
+          id?: string
+          owner_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       app_user_connections: {
         Row: {
           connection_key_ciphertext: string
