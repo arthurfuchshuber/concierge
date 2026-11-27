@@ -8,7 +8,7 @@
  *  - Solicitação  → pedido de reserva ainda sem resposta, dentro das 24 h do Airbnb.
  *  - Recusada     → consulta ou pedido recusado.
  *  - Confirmada   → reserva confirmada que ainda não começou.
- *  - Em Andamento → hospedagem em curso (do check-in ao dia do check-out).
+ *  - Andamento → hospedagem em curso (do check-in ao dia do check-out).
  *  - Encerrada    → hospedagem já terminada.
  *  - Cancelada    → reserva cancelada.
  *
@@ -20,7 +20,7 @@ export type ChatStatusLabel =
   | "Solicitação"
   | "Recusada"
   | "Confirmada"
-  | "Em Andamento"
+  | "Andamento"
   | "Encerrada"
   | "Cancelada";
 
@@ -48,7 +48,7 @@ export const CHAT_STATUS_TONE: Record<ChatStatusLabel, string> = {
   Consulta: "bg-foreground/[0.06] text-muted-foreground",
   "Solicitação": "bg-amber-500/14 text-amber-800 dark:bg-amber-400/15 dark:text-amber-200",
   Confirmada: "bg-sky-500/12 text-sky-700 dark:bg-sky-400/15 dark:text-sky-300",
-  "Em Andamento": "bg-emerald-500/12 text-emerald-700 dark:bg-emerald-400/15 dark:text-emerald-300",
+  "Andamento": "bg-emerald-500/12 text-emerald-700 dark:bg-emerald-400/15 dark:text-emerald-300",
   Encerrada: "bg-foreground/[0.06] text-muted-foreground",
   Cancelada: "bg-[#c98c8c]/16 text-[#a35d5d] dark:bg-[#c98c8c]/20 dark:text-[#e0aaaa]",
   Recusada: "bg-[#c98c8c]/16 text-[#a35d5d] dark:bg-[#c98c8c]/20 dark:text-[#e0aaaa]",
@@ -56,7 +56,7 @@ export const CHAT_STATUS_TONE: Record<ChatStatusLabel, string> = {
 
 function byDates(checkin: string, checkout: string | null, today: string): ChatStatusLabel {
   if (checkout && checkout < today) return "Encerrada";
-  if (checkin <= today) return "Em Andamento";
+  if (checkin <= today) return "Andamento";
   return "Confirmada";
 }
 
