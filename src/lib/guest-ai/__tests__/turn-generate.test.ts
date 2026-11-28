@@ -1202,9 +1202,11 @@ describe("rastro da geração (16/11/2026, auditoria)", () => {
     await generateGuestAiTurn(REQ, d);
     expect(traces).toHaveLength(1);
     const t = traces[0]!;
-    expect(t.attempts).toBe(2);
+    // a IA insiste: até 2 novas tentativas corretivas, a última marcada (diretiva 27/11/2026)
+    expect(t.attempts).toBe(3);
     expect(t.retry_reason).toMatch(/^[a-z0-9_ ,]+$/);
-    expect(t.total_ms).toBe(10_000);
+    expect(t.retry_reason).toMatch(/ultima_tentativa$/);
+    expect(t.total_ms).toBe(15_000);
     expect(t.autonomous).toBe(true);
     expect(t.final_kind).toBe("refused");
   });
@@ -1213,5 +1215,35 @@ describe("rastro da geração (16/11/2026, auditoria)", () => {
     const d = deps(p, { recordTrace: async () => { throw new Error("db down"); } });
     const r = await generateGuestAiTurn(REQ, d);
     expect(r).toMatchObject({ status: "stored" });
+  });
+});
+
+
+describe("a IA conduz até o fim (27/11/2026)", () => {
+  it("nota da nova tentativa junta os motivos e marca a última, sempre ≤ 200 caracteres e só códigos", async () => {
+    const { correctiveRetryNote, MAX_CORRECTIVE_RETRIES } = await import("@/lib/guest-ai/turn/generate.server");
+    expect(MAX_CORRECTIVE_RETRIES).toBe(2);
+    expect(correctiveRetryNote(["semantic_block a"], false)).toBe("semantic_block a");
+    expect(correctiveRetryNote(["semantic_block a", "structural_block b"], true)).toBe("semantic_block a, structural_block b ultima_tentativa");
+    const long = correctiveRetryNote(["x".repeat(150), "y".repeat(150)], true);
+    expect(long.length).toBeLessThanOrEqual(200);
+    expect(long).toMatch(/^[a-z_ ,]+ultima_tentativa$/);
+  });
+  it("a última tentativa pede resposta com o que é fato, sem chamar a equipe à toa", async () => {
+    const { buildSystemPrompt } = await import("@/lib/guest-ai/system-prompt");
+    const sys = buildSystemPrompt("airbnb", undefined, { retryNote: "semantic_block text_commitment_unclassifiable ultima_tentativa" });
+    expect(sys).toMatch(/Esta é a última tentativa: o hóspede não pode ficar sem resposta/);
+    expect(sys).toMatch(/não pôde ser usada \(semantic_block text_commitment_unclassifiable\)/);
+    const first = buildSystemPrompt("airbnb", undefined, { retryNote: "semantic_block x" });
+    expect(first).not.toMatch(/última tentativa/);
+  });
+  it("o roteiro só chama a equipe para ação ou decisão humana e conversa sobre qualquer assunto", async () => {
+    const { buildSystemPrompt } = await import("@/lib/guest-ai/system-prompt");
+    const sys = buildSystemPrompt("airbnb");
+    expect(sys).toMatch(/Você conduz a conversa do começo ao fim, por mais longa que seja e sobre qualquer assunto/);
+    expect(sys).toMatch(/pedir para falar com alguém não é motivo para chamar a equipe/);
+    expect(sys).toMatch(/Handoff só quando a solução exige ação ou decisão humana/);
+    expect(sys).toMatch(/Qualquer outro assunto que o hóspede trouxer, responda com o seu conhecimento/);
+    expect(sys).not.toMatch(/ou quando o hóspede pedir uma pessoa/);
   });
 });

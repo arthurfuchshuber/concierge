@@ -26,13 +26,13 @@ describe("sem segundo cumprimento (caso Luiz Eduardo, 19/11/2026)", () => {
 });
 
 describe("dado técnico fora do dossiê (caso Alice, tomadas, 19/11/2026)", () => {
-  it("o roteiro manda oferecer o padrão da cidade como referência e encaminhar a confirmação", async () => {
+  it("o roteiro manda oferecer o padrão da cidade como referência, sem chamar a equipe (diretiva 27/11/2026)", async () => {
     const { buildSystemPrompt } = await import("@/lib/guest-ai/system-prompt");
     const sys = buildSystemPrompt("airbnb", undefined, { phase: "in_stay" });
     expect(sys).toMatch(/responda com segurança o que você sabe, o padrão da cidade/);
     expect(sys).toMatch(/sem anunciar que a informação falta no cadastro nem soar inseguro/);
     expect(sys).not.toMatch(/como conferir na própria tomada/);
-    expect(sys).toMatch(/marque o encaminhamento para a equipe confirmar o dado do imóvel/);
+    expect(sys).toMatch(/sem encaminhar à equipe por isso/);
   });
 });
 

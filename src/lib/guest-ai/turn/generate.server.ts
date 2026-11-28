@@ -381,7 +381,27 @@ export function turnTimings(p: { longTurn: boolean }): {
   };
 }
 
-/** Motivo de UMA nova tentativa (códigos fechados). O silêncio é decisão legítima e não é refeito. */
+/** Novas tentativas corretivas depois de uma recusa (a 1ª tentativa não conta). */
+export const MAX_CORRECTIVE_RETRIES = 2;
+
+/**
+ * Nota da nova tentativa (só códigos fechados, ≤ 200 caracteres): junta os motivos de todas as recusas anteriores e,
+ * na última, acrescenta `ultima_tentativa` (o prompt pede só o que é fato e útil, sem o ponto que travou).
+ */
+export function correctiveRetryNote(reasons: readonly string[], last: boolean): string {
+  const tail = last ? " ultima_tentativa" : "";
+  const room = 200 - tail.length;
+  let body = "";
+  for (const r of reasons) {
+    const next = body ? `${body}, ${r}` : r;
+    if (next.length > room) break;
+    body = next;
+  }
+  if (!body) body = (reasons[0] ?? "").slice(0, room);
+  return `${body}${tail}`;
+}
+
+/** Motivo de uma nova tentativa (códigos fechados). O silêncio é decisão legítima e não é refeito. */
 export function retryReason(o: ChainOutcome): string | null {
   if (o.kind === "refused") {
     const c = o.code as string;
@@ -881,17 +901,28 @@ export async function generateGuestAiTurn(
         fresh(),
       );
     }
-    const reason = retryReason(outcome);
-    if (reason && generator.telemetry().status !== "blocked" && remainingMs() > retryMinMs) {
+    // A IA CONDUZ ATÉ O FIM (27/11/2026, diretiva do titular: "a IA nunca chama um humano, exceto quando precisa
+    // da atuação de um humano"): um bloqueio corrigível não vira encaminhamento silencioso na primeira recusa. Até
+    // `MAX_CORRECTIVE_RETRIES` novas tentativas, cada uma com os códigos de TODAS as recusas anteriores; a última
+    // pede só o que é fato e útil, sem o ponto que não soube cumprir.
+    const seen: string[] = [];
+    for (let i = 0; i < MAX_CORRECTIVE_RETRIES; i++) {
+      const reason = retryReason(outcome);
+      if (!reason || generator.telemetry().status === "blocked" || remainingMs() <= retryMinMs) break;
+      if (!seen.includes(reason)) seen.push(reason);
+      const note = correctiveRetryNote(seen, i === MAX_CORRECTIVE_RETRIES - 1);
       generator = makeGenerator();
       chainRuns += 1;
-      retryUsed = reason.slice(0, 120);
-      const second = await runTurnChain(
-        { turn, traceId: claimed.suggestionId, batch: null, retryNote: reason },
+      retryUsed = note.slice(0, 120);
+      const next = await runTurnChain(
+        { turn, traceId: claimed.suggestionId, batch: null, retryNote: note },
         fresh(),
       );
       // o silêncio decidido na nova tentativa vale (caso Felipe, 17/11/2026)
-      if (second.kind === "reply" || second.kind === "silence" || retryReason(second) === null) outcome = second;
+      if (next.kind === "reply" || next.kind === "silence" || retryReason(next) === null) {
+        outcome = next;
+        if (retryReason(next) === null) break;
+      }
     }
     const g = generator.telemetry();
     const projected = projectOutcome(outcome, {
